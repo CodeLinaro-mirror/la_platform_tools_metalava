@@ -554,59 +554,7 @@ private constructor(
      *
      * @return the parsed [Expr], or `null` if expression parsing failed.
      */
-    private fun parseExpr(): Expr? {
-        // Expect the function name identifier (e.g. "flag").
-        val functionNameToken = expect(JavadocTokenType.IDENTIFIER, "expected function name")
-        if (functionNameToken == Token.NONE) {
-            // If the function name is missing, skip tokens until closing parenthesis to recover.
-            skipUntilParenClose()
-            return null
-        }
-
-        return parseFunctionCall(functionNameToken)
-    }
-
-    /**
-     * Parse a function call expression, e.g. `flag(pkg.Flags.FLAG)`.
-     *
-     * @param functionNameToken the token for the function name (e.g. `flag`).
-     * @return the [Expr] representing the function call.
-     */
-    private fun parseFunctionCall(functionNameToken: Token): Expr {
-        // Expect opening parenthesis '(' for the function call arguments.
-        val parenOpen = expect(JavadocTokenType.PAREN_OPEN, "expected '(' after function name")
-        if (parenOpen == Token.NONE) {
-            // Missing '('; return an empty function call representation.
-            return FlagFunctionCall(null)
-        }
-
-        // Parse the qualified field reference argument: (IDENTIFIER DOT)* IDENTIFIER
-        val fieldReferenceTokens = mutableListOf<Token>()
-        if (peekType() == JavadocTokenType.IDENTIFIER) {
-            // Field reference starts with an identifier.
-            fieldReferenceTokens.add(consume())
-
-            // Parse any dot-separated qualification segments (e.g. '.Flags.FLAG').
-            while (peekType() == JavadocTokenType.DOT) {
-                fieldReferenceTokens.add(consume()) // add DOT
-                val nextIdent = expect(JavadocTokenType.IDENTIFIER, "expected identifier after '.'")
-                if (nextIdent != Token.NONE) {
-                    fieldReferenceTokens.add(nextIdent)
-                }
-            }
-        } else {
-            // Missing initial identifier: report invalid Javadoc.
-            val token = peek()
-            tokenIssueReporter.report(
-                token,
-                Issues.INVALID_JAVADOC,
-                "expected field reference, found '${text(token)}'",
-            )
-        }
-
-        expect(JavadocTokenType.PAREN_CLOSE, "expected ')' after field reference")
-        return exprBuilder.buildFunctionCall(functionNameToken, fieldReferenceTokens)
-    }
+    private fun parseExpr(): Expr? = exprBuilder.parseExpr(tokens)
 
     /**
      * Error recovery helper: skips tokens until a matching closing parenthesis `)` is found or a
