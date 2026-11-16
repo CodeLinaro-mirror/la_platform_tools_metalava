@@ -37,10 +37,11 @@ for (configName in listOf("apiElements", "runtimeElements")) {
 sourceSets {
     named("main") {
         java.setSrcDirs(listOf("../../../external/turbine/java"))
-        // Exclude CLI entry point and dependency proto generation which are not needed by
-        // metalava-model-turbine and would otherwise require running protoc.
+        // Exclude CLI entry point, bytecode lowering, and dependency proto generation which are not
+        // needed by metalava-model-turbine and would otherwise require running protoc.
         java.exclude(
             "com/google/turbine/deps/**",
+            "com/google/turbine/lower/**",
             "com/google/turbine/main/**",
         )
     }

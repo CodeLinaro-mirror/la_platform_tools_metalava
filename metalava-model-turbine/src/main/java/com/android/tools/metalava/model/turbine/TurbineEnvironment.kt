@@ -26,24 +26,21 @@ import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.google.common.collect.ImmutableList
-import com.google.common.collect.ImmutableMap
-import com.google.common.util.concurrent.MoreExecutors
 import com.google.turbine.binder.Binder
 import com.google.turbine.binder.Binder.BindingResult
 import com.google.turbine.binder.ClassPath
 import com.google.turbine.binder.ClassPathBinder
 import com.google.turbine.binder.JimageClassBinder
-import com.google.turbine.binder.Processing.ProcessorInfo
+import com.google.turbine.cache.StringCache
 import com.google.turbine.diag.SourceFile
 import com.google.turbine.diag.TurbineDiagnostic
 import com.google.turbine.diag.TurbineError
 import com.google.turbine.diag.TurbineLog
+import com.google.turbine.parallel.TurbineExecutor
 import com.google.turbine.parse.Parser
 import com.google.turbine.tree.Tree.CompUnit
 import java.io.File
 import java.nio.file.Paths
-import java.util.Optional
-import javax.lang.model.SourceVersion
 
 /** Encapsulates a [SourceSet] along with its parsed [allUnits] and bound [bindingResult]. */
 internal class BoundSources(
@@ -75,18 +72,22 @@ internal class TurbineEnvironment(
         reporter = reporter,
         tracer = tracer,
     ) {
+    private val executor = TurbineExecutor.direct()
+
+    private val stringCache = StringCache()
+
     private val bootclasspath: ClassPath by
         lazy(LazyThreadSafetyMode.NONE) {
             tracer.trace("turbine.bindBootclasspath") {
                 jdkHome?.let { home -> JimageClassBinder.bind(home.path) }
-                    ?: ClassPathBinder.bindClasspath(listOf())
+                    ?: ClassPathBinder.bindClasspath(executor, listOf())
             }
         }
 
     private val boundClassPath: ClassPath by
         lazy(LazyThreadSafetyMode.NONE) {
             tracer.trace("turbine.bindClasspath") {
-                ClassPathBinder.bindClasspath(classPath.map { it.toPath() })
+                ClassPathBinder.bindClasspath(executor, classPath.map { it.toPath() })
             }
         }
 
@@ -220,29 +221,16 @@ internal class TurbineEnvironment(
         val log = TurbineLog()
         var bindingResult: BindingResult? = null
         try {
-            // No annotation processors are used.
-            val annotationProcessorInfo =
-                ProcessorInfo.create(
-                    ImmutableList.of(),
-                    null,
-                    ImmutableMap.of(),
-                    SourceVersion.latest()
-                )
-
             tracer.trace("turbine.bind") {
-                MoreExecutors.newDirectExecutorService().use { executor ->
-                    // Bind the units
-                    bindingResult =
-                        Binder.bind(
-                            executor,
-                            log,
-                            units,
-                            boundClassPath,
-                            annotationProcessorInfo,
-                            bootclasspath,
-                            Optional.empty()
-                        )
-                }
+                val request =
+                    Binder.BindingRequest.builder()
+                        .units(units)
+                        .classpath(boundClassPath)
+                        .bootclasspath(bootclasspath)
+                        .build()
+
+                // Bind the units
+                bindingResult = Binder.bind(executor, log, request)
             }
         } catch (e: TurbineError) {
             // Catch the [TurbineError] and extract its diagnostics.
@@ -278,7 +266,7 @@ internal class TurbineEnvironment(
      */
     private fun parse(log: TurbineLog, sourceFile: SourceFile): CompUnit? =
         try {
-            Parser.parse(sourceFile)
+            Parser.parse(sourceFile, stringCache)
         } catch (e: TurbineError) {
             e.logAllDiagnostics(log)
             null
@@ -299,13 +287,17 @@ internal class TurbineEnvironment(
             // Ignore any that do not match the predicate.
             if (!predicate(diagnostic)) continue
 
-            val path = diagnostic.path()
             val location =
-                FileLocation.createLocation(
-                    Paths.get(path),
-                    line = diagnostic.line(),
-                    characterPosition = diagnostic.column()
-                )
+                diagnostic
+                    .path()
+                    .map { path ->
+                        FileLocation.createLocation(
+                            Paths.get(path),
+                            line = diagnostic.line(),
+                            characterPosition = diagnostic.column()
+                        )
+                    }
+                    .orElse(FileLocation.UNKNOWN)
             reporter.report(Issues.INVALID_SYNTAX, null, diagnostic.message(), location)
         }
         clear()
