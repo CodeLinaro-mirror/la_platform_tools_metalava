@@ -26,6 +26,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.api.flags.AdditionFlagState
 import com.android.tools.metalava.model.api.flags.FlagState
 import com.android.tools.metalava.model.api.flags.optionalFlagName
 import com.android.tools.metalava.model.api.surface.ApiVariant
@@ -112,8 +113,8 @@ sealed class SelectedApi {
 
     /**
      * Computes the [FlagState] contributed by [item] (including any addition `@FlaggedApi`
-     * inherited from a previously released enclosing class when [item] itself is unreleased and has
-     * no addition `@FlaggedApi` of its own).
+     * inherited from a previously released enclosing class or overridden [MethodItem.superMethods]
+     * when [item] itself is unreleased).
      */
     private fun computeOwnFlagState(item: SelectableItem): FlagState {
         // An item is in `RemovalFlagState.Removed` when all of its API variants are `REMOVED`
@@ -157,6 +158,20 @@ sealed class SelectedApi {
                     state =
                         state combineWith
                             FlagState.additionFlag(flagName, additionAnnotation.apiFlag?.action)
+                }
+            }
+
+            // Combine with any addition flags required by overridden super methods so both
+            // unflagged overrides of `@FlaggedApi` methods and overrides annotated with an
+            // additional `@FlaggedApi` require the overridden super methods' flags as well.
+            if (item is MethodItem) {
+                val superAddition = computeSuperMethodsAdditionFlagState(item)
+                if (superAddition !== AdditionFlagState.Finalized) {
+                    state =
+                        state combineWith
+                            FlagState(
+                                addition = superAddition,
+                            )
                 }
             }
         }
@@ -221,6 +236,56 @@ sealed class SelectedApi {
             cls = cls.containingClass()
         }
         return null
+    }
+
+    /**
+     * Compute the [AdditionFlagState] inherited by [method] from its overridden
+     * [MethodItem.superMethods].
+     *
+     * If at least one overridden active API super method is [AdditionFlagState.Finalized], returns
+     * [AdditionFlagState.Finalized] because [MethodSourceSelectedApi] keeps the override in the API
+     * as long as any overridden API method remains active. Otherwise, combines the addition states
+     * of all overridden active API super methods (recursing across hidden or package-private
+     * intermediate classes).
+     */
+    private fun computeSuperMethodsAdditionFlagState(method: MethodItem): AdditionFlagState {
+        var combinedFlagged: AdditionFlagState? = null
+
+        /**
+         * Recursively accumulates the [AdditionFlagState] of active API methods overridden by
+         * [current], returning `true` to short-circuit as soon as a [AdditionFlagState.Finalized]
+         * super method is found.
+         */
+        fun visitSuperMethods(current: MethodItem): Boolean {
+            for (superMethod in current.superMethods()) {
+                val superSelectedApi = superMethod.selectedApi
+                val superVariants = superSelectedApi.itemApiVariants
+                if (superVariants.isEmpty()) {
+                    // Hidden or package-private intermediate class; continue searching up its
+                    // super methods, matching MethodSourceSelectedApi.
+                    if (visitSuperMethods(superMethod)) return true
+                    continue
+                }
+                if (superVariants.isHiddenOrRemoved()) {
+                    continue
+                }
+                val superAddition = superSelectedApi.flagState.addition
+                if (superAddition === AdditionFlagState.Finalized) {
+                    combinedFlagged = AdditionFlagState.Finalized
+                    return true
+                }
+                combinedFlagged =
+                    if (combinedFlagged == null) {
+                        superAddition
+                    } else {
+                        combinedFlagged!! combineWith superAddition
+                    }
+            }
+            return false
+        }
+
+        visitSuperMethods(method)
+        return combinedFlagged ?: AdditionFlagState.Finalized
     }
 
     /**

@@ -695,6 +695,13 @@ class CommonFlagTest : BaseModelTest() {
                 ),
         ) {
             val flagA = FlagState.additionFlag("test.pkg.flags.flag_a", KEEP)
+            val bothFlags =
+                FlagState(
+                    addition =
+                        AdditionFlagState.Flagged(
+                            setOf("test.pkg.flags.flag_a", "test.pkg.flags.flag_b"),
+                        ),
+                )
             assertEquals(
                 flagA,
                 codebase
@@ -704,19 +711,18 @@ class CommonFlagTest : BaseModelTest() {
                     .flagState,
             )
 
-            // TODO(b/586831403): Unflagged overrides of a `@FlaggedApi` method are reverted when
-            //  the overridden method is reverted, so they should inherit `flag_a` instead of
-            //  having `FlagState.NONE`.
-            assertSame(
-                FlagState.NONE,
+            // Unflagged overrides of a `@FlaggedApi` method inherit `flag_a` (including
+            // transitively).
+            assertEquals(
+                flagA,
                 codebase
                     .assertClass("test.pkg.Sub")
                     .assertMethod("flaggedMethod", emptyList())
                     .selectedApi
                     .flagState,
             )
-            assertSame(
-                FlagState.NONE,
+            assertEquals(
+                flagA,
                 codebase
                     .assertClass("test.pkg.SubSub")
                     .assertMethod("flaggedMethod", emptyList())
@@ -736,10 +742,10 @@ class CommonFlagTest : BaseModelTest() {
                     .flagState,
             )
 
-            // TODO(b/586831403): When all overridden super methods are `@FlaggedApi`, the override
-            //  should inherit the combined flags (`flag_a`, `flag_b`).
-            assertSame(
-                FlagState.NONE,
+            // When all overridden super methods are `@FlaggedApi`, the override inherits their
+            // combined flags (`flag_a`, `flag_b`).
+            assertEquals(
+                bothFlags,
                 codebase
                     .assertClass("test.pkg.BothFlaggedSub")
                     .assertMethod("bothFlagged", emptyList())
@@ -783,10 +789,9 @@ class CommonFlagTest : BaseModelTest() {
                     apiFlags = ApiFlags(listOf(ApiFlag("test.pkg.flags.flag_a", KEEP))),
                 ),
         ) {
-            // TODO(b/586831403): Should inherit `flag_a` from `PublicRoot.foo()` across the
-            //  package-private intermediate class `PkgPrivateMiddle`.
-            assertSame(
-                FlagState.NONE,
+            val flagA = FlagState.additionFlag("test.pkg.flags.flag_a", KEEP)
+            assertEquals(
+                flagA,
                 codebase
                     .assertClass("test.pkg.PublicLeaf")
                     .assertMethod("foo", emptyList())

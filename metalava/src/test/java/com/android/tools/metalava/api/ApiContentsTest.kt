@@ -1050,13 +1050,7 @@ class ApiContentsTest : DriverTest() {
                     ),
                     flaggedApiSource,
                 ),
-            // TODO(b/586831403): `Sub.onProvide(FlaggedType)` overrides `@FlaggedApi` method
-            //  `Base.onProvide(FlaggedType)`, so it inherits `my_flag` and should not report
-            //  `ReferencesHidden`.
-            expectedIssues =
-                """
-                    src/test/pkg/Sub.java:4: error: Class test.pkg.FlaggedType is guarded by @FlaggedApi(test.pkg.my_flag) but was referenced (in parameter type) from public parameter value in test.pkg.Sub.onProvide(test.pkg.FlaggedType value) [ReferencesHidden]
-                """,
+            expectedIssues = "",
         )
     }
 }
