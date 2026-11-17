@@ -274,4 +274,75 @@ class DocCommentLexerTest : BaseDocCommentTest() {
                 """,
         )
     }
+
+    /**
+     * Verify that unprefixed block tags inside either branch of `@if` report `InvalidJavadoc` and
+     * still recover cleanly.
+     */
+    @Test
+    fun `Test unprefixed block tag inside @if reports InvalidJavadoc`() {
+        checkTokenize(
+            """
+                /**
+                 * @if (flag(Flags.MY_FLAG)) {
+                 *     @see First
+                 * } else {
+                 *     @see Second
+                 * }
+                 */
+            """,
+            expectedTokens =
+                """
+                    BLOCK_IF_TAG_START '@if'
+                    PAREN_OPEN '('
+                    IDENTIFIER 'flag'
+                    PAREN_OPEN '('
+                    IDENTIFIER 'Flags'
+                    DOT '.'
+                    IDENTIFIER 'MY_FLAG'
+                    PAREN_CLOSE ')'
+                    PAREN_CLOSE ')'
+                    BRACE_OPEN '{'
+                    BLOCK_TAG_START '@'
+                    BLOCK_TAG_NAME 'see'
+                    DESCRIPTION 'First'
+                    BRACE_CLOSE '}'
+                    IF_TAG_ELSE 'else'
+                    BRACE_OPEN '{'
+                    BLOCK_TAG_START '@'
+                    BLOCK_TAG_NAME 'see'
+                    DESCRIPTION 'Second'
+                    BRACE_CLOSE '}'
+                    EOF ''
+                """,
+            expectedIssues =
+                """
+                    3:8: block tag '@see' inside '@if' must be prefixed with ':' [InvalidJavadoc]
+                    5:8: block tag '@see' inside '@if' must be prefixed with ':' [InvalidJavadoc]
+                """,
+        )
+    }
+
+    /** Verify that a `:`-prefixed block tag outside `@if` reports `InvalidJavadoc`. */
+    @Test
+    fun `Test colon-prefixed block tag outside @if reports InvalidJavadoc`() {
+        checkTokenize(
+            """
+                /**
+                 * :@see First
+                 */
+            """,
+            expectedTokens =
+                """
+                    BLOCK_TAG_START ':@'
+                    BLOCK_TAG_NAME 'see'
+                    DESCRIPTION 'First'
+                    EOF ''
+                """,
+            expectedIssues =
+                """
+                    2:4: block tag '@see' outside '@if' must not be prefixed with ':' [InvalidJavadoc]
+                """,
+        )
+    }
 }

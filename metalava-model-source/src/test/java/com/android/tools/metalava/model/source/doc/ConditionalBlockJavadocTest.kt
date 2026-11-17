@@ -303,8 +303,6 @@ class ConditionalBlockJavadocTest : BaseDocCommentTest() {
      */
     @Test
     fun `Test unprefixed block tag in true or false branch reports InvalidJavadoc`() {
-        // TODO(b/586585311): Report a dedicated `must be prefixed with ':'` diagnostic and recover
-        //  by parsing the block tag instead of dropping the line as unexpected text.
         checkConditionalDocComment(
             input =
                 """
@@ -321,12 +319,15 @@ class ConditionalBlockJavadocTest : BaseDocCommentTest() {
             flags = mapOf("Flags.TEST_FLAG" to true),
             expectedPrintOutput =
                 """
-                    /** Summary. */
+                    /**
+                     * Summary.
+                     * @see resolved.First First
+                     */
                 """,
             expectedIssues =
                 """
-                    5:8: unexpected '@see First' in '@if' block, expected block tag prefixed with ':' or '}' [InvalidJavadoc]
-                    7:8: unexpected '@see Second' in '@if' block, expected block tag prefixed with ':' or '}' [InvalidJavadoc]
+                    5:8: block tag '@see' inside '@if' must be prefixed with ':' [InvalidJavadoc]
+                    7:8: block tag '@see' inside '@if' must be prefixed with ':' [InvalidJavadoc]
                 """,
         )
     }
@@ -334,8 +335,6 @@ class ConditionalBlockJavadocTest : BaseDocCommentTest() {
     /** Verify that a nested `@if` inside an outer `@if` must also be prefixed with `:`. */
     @Test
     fun `Test unprefixed nested @if inside @if reports InvalidJavadoc`() {
-        // TODO(b/586585311): Report `block tag '@if' inside '@if' must be prefixed with ':'` and
-        //  recover the nested `@if` branches without desynchronizing closing braces.
         checkConditionalDocComment(
             input =
                 """
@@ -354,8 +353,7 @@ class ConditionalBlockJavadocTest : BaseDocCommentTest() {
                 """,
             expectedIssues =
                 """
-                    3:8: unexpected '@if (flag(Flags.INNER_FLAG)) {' in '@if' block, expected block tag prefixed with ':' or '}' [InvalidJavadoc]
-                    6:4: unexpected '}' in block tag section [InvalidJavadoc]
+                    3:8: block tag '@if' inside '@if' must be prefixed with ':' [InvalidJavadoc]
                 """,
         )
     }
@@ -363,8 +361,6 @@ class ConditionalBlockJavadocTest : BaseDocCommentTest() {
     /** Verify that a `:`-prefixed block tag outside `@if` reports `InvalidJavadoc`. */
     @Test
     fun `Test colon-prefixed block tag outside @if reports InvalidJavadoc`() {
-        // TODO(b/586585311): Diagnose `:@<tag>` outside `@if` and recover as `@<tag>` instead of
-        //  silently treating it as plain description text.
         checkConditionalDocComment(
             input =
                 """
@@ -377,8 +373,12 @@ class ConditionalBlockJavadocTest : BaseDocCommentTest() {
                 """
                     /**
                      * Summary.
-                     * :@see First
+                     * @see resolved.First First
                      */
+                """,
+            expectedIssues =
+                """
+                    3:4: block tag '@see' outside '@if' must not be prefixed with ':' [InvalidJavadoc]
                 """,
         )
     }

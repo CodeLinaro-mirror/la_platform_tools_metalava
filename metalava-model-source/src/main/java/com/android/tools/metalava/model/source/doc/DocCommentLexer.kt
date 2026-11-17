@@ -103,9 +103,10 @@ private enum class DocCommentLexerMode {
  * [com.android.tools.metalava.model.source.javadoc.JavadocParser] execution until a section's
  * content is actually requested.
  *
- * Within `@if { ... } else { ... }` clauses, inner block tags are prefixed with `:` (e.g. `:@see`,
- * `:@deprecated`) so external tools such as `javac` and Error Prone do not interpret them as
- * standalone top-level block tags.
+ * Within `@if { ... } else { ... }` clauses, inner block tags must be prefixed with `:` (e.g.
+ * `:@see`, `:@deprecated`) so external tools such as `javac` and Error Prone do not interpret them
+ * as standalone top-level block tags. Unprefixed block tags inside `@if` (or `:`-prefixed block
+ * tags outside `@if`) are reported via [reporter] as [Issues.INVALID_JAVADOC] and recovered.
  *
  * @param text the full documentation comment text.
  * @param startInclusive the start offset of the comment body (after `/**`, if present).
@@ -285,7 +286,8 @@ internal class DocCommentLexer(
 
     /**
      * Emits [DocCommentTokenType.BLOCK_IF_TAG_START] (for `@if` / `:@if`) or
-     * [DocCommentTokenType.BLOCK_TAG_START] (for `@` / `:@`).
+     * [DocCommentTokenType.BLOCK_TAG_START] (for `@` / `:@`), validating the `:` prefix rule
+     * against [ifDepth].
      */
     private fun tokenizeBlockTagStart(): Token {
         val start = index
@@ -295,6 +297,25 @@ internal class DocCommentLexer(
         var nameEnd = nameStart
         while (nameEnd < endExclusive && isAsciiLetter(text[nameEnd])) {
             nameEnd++
+        }
+
+        // Enforce that block tags inside `@if` use the `:` prefix (hiding them from `javac` and
+        // other external tools) while top-level block tags outside `@if` do not, then continue
+        // tokenizing the tag normally to recover.
+        if (ifDepth > 0 && !hasColonPrefix) {
+            val tagName = text.substring(nameStart, nameEnd)
+            reportIssue(
+                Issues.INVALID_JAVADOC,
+                "block tag '@$tagName' inside '@if' must be prefixed with ':'",
+                start,
+            )
+        } else if (ifDepth == 0 && hasColonPrefix) {
+            val tagName = text.substring(nameStart, nameEnd)
+            reportIssue(
+                Issues.INVALID_JAVADOC,
+                "block tag '@$tagName' outside '@if' must not be prefixed with ':'",
+                start,
+            )
         }
 
         // Check `!isJavaIdentifierPart()` on the character after `if` so tags with longer names or
@@ -543,8 +564,7 @@ internal class DocCommentLexer(
     }
 
     /**
-     * Checks whether the line starting at [lineStart] begins with a block tag valid at the current
-     * [ifDepth] (`\h*\*?\h*@` at top level, or `\h*\*?\h*:@` inside `@if`).
+     * Checks whether the line starting at [lineStart] begins with `\h*\*?\h*:?@[a-zA-Z]`.
      *
      * @return the index of `:` or `@` if matched, or `-1` otherwise.
      */
@@ -578,19 +598,13 @@ internal class DocCommentLexer(
         return p
     }
 
-    /**
-     * Returns `true` if [offset] starts `@[a-zA-Z]` (when [ifDepth] == 0) or `:@[a-zA-Z]` (when
-     * [ifDepth] > 0).
-     */
+    /** Returns `true` if [offset] starts `@[a-zA-Z]` or `:@[a-zA-Z]`. */
     private fun isBlockTagAt(offset: Int): Boolean =
-        if (ifDepth > 0) {
-            offset + 2 < endExclusive &&
+        (offset + 1 < endExclusive && text[offset] == '@' && isAsciiLetter(text[offset + 1])) ||
+            (offset + 2 < endExclusive &&
                 text[offset] == ':' &&
                 text[offset + 1] == '@' &&
-                isAsciiLetter(text[offset + 2])
-        } else {
-            offset + 1 < endExclusive && text[offset] == '@' && isAsciiLetter(text[offset + 1])
-        }
+                isAsciiLetter(text[offset + 2]))
 
     /**
      * Returns the exclusive end index of `[startInclusive, endExclusive)` after stripping trailing
