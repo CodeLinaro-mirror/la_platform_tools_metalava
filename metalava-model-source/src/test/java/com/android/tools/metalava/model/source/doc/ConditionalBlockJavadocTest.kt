@@ -523,4 +523,177 @@ class ConditionalBlockJavadocTest : BaseDocCommentTest() {
                 """,
         )
     }
+
+    /**
+     * Verify that block tags placed inside an inline `{@if ...}` `else` branch (b/479490213) report
+     * `InvalidJavadoc` and do not leak out as unconditional block tags or leave extra `}}` braces
+     * when the flag is enabled.
+     */
+    @Test
+    fun `Test block tag inside inline {@if} when flag enabled`() {
+        // TODO(b/479490213): Report `InvalidJavadoc` on `@see` inside `{@if}` and do not emit
+        //  inactive `@see` tags or trailing `}}` braces.
+        checkConditionalDocComment(
+            input =
+                """
+                    /**
+                     * {@if (flag(Flags.TEST_FLAG)) {
+                     *     Wholly new Javadoc for the method, with no see tags.
+                     * } else {
+                     *     The old Javadoc for the method.
+                     *
+                     *     @see #someOtherMethod()
+                     *     @see #anotherMethod()
+                     * }}
+                     */
+                """,
+            flags = mapOf("Flags.TEST_FLAG" to true),
+            expectedPrintOutput =
+                """
+                    /**
+                     * Wholly new Javadoc for the method, with no see tags.
+                     *
+                     * @see #someOtherMethod()
+                     * @see #anotherMethod() }}
+                     */
+                """,
+            expectedIssues =
+                """
+                    6:3: expected '}' to close '@if' tag [InvalidJavadoc]
+                """,
+        ) { docComment ->
+            assertEquals(listOf("see", "see"), docComment.blockTagSections.map { it.tagType.name })
+        }
+    }
+
+    /**
+     * Verify that block tags placed inside an inline `{@if ...}` `else` branch report
+     * `InvalidJavadoc` without cascading unclosed-brace errors when the flag is disabled.
+     */
+    @Test
+    fun `Test block tag inside inline {@if} when flag disabled`() {
+        // TODO(b/479490213): Report `InvalidJavadoc` on `@see` inside `{@if}` instead of splitting
+        //  the comment mid-`{@if}`.
+        checkConditionalDocComment(
+            input =
+                """
+                    /**
+                     * {@if (flag(Flags.TEST_FLAG)) {
+                     *     Wholly new Javadoc for the method, with no see tags.
+                     * } else {
+                     *     The old Javadoc for the method.
+                     *
+                     *     @see #someOtherMethod()
+                     *     @see #anotherMethod()
+                     * }}
+                     * @return result
+                     */
+                """,
+            flags = mapOf("Flags.TEST_FLAG" to false),
+            expectedPrintOutput =
+                """
+                    /**
+                     * The old Javadoc for the method.
+                     *
+                     * @return result
+                     * @see #someOtherMethod()
+                     * @see #anotherMethod() }}
+                     */
+                """,
+            expectedIssues =
+                """
+                    6:3: expected '}' to close '@if' tag [InvalidJavadoc]
+                    6:3: expected '}' to close else branch [InvalidJavadoc]
+                """,
+        ) { docComment ->
+            assertEquals(
+                listOf("see", "see", "return"),
+                docComment.blockTagSections.map { it.tagType.name },
+            )
+        }
+    }
+
+    /**
+     * Verify that a block tag inside an inline `{@if ...}` within a block tag's own description
+     * also reports `InvalidJavadoc`.
+     */
+    @Test
+    fun `Test block tag inside inline {@if} in block tag description`() {
+        // TODO(b/479490213): Report `InvalidJavadoc` for `:@see` inside `{@if}` rather than
+        //  splitting `@deprecated`'s description mid-`{@if}`.
+        checkConditionalDocComment(
+            input =
+                """
+                    /**
+                     * Summary.
+                     *
+                     * @deprecated {@if (flag(Flags.TEST_FLAG)) {
+                     *     Use {@link First} instead.
+                     *     :@see First
+                     * }}
+                     */
+                """,
+            flags = mapOf("Flags.TEST_FLAG" to true),
+            expectedPrintOutput =
+                """
+                    /**
+                     * Summary.
+                     *
+                     * @see resolved.First }}
+                     * @deprecated Use {@link resolved.First First} instead.
+                     */
+                """,
+            expectedIssues =
+                """
+                    5:34: expected '}' to close '@if' tag [InvalidJavadoc]
+                    5:34: expected '}' to close true branch [InvalidJavadoc]
+                    6:8: block tag '@see' outside '@if' must not be prefixed with ':' [InvalidJavadoc]
+                """,
+        )
+    }
+
+    /**
+     * Verify that line-starting `@<name>` sequences inside a multi-line `{@code ...}` block within
+     * an inline `{@if ...}` tag report `InvalidJavadoc` without reporting `InvalidIfTag` or
+     * splitting the description.
+     */
+    @Test
+    fun `Test block tag inside @code within inline {@if} reports InvalidJavadoc`() {
+        // TODO(b/479490213): Track `{@code}` and `{@if}` braces and report `InvalidJavadoc` on
+        //  `@Override` instead of splitting `{@code}` into a separate `@Override` block tag.
+        checkConditionalDocComment(
+            input =
+                """
+                    /**
+                     * {@if (flag(Flags.TEST_FLAG)) {
+                     *     Example:
+                     *     <pre>{@code
+                     *     @Override
+                     *     void foo() {
+                     *     }
+                     *     }</pre>
+                     * }}
+                     */
+                """,
+            flags = mapOf("Flags.TEST_FLAG" to true),
+            expectedPrintOutput =
+                """
+                    /**
+                     * Example:
+                     *     <pre>{@code}
+                     *
+                     * @Override void foo() {
+                     *     }
+                     *     }</pre>
+                     * }}
+                     */
+                """,
+            expectedIssues =
+                """
+                    4:13: unclosed inline '@code' tag [UnclosedInlineTag]
+                    4:19: expected '}' to close '@if' tag [InvalidJavadoc]
+                    4:19: expected '}' to close true branch [InvalidJavadoc]
+                """,
+        )
+    }
 }

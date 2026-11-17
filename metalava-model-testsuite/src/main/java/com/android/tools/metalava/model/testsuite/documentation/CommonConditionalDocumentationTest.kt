@@ -533,4 +533,84 @@ class CommonConditionalDocumentationTest : BaseModelTest() {
             )
         }
     }
+
+    /**
+     * Verify that attempting to place `@see` block tags inside an inline `{@if ...}` tag reports
+     * `InvalidJavadoc` issues and does not leak inactive `@see` tags or trailing `}}` into printed
+     * documentation (b/479490213).
+     */
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test block tag inside inline if tag reports InvalidJavadoc`() {
+        // TODO(b/479490213): Report `InvalidJavadoc` issues on `@see` inside `{@if}` and do not
+        //  leak inactive `@see` tags or trailing `}}` into printed documentation.
+        runSourceCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Test {
+                            /**
+                             * {@if (flag(Flags.FLAG)) {
+                             *     Wholly new Javadoc for the method, with no see tags.
+                             * } else {
+                             *     The old Javadoc for the method.
+                             *
+                             *     @see #someOtherMethod()
+                             *     @see #anotherMethod()
+                             * }}
+                             */
+                            public void foo() {}
+
+                            public void someOtherMethod() {}
+
+                            public void anotherMethod() {}
+                        }
+                    """,
+                ),
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Flags {
+                            public static final String FLAG = "flag";
+                        }
+                    """,
+                ),
+            ),
+            testFixture =
+                TestFixture(
+                    apiFlags =
+                        ApiFlags(
+                            listOf(
+                                ApiFlag(
+                                    "flag",
+                                    ApiFlagAction.KEEP,
+                                    isExported = true,
+                                ),
+                            ),
+                        ),
+                ),
+        ) {
+            val fooMethod = codebase.assertClass("test.pkg.Test").assertMethod("foo", emptyList())
+            fooMethod.assertPrintedDocumentation(
+                expectedOutput =
+                    """
+                        /**
+                         * Wholly new Javadoc for the method, with no see tags.
+                         *
+                         * @see #someOtherMethod()
+                         * @see #anotherMethod() }}
+                         */
+                    """,
+            )
+
+            assertAndRemoveReportedIssues(
+                """
+                    MAIN_SRC/src/test/pkg/Test.java:9:7: warning: expected '}' to close '@if' tag (ErrorWhenNew) [InvalidJavadoc]
+                """,
+            )
+        }
+    }
 }

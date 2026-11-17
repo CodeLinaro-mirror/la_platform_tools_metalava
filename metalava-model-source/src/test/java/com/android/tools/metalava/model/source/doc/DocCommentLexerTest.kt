@@ -345,4 +345,125 @@ class DocCommentLexerTest : BaseDocCommentTest() {
                 """,
         )
     }
+
+    /**
+     * Verify that block tags (`@<tag>` or `:@<tag>`) inside an inline `{@if ...}` tag report
+     * `InvalidJavadoc` without splitting the description, while block tags after `{@if}` closes are
+     * still tokenized normally.
+     */
+    @Test
+    fun `Test block tag inside inline {@if} reports InvalidJavadoc`() {
+        // TODO(b/479490213): Report `InvalidJavadoc` for block tags inside inline `{@if ...}` tags
+        //  and keep scanning until `{@if}` closes instead of splitting into `BlockTagSection`s.
+        checkTokenize(
+            """
+                /**
+                 * {@if (flag(Flags.MY_FLAG)) {
+                 *     New Javadoc.
+                 *     :@see Ignored
+                 * } else {
+                 *     Old Javadoc.
+                 *
+                 *     @see First
+                 *     @see Second
+                 * }}
+                 * @return result
+                 */
+            """,
+            expectedTokens =
+                """
+                    DESCRIPTION '\n * {@if (flag(Flags.MY_FLAG)) {\n *     New Javadoc.'
+                    BLOCK_TAG_START ':@'
+                    BLOCK_TAG_NAME 'see'
+                    DESCRIPTION 'Ignored\n * } else {\n *     Old Javadoc.\n *'
+                    BLOCK_TAG_START '@'
+                    BLOCK_TAG_NAME 'see'
+                    DESCRIPTION 'First'
+                    BLOCK_TAG_START '@'
+                    BLOCK_TAG_NAME 'see'
+                    DESCRIPTION 'Second\n * }}'
+                    BLOCK_TAG_START '@'
+                    BLOCK_TAG_NAME 'return'
+                    DESCRIPTION 'result'
+                    EOF ''
+                """,
+            expectedIssues =
+                """
+                    4:8: block tag '@see' outside '@if' must not be prefixed with ':' [InvalidJavadoc]
+                """,
+        )
+    }
+
+    /**
+     * Verify that line-starting `@<name>` sequences inside `{@code ...}` or `{@literal ...}` report
+     * `InvalidJavadoc` without splitting the description, whether nested inside `{@if}`, wrapping
+     * `{@if}`, or used at the top level.
+     */
+    @Test
+    fun `Test block tag inside {@code} or {@literal} reports InvalidJavadoc`() {
+        // TODO(b/479490213): Track inline tag braces and report `InvalidJavadoc` for block tags
+        //  inside `{@code}` or `{@literal}` instead of splitting the description.
+        checkTokenize(
+            """
+                /**
+                 * {@if (flag(Flags.MY_FLAG)) {
+                 *     <pre>{@code
+                 *     @Override
+                 *     void foo() {}
+                 *     }</pre>
+                 * }}
+                 * <pre>{@literal
+                 * {@if (flag(Flags.MY_FLAG)) {
+                 * @Deprecated
+                 * }}
+                 * }</pre>
+                 * <pre>{@code
+                 * @SuppressWarnings("all")
+                 * }</pre>
+                 */
+            """,
+            expectedTokens =
+                """
+                    DESCRIPTION '\n * {@if (flag(Flags.MY_FLAG)) {\n *     <pre>{@code'
+                    BLOCK_TAG_START '@'
+                    BLOCK_TAG_NAME 'Override'
+                    DESCRIPTION '\n *     void foo() {}\n *     }</pre>\n * }}\n * <pre>{@literal\n * {@if (flag(Flags.MY_FLAG)) {'
+                    BLOCK_TAG_START '@'
+                    BLOCK_TAG_NAME 'Deprecated'
+                    DESCRIPTION '\n * }}\n * }</pre>\n * <pre>{@code'
+                    BLOCK_TAG_START '@'
+                    BLOCK_TAG_NAME 'SuppressWarnings'
+                    DESCRIPTION '("all")\n * }</pre>'
+                    EOF ''
+                """,
+        )
+    }
+
+    /**
+     * Verify that an unclosed inline tag before top-level block tags (such as `@param` or `@hide`)
+     * does not swallow subsequent block tags into the description.
+     */
+    @Test
+    fun `Test unclosed inline tag before block tag does not swallow block tag`() {
+        checkTokenize(
+            """
+                /**
+                 * Returns {@link Foo without closing brace.
+                 *
+                 * @param x value
+                 * @hide
+                 */
+            """,
+            expectedTokens =
+                """
+                    DESCRIPTION '\n * Returns {@link Foo without closing brace.\n *'
+                    BLOCK_TAG_START '@'
+                    BLOCK_TAG_NAME 'param'
+                    DESCRIPTION 'x value'
+                    BLOCK_TAG_START '@'
+                    BLOCK_TAG_NAME 'hide'
+                    EOF ''
+                """,
+        )
+    }
 }
