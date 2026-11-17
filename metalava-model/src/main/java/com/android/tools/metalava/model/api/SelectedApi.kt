@@ -115,30 +115,37 @@ sealed class SelectedApi {
         // An item is in `RemovalFlagState.Removed` when all of its API variants are `REMOVED`
         // (i.e. it is non-empty and `isHiddenOrRemoved()` is true).
         val isRemoved = itemApiVariants.isNotEmpty() && itemApiVariants.isHiddenOrRemoved()
-        val baseState = if (isRemoved) FlagState.REMOVED else FlagState.NONE
+        var state = if (isRemoved) FlagState.REMOVED else FlagState.NONE
 
-        // If the item is reverting to a previously released item, or its own `@FlaggedApi`
-        // annotation was invalidated (e.g. an invalid `@RemovedFromApi @FlaggedApi` override of an
-        // active superclass method), its own `@FlaggedApi` annotation does not apply.
-        if (revertItem != null || ignoreOwnFlaggedApi) return baseState
+        // If the item is reverting to a previously released item, its `@FlaggedApi` annotations do
+        // not apply.
+        if (revertItem != null) return state
 
-        val annotation = findDirectFlaggedApi(item) ?: return baseState
+        val directAnnotation = if (ignoreOwnFlaggedApi) null else findDirectFlaggedApi(item)
 
-        val flagName = annotation.optionalFlagName
-        if (flagName.isNullOrEmpty()) return baseState
-        val action = annotation.apiFlag?.action
-        val flagState =
-            when {
-                // `@RemovedFromApi` + `@FlaggedApi` schedules removal (checked before
-                // `wasPreviouslyReleased()` because scheduled removal applies to released APIs).
-                hasRemovedAnnotation() -> FlagState.removalFlag(flagName, action)
-
-                // An addition `@FlaggedApi` on an already-released item cannot strip it from the
-                // API.
-                wasPreviouslyReleased() -> FlagState.NONE
-                else -> FlagState.additionFlag(flagName, action)
+        // `@RemovedFromApi` + `@FlaggedApi` schedules removal (checked independently of
+        // `wasPreviouslyReleased()` because scheduled removal applies to released APIs).
+        if (hasRemovedAnnotation() && directAnnotation != null) {
+            val flagName = directAnnotation.optionalFlagName
+            if (!flagName.isNullOrEmpty()) {
+                state =
+                    state combineWith
+                        FlagState.removalFlag(flagName, directAnnotation.apiFlag?.action)
             }
-        return baseState combineWith flagState
+        }
+
+        // An addition `@FlaggedApi` on an already-released item cannot strip it from the API, so
+        // addition flags only apply when `!wasPreviouslyReleased()`.
+        if (!wasPreviouslyReleased() && !hasRemovedAnnotation() && directAnnotation != null) {
+            val flagName = directAnnotation.optionalFlagName
+            if (!flagName.isNullOrEmpty()) {
+                state =
+                    state combineWith
+                        FlagState.additionFlag(flagName, directAnnotation.apiFlag?.action)
+            }
+        }
+
+        return state
     }
 
     /**
