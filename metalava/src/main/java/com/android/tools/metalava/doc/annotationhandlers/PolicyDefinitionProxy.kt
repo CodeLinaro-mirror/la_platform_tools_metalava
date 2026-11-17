@@ -78,7 +78,7 @@ class PolicyDefinitionProxy(
             reporter.report(
                 Issues.INVALID_DEVICE_POLICY_ANNOTATION,
                 item,
-                "'allowedScopes' is empty on $item: Must provide at least one scope"
+                "'allowedScopes' is empty on $item: Must provide at least one scope",
             )
         }
     }
@@ -92,7 +92,7 @@ class PolicyDefinitionProxy(
             reporter.report(
                 Issues.INVALID_DEVICE_POLICY_ANNOTATION,
                 item,
-                "Cannot find permission field for $value required by $item (may be hidden or removed)"
+                "Cannot find permission field for $value required by $item (may be hidden or removed)",
             )
             value
         } else {
@@ -100,7 +100,7 @@ class PolicyDefinitionProxy(
                 reporter.report(
                     Issues.INVALID_DEVICE_POLICY_ANNOTATION,
                     item,
-                    "Permission $value required by $item is hidden or removed"
+                    "Permission $value required by $item is hidden or removed",
                 )
                 value
             }
@@ -123,10 +123,7 @@ class PolicyDefinitionProxy(
                     AllowedDpcType.MANAGED_PROFILE_OWNER_OF_ORGANIZATION_OWNED_DEVICE,
                 )
             "android.permission.MANAGE_DEVICE_POLICY_ACROSS_USERS_FULL" ->
-                listOf(
-                    AllowedDpcType.DEVICE_OWNER,
-                    AllowedDpcType.FINANCED_DEVICE_OWNER,
-                )
+                listOf(AllowedDpcType.DEVICE_OWNER, AllowedDpcType.FINANCED_DEVICE_OWNER)
             "android.permission.MANAGE_DEVICE_POLICY_ACROSS_USERS_SECURITY_CRITICAL" ->
                 listOf(
                     AllowedDpcType.DEVICE_OWNER,
@@ -141,7 +138,7 @@ class PolicyDefinitionProxy(
                 reporter.report(
                     Issues.INVALID_DEVICE_POLICY_ANNOTATION,
                     item,
-                    "Unknown cross-user permission: $crossUserPermission"
+                    "Unknown cross-user permission: $crossUserPermission",
                 )
                 emptyList()
             }
@@ -149,7 +146,7 @@ class PolicyDefinitionProxy(
 
     private fun getAllowedDPCTypesForScope(
         crossUserPermission: String,
-        scope: Int
+        scope: Int,
     ): List<AllowedDpcType> {
         return if (scope == PolicyScope.USER.id) {
             allowedDpcTypes.toList()
@@ -178,7 +175,7 @@ class PolicyDefinitionProxy(
             add(
                 TableRow(
                     "Supported users",
-                    "Full users only (does not support profiles including work profiles)."
+                    "Full users only (does not support profiles including work profiles).",
                 )
             )
         }
@@ -198,7 +195,7 @@ class PolicyDefinitionProxy(
                     formatSettableByEntry(
                         scope = "<code>User</code>",
                         permission = permission,
-                        dpcTypes = allowedDpcDoc
+                        dpcTypes = allowedDpcDoc,
                     )
                 )
             }
@@ -239,19 +236,19 @@ class PolicyDefinitionProxy(
                             scope = "<code>Login screen</code>",
                             permission = permission,
                             dpcTypes = allowedDpcDoc,
-                            leadingWords = "Moreover"
+                            leadingWords = "Moreover",
                         )
                     } else if (hasUser || hasDevice || hasParent) {
                         formatAlsoSettableByEntry(
                             scope = "<code>Login screen</code>",
                             permission = permission,
-                            dpcTypes = allowedDpcDoc
+                            dpcTypes = allowedDpcDoc,
                         )
                     } else {
                         formatSettableByEntry(
                             scope = "<code>Login screen</code>",
                             permission = permission,
-                            dpcTypes = allowedDpcDoc
+                            dpcTypes = allowedDpcDoc,
                         )
                     }
                 )
@@ -261,6 +258,41 @@ class PolicyDefinitionProxy(
         }
 
         add(TableRow("Resources affected", getResourceName(affectedResource)))
+    }
+
+    /**
+     * Unwinds the specified changes, returning a new proxy reflecting the state before the changes.
+     */
+    fun unwind(changes: List<PolicyChange>): PolicyDefinitionProxy {
+        var newScopes = allowedScopes
+        var newDpcTypes = allowedDpcTypes
+        var newCrossUserPermission = requiredCrossUserPermission
+
+        for (change in changes) {
+            when (change) {
+                is PolicyChange.AllowedScope -> {
+                    newScopes = newScopes.filter { it != change.scope.id }
+                }
+                is PolicyChange.AllowedDpc -> {
+                    newDpcTypes = newDpcTypes - change.dpcType
+                }
+                is PolicyChange.CrossUserPermission -> {
+                    newCrossUserPermission = change.previous
+                }
+                is PolicyChange.EnumValue -> {}
+            }
+        }
+
+        return PolicyDefinitionProxy(
+            item = item,
+            allowedScopes = newScopes,
+            affectedResource = affectedResource,
+            requiredPermission = requiredPermission,
+            requiredCrossUserPermission = newCrossUserPermission,
+            applyOnFullUsersOnly = applyOnFullUsersOnly,
+            allowedDpcTypes = newDpcTypes,
+            allowedRoles = allowedRoles,
+        )
     }
 
     private fun formatPermissions(first: String?, second: String?): String? {
@@ -276,7 +308,7 @@ class PolicyDefinitionProxy(
     private fun formatSettableByEntry(
         scope: String,
         permission: String?,
-        dpcTypes: String?
+        dpcTypes: String?,
     ): String {
         return if (permission == null && dpcTypes == null) {
             "<p>This policy can be set with scope ${scope}.</p>\n"
