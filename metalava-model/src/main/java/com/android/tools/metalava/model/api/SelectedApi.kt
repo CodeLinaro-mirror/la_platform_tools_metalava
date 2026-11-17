@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.api
 
 import com.android.tools.metalava.model.ANDROID_FLAGGED_API
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
@@ -121,16 +122,7 @@ sealed class SelectedApi {
         // active superclass method), its own `@FlaggedApi` annotation does not apply.
         if (revertItem != null || ignoreOwnFlaggedApi) return baseState
 
-        // Find any `@FlaggedApi` annotation directly on `item` (or on its exposed backing field
-        // when `item` is a Kotlin `PropertyItem` annotated with `@field:FlaggedApi`).
-        val annotation =
-            item.modifiers.findAnnotation(ANDROID_FLAGGED_API)
-                ?: (item as? PropertyItem)
-                    ?.backingField
-                    ?.takeIf { it.modifiers.hasApiVisibility() }
-                    ?.modifiers
-                    ?.findAnnotation(ANDROID_FLAGGED_API)
-                ?: return baseState
+        val annotation = findDirectFlaggedApi(item) ?: return baseState
 
         val flagName = annotation.optionalFlagName
         if (flagName.isNullOrEmpty()) return baseState
@@ -148,6 +140,18 @@ sealed class SelectedApi {
             }
         return baseState combineWith flagState
     }
+
+    /**
+     * Find any `@FlaggedApi` annotation directly on [target] (or on its exposed backing field when
+     * [target] is a Kotlin [PropertyItem] annotated with `@field:FlaggedApi`).
+     */
+    private fun findDirectFlaggedApi(target: SelectableItem): AnnotationItem? =
+        target.modifiers.findAnnotation(ANDROID_FLAGGED_API)
+            ?: (target as? PropertyItem)
+                ?.backingField
+                ?.takeIf { it.modifiers.hasApiVisibility() }
+                ?.modifiers
+                ?.findAnnotation(ANDROID_FLAGGED_API)
 
     /**
      * Checks to see if the associated [SelectableItem] contains any removed annotations (or was
