@@ -494,6 +494,7 @@ class CommonFlagTest : BaseModelTest() {
                         previouslyReleasedCodebase = previousCodebase,
                     ),
             ) {
+                val outerFlagged = FlagState.additionFlag("test.pkg.flags.outer_flag", KEEP)
                 val innerFlagged = FlagState.additionFlag("test.pkg.flags.inner_flag", KEEP)
 
                 val outer = codebase.assertClass("test.pkg.ReleasedOuter")
@@ -504,11 +505,10 @@ class CommonFlagTest : BaseModelTest() {
                     outer.assertMethod("releasedMethod", emptyList()).selectedApi.flagState,
                 )
 
-                // TODO(b/586831403): New unflagged members and nested classes in a previously
-                //  released @FlaggedApi class are reverted when the class's flag is reverted, so
-                //  they should inherit `outer_flag` instead of having `FlagState.NONE`.
-                assertSame(
-                    FlagState.NONE,
+                // New unflagged members and nested classes in a previously released @FlaggedApi
+                // class inherit `outer_flag`.
+                assertEquals(
+                    outerFlagged,
                     outer.assertMethod("newUnflaggedMethod", emptyList()).selectedApi.flagState,
                 )
 
@@ -521,9 +521,7 @@ class CommonFlagTest : BaseModelTest() {
 
                 val newSystemMethod = outer.assertMethod("newSystemMethod", emptyList())
                 newSystemMethod.assertItemApiVariants("ApiVariantSet[main(C)]")
-
-                // TODO(b/586831403): Should inherit `outer_flag` across extending API surfaces.
-                assertSame(FlagState.NONE, newSystemMethod.selectedApi.flagState)
+                assertEquals(outerFlagged, newSystemMethod.selectedApi.flagState)
 
                 // An unflagged `@removed` member inside a CORE-only `@FlaggedApi` class does not
                 // inherit the CORE class's addition flag.
@@ -533,21 +531,17 @@ class CommonFlagTest : BaseModelTest() {
                 assertSame(FlagState.REMOVED, unflaggedRemovedMethod.selectedApi.flagState)
 
                 val newNested = codebase.assertClass("test.pkg.ReleasedOuter.NewUnflaggedNested")
-
-                // TODO(b/586831403): Should inherit `outer_flag` instead of `FlagState.NONE`.
-                assertSame(FlagState.NONE, newNested.selectedApi.flagState)
-                assertSame(
-                    FlagState.NONE,
+                assertEquals(outerFlagged, newNested.selectedApi.flagState)
+                assertEquals(
+                    outerFlagged,
                     newNested.assertMethod("method", emptyList()).selectedApi.flagState,
                 )
 
                 val newSystemNested = codebase.assertClass("test.pkg.ReleasedOuter.NewSystemNested")
                 newSystemNested.assertItemApiVariants("ApiVariantSet[main(C)]")
-
-                // TODO(b/586831403): Should inherit `outer_flag` across extending API surfaces.
-                assertSame(FlagState.NONE, newSystemNested.selectedApi.flagState)
-                assertSame(
-                    FlagState.NONE,
+                assertEquals(outerFlagged, newSystemNested.selectedApi.flagState)
+                assertEquals(
+                    outerFlagged,
                     newSystemNested.assertMethod("method", emptyList()).selectedApi.flagState,
                 )
 
@@ -556,10 +550,8 @@ class CommonFlagTest : BaseModelTest() {
                 newDocOnlyNested.assertItemApiVariants("ApiVariantSet[base(D)]")
                 val newDocOnlyMethod = newDocOnlyNested.assertMethod("method", emptyList())
                 newDocOnlyMethod.assertItemApiVariants("ApiVariantSet[base(D)]")
-
-                // TODO(b/586831403): Should inherit `outer_flag` onto `@DocOnly` items.
-                assertSame(FlagState.NONE, newDocOnlyNested.selectedApi.flagState)
-                assertSame(FlagState.NONE, newDocOnlyMethod.selectedApi.flagState)
+                assertEquals(outerFlagged, newDocOnlyNested.selectedApi.flagState)
+                assertEquals(outerFlagged, newDocOnlyMethod.selectedApi.flagState)
 
                 val releasedNested = codebase.assertClass("test.pkg.ReleasedOuter.ReleasedNested")
                 assertSame(FlagState.NONE, releasedNested.selectedApi.flagState)
@@ -570,10 +562,8 @@ class CommonFlagTest : BaseModelTest() {
                         .selectedApi
                         .flagState,
                 )
-
-                // TODO(b/586831403): Should inherit `outer_flag` instead of `FlagState.NONE`.
-                assertSame(
-                    FlagState.NONE,
+                assertEquals(
+                    outerFlagged,
                     releasedNested
                         .assertMethod("newNestedMethod", emptyList())
                         .selectedApi
@@ -594,10 +584,13 @@ class CommonFlagTest : BaseModelTest() {
                 val newSystemRemoved =
                     releasedRemovedOuter.assertMethod("newSystemRemovedMethod", emptyList())
                 newSystemRemoved.assertItemApiVariants("ApiVariantSet[main(R)]")
-
-                // TODO(b/586831403): Should inherit `outer_flag` from the previously released
-                //  `@removed` outer class across extending API surfaces.
-                assertSame(FlagState.REMOVED, newSystemRemoved.selectedApi.flagState)
+                assertEquals(
+                    FlagState(
+                        addition = AdditionFlagState.Flagged(setOf("test.pkg.flags.outer_flag")),
+                        removal = RemovalFlagState.Removed,
+                    ),
+                    newSystemRemoved.selectedApi.flagState,
+                )
             }
         }
     }

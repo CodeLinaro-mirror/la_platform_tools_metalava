@@ -110,7 +110,11 @@ sealed class SelectedApi {
         }
     }
 
-    /** Computes the [FlagState] directly contributed by [item] without enclosing class flags. */
+    /**
+     * Computes the [FlagState] contributed by [item] (including any addition `@FlaggedApi`
+     * inherited from a previously released enclosing class when [item] itself is unreleased and has
+     * no addition `@FlaggedApi` of its own).
+     */
     private fun computeOwnFlagState(item: SelectableItem): FlagState {
         // An item is in `RemovalFlagState.Removed` when all of its API variants are `REMOVED`
         // (i.e. it is non-empty and `isHiddenOrRemoved()` is true).
@@ -134,14 +138,26 @@ sealed class SelectedApi {
             }
         }
 
-        // An addition `@FlaggedApi` on an already-released item cannot strip it from the API, so
-        // addition flags only apply when `!wasPreviouslyReleased()`.
-        if (!wasPreviouslyReleased() && !hasRemovedAnnotation() && directAnnotation != null) {
-            val flagName = directAnnotation.optionalFlagName
-            if (!flagName.isNullOrEmpty()) {
-                state =
-                    state combineWith
-                        FlagState.additionFlag(flagName, directAnnotation.apiFlag?.action)
+        // An addition `@FlaggedApi` only applies if `item` was not previously released. If `item`
+        // has no direct addition `@FlaggedApi` (either unannotated, invalidated, or paired with a
+        // removed annotation), inherit the nearest compatible enclosing class's non-removal
+        // `@FlaggedApi` annotation so newly added unflagged items inside an already-released
+        // `@FlaggedApi` class inherit that class's flag (matching `SelectedApiUpdater` and
+        // `JavaStubWriter`).
+        if (!wasPreviouslyReleased()) {
+            val additionAnnotation =
+                if (!hasRemovedAnnotation() && directAnnotation != null) {
+                    directAnnotation
+                } else {
+                    findInheritedEnclosingFlaggedApi(item, isRemoved)
+                }
+            if (additionAnnotation != null) {
+                val flagName = additionAnnotation.optionalFlagName
+                if (!flagName.isNullOrEmpty()) {
+                    state =
+                        state combineWith
+                            FlagState.additionFlag(flagName, additionAnnotation.apiFlag?.action)
+                }
             }
         }
 
@@ -159,6 +175,53 @@ sealed class SelectedApi {
                 ?.takeIf { it.modifiers.hasApiVisibility() }
                 ?.modifiers
                 ?.findAnnotation(ANDROID_FLAGGED_API)
+
+    /**
+     * Walk up [item]'s enclosing classes to find the nearest visible enclosing class with a
+     * compatible non-removal `@FlaggedApi` annotation.
+     *
+     * Even when an enclosing class was previously released (so its own [flagState] is
+     * [FlagState.NONE]), [SelectedApiUpdater], `JavaStubWriter`, and `SignatureWriter` propagate
+     * its `@FlaggedApi` annotation to newly added unflagged members and nested classes enclosed
+     * within it — including those in wider extending API surfaces (e.g. `@SystemApi` inside a
+     * `public` class) or `@doconly` variants.
+     */
+    private fun findInheritedEnclosingFlaggedApi(
+        item: SelectableItem,
+        isRemoved: Boolean,
+    ): AnnotationItem? {
+        var cls = item.containingClass()
+        while (cls != null) {
+            val clsSelectedApi = cls.selectedApi
+            val clsVariants = clsSelectedApi.itemApiVariants
+
+            // Hidden enclosing classes belong to no API variants and do not propagate flags.
+            if (clsVariants.isEmpty()) break
+
+            // Match removed items only against enclosing classes with a `REMOVED` variant (on any
+            // surface) so `@removed` members do not inherit addition flags from `CORE`-only
+            // classes, and match non-removed items against any active (`CORE` or `DOC_ONLY`)
+            // enclosing class across surfaces.
+            val compatibleVariants =
+                if (isRemoved) {
+                    clsVariants.containsAny(ApiVariantSet.ALL_REMOVED)
+                } else {
+                    !clsVariants.isHiddenOrRemoved()
+                }
+
+            // Skip enclosing classes whose `@FlaggedApi` is a removal flag or was invalidated.
+            if (
+                compatibleVariants &&
+                    !clsSelectedApi.hasRemovedAnnotation() &&
+                    !clsSelectedApi.ignoreOwnFlaggedApi
+            ) {
+                val annotation = findDirectFlaggedApi(cls)
+                if (annotation != null) return annotation
+            }
+            cls = cls.containingClass()
+        }
+        return null
+    }
 
     /**
      * Checks to see if the associated [SelectableItem] contains any removed annotations (or was

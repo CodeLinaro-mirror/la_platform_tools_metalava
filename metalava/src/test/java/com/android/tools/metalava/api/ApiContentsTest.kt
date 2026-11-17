@@ -884,13 +884,7 @@ class ApiContentsTest : DriverTest() {
                     ),
                     flaggedApiSource,
                 ),
-            // TODO(b/586831403): `ReleasedClass.getNew()` is a new unflagged member inside a
-            //  previously released `@FlaggedApi("test.pkg.my_flag")` class, so it inherits
-            //  `my_flag` and should not report `ReferencesHidden`.
-            expectedIssues =
-                """
-                    src/test/pkg/ReleasedClass.java:7: error: Class test.pkg.FlaggedType is guarded by @FlaggedApi(test.pkg.my_flag) but was referenced (in return type) from public method test.pkg.ReleasedClass.getNew() [ReferencesHidden]
-                """,
+            expectedIssues = "",
         )
     }
 
@@ -978,15 +972,9 @@ class ApiContentsTest : DriverTest() {
                     ),
                     flaggedApiSource,
                 ),
-
-            // TODO(b/586831403): `getNewSystem()` and `NewSystemNested` are new `@SystemApi` items
-            //  inside a previously released `public` `@FlaggedApi("test.pkg.my_flag")` class, so
-            //  they should inherit `my_flag` (allowing references to `FlaggedType` and reporting
-            //  `ReferencesHidden` from `UnflaggedSystemCaller.getUnguarded()`).
             expectedIssues =
                 """
-                    src/test/pkg/ReleasedClass.java:9: error: Class test.pkg.FlaggedType is guarded by @FlaggedApi(test.pkg.my_flag) but was referenced (in return type) from public method test.pkg.ReleasedClass.getNewSystem() [ReferencesHidden]
-                    src/test/pkg/ReleasedClass.java:13: error: Class test.pkg.FlaggedType is guarded by @FlaggedApi(test.pkg.my_flag) but was referenced (in return type) from public method test.pkg.ReleasedClass.NewSystemNested.getFlagged() [ReferencesHidden]
+                    src/test/pkg/UnflaggedSystemCaller.java:6: error: Class test.pkg.ReleasedClass.NewSystemNested is guarded by @FlaggedApi(test.pkg.my_flag) but was referenced (in return type) from public method test.pkg.UnflaggedSystemCaller.getUnguarded() [ReferencesHidden]
                 """,
         )
     }
