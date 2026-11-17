@@ -17,8 +17,18 @@
 package com.android.tools.metalava.doc.annotationhandlers
 
 import com.android.tools.metalava.model.FilterPredicate
+import com.android.tools.metalava.model.Item
 
 /** Contextual information for [BaseDevicePolicyAnnotationHandler]. */
 class DevicePolicyContext(
     val filterReference: FilterPredicate?,
-)
+    val policyHistory: DevicePolicyHistory? = null,
+) {
+    /**
+     * Returns true if the given feature flag is reverted (disabled) in this codebase configuration.
+     */
+    fun isFlagReverted(flag: String, item: Item): Boolean {
+        val apiFlags = item.codebase.config.apiFlags ?: return true
+        return apiFlags[flag]?.action?.revert ?: true
+    }
+}

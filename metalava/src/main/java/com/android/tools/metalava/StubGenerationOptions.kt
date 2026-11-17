@@ -50,6 +50,7 @@ const val ARG_MIGRATE_NULLNESS = "--migrate-nullness"
 
 const val ARG_APPLY_API_LEVELS = "--apply-api-levels"
 const val ARG_API_VERSION_LABEL = "--api-version-label"
+const val ARG_DEVICE_POLICY_HISTORY = "--device-policy-history"
 
 class StubGenerationOptions :
     MetalavaOptionGroup(
@@ -209,6 +210,19 @@ class StubGenerationOptions :
             // invocation of Metalava will create. Instead, it must be verified when it is used.
             .file(canBeDir = false)
 
+    private val devicePolicyHistoryFile: File? by
+        option(
+                ARG_DEVICE_POLICY_HISTORY,
+                metavar = "<policy-history.xml>",
+                help =
+                    """
+                    Reads an XML file containing device policy history and merges the
+                    information into the documentation.
+                    """
+                        .trimIndent(),
+            )
+            .existingFile()
+
     /** A map from [ApiVersion] to a [String] label. */
     private val apiVersionToLabel by
         option(
@@ -324,6 +338,7 @@ class StubGenerationOptions :
 
             // Provide access to any custom labels that have been defined.
             apiVersionLabelProvider = ::getApiVersionLabel,
+            devicePolicyHistoryFile = devicePolicyHistoryFile,
         )
     }
 }

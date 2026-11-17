@@ -69,6 +69,9 @@ Stub Generation:
                                              See `metalava help package-filters` for more information.
   --apply-api-levels <api-versions.xml>      Reads an XML file containing API level descriptions and merges the
                                              information into the documentation.
+  --device-policy-history <policy-history.xml>
+                                             Reads an XML file containing device policy history and merges the
+                                             information into the documentation.
   --api-version-label <api-version>:<label>  Specifies a label to use in place of the `<api-version>` when augmenting
                                              the Javadoc to include information about the history of an API item, e.g.
                                              in `@apiSince` and `@deprecatedSince` doc tags. This can be specified
@@ -143,6 +146,18 @@ class StubGenerationOptionsTest :
             assertEquals("First", options.getApiVersionLabel(ApiVersion.fromLevel(1)))
             assertEquals("Other", options.getApiVersionLabel(ApiVersion.fromMajorMinor(2, 2)))
             assertEquals("3.1", options.getApiVersionLabel(ApiVersion.fromMajorMinor(3, 1)))
+        }
+    }
+
+    @Test
+    fun `Test --device-policy-history`() {
+        runTest { assertEquals(null, options.generatorConfig().devicePolicyHistoryFile) }
+
+        val historyFile = temporaryFolder.newFile("policy-history.xml")
+        runTest(ARG_DEVICE_POLICY_HISTORY, historyFile.path) {
+            assertEquals("", stdout)
+            assertEquals("", stderr)
+            assertEquals(historyFile, options.generatorConfig().devicePolicyHistoryFile)
         }
     }
 }

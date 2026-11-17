@@ -23,6 +23,7 @@ import com.android.tools.metalava.apilevels.ApiVersion
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.doc.ApiVersionLabelProvider
 import com.android.tools.metalava.doc.DocAnalyzer
+import com.android.tools.metalava.doc.annotationhandlers.DevicePolicyHistory
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.MatchAllPredicate
@@ -87,6 +88,9 @@ internal class StubGenerator(
          * name.
          */
         val apiVersionLabelProvider: ApiVersionLabelProvider = ApiVersion::toString,
+
+        /** Optional policy-history.xml file containing device policy version history. */
+        val devicePolicyHistoryFile: File? = null,
     )
 
     /** Generate the stubs. */
@@ -127,6 +131,12 @@ internal class StubGenerator(
                 reporter,
                 config.apiVersionLabelProvider,
                 codebase.apiSurfaces.main,
+                devicePolicyHistory =
+                    config.devicePolicyHistoryFile?.let {
+                        tracer.trace("DevicePolicyHistory.fromFile") {
+                            DevicePolicyHistory.fromFile(it)
+                        }
+                    },
             )
         tracer.trace("DocAnalyzer.enhance") { docAnalyzer.enhance() }
 

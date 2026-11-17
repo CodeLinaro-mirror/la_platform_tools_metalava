@@ -22,6 +22,7 @@ import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.containsNullWord
 import com.android.tools.metalava.doc.annotationhandlers.BaseDevicePolicyAnnotationHandler
 import com.android.tools.metalava.doc.annotationhandlers.DevicePolicyContext
+import com.android.tools.metalava.doc.annotationhandlers.DevicePolicyHistory
 import com.android.tools.metalava.doc.annotationhandlers.EnumPolicyAnnotationHandler
 import com.android.tools.metalava.doc.annotationhandlers.IntegerPolicyAnnotationHandler
 import com.android.tools.metalava.doc.annotationhandlers.ListOfEnumPolicyAnnotationHandler
@@ -98,6 +99,8 @@ class DocAnalyzer(
 
     /** The [ApiSurface] whose items will be analyzed and/or enhanced. */
     apiSurface: ApiSurface,
+    /** The [DevicePolicyHistory] containing information about older, released device policies. */
+    private val devicePolicyHistory: DevicePolicyHistory? = null,
 ) {
     /** Filters that selects items that will be analyzed and/or enhanced. */
     private val apiFilters = ApiFilters(reference = ApiSurfacePredicate.wholeCoreApi(apiSurface))
@@ -161,7 +164,8 @@ class DocAnalyzer(
         codebase.accept(
             object : ApiFiltersVisitor(apiFilters = apiFilters) {
                 /** Contextual information for [BaseDevicePolicyAnnotationHandler]s. */
-                private val devicePolicyContext = DevicePolicyContext(filterReference)
+                private val devicePolicyContext =
+                    DevicePolicyContext(filterReference, policyHistory = devicePolicyHistory)
 
                 override fun visitItem(item: Item) {
                     val annotations = item.modifiers.annotations()
