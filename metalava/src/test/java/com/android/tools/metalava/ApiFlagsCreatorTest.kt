@@ -16,13 +16,14 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.config.ApiFlagActionConfig.Mutability.IMMUTABLE
+import com.android.tools.metalava.config.ApiFlagActionConfig.Mutability.MUTABLE
+import com.android.tools.metalava.config.ApiFlagActionConfig.Status.DISABLED
+import com.android.tools.metalava.config.ApiFlagActionConfig.Status.ENABLED
 import com.android.tools.metalava.config.ApiFlagConfig
-import com.android.tools.metalava.config.ApiFlagConfig.Mutability.IMMUTABLE
-import com.android.tools.metalava.config.ApiFlagConfig.Mutability.MUTABLE
-import com.android.tools.metalava.config.ApiFlagConfig.Status.DISABLED
-import com.android.tools.metalava.config.ApiFlagConfig.Status.ENABLED
 import com.android.tools.metalava.config.ApiFlagsConfig
 import com.android.tools.metalava.model.api.flags.ApiFlag
+import com.android.tools.metalava.model.api.flags.ApiFlagAction
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import org.junit.Test
@@ -37,40 +38,44 @@ class ApiFlagsCreatorTest {
                         ApiFlagConfig(
                             pkg = "test.pkg",
                             name = "flag1",
+                            isExported = true,
                             mutability = MUTABLE,
-                            status = DISABLED
+                            status = DISABLED,
                         ),
                         ApiFlagConfig(
                             pkg = "test.pkg",
                             name = "flag2",
+                            isExported = true,
                             mutability = IMMUTABLE,
-                            status = DISABLED
+                            status = DISABLED,
                         ),
                         ApiFlagConfig(
                             pkg = "test.pkg",
                             name = "flag3",
+                            isExported = true,
                             mutability = MUTABLE,
-                            status = ENABLED
+                            status = ENABLED,
                         ),
                         ApiFlagConfig(
                             pkg = "test.pkg",
                             name = "flag4",
+                            isExported = false,
                             mutability = IMMUTABLE,
-                            status = ENABLED
+                            status = ENABLED,
                         ),
                     ),
             )
 
-        val apiFlags = ApiFlagsCreator.createFromConfig(apiFlagsConfig)
+        val apiFlags = ApiFlagsCreator.createFromConfig(apiFlagsConfig)!!
 
         val expected =
-            mapOf(
-                "test.pkg.flag1" to ApiFlag.KEEP_FLAGGED_API,
-                // No test.pkg.flag2 as that is disabled and ApiFlags will default to disabled.
-                "test.pkg.flag3" to ApiFlag.KEEP_FLAGGED_API,
-                "test.pkg.flag4" to ApiFlag.FINALIZE_FLAGGED_API,
+            listOf(
+                ApiFlag("test.pkg.flag1", ApiFlagAction.KEEP),
+                ApiFlag("test.pkg.flag2", ApiFlagAction.REVERT),
+                ApiFlag("test.pkg.flag3", ApiFlagAction.KEEP),
+                ApiFlag("test.pkg.flag4", ApiFlagAction.FINALIZE, false),
             )
-        assertEquals(expected, apiFlags!!.byQualifiedName)
+        assertEquals(expected, apiFlags.allFlags.toList())
     }
 
     @Test

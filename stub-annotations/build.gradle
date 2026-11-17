@@ -1,4 +1,13 @@
-apply plugin: 'java-library'
+plugins {
+    id("java-library")
+}
 
-sourceCompatibility = "1.8"
-targetCompatibility = "1.8"
+java {
+    sourceCompatibility = "1.8"
+    targetCompatibility = "1.8"
+}
+
+tasks.withType(JavaCompile).configureEach {
+    // JDK 21 considers Java 8 an obsolete source and target value. Disable this warning.
+    it.options.compilerArgs += "-Xlint:-options"
+}

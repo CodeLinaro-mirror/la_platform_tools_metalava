@@ -23,34 +23,29 @@ import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeParameterScope
-import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.type.ContextNullability
-import com.android.tools.metalava.model.type.DefaultArrayTypeItem
-import com.android.tools.metalava.model.type.DefaultClassTypeItem
-import com.android.tools.metalava.model.type.DefaultPrimitiveTypeItem
 import com.android.tools.metalava.model.type.DefaultTypeItemFactory
-import com.android.tools.metalava.model.type.DefaultTypeModifiers
-import com.android.tools.metalava.model.type.DefaultVariableTypeItem
-import com.android.tools.metalava.model.type.DefaultWildcardTypeItem
+import com.google.common.collect.ImmutableList
+import com.google.turbine.binder.sym.ClassSymbol
 import com.google.turbine.model.TurbineConstantTypeKind
 import com.google.turbine.type.AnnoInfo
 import com.google.turbine.type.Type
-import javax.lang.model.element.Element
-import javax.lang.model.element.TypeElement
-import javax.lang.model.type.TypeKind
 
 /** Creates [TypeItem]s from [Type]s. */
 internal class TurbineTypeItemFactory(
     private val initializer: TurbineCodebaseInitialiser,
+    private val annotationFactory: TurbineAnnotationFactory,
     typeParameterScope: TypeParameterScope,
 ) : DefaultTypeItemFactory<Type, TurbineTypeItemFactory>(typeParameterScope) {
 
-    private val codebase: DefaultCodebase = initializer.codebase
+    // TODO(b/479907812): Provide a non-null FieldResolver.
+    val fieldResolver: FieldResolver?
+        get() = null
 
     override fun self() = this
 
     override fun createNestedFactory(scope: TypeParameterScope) =
-        TurbineTypeItemFactory(initializer, scope)
+        TurbineTypeItemFactory(initializer, annotationFactory, scope)
 
     override fun getType(
         underlyingType: Type,
@@ -62,11 +57,11 @@ internal class TurbineTypeItemFactory(
         annos: List<AnnoInfo>,
         contextNullability: ContextNullability,
     ): TypeModifiers {
-        val typeAnnotations = initializer.createAnnotations(annos)
+        val typeAnnotations = annotationFactory.createAnnotations(annos, fieldResolver)
         // Compute the nullability, factoring in any context nullability and type annotations.
         // Turbine does not support kotlin so the kotlin nullability is always null.
         val nullability = contextNullability.compute(null, typeAnnotations)
-        return DefaultTypeModifiers.create(typeAnnotations, nullability)
+        return TypeModifiers.create(typeAnnotations, nullability)
     }
 
     internal fun createType(
@@ -81,21 +76,21 @@ internal class TurbineTypeItemFactory(
                 val modifiers = createModifiers(type.annos(), ContextNullability.forceNonNull)
                 when (type.primkind()) {
                     TurbineConstantTypeKind.BOOLEAN ->
-                        DefaultPrimitiveTypeItem(modifiers, PrimitiveTypeItem.Primitive.BOOLEAN)
+                        TypeItem.createPrimitiveType(modifiers, PrimitiveTypeItem.Primitive.BOOLEAN)
                     TurbineConstantTypeKind.BYTE ->
-                        DefaultPrimitiveTypeItem(modifiers, PrimitiveTypeItem.Primitive.BYTE)
+                        TypeItem.createPrimitiveType(modifiers, PrimitiveTypeItem.Primitive.BYTE)
                     TurbineConstantTypeKind.CHAR ->
-                        DefaultPrimitiveTypeItem(modifiers, PrimitiveTypeItem.Primitive.CHAR)
+                        TypeItem.createPrimitiveType(modifiers, PrimitiveTypeItem.Primitive.CHAR)
                     TurbineConstantTypeKind.DOUBLE ->
-                        DefaultPrimitiveTypeItem(modifiers, PrimitiveTypeItem.Primitive.DOUBLE)
+                        TypeItem.createPrimitiveType(modifiers, PrimitiveTypeItem.Primitive.DOUBLE)
                     TurbineConstantTypeKind.FLOAT ->
-                        DefaultPrimitiveTypeItem(modifiers, PrimitiveTypeItem.Primitive.FLOAT)
+                        TypeItem.createPrimitiveType(modifiers, PrimitiveTypeItem.Primitive.FLOAT)
                     TurbineConstantTypeKind.INT ->
-                        DefaultPrimitiveTypeItem(modifiers, PrimitiveTypeItem.Primitive.INT)
+                        TypeItem.createPrimitiveType(modifiers, PrimitiveTypeItem.Primitive.INT)
                     TurbineConstantTypeKind.LONG ->
-                        DefaultPrimitiveTypeItem(modifiers, PrimitiveTypeItem.Primitive.LONG)
+                        TypeItem.createPrimitiveType(modifiers, PrimitiveTypeItem.Primitive.LONG)
                     TurbineConstantTypeKind.SHORT ->
-                        DefaultPrimitiveTypeItem(modifiers, PrimitiveTypeItem.Primitive.SHORT)
+                        TypeItem.createPrimitiveType(modifiers, PrimitiveTypeItem.Primitive.SHORT)
                     else ->
                         throw IllegalStateException("Invalid primitive type in API surface: $type")
                 }
@@ -105,37 +100,13 @@ internal class TurbineTypeItemFactory(
             }
             Type.TyKind.CLASS_TY -> {
                 type as Type.ClassTy
-                var outerClass: ClassTypeItem? = null
-                // A ClassTy is represented by list of SimpleClassTY each representing a nested
-                // class. e.g. , Outer.Inner.Inner1 will be represented by three simple classes
-                // Outer, Outer.Inner and Outer.Inner.Inner1
-                val iterator = type.classes().iterator()
-                while (iterator.hasNext()) {
-                    val simpleClass = iterator.next()
-
-                    // Select the ContextNullability. If there is another SimpleClassTy after this
-                    // then this is an outer class which can never be null, so force it to be
-                    // non-null. Otherwise, this is the nested class so use the supplied
-                    // ContextNullability.
-                    val actualContextNullability =
-                        if (iterator.hasNext()) {
-                            // For all outer class types, set the nullability to non-null.
-                            ContextNullability.forceNonNull
-                        } else {
-                            // Use the supplied ContextNullability.
-                            contextNullability
-                        }
-
-                    outerClass =
-                        createNestedClassType(simpleClass, outerClass, actualContextNullability)
-                }
-                outerClass!!
+                createClassTypeItemFromSimpleTys(type.classes(), contextNullability)!!
             }
             Type.TyKind.TY_VAR -> {
                 type as Type.TyVar
-                val modifiers = createModifiers(type.annos(), contextNullability)
+                val modifiers = createModifiers(type.annos(), contextNullability.forTypeVariable())
                 val typeParameter = typeParameterScope.getTypeParameter(type.sym().name())
-                DefaultVariableTypeItem(modifiers, typeParameter)
+                TypeItem.createVariableType(modifiers, typeParameter)
             }
             Type.TyKind.WILD_TY -> {
                 type as Type.WildTy
@@ -145,48 +116,126 @@ internal class TurbineTypeItemFactory(
                 when (type.boundKind()) {
                     Type.WildTy.BoundKind.UPPER -> {
                         val upperBound = createWildcardBound(type.bound())
-                        DefaultWildcardTypeItem(modifiers, upperBound, null)
+                        TypeItem.createWildcardType(modifiers, upperBound, null)
                     }
                     Type.WildTy.BoundKind.LOWER -> {
                         // LowerBounded types have java.lang.Object as upper bound
                         val upperBound = createWildcardBound(Type.ClassTy.OBJECT)
                         val lowerBound = createWildcardBound(type.bound())
-                        DefaultWildcardTypeItem(modifiers, upperBound, lowerBound)
+                        TypeItem.createWildcardType(modifiers, upperBound, lowerBound)
                     }
                     Type.WildTy.BoundKind.NONE -> {
                         // Unbounded types have java.lang.Object as upper bound
                         val upperBound = createWildcardBound(Type.ClassTy.OBJECT)
-                        DefaultWildcardTypeItem(modifiers, upperBound, null)
+                        TypeItem.createWildcardType(modifiers, upperBound, null)
                     }
                     else ->
                         throw IllegalStateException("Invalid wildcard type in API surface: $type")
                 }
             }
             Type.TyKind.VOID_TY ->
-                DefaultPrimitiveTypeItem(
+                TypeItem.createPrimitiveType(
                     // Primitives are always non-null.
                     createModifiers(emptyList(), ContextNullability.forceNonNull),
                     PrimitiveTypeItem.Primitive.VOID
                 )
             Type.TyKind.NONE_TY ->
-                DefaultPrimitiveTypeItem(
+                TypeItem.createPrimitiveType(
                     // Primitives are always non-null.
-                    DefaultTypeModifiers.emptyNonNullModifiers,
+                    TypeModifiers.emptyNonNullModifiers,
                     PrimitiveTypeItem.Primitive.VOID
                 )
             Type.TyKind.ERROR_TY -> {
                 // This is case of unresolved superclass or implemented interface
                 type as Type.ErrorTy
-                DefaultClassTypeItem(
-                    codebase,
-                    DefaultTypeModifiers.emptyUndefinedModifiers,
-                    type.name(),
-                    emptyList(),
-                    null,
-                )
+                createClassTypeItemFromSimpleErrorTys(type.classes(), contextNullability)
             }
             else -> throw IllegalStateException("Invalid type in API surface: $kind")
         }
+    }
+
+    /**
+     * Create a [ClassTypeItem] from a list of [Type.ErrorTy.SimpleErrorTy] using
+     * [contextNullability].
+     */
+    private fun createClassTypeItemFromSimpleErrorTys(
+        simpleErrorTys: List<Type.ErrorTy.SimpleErrorTy>,
+        contextNullability: ContextNullability,
+    ): ClassTypeItem {
+        val iterator = simpleErrorTys.iterator()
+        var simpleErrorTy = iterator.next()
+
+        // Group leading lowercase segments that have no type arguments or annotations into the
+        // package prefix, stopping before the last segment so at least one segment is treated as a
+        // class.
+        val qualifiedNameBuilder = StringBuilder(simpleErrorTy.name())
+        while (
+            iterator.hasNext() &&
+                simpleErrorTy.targs().isEmpty() &&
+                simpleErrorTy.annos().isEmpty() &&
+                simpleErrorTy.name().none { it.isUpperCase() }
+        ) {
+            simpleErrorTy = iterator.next()
+            qualifiedNameBuilder.append('.').append(simpleErrorTy.name())
+        }
+
+        var outerClass: ClassTypeItem? = null
+        while (true) {
+            val hasNext = iterator.hasNext()
+            val actualContextNullability =
+                if (hasNext) {
+                    ContextNullability.forceNonNull
+                } else {
+                    contextNullability
+                }
+            val modifiers = createModifiers(simpleErrorTy.annos(), actualContextNullability)
+            val arguments = createTypeArguments(simpleErrorTy.targs())
+            outerClass =
+                TypeItem.createClassType(
+                    modifiers,
+                    qualifiedNameBuilder.toString(),
+                    arguments,
+                    outerClass,
+                )
+            if (!hasNext) break
+            simpleErrorTy = iterator.next()
+            qualifiedNameBuilder.append('.').append(simpleErrorTy.name())
+        }
+        return outerClass!!
+    }
+
+    /**
+     * Create a [ClassTypeItem] from a list of [Type.ClassTy.SimpleClassTy] using
+     * [contextNullability].
+     */
+    private fun createClassTypeItemFromSimpleTys(
+        simpleTys: List<Type.ClassTy.SimpleClassTy>,
+        contextNullability: ContextNullability
+    ): ClassTypeItem? {
+        var outerClass: ClassTypeItem? = null
+        // A ClassTy is represented by list of SimpleClassTy each representing a nested
+        // class. e.g. , Outer.Inner.Inner1 will be represented by three simple classes
+        // Outer, Outer.Inner and Outer.Inner.Inner1
+        val iterator = simpleTys.iterator()
+        while (iterator.hasNext()) {
+            val simpleClass = iterator.next()
+
+            // Select the ContextNullability. If there is another SimpleClassTy after this
+            // then this is an outer class which can never be null, so force it to be
+            // non-null. Otherwise, this is the nested class so use the supplied
+            // ContextNullability.
+            val actualContextNullability =
+                if (iterator.hasNext()) {
+                    // For all outer class types, set the nullability to non-null.
+                    ContextNullability.forceNonNull
+                } else {
+                    // Use the supplied ContextNullability.
+                    contextNullability
+                }
+
+            outerClass = createNestedClassType(simpleClass, outerClass, actualContextNullability)
+        }
+        return outerClass
     }
 
     private fun createWildcardBound(type: Type) = getGeneralType(type) as ReferenceTypeItem
@@ -196,86 +245,68 @@ internal class TurbineTypeItemFactory(
         isVarArg: Boolean,
         contextNullability: ContextNullability,
     ): TypeItem {
-        // For Turbine's ArrayTy, due to a bug in Turbine, the annotations for multidimensional
-        // arrays are in the wrong order so this works around the issue.
+        // Create a component type item from the Turbine element type, using a special context
+        // nullability for it.
+        val componentTypeItem = getType(type.elementType(), contextNullability.forComponentType())
 
-        // First, traverse from the outermost array to the innermost component type and add the
-        // [AnnoInfo]s to the list. Ending up with the innermost component type. Due to the bug the
-        // list contains [AnnoInfo]s from the innermost component type to the outermost types.
-        val annosList = mutableListOf<List<AnnoInfo>>()
-        var curr: Type = type
-        while (curr.tyKind() == Type.TyKind.ARRAY_TY) {
-            curr as Type.ArrayTy
-            annosList.add(curr.annos())
-            curr = curr.elementType()
+        // Create an array type item from the Turbine array type using the supplied isVarArg and
+        // contextual nullability.
+        val modifiers = createModifiers(type.annos(), contextNullability)
+        return TypeItem.createArrayType(modifiers, componentTypeItem, isVarArg)
+    }
+
+    /**
+     * Create the [ClassTypeItem] representation of the outer class associated with [classSymbol].
+     *
+     * If [classSymbol] is not for a nested class then this returns null.
+     */
+    private fun optionalOuterClassType(classSymbol: ClassSymbol): ClassTypeItem? {
+        val binaryName = classSymbol.binaryName()
+
+        // If it does not contain a $ then it is not a nested class.
+        val firstDollarIndex = binaryName.indexOf('$')
+        if (firstDollarIndex == -1) {
+            return null
         }
 
-        // Then, get the type for the innermost component, it has the correct annotations. Pass
-        // in the [ContextNullability.forComponentType] just in case this is the return type of an
-        // annotation method, or in other words the type of an annotation attribute.
-        val componentType = getType(curr, contextNullability.forComponentType())
+        // Construct a list pf SimpleClassTys from the symbol.
+        val simpleClassTys = buildList {
+            val length = binaryName.length
 
-        // Finally, traverse over the annotations from the innermost component type to the outermost
-        // array and construct a [DefaultArrayTypeItem] around the inner component type using its
-        // `List<AnnoInfo>`. The last `List<AnnoInfo>` is for the outermost array, and it needs to
-        // be tagged with the [isVarArg] value and [contextNullability].
-        val lastIndex = annosList.size - 1
-        return annosList.foldIndexed(componentType) { index, typeItem, annos ->
-            val (arrayContextNullability, arrayVarArg) =
-                if (index == lastIndex) {
-                    // Outermost array. Should be called with correct value of isVarArg and
-                    // the contextual nullability.
-                    Pair(contextNullability, isVarArg)
-                } else {
-                    Pair(ContextNullability.none, false)
+            // Iterate over each $ in the binary name of the symbol creating a SimpleClassTy for
+            // each containing class. e.g. when given pkg/A$B$C it will construct SimpleClassTys for
+            // * pkg/A
+            // * pkg/A$B
+            var startIndex = firstDollarIndex
+            while (startIndex < length) {
+                // Find the next $, if none exists then drop out. That ignores the innermost class
+                // which is created by the caller.
+                val nextDollarIndex = binaryName.indexOf('$', startIndex)
+                if (nextDollarIndex == -1) {
+                    break
                 }
 
-            val modifiers = createModifiers(annos, arrayContextNullability)
-            DefaultArrayTypeItem(modifiers, typeItem, arrayVarArg)
+                // Create a symbol for the outer class.
+                val outerClassSymbol = ClassSymbol(binaryName.substring(0, nextDollarIndex))
+
+                // Wrap that in a SimpleClassTy
+                val simpleClassTy =
+                    Type.ClassTy.SimpleClassTy.create(
+                        outerClassSymbol,
+                        ImmutableList.of(),
+                        ImmutableList.of(),
+                    )
+
+                // Add it to the list.
+                add(simpleClassTy)
+
+                // Skip past the $.
+                startIndex = nextDollarIndex + 1
+            }
         }
-    }
 
-    /**
-     * Retrieves the `ClassTypeItem` representation of the outer class associated with a given
-     * nested class type. Intended for types that are not explicitly mentioned within the source
-     * code.
-     *
-     * @param type The `Type.ClassTy.SimpleClassTy` object representing the nested class.
-     * @return The `ClassTypeItem` representing the outer class.
-     */
-    private fun getOuterClassType(type: Type.ClassTy.SimpleClassTy): ClassTypeItem {
-        val className = type.sym().qualifiedName
-        val classTypeElement = initializer.getTypeElement(className)!!
-        return createOuterClassType(classTypeElement.enclosingElement!!)!!
-    }
-
-    /**
-     * Constructs a `ClassTypeItem` representation from a type element. Intended for types that are
-     * not explicitly mentioned within the source code.
-     *
-     * @param element The `Element` object representing the type.
-     * @return The corresponding `ClassTypeItem`, or null if the `element` does not represent a
-     *   declared type.
-     */
-    private fun createOuterClassType(element: Element): ClassTypeItem? {
-        if (element.asType().kind != TypeKind.DECLARED) return null
-
-        val outerClassElement = element.enclosingElement!!
-        val outerClassTypeItem = createOuterClassType(outerClassElement)
-
-        element as TypeElement
-
-        // Since this type was never part of source , it won't have any annotation or arguments
-        val modifiers = DefaultTypeModifiers.emptyNonNullModifiers
-        val classTypeItem =
-            DefaultClassTypeItem(
-                codebase,
-                modifiers,
-                element.qualifiedName.toString(), // Assuming qualifiedName is available on element
-                emptyList(),
-                outerClassTypeItem
-            )
-        return classTypeItem
+        // Create a ClassTypeItem from the list of SimpleClassTys.
+        return createClassTypeItemFromSimpleTys(simpleClassTys, ContextNullability.forceNonNull)
     }
 
     private fun createNestedClassType(
@@ -284,16 +315,23 @@ internal class TurbineTypeItemFactory(
         contextNullability: ContextNullability,
     ): ClassTypeItem {
         val sym = type.sym()
-        val outerClassItem =
-            if (sym.binaryName().contains("$") && outerClass == null) {
-                getOuterClassType(type)
-            } else {
-                outerClass
-            }
+
+        // If no outer class was provided then try and get an outer class type item from the type
+        // symbol.
+        val outerClassItem = outerClass ?: optionalOuterClassType(type.sym())
 
         val modifiers = createModifiers(type.annos(), contextNullability)
         val qualifiedName = sym.qualifiedName
-        val parameters = type.targs().map { getGeneralType(it) as TypeArgumentTypeItem }
-        return DefaultClassTypeItem(codebase, modifiers, qualifiedName, parameters, outerClassItem)
+        val parameters = createTypeArguments(type.targs())
+        return TypeItem.createClassType(
+            modifiers,
+            qualifiedName,
+            parameters,
+            outerClassItem,
+        )
     }
+
+    /** Create a list of [TypeArgumentTypeItem]s from [types]. */
+    private fun createTypeArguments(types: ImmutableList<Type>) =
+        types.map { getGeneralType(it) as TypeArgumentTypeItem }
 }

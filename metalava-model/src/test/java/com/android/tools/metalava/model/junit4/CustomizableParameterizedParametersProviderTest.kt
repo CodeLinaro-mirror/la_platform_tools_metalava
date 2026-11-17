@@ -54,12 +54,12 @@ class CustomizableParameterizedParametersProviderTest {
     }
 
     class ParameterProvider(clazz: Class<*>) :
-        CustomizableParameterizedRunner(clazz, ::mergeParameters) {
+        CustomizableParameterizedRunner<Int>(clazz, ::mergeParameters) {
         companion object {
             private fun mergeParameters(
                 testClass: TestClass,
                 additionalParameters: List<Array<Any>>?,
-            ): TestArguments {
+            ): TestArguments<Int> {
                 val customParameters = testClass.getAnnotation(CustomParameters::class.java)
                 if (additionalParameters != null)
                     error("did not expect ${additionalParameters.size} additional parameters")

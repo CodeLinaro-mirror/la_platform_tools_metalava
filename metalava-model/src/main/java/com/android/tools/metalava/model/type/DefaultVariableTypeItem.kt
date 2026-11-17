@@ -16,22 +16,31 @@
 
 package com.android.tools.metalava.model.type
 
-import com.android.tools.metalava.model.DefaultTypeItem
+import com.android.tools.metalava.model.DefaultStandaloneTypeItem
+import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
 
-class DefaultVariableTypeItem(
+internal class DefaultVariableTypeItem(
     modifiers: TypeModifiers,
     override val asTypeParameter: TypeParameterItem,
-) : VariableTypeItem, DefaultTypeItem(modifiers) {
+    isValueClassType: Boolean = false,
+) : VariableTypeItem, DefaultStandaloneTypeItem(modifiers, isValueClassType) {
 
     override val name: String = asTypeParameter.name()
 
-    @Deprecated(
-        "implementation detail of this class",
-        replaceWith = ReplaceWith("substitute(modifiers)"),
-    )
-    override fun duplicate(modifiers: TypeModifiers): VariableTypeItem =
-        DefaultVariableTypeItem(modifiers, asTypeParameter)
+    override fun substitute(modifiers: TypeModifiers) =
+        if (modifiers !== this.modifiers)
+            TypeItem.createVariableType(modifiers, asTypeParameter, isValueClassType)
+        else this
+
+    override fun equalsImpl(other: DefaultStandaloneTypeItem): Boolean {
+        if (other !is VariableTypeItem) return false
+        return asTypeParameter == other.asTypeParameter
+    }
+
+    override fun hashCodeImpl(): Int {
+        return asTypeParameter.hashCode()
+    }
 }

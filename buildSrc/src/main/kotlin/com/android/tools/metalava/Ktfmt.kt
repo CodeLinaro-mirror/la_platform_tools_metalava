@@ -39,7 +39,7 @@ import org.gradle.process.ExecOperations
 private fun Project.getKtfmtConfiguration(): Configuration {
     return configurations.findByName("ktfmt")
         ?: configurations.create("ktfmt") {
-            val dependency = project.dependencies.create("com.facebook:ktfmt:0.44")
+            val dependency = project.dependencies.create("com.facebook:ktfmt:0.50")
             it.dependencies.add(dependency)
         }
 }

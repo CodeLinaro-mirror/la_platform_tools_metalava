@@ -17,8 +17,8 @@
 package com.android.tools.metalava.lint
 
 import com.android.tools.metalava.DriverTest
-import com.android.tools.metalava.androidxNonNullSource
-import com.android.tools.metalava.androidxNullableSource
+import com.android.tools.metalava.suppressLintSource
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -46,8 +46,10 @@ class CheckBuilderTest : DriverTest() {
                 src/android/pkg/Bad.java:51: warning: android.pkg.Bad.NoBuildMethodBuilder does not declare a `build()` method, but builder classes are expected to [MissingBuildMethod]
                 src/android/pkg/Bad.java:57: warning: Methods must return the builder object (return type android.pkg.Bad.BadGenericBuilder<T> instead of T): method android.pkg.Bad.BadGenericBuilder.setBoolean(boolean) [SetterReturnsThis]
                 src/android/pkg/TopLevelBuilder.java:3: warning: android.pkg.TopLevelBuilder does not declare a `build()` method, but builder classes are expected to [MissingBuildMethod]
-                src/android/pkg/TopLevelBuilder.java:3: warning: Builder should be defined as inner class: android.pkg.TopLevelBuilder [TopLevelBuilder]
+                src/android/pkg/TopLevelBuilder.java:3: warning: Builder should be defined as nested class: android.pkg.TopLevelBuilder [TopLevelBuilder]
+                src/test/pkg/BadClass.java:6: warning: Public API for builder class test.pkg.BadClass.Builder only contains `build` method. A public constructor on the built class should be provided instead. [EmptyBuilder]
                 src/test/pkg/BadClass.java:6: warning: Builder must be final: test.pkg.BadClass.Builder [StaticFinalBuilder]
+                src/test/pkg/BadInterface.java:6: warning: Public API for builder class test.pkg.BadInterface.Builder only contains `build` method. A public constructor on the built class should be provided instead. [EmptyBuilder]
                 src/test/pkg/BadInterface.java:6: warning: Builder must be final: test.pkg.BadInterface.Builder [StaticFinalBuilder]
                 """,
             sourceFiles =
@@ -243,7 +245,6 @@ class CheckBuilderTest : DriverTest() {
                         }
                     }
                         """
-                            .trimIndent()
                     ),
                     java(
                         """
@@ -259,7 +260,6 @@ class CheckBuilderTest : DriverTest() {
                         public class Base {}
                     }
                         """
-                            .trimIndent()
                     ),
                     java(
                         """
@@ -274,7 +274,6 @@ class CheckBuilderTest : DriverTest() {
                         }
                     }
                         """
-                            .trimIndent()
                     ),
                     java(
                         """
@@ -289,11 +288,170 @@ class CheckBuilderTest : DriverTest() {
                         }
                     }
                         """
-                            .trimIndent()
                     ),
-                    androidxNonNullSource,
-                    androidxNullableSource
+                    KnownSourceFiles.androidxNonNullJavaSource,
+                    KnownSourceFiles.androidxNullableJavaSource
                 )
+        )
+    }
+
+    /** Example created from go/android-api-guidelines#builders-return-builder */
+    @Test
+    fun `Check setters incorrectly returning non-builder object`() {
+        check(
+            apiLint = "", // enabled
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            import androidx.annotation.NonNull;
+                            import java.util.List;
+                            public class Test {
+                                private Test() {}
+                                public int getSomething() {return -1;}
+                                public @NonNull List<Other> getOthers() {return List.of();}
+                                public static final class Builder {
+                                    public void setSomething(int i) {}
+                                    public @NonNull OtherBuilder addOther() {return OtherBuilder();}
+                                    public @NonNull Test build() {return Tone();}
+                                }
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            import androidx.annotation.NonNull;
+                            public class Other {
+                                private Other() {}
+                                public boolean isElse() {return false;}
+                                public static final class Builder {
+                                    public boolean setElse(boolean b) {return false;}
+                                    public @NonNull Other build() {return Other();}
+                                }
+                            }
+                        """
+                    ),
+                    KnownSourceFiles.androidxNonNullJavaSource,
+                ),
+            expectedIssues =
+                """
+                    src/test/pkg/Other.java:7: warning: Methods must return the builder object (return type test.pkg.Other.Builder instead of boolean): method test.pkg.Other.Builder.setElse(boolean) [SetterReturnsThis]
+                    src/test/pkg/Test.java:9: warning: Methods must return the builder object (return type test.pkg.Test.Builder instead of void): method test.pkg.Test.Builder.setSomething(int) [SetterReturnsThis]
+                    src/test/pkg/Test.java:10: warning: Methods must return the builder object (return type test.pkg.Test.Builder instead of OtherBuilder): method test.pkg.Test.Builder.addOther() [SetterReturnsThis]
+                """,
+        )
+    }
+
+    /** Example created from go/android-api-guidelines#builders-return-builder */
+    @Test
+    fun `Check setters correctly returning builder object`() {
+        check(
+            apiLint = "", // enabled
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            import androidx.annotation.NonNull;
+                            import java.util.List;
+                            public class Test {
+                                private Test() {}
+                                public int getSomething() {return -1;}
+                                public @NonNull List<Other> getOthers() {return List.of();}
+                                public static final class Builder {
+                                    public @NonNull Builder setSomething(int i) {return this;}
+                                    public @NonNull Builder addOther(@NonNull Other other) {return this;}
+                                    public @NonNull Test build() {return Tone();}
+                                }
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            public class Other {
+                                public Other() {}
+                            }
+                        """
+                    ),
+                    KnownSourceFiles.androidxNonNullJavaSource,
+                ),
+        )
+    }
+
+    /** Example created from go/android-api-guidelines#builders-return-builder */
+    @Test
+    fun `Check setters correctly returning generic builder object`() {
+        check(
+            apiLint = "", // enabled
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.SuppressLint;
+                            import androidx.annotation.NonNull;
+                            import java.util.List;
+                            public class Test {
+                                private Test() {}
+                                public int getSomething() {return -1;}
+                                // TODO(b/476956538): This should not be required.
+                                // This builder is specifically designed to be extended.
+                                @SuppressLint("StaticFinalBuilder")
+                                public static class Builder<T extends Builder<T>> {
+                                    public @NonNull Builder<T> setSomething(int i) {return this;}
+                                    public @NonNull Test build() {return Tone();}
+                                }
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            public class Other extends Test {
+                                public Other() {}
+                                public boolean isOr() {return false;}
+                                public int getElse() {return false;}
+                                public static final class Builder<T extends Builder<T>> extends Test.Builder<T> {
+                                    public @NonNull Builder<T> setOr(boolean b) {return this;}
+                                    public @NonNull T setElse(int i) {return this;}
+                                    public @NonNull Other build() {return Other();}
+                                }
+                            }
+                        """
+                    ),
+                    KnownSourceFiles.androidxNonNullJavaSource,
+                    suppressLintSource,
+                ),
+        )
+    }
+
+    @Test
+    fun `Check builder only containing build method`() {
+        check(
+            apiLint = "", // enabled
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package test.pkg;
+                        import androidx.annotation.NonNull;
+                        public class Foo {
+                            public static final class FooBuilder {
+                                @NonNull
+                                public Foo build() {
+                                    return new Foo();
+                                }
+                            }
+                        }
+                        """
+                    ),
+                    KnownSourceFiles.androidxNonNullJavaSource,
+                ),
+            expectedIssues =
+                "src/test/pkg/Foo.java:4: warning: Public API for builder class test.pkg.Foo.FooBuilder only contains `build` method. A public constructor on the built class should be provided instead. [EmptyBuilder]",
         )
     }
 }

@@ -16,17 +16,32 @@
 
 pluginManagement {
     repositories {
-        // Prefer mavenCentral as that has signed artifacts
-        mavenCentral()
-        gradlePluginPortal()
-        google()
+        // For CI builds, it is important to use prebuilts because maven central throttles requests
+        // for artifacts. The `DOWNLOAD_DEPENDENCIES` flag allows building locally in repos which do
+        // not include the metalava prebuilts repo.
+        if (System.getenv("DOWNLOAD_DEPENDENCIES") == "true") {
+            // Prefer mavenCentral as that has signed artifacts
+            mavenCentral()
+            gradlePluginPortal()
+            google()
+        } else {
+            // Use custom repo path if provided (necessary for androidx_with_metalava).
+            val repos = System.getenv("METALAVA_PREBUILTS_REPOS")?.split(",") ?: listOf("../../prebuilts/metalava")
+            repos.forEach { maven(it) }
+        }
     }
 }
 
 dependencyResolutionManagement {
     repositories {
-        google()
-        mavenCentral()
+        if (System.getenv("DOWNLOAD_DEPENDENCIES") == "true") {
+            google()
+            mavenCentral()
+        } else {
+            // Use custom repo path if provided (necessary for androidx_with_metalava).
+            val repos = System.getenv("METALAVA_PREBUILTS_REPOS")?.split(",") ?: listOf("../../prebuilts/metalava")
+            repos.forEach { maven(it) }
+        }
         val customLintRepo = System.getenv("LINT_REPO")
         if (customLintRepo != null) {
             logger.warn("Building using custom $customLintRepo maven repository")
@@ -66,7 +81,13 @@ include(":metalava-model-source")
 include(":metalava-model-testsuite")
 include(":metalava-model-testsuite-cli")
 include(":metalava-model-text")
-include(":metalava-model-turbine")
+// Only include :turbine and :metalava-model-turbine when external/turbine is present in the
+// checkout (e.g. in aosp-metalava-main). Checkouts such as androidx-main and studio-main do not
+// include external/turbine and do not need :metalava-model-turbine.
+if (File(rootDir, "../../external/turbine").isDirectory) {
+    include(":turbine")
+    include(":metalava-model-turbine")
+}
 include(":metalava-reporter")
 include(":metalava-testing")
 include(":stub-annotations")

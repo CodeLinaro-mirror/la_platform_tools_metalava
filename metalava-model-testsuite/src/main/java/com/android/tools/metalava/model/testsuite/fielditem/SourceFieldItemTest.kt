@@ -16,15 +16,20 @@
 
 package com.android.tools.metalava.model.testsuite.fielditem
 
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.model.value.asAny
+import com.android.tools.metalava.model.value.asInt
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import org.junit.Test
 
 /** Common tests for [FieldItem.InitialValue]. */
 class SourceFieldItemTest : BaseModelTest() {
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `test field with default value as constant literal`() {
         runSourceCodebaseTest(
@@ -55,11 +60,11 @@ class SourceFieldItemTest : BaseModelTest() {
                     Double.POSITIVE_INFINITY,
                     61184.toChar(),
                 )
-            assertEquals(fieldValues, classItem.fields().map { it.initialValue(false) })
-            assertEquals(fieldValues, classItem.fields().map { it.initialValue(true) })
+            assertEquals(fieldValues, classItem.fields().map { it.constantValue?.asAny() })
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `test field with default value as constant expression`() {
         runCodebaseTest(
@@ -79,13 +84,12 @@ class SourceFieldItemTest : BaseModelTest() {
             val classItem = codebase.assertClass("test.pkg.Test")
             val fieldItem1 = classItem.assertField("field1")
             val fieldItem2 = classItem.assertField("field2")
-            assertEquals(38, fieldItem1.initialValue(true))
-            assertEquals(38, fieldItem1.initialValue(false))
-            assertEquals(91, fieldItem2.initialValue(true))
-            assertEquals(91, fieldItem2.initialValue(false))
+            assertEquals(38, fieldItem1.constantValue?.asInt())
+            assertEquals(91, fieldItem2.constantValue?.asInt())
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `test field with default value as object reference`() {
         runSourceCodebaseTest(
@@ -112,13 +116,12 @@ class SourceFieldItemTest : BaseModelTest() {
             val fieldItem1 = classItem.assertField("field1")
             val fieldItem2 = classItem.assertField("field2")
 
-            assertEquals(null, fieldItem1.initialValue(false))
-            assertEquals(null, fieldItem1.initialValue(true))
-            assertEquals(null, fieldItem2.initialValue(true))
-            assertEquals(null, fieldItem2.initialValue(false))
+            assertEquals(null, fieldItem1.constantValue)
+            assertEquals(null, fieldItem2.constantValue)
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `test default value of an enum constant field`() {
         runSourceCodebaseTest(
@@ -136,11 +139,12 @@ class SourceFieldItemTest : BaseModelTest() {
             val classItem = codebase.assertClass("test.pkg.Test")
             val fieldItem = classItem.assertField("ENUM1")
 
-            assertNotNull(fieldItem.initialValue(true))
-            assertNotNull(fieldItem.initialValue(false))
+            // An enum is not its own constant value.
+            assertNull(fieldItem.constantValue)
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `test default value of a Class type field`() {
         runSourceCodebaseTest(
@@ -149,18 +153,20 @@ class SourceFieldItemTest : BaseModelTest() {
                     package test.pkg;
 
                     public class Test {
-                        public static final Class<?> field = String.class;;
+                        public static final Class<?> field = String.class;
                     }
                 """
             ),
         ) {
             val classItem = codebase.assertClass("test.pkg.Test")
             val fieldItem = classItem.assertField("field")
-            assertEquals(null, fieldItem.initialValue(true))
-            assertNotNull(fieldItem.initialValue(false))
+
+            // Class literals are not supported for fields as they are not considered constants.
+            assertNull(fieldItem.constantValue)
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `test non final field with default value as constant literal`() {
         runSourceCodebaseTest(
@@ -177,11 +183,11 @@ class SourceFieldItemTest : BaseModelTest() {
             val classItem = codebase.assertClass("test.pkg.Test")
             val fieldItem = classItem.assertField("field")
 
-            assertEquals(null, fieldItem.initialValue(true))
-            assertEquals(7, fieldItem.initialValue(false))
+            assertNull(fieldItem.constantValue)
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `test non final field with default value as constant expression`() {
         runSourceCodebaseTest(
@@ -202,13 +208,12 @@ class SourceFieldItemTest : BaseModelTest() {
             val fieldItem1 = classItem.assertField("field1")
             val fieldItem2 = classItem.assertField("field2")
 
-            assertEquals(null, fieldItem1.initialValue(true))
-            assertEquals(27, fieldItem1.initialValue(false))
-            assertEquals(null, fieldItem2.initialValue(true))
-            assertEquals(91, fieldItem2.initialValue(false))
+            assertEquals(null, fieldItem1.constantValue)
+            assertEquals(null, fieldItem2.constantValue)
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `test default value of a non final Class type field`() {
         runSourceCodebaseTest(
@@ -217,18 +222,20 @@ class SourceFieldItemTest : BaseModelTest() {
                     package test.pkg;
 
                     public class Test {
-                        public static Class<?> field = String.class;;
+                        public static Class<?> field = String.class;
                     }
                 """
             ),
         ) {
             val classItem = codebase.assertClass("test.pkg.Test")
             val fieldItem = classItem.assertField("field")
-            assertEquals(null, fieldItem.initialValue(true))
-            assertNotNull(fieldItem.initialValue(false))
+
+            // Class literals are not supported for fields as they are not considered constants.
+            assertNull(fieldItem.constantValue)
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `test duplicate() for fielditem`() {
         runSourceCodebaseTest(
@@ -236,7 +243,6 @@ class SourceFieldItemTest : BaseModelTest() {
                 """
                     package test.pkg;
 
-                    /** @doconly Some docs here */
                     public class Test {
                         public static final int Field = 7;
                     }
@@ -264,9 +270,9 @@ class SourceFieldItemTest : BaseModelTest() {
             )
             assertEquals(fieldItem.type(), duplicateField.type(), message = "duplicated types")
             assertEquals(
-                fieldItem.initialValue(),
-                duplicateField.initialValue(),
-                message = "duplicated initial value"
+                fieldItem.constantValue,
+                duplicateField.constantValue,
+                message = "duplicated constant value"
             )
             assertEquals(classItem, duplicateField.inheritedFrom, message = "inheritedFrom")
         }

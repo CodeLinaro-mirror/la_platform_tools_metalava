@@ -17,15 +17,19 @@
 package com.android.tools.metalava.model.testsuite.methoditem
 
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import org.junit.Test
 
 /** Common tests for the [MethodItem.superMethods] method. */
 class CommonSuperMethodsTest : BaseModelTest() {
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test no super method`() {
         runCodebaseTest(
@@ -59,6 +63,7 @@ class CommonSuperMethodsTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test no super method from parent class as static`() {
         runCodebaseTest(
@@ -104,6 +109,7 @@ class CommonSuperMethodsTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test no super method from parent class as private`() {
         runCodebaseTest(
@@ -135,6 +141,7 @@ class CommonSuperMethodsTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test single super method from parent class`() {
         runCodebaseTest(
@@ -181,6 +188,7 @@ class CommonSuperMethodsTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test single super method from grand parent class`() {
         runCodebaseTest(
@@ -238,6 +246,7 @@ class CommonSuperMethodsTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test single super method from parent and grand parent class`() {
         runCodebaseTest(
@@ -296,6 +305,7 @@ class CommonSuperMethodsTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test single super method from parent interface`() {
         runCodebaseTest(
@@ -343,6 +353,7 @@ class CommonSuperMethodsTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test single super method from grand parent interface`() {
         runCodebaseTest(
@@ -400,6 +411,7 @@ class CommonSuperMethodsTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test single super method from parent and grand parent interface`() {
         runCodebaseTest(
@@ -459,6 +471,7 @@ class CommonSuperMethodsTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test multiple super methods from parent interfaces`() {
         runCodebaseTest(
@@ -526,8 +539,9 @@ class CommonSuperMethodsTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
-    fun `Test multiple super methods from parent interfaces (reverse)`() {
+    fun `Test multiple super methods from parent interfaces - reverse`() {
         runCodebaseTest(
             inputSet(
                 java(
@@ -593,6 +607,7 @@ class CommonSuperMethodsTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test multiple super methods from parent and grand parent interfaces`() {
         runCodebaseTest(
@@ -700,6 +715,7 @@ class CommonSuperMethodsTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test inherit method impl from hidden parent class and default from interface`() {
         runCodebaseTest(
@@ -738,13 +754,13 @@ class CommonSuperMethodsTest : BaseModelTest() {
             val method = codebase.assertClass("test.pkg.Foo").methods().first()
             val parentInterfaceMethod =
                 codebase.assertClass("test.pkg.ParentInterface").methods().first()
-            val hiddenClassMethod =
-                codebase.assertResolvedClass("test.pkg.HiddenClass").methods().first()
+            val hiddenClassMethod = codebase.assertClass("test.pkg.HiddenClass").methods().first()
 
             assertEquals(listOf(hiddenClassMethod, parentInterfaceMethod), method.superMethods())
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test super method with generic parameter from generic class`() {
         runCodebaseTest(
@@ -792,6 +808,7 @@ class CommonSuperMethodsTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test super method with generic array parameter from generic class`() {
         runCodebaseTest(
@@ -839,6 +856,7 @@ class CommonSuperMethodsTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test super method with generic collection parameter from generic class`() {
         runCodebaseTest(
@@ -890,6 +908,7 @@ class CommonSuperMethodsTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test super method with kotlin property with internal setter`() {
         runCodebaseTest(
@@ -933,6 +952,152 @@ class CommonSuperMethodsTest : BaseModelTest() {
                     message = "Could not find superMethods() of $name"
                 )
             }
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.SIGNATURE)
+    @Test
+    fun `Test super method with different target languages`() {
+        runCodebaseTest(
+            signature(
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public class Foo extends test.pkg.ParentClass {
+                    method public void sameAllTargetLanguages();
+                    method @BytecodeOnly public void sameJustBytecode();
+                    method @KotlinOnly public void sameJustKotlin();
+                    method @BytecodeOnly public void differentTargetLanguagesDisjoint();
+                    method @InaccessibleFromJava public void differentTargetLanguagesWithOverlap();
+                  }
+                  public class ParentClass {
+                    method public void sameAllTargetLanguages();
+                    method @BytecodeOnly public void sameJustBytecode();
+                    method @KotlinOnly public void sameJustKotlin();
+                    method @KotlinOnly public void differentTargetLanguagesDisjoint();
+                    method public void differentTargetLanguagesWithOverlap();
+                  }
+                }
+                """
+            )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            // When the target languages are the same, the super method should be found.
+            val sameAllTargetLanguages =
+                fooClass.assertMethod("sameAllTargetLanguages", emptyList())
+            assertEquals(sameAllTargetLanguages.superMethods().size, 1)
+            val sameJustKotlin = fooClass.assertMethod("sameJustKotlin", emptyList())
+            assertEquals(sameJustKotlin.superMethods().size, 1)
+            val sameJustBytecode = fooClass.assertMethod("sameJustBytecode", emptyList())
+            assertEquals(sameJustBytecode.superMethods().size, 1)
+
+            // When the target languages are different, the super method should not be found
+            val differentTargetLanguagesDisjoint =
+                fooClass.assertMethod("differentTargetLanguagesDisjoint", emptyList())
+            assertTrue(differentTargetLanguagesDisjoint.superMethods().isEmpty())
+
+            // There is a common target language, so the super method should be found
+            val differentTargetLanguagesWithOverlap =
+                fooClass.assertMethod("differentTargetLanguagesWithOverlap", emptyList())
+            assertEquals(differentTargetLanguagesWithOverlap.superMethods().size, 1)
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.SIGNATURE)
+    @Test
+    fun `Test super method for kotlin only methods with the same erased types`() {
+        runCodebaseTest(
+            signature(
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public class Foo extends test.pkg.ParentClass {
+                    method @KotlinOnly public void foo(java.util.List<java.lang.String> arg);
+                    method @KotlinOnly public void foo(java.util.List<java.lang.Integer> arg);
+                  }
+                  public class ParentClass {
+                    method @KotlinOnly public void foo(java.util.List<java.lang.String> arg);
+                    method @KotlinOnly public void foo(java.util.List<java.lang.Integer> arg);
+                  }
+                }
+                """
+            )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            // Check that super methods only finds the exact type match for Kotlin-only methods.
+            val fooWithStrings =
+                fooClass.assertMethod("foo", listOf("java.util.List<java.lang.String>"))
+            val fooWithStringsSuper = fooWithStrings.superMethods()
+            assertEquals(fooWithStringsSuper.size, 1)
+            assertEquals(
+                fooWithStringsSuper.single().parameters().single().type().toTypeString(),
+                "java.util.List<java.lang.String>"
+            )
+
+            val fooWithInts =
+                fooClass.assertMethod("foo", listOf("java.util.List<java.lang.Integer>"))
+            val fooWithIntsSuper = fooWithInts.superMethods()
+            assertEquals(fooWithIntsSuper.size, 1)
+            assertEquals(
+                fooWithIntsSuper.single().parameters().single().type().toTypeString(),
+                "java.util.List<java.lang.Integer>"
+            )
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.SIGNATURE)
+    @Test
+    fun `Test super method for kotlin only methods with differing wildcards`() {
+        runCodebaseTest(
+            signature(
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public class Foo extends test.pkg.ParentClass {
+                    method @KotlinOnly public void fooWithStrings(java.util.List<java.lang.String> arg);
+                    method @KotlinOnly public void fooWithInts(java.util.List<java.lang.Integer> arg);
+                    method @KotlinOnly public void fooWithMismatch(java.util.List<java.lang.Integer> arg);
+                  }
+                  public class ParentClass {
+                    method @KotlinOnly public void fooWithStrings(java.util.List<? extends java.lang.String> arg);
+                    method @KotlinOnly public void fooWithInts(java.util.List<? super java.lang.Integer> arg);
+                    method @KotlinOnly public void fooWithMismatch(java.util.List<? extends java.lang.String> arg);
+                  }
+                }
+                """
+            )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            // Check that super methods only finds the exact type match for Kotlin-only methods.
+            val fooWithStrings =
+                fooClass.assertMethod("fooWithStrings", listOf("java.util.List<java.lang.String>"))
+            val fooWithStringsSuper = fooWithStrings.superMethods()
+            assertEquals(fooWithStringsSuper.size, 1)
+            assertEquals(
+                fooWithStringsSuper.single().parameters().single().type().toTypeString(),
+                "java.util.List<? extends java.lang.String>"
+            )
+
+            val fooWithInts =
+                fooClass.assertMethod("fooWithInts", listOf("java.util.List<java.lang.Integer>"))
+            val fooWithIntsSuper = fooWithInts.superMethods()
+            assertEquals(fooWithIntsSuper.size, 1)
+            assertEquals(
+                fooWithIntsSuper.single().parameters().single().type().toTypeString(),
+                "java.util.List<? super java.lang.Integer>"
+            )
+
+            // The ParentClass.fooWithMismatch uses a String instead of an Integer, so it is not the
+            // super method.
+            val fooWithMismatch =
+                fooClass.assertMethod(
+                    "fooWithMismatch",
+                    listOf("java.util.List<java.lang.Integer>")
+                )
+            assertTrue(fooWithMismatch.superMethods().isEmpty())
         }
     }
 }

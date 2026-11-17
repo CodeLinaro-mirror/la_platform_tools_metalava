@@ -17,27 +17,24 @@
 package com.android.tools.metalava.cli.signature
 
 import com.android.tools.metalava.JDiffXmlWriter
-import com.android.tools.metalava.OptionsDelegate
 import com.android.tools.metalava.cli.common.DefaultSignatureFileLoader
 import com.android.tools.metalava.cli.common.MetalavaSubCommand
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.newFile
-import com.android.tools.metalava.cli.common.progressTracker
 import com.android.tools.metalava.cli.common.stderr
+import com.android.tools.metalava.cli.common.tracer
 import com.android.tools.metalava.createFilteringVisitorForJDiffWriter
-import com.android.tools.metalava.createReportFile
+import com.android.tools.metalava.createOutputFileFromCodebaseFragment
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.CodebaseFragment
-import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.text.SnapshotDeltaMaker
-import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.reporter.BasicReporter
+import com.android.tools.metalava.trace
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.options.convert
-import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 
 class SignatureToJDiffCommand :
@@ -48,19 +45,6 @@ class SignatureToJDiffCommand :
             """
                 .trimIndent()
     ) {
-
-    private val strip by
-        option(
-                help =
-                    """
-                        Determines whether types that are not defined within the input signature
-                        file should be stripped from the output or not. This does not include
-                        super class types, i.e. the `extends` attribute in the generated JDiff file.
-                        Historically, they have not been filtered.
-                    """
-                        .trimIndent()
-            )
-            .flag("--no-strip", default = false, defaultForHelp = "false")
 
     private val formatForLegacyFiles by
         option(
@@ -121,10 +105,6 @@ class SignatureToJDiffCommand :
             .newFile()
 
     override fun run() {
-        // Make sure that none of the code called by this command accesses the global `options`
-        // property.
-        OptionsDelegate.disallowAccess()
-
         val annotationManager = DefaultAnnotationManager()
         val codebaseConfig =
             Codebase.Config(
@@ -139,42 +119,37 @@ class SignatureToJDiffCommand :
 
         val signatureApi = signatureFileLoader.load(SignatureFile.fromFiles(apiFile))
 
-        val strip = strip
-        val apiEmit = FilterPredicate { it.emit }
-        val apiReference = if (strip) apiEmit else FilterPredicate { true }
-        val apiFilters = ApiFilters(emit = apiEmit, reference = apiReference)
         val baseFile = baseApiFile
 
         val signatureFragment =
-            CodebaseFragment.create(signatureApi) { delegate ->
-                createFilteringVisitorForJDiffWriter(
-                    delegate,
-                    apiFilters = apiFilters,
-                    preFiltered = signatureApi.preFiltered && !strip,
-                    showUnannotated = false,
-                    // Historically, the super class type has not been filtered when generating
-                    // JDiff files, so do not filter here even though it could result in undefined
-                    // types being included in the JDiff file.
-                    filterSuperClassType = false,
-                )
-            }
+            CodebaseFragment.create(signatureApi, factory = ::createFilteringVisitorForJDiffWriter)
 
         val outputFragment =
             if (baseFile != null) {
                 // Convert base on a diff
                 val baseApi = signatureFileLoader.load(SignatureFile.fromFiles(baseFile))
-                SnapshotDeltaMaker.createDelta(baseApi, signatureFragment)
+                SnapshotDeltaMaker.createDelta(
+                    baseApi,
+                    signatureFragment,
+                    checkMemberItemEquivalence = false,
+                    allowClassModifierChanges = false,
+                )
             } else {
                 signatureFragment
             }
 
         // See JDiff's XMLToAPI#nameAPI
         val apiName = xmlFile.nameWithoutExtension.replace(' ', '_')
-        createReportFile(progressTracker, outputFragment, xmlFile, "JDiff File") { printWriter ->
-            JDiffXmlWriter(
-                writer = printWriter,
-                apiName = apiName,
-            )
+        tracer.trace("createOutputFileFromCodebaseFragment JDiff") {
+            createOutputFileFromCodebaseFragment(
+                outputFragment,
+                xmlFile,
+            ) { printWriter ->
+                JDiffXmlWriter(
+                    writer = printWriter,
+                    apiName = apiName,
+                )
+            }
         }
     }
 }

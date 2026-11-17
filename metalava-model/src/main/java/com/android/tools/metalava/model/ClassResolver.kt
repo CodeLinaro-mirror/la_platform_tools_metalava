@@ -19,4 +19,28 @@ package com.android.tools.metalava.model
 /** Resolves an erased class name to a [ClassItem] or null if it cannot find a matching class. */
 interface ClassResolver {
     fun resolveClass(erasedName: String): ClassItem?
+
+    companion object {
+        /**
+         * A [ClassResolver] that will throw an exception when [resolveClass] is called.
+         *
+         * Useful for testing and when a [resolveClass] will not be called.
+         */
+        val THROWING =
+            object : ClassResolver {
+                override fun resolveClass(erasedName: String): ClassItem? {
+                    error("Unsupported: Cannot resolve $erasedName")
+                }
+            }
+
+        /**
+         * A [ClassResolver] that will return `null` when [resolveClass] is called.
+         *
+         * Useful for testing when [resolveClass] will be called but should return `null`.
+         */
+        val RETURN_NULL =
+            object : ClassResolver {
+                override fun resolveClass(erasedName: String) = null
+            }
+    }
 }

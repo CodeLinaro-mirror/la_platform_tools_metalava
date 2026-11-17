@@ -16,22 +16,30 @@
 
 package com.android.tools.metalava.stub
 
+import com.android.tools.metalava.model.ANDROID_FLAGGED_API
+import com.android.tools.metalava.model.ANDROID_REQUIRES_FLAG
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassKind
+import com.android.tools.metalava.model.ClassOrVariableTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DelegatedVisitor
-import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_STRING
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierListWriter
 import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
+import com.android.tools.metalava.model.RecordComponents
+import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterBindings
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.reporter.Issues
 import java.io.PrintWriter
 
 internal class JavaStubWriter(
@@ -39,53 +47,72 @@ internal class JavaStubWriter(
     private val modifierListWriter: ModifierListWriter,
     private val config: StubWriterConfig,
     private val stubConstructorManager: StubConstructorManager,
+    private val inaccessibleSealedSubclassManager: InaccessibleSealedSubclassManager,
 ) : DelegatedVisitor {
+    /**
+     * Stubs require nested classes to be visited in deterministic sorted order so that the contents
+     * of the generated source files are reproducible.
+     */
+    override val requiresSortedClasses: Boolean
+        get() = true
+
+    /**
+     * If true then include Java record class related information in the generated stubs. Otherwise,
+     * treat record classes as normal classes as much as possible.
+     */
+    private val javaRecordClasses = config.javaRecordClasses
+
+    /**
+     * If true then include Java sealed class related information in the generated stubs.
+     *
+     * TODO(b/482391240): Decide what to do with sealed classes when this is false.
+     */
+    private val javaSealedClasses = config.javaSealedClasses
 
     override fun visitClass(cls: ClassItem) {
         if (cls.isTopLevelClass()) {
             val qualifiedName = cls.containingPackage().qualifiedName()
             if (qualifiedName.isNotBlank()) {
                 writer.println("package $qualifiedName;")
-                writer.println()
-            }
-            if (config.includeDocumentationInStubs) {
-                // All the classes referenced in the stubs are fully qualified, so no imports are
-                // needed. However, in some cases for javadoc, replacement with fully qualified name
-                // fails, and thus we need to include imports for the stubs to compile.
-                cls.sourceFile()?.getImports()?.let {
-                    for (item in it) {
-                        if (item.isMember) {
-                            writer.println("import static ${item.pattern};")
-                        } else {
-                            writer.println("import ${item.pattern};")
-                        }
-                    }
-                    writer.println()
-                }
             }
         }
 
         appendDocumentation(cls, writer, config)
 
-        // "ALL" doesn't do it; compiler still warns unless you actually explicitly list "unchecked"
-        writer.println("@SuppressWarnings({\"unchecked\", \"deprecation\", \"all\"})")
+        // Only write out the SuppressWarnings annotations for a top level class.
+        if (!cls.isNestedClass()) {
+            // "ALL" doesn't do it; compiler still warns unless you actually explicitly list
+            // "unchecked"
+            writeSuppressWarnings(this@JavaStubWriter.writer)
+        }
 
         appendModifiers(cls)
 
-        when {
-            cls.isAnnotationType() -> writer.print("@interface")
-            cls.isInterface() -> writer.print("interface")
-            cls.isEnum() -> writer.print("enum")
-            else -> writer.print("class")
-        }
-
+        val classKind =
+            when (val kind = cls.classKind) {
+                // Only use RECORD if java-record-classes=true
+                ClassKind.RECORD -> if (javaRecordClasses) kind else ClassKind.CLASS
+                else -> kind
+            }
+        writer.print(classKind.signatureKeyword)
         writer.print(" ")
         writer.print(cls.simpleName())
 
         generateTypeParameterList(typeList = cls.typeParameterList, addSpace = false)
+
+        // Record class is special as it declares components after the class name and type
+        // declarations and before interfaces.
+        if (classKind == ClassKind.RECORD) {
+            generateRecordComponents(cls.recordComponents)
+        }
+
         generateSuperClassDeclaration(cls)
         generateInterfaceList(cls)
-        writer.print(" {\n")
+        if (javaSealedClasses) {
+            generatePermitsList(cls)
+        }
+
+        writer.println(" {")
 
         // Enum constants must be written out first.
         if (cls.isEnum()) {
@@ -117,18 +144,104 @@ internal class JavaStubWriter(
     }
 
     override fun afterVisitClass(cls: ClassItem) {
-        writer.print("}\n\n")
+        // Write any inaccessible sealed subclasses that will be contained within [cls] before
+        // closing the class body.
+        inaccessibleSealedSubclassManager.writeSubclasses(writer, containingClass = cls)
+
+        writer.println("}")
+
+        // If this is the top level class then write out any top level inaccessible sealed
+        // subclasses that cannot be nested in [cls].
+        if (cls.containingClass() == null) {
+            inaccessibleSealedSubclassManager.writeSubclasses(writer, containingClass = null)
+        }
+    }
+
+    /**
+     * Find the [ANDROID_FLAGGED_API] in this list of [AnnotationItem]s that has not been reverted,
+     * if there is one.
+     */
+    private fun List<AnnotationItem>.findFlaggedApiAnnotation(): AnnotationItem? = find {
+        it.qualifiedName == ANDROID_FLAGGED_API && it.apiFlag?.revert != true
     }
 
     private fun appendModifiers(item: Item) {
-        modifierListWriter.write(item)
+        val annotations =
+            if (item is SelectableItem) {
+                modifySelectableItemAnnotations(item)
+            } else {
+                item.modifiers.annotations()
+            }
+
+        modifierListWriter.write(item, annotations)
+    }
+
+    /**
+     * Returns the list of [AnnotationItem]s to write for [item], adjusted for stub-specific
+     * `@FlaggedApi` and `@RequiresFlag` handling.
+     */
+    private fun modifySelectableItemAnnotations(item: SelectableItem): List<AnnotationItem> {
+        val modifierList = item.modifiers
+        var annotations = modifierList.annotations()
+
+        // @FlaggedApi annotations are always converted to @RequiresFlag in stub files.
+        // Developers are not allowed to add @RequiresFlag to flagged APIs to avoid duplicate
+        // @RequiresFlag compilation errors in stubs
+        if (
+            annotations.any { it.qualifiedName == ANDROID_FLAGGED_API } &&
+                annotations.any { it.qualifiedName == ANDROID_REQUIRES_FLAG }
+        ) {
+            item.codebase.reporter.report(
+                Issues.MULTIPLE_FLAGGING,
+                item,
+                "@RequiresFlag can not be placed on APIs that are already flagged.",
+            )
+
+            annotations = annotations.filter { it.qualifiedName != ANDROID_REQUIRES_FLAG }
+        }
+
+        // Do not map @FlaggedApi on removed APIs to @RequiresFlag in stub files. Remove any
+        // direct @FlaggedApi before checking enclosing classes so an outer @FlaggedApi can
+        // still be inherited if applicable.
+        if (item.selectedApi.hasRemovedAnnotation()) {
+            annotations = annotations.filter { it.qualifiedName != ANDROID_FLAGGED_API }
+        }
+
+        // Inherit @FlaggedApi from enclosing classes if not present (for public APIs),
+        // and remove @FlaggedApi if the item was part of a previously released API.
+        if (modifierList.isPublic() || modifierList.isProtected()) {
+            if (annotations.findFlaggedApiAnnotation() == null) {
+                var containingClassItem: ClassItem? = item.containingClass()
+                while (containingClassItem != null) {
+                    // Do not inherit @FlaggedApi from an enclosing class that has a removed
+                    // annotation, as its @FlaggedApi is for removing the class rather than adding
+                    // it. Continue searching outer classes in case an outer class has a
+                    // non-removed @FlaggedApi annotation.
+                    if (!containingClassItem.selectedApi.hasRemovedAnnotation()) {
+                        val flaggedApiAnnotation =
+                            containingClassItem.modifiers.annotations().findFlaggedApiAnnotation()
+                        if (flaggedApiAnnotation != null) {
+                            annotations = annotations + flaggedApiAnnotation
+                            break
+                        }
+                    }
+                    containingClassItem = containingClassItem.containingClass()
+                }
+            }
+
+            if (item.selectedApi.wasPreviouslyReleased()) {
+                annotations = annotations.filter { it.qualifiedName != ANDROID_FLAGGED_API }
+            }
+        }
+
+        return annotations
     }
 
     private fun generateSuperClassDeclaration(cls: ClassItem) {
-        if (cls.isEnum() || cls.isAnnotationType() || cls.isInterface()) {
-            // No extends statement for enums and annotations; it's implied by the "enum" and
-            // "@interface" keywords. Normal interfaces do support an extends statement but it is
-            // generated in [generateInterfaceList].
+        val classKind = cls.classKind
+        if (!classKind.allowsExplicitSuperClass) {
+            // Normal interfaces do support an extends statement, but that is for super interfaces
+            // not a super class and so it is generated in [generateInterfaceList].
             return
         }
 
@@ -159,6 +272,47 @@ internal class JavaStubWriter(
         }
     }
 
+    /**
+     * Generate a `permits` list if [cls] is sealed and the `permits` list is empty.
+     *
+     * This is only called when [javaSealedClasses] is `true`.
+     */
+    private fun generatePermitsList(cls: ClassItem) {
+        val modifiers = cls.modifiers
+        if (!modifiers.isSealed()) {
+            // Permits is only valid on a sealed class.
+            return
+        }
+
+        val permitTypes =
+            cls.permitTypes.let { list ->
+                // If the class is non-exhaustive then add an inaccessible subclass that will ensure
+                // that the stub version of the class is also non-exhaustive.
+                if (!modifiers.isExhaustive()) {
+                    val subclassType =
+                        inaccessibleSealedSubclassManager.addSubclass(sealedClassItem = cls)
+
+                    list + subclassType
+                } else {
+                    list
+                }
+            }
+
+        if (permitTypes.isEmpty()) {
+            // No permits list is available so using `permits` would result in invalid sources.
+            return
+        }
+
+        writer.print(" permits")
+        for ((index, type) in permitTypes.withIndex()) {
+            if (index > 0) {
+                writer.print(",")
+            }
+            writer.print(" ")
+            writer.print(type.toTypeString())
+        }
+    }
+
     private fun generateTypeParameterList(typeList: TypeParameterList, addSpace: Boolean) {
         val typeListString = typeList.toString()
         if (typeListString.isNotEmpty()) {
@@ -170,8 +324,26 @@ internal class JavaStubWriter(
         }
     }
 
+    private fun generateRecordComponents(recordComponents: RecordComponents) {
+        writer.write("(")
+        for ((index, component) in recordComponents.withIndex()) {
+            if (index > 0) writer.print(", ")
+            modifierListWriter.writeAnnotations(component)
+            writer.print(component.type.toTypeString())
+            writer.print(' ')
+            val name = component.name
+            writer.print(name)
+        }
+        writer.write(")")
+    }
+
     override fun visitConstructor(constructor: ConstructorItem) {
-        writer.println()
+        val isRecordConstructor =
+            javaRecordClasses && constructor.containingClass().classKind == ClassKind.RECORD
+        if (isRecordConstructor && constructor.isPrimary) {
+            return
+        }
+
         appendDocumentation(constructor, writer, config)
         appendModifiers(constructor)
         generateTypeParameterList(typeList = constructor.typeParameterList, addSpace = true)
@@ -182,116 +354,29 @@ internal class JavaStubWriter(
 
         writer.print(" { ")
 
-        writeConstructorBody(constructor)
+        if (isRecordConstructor) {
+            val canonicalConstructor =
+                constructor.containingClass().constructors().find { it.isPrimary }!!
+            writeConstructorDelegate(writer, constructor, canonicalConstructor)
+        } else {
+            writeConstructorDelegationToSuperIfNeeded(constructor)
+        }
+
+        writeThrowStub()
+
         writer.println(" }")
     }
 
-    private fun writeConstructorBody(constructor: ConstructorItem) {
+    /** Writes the appropriate delegation to a super constructor, if needed. */
+    private fun writeConstructorDelegationToSuperIfNeeded(constructor: ConstructorItem) {
         val optionalSuperConstructor =
             stubConstructorManager.optionalSuperConstructor(constructor.containingClass())
         optionalSuperConstructor?.let { superConstructor ->
             val parameters = superConstructor.parameters()
             if (parameters.isNotEmpty()) {
-                writer.print("super(")
-
-                // Get the types to which this class binds the super class's type parameters, if
-                // any.
-                val typeParameterBindings =
-                    constructor
-                        .containingClass()
-                        .mapTypeVariables(superConstructor.containingClass())
-
-                for ((index, parameter) in parameters.withIndex()) {
-                    if (index > 0) {
-                        writer.write(", ")
-                    }
-                    // Always make sure to add appropriate casts to the parameters in the super call
-                    // as without the casts the compiler will fail if there is more than one
-                    // constructor that could match.
-                    val defaultValueWithCast =
-                        defaultValueWithCastForType(parameter.type(), typeParameterBindings)
-                    writer.write(defaultValueWithCast)
-                }
-                writer.print("); ")
+                writeConstructorDelegate(writer, constructor, superConstructor)
             }
         }
-
-        writeThrowStub()
-    }
-
-    /**
-     * Get the string representation of the default value for [type], it will include a cast if
-     * necessary.
-     *
-     * If [type] is a [VariableTypeItem] then it will map it to the appropriate type given the
-     * [typeParameterBindings]. See the comment in the body for more details.
-     */
-    private fun defaultValueWithCastForType(
-        type: TypeItem,
-        typeParameterBindings: TypeParameterBindings,
-    ): String {
-        // Handle special cases and non-reference types, drop through to handle the default
-        // reference type.
-        when (type) {
-            is PrimitiveTypeItem -> {
-                val kind = type.kind
-                return when (kind) {
-                    PrimitiveTypeItem.Primitive.BOOLEAN,
-                    PrimitiveTypeItem.Primitive.INT,
-                    PrimitiveTypeItem.Primitive.LONG -> kind.defaultValueString
-                    else -> "(${kind.primitiveName})${kind.defaultValueString}"
-                }
-            }
-            is ClassTypeItem -> {
-                val qualifiedName = type.qualifiedName
-                when (qualifiedName) {
-                    JAVA_LANG_STRING -> return "\"\""
-                }
-            }
-        }
-
-        // Get the actual type that the super constructor expects, taking into account any type
-        // parameter mappings.
-        val mappedType =
-            if (type is VariableTypeItem) {
-                // The super constructor's parameter is a type variable: so see if it should be
-                // mapped back to a type specified by this class. e.g.
-                //
-                // Given:
-                //   class Bar<T extends Number> {
-                //       public Bar(int i) {}
-                //       public Bar(T t) {}
-                //   }
-                //   class Foo extends Bar<Integer> {
-                //       public Foo(Integer i) { super(i); }
-                //   }
-                //
-                // The stub for Foo should use:
-                //     super((Integer) i);
-                // Not:
-                //     super((Number) i);
-                //
-                // However, if the super class is referenced as a raw type then there will be no
-                // mapping in which case fall back to the erased type which will use the type
-                // variable's lower bound. e.g.
-                //
-                // Given:
-                //   class Foo extends Bar {
-                //       public Foo(Integer i) { super(i); }
-                //   }
-                //
-                // The stub for Foo should use:
-                //     super((Number) i);
-                type.convertType(typeParameterBindings)
-            } else {
-                type
-            }
-
-        // Casting to the erased type could lead to unchecked warnings (which are suppressed) but
-        // avoids having to deal with parameterized types and ensures that casting to a vararg
-        // parameter uses an array type.
-        val erasedTypeString = mappedType.toErasedTypeString()
-        return "($erasedTypeString)null"
     }
 
     override fun visitMethod(method: MethodItem) {
@@ -299,7 +384,6 @@ internal class JavaStubWriter(
     }
 
     private fun writeMethod(containingClass: ClassItem, method: MethodItem) {
-        writer.println()
         appendDocumentation(method, writer, config)
 
         appendModifiers(method)
@@ -314,10 +398,9 @@ internal class JavaStubWriter(
         generateThrowsList(method)
 
         if (containingClass.isAnnotationType()) {
-            val default = method.defaultValue()
-            if (default.isNotEmpty()) {
+            method.defaultValue?.let { defaultValue ->
                 writer.print(" default ")
-                writer.print(default)
+                writer.print(defaultValue.toValueString())
             }
         }
 
@@ -336,30 +419,68 @@ internal class JavaStubWriter(
             return
         }
 
-        writer.println()
-
         appendDocumentation(field, writer, config)
         appendModifiers(field)
         writer.print(field.type().toTypeString())
         writer.print(' ')
         writer.print(field.name())
-        val needsInitialization =
-            field.modifiers.isFinal() &&
-                field.initialValue(true) == null &&
-                field.containingClass().isClass()
-        field.writeValueWithSemicolon(
-            writer,
-            allowDefaultValue = !needsInitialization,
-            requireInitialValue = !needsInitialization
-        )
+
+        // Write the value, if any, falling back to the non-constant expression provider.
+        val valueWasWritten = field.writeFieldValue(writer)
         writer.print("\n")
 
-        if (needsInitialization) {
+        // An initializer block is needed if no value was written by the call to
+        // `writeValueWithSemicolon(...)`, the field is final (so needs initializing) and the
+        // containing class supports initializer blocks.
+        val useInitializerBlock =
+            !valueWasWritten &&
+                field.modifiers.isFinal() &&
+                field.containingClass().classKind.supportsInitializerBlock
+        if (useInitializerBlock) {
             if (field.modifiers.isStatic()) {
                 writer.print("static ")
             }
             writer.print("{ ${field.name()} = ${field.type().defaultValueString()}; }\n")
         }
+    }
+
+    /**
+     * If this field has no initial value, it just writes ";", otherwise it writes " = value;" with
+     * the correct Java syntax for the initial value.
+     *
+     * @param writer the [PrintWriter] to which this will write the field value.
+     * @return `true` if a value was written, false otherwise.
+     */
+    private fun FieldItem.writeFieldValue(
+        writer: PrintWriter,
+    ): Boolean {
+        // Use [constantValue] which is only non-null on static final fields.
+        val constantValue = constantValue
+        if (constantValue != null) {
+            writer.print(" = ")
+            writer.print(constantValue.toValueString())
+            writer.print(";")
+            // A value was written.
+            return true
+        }
+
+        // A non-constant expression initializer is only needed if the field is static and final. If
+        // it was just final and not static then it must be part of a normal class or an enum in
+        // which case they will use a separate initializer block to initialize the field.
+        if (modifiers.isFinal() && modifiers.isStatic()) {
+            // Get the non-constant expression, if possible. If one is provided then write it out.
+            nonConstantExpressionProvider(this)?.let { nonConstantExpression ->
+                writer.print(" = ")
+                writer.print(nonConstantExpression)
+                writer.print(";")
+                // A value was written.
+                return true
+            }
+        }
+
+        writer.print(';')
+        // A value was not written.
+        return false
     }
 
     private fun writeThrowStub() {
@@ -385,7 +506,8 @@ internal class JavaStubWriter(
         val throws = callable.throwsTypes()
         if (throws.isNotEmpty()) {
             writer.print(" throws ")
-            throws.sortedWith(ExceptionTypeItem.fullNameComparator).forEachIndexed { i, type ->
+            throws.sortedWith(ClassOrVariableTypeItem.fullNameComparator).forEachIndexed { i, type
+                ->
                 if (i > 0) {
                     writer.print(", ")
                 }
@@ -393,4 +515,161 @@ internal class JavaStubWriter(
             }
         }
     }
+
+    companion object {
+        /**
+         * Provide a non-constant expression for [field], if needed.
+         *
+         * Returns an expression, appropriate for the [field]'s [FieldItem.type] which will not be
+         * considered to be a constant expression as defined in JLS 15.28.
+         */
+        private fun nonConstantExpressionProvider(field: FieldItem): String? {
+            // Classes and enums can just use a separate initializer block.
+            if (field.containingClass().classKind.supportsInitializerBlock) return null
+            val fieldType = field.type()
+            return when {
+                fieldType is PrimitiveTypeItem -> {
+                    nonConstantExpressionForPrimitive[fieldType.kind]!!
+                }
+                fieldType.isString() -> {
+                    "java.lang.String.valueOf(0)"
+                }
+                else -> "null"
+            }
+        }
+
+        /**
+         * A map from [Primitive] to an expression that, if evaluated, will return in a value of the
+         * primitive type but which is not considered to be a constant expression so will not be
+         * inlined by the compiler.
+         */
+        private val nonConstantExpressionForPrimitive =
+            mapOf(
+                Primitive.BOOLEAN to """java.lang.Boolean.parseBoolean("false")""",
+                Primitive.BYTE to """java.lang.Byte.parseByte("0")""",
+                Primitive.CHAR to """"A".charAt(0)""",
+                Primitive.DOUBLE to """java.lang.Double.parseDouble("0")""",
+                Primitive.FLOAT to """java.lang.Float.parseFloat("0")""",
+                Primitive.INT to """java.lang.Integer.parseInt("0")""",
+                Primitive.LONG to """java.lang.Long.parseLong("0")""",
+                Primitive.SHORT to """java.lang.Short.parseShort("0")""",
+            )
+    }
+}
+
+/**
+ * Write the code to delegate from [delegatingConstructor] to [delegateConstructor] into [writer].
+ */
+internal fun writeConstructorDelegate(
+    writer: PrintWriter,
+    delegatingConstructor: ConstructorItem?,
+    delegateConstructor: ConstructorItem,
+) {
+    val delegatingClass = delegatingConstructor?.containingClass()
+    val delegateReference =
+        if (delegatingClass == delegateConstructor.containingClass()) {
+            "this"
+        } else {
+            "super"
+        }
+    writer.print(delegateReference)
+    writer.print("(")
+
+    // Get the types to which this class binds the super class's type parameters, if any.
+    val typeParameterBindings =
+        delegatingClass?.mapTypeVariables(delegateConstructor.containingClass()) ?: emptyMap()
+
+    val parameters = delegateConstructor.parameters()
+    for ((index, parameter) in parameters.withIndex()) {
+        if (index > 0) {
+            writer.write(", ")
+        }
+        // Always make sure to add appropriate casts to the parameters in the super call
+        // as without the casts the compiler will fail if there is more than one
+        // constructor that could match.
+        val defaultValueWithCast =
+            defaultValueWithCastForType(parameter.type(), typeParameterBindings)
+        writer.write(defaultValueWithCast)
+    }
+    writer.print("); ")
+}
+
+/**
+ * Get the string representation of the default value for [type], it will include a cast if
+ * necessary.
+ *
+ * If [type] is a [VariableTypeItem] then it will map it to the appropriate type given the
+ * [typeParameterBindings]. See the comment in the body for more details.
+ */
+private fun defaultValueWithCastForType(
+    type: TypeItem,
+    typeParameterBindings: TypeParameterBindings,
+): String {
+    // Handle special cases and non-reference types, drop through to handle the default
+    // reference type.
+    when (type) {
+        is PrimitiveTypeItem -> {
+            val kind = type.kind
+            return when (kind) {
+                Primitive.BOOLEAN,
+                Primitive.INT,
+                Primitive.LONG -> kind.defaultValueString
+                else -> "(${kind.primitiveName})${kind.defaultValueString}"
+            }
+        }
+        is ClassTypeItem -> {
+            val qualifiedName = type.qualifiedName
+            when (qualifiedName) {
+                JAVA_LANG_STRING -> return "\"\""
+            }
+        }
+    }
+
+    // Get the actual type that the super constructor expects, taking into account any type
+    // parameter mappings.
+    val mappedType =
+        if (type is VariableTypeItem) {
+            // The super constructor's parameter is a type variable: so see if it should be
+            // mapped back to a type specified by this class. e.g.
+            //
+            // Given:
+            //   class Bar<T extends Number> {
+            //       public Bar(int i) {}
+            //       public Bar(T t) {}
+            //   }
+            //   class Foo extends Bar<Integer> {
+            //       public Foo(Integer i) { super(i); }
+            //   }
+            //
+            // The stub for Foo should use:
+            //     super((Integer) i);
+            // Not:
+            //     super((Number) i);
+            //
+            // However, if the super class is referenced as a raw type then there will be no
+            // mapping in which case fall back to the erased type which will use the type
+            // variable's lower bound. e.g.
+            //
+            // Given:
+            //   class Foo extends Bar {
+            //       public Foo(Integer i) { super(i); }
+            //   }
+            //
+            // The stub for Foo should use:
+            //     super((Number) i);
+            type.convertType(typeParameterBindings)
+        } else {
+            type
+        }
+
+    // Casting to the erased type could lead to unchecked warnings (which are suppressed) but
+    // avoids having to deal with parameterized types and ensures that casting to a vararg
+    // parameter uses an array type.
+    val erasedTypeString = mappedType.toErasedTypeString()
+    return "($erasedTypeString)null"
+}
+
+/** Write `@SuppressWarnings` annotation for the top-level class. */
+internal fun writeSuppressWarnings(writer: PrintWriter) {
+    writer.println("@SuppressWarnings({\"unchecked\", \"deprecation\", \"all\"})")
 }

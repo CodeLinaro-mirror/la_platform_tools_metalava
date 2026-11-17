@@ -16,8 +16,6 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.model.ANDROID_SYSTEM_API
-import com.android.tools.metalava.model.ANDROID_TEST_API
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertNotNull
@@ -31,18 +29,19 @@ class ApiSurfacesTest : DriverTest() {
     private class ApiSurfacesContext(val apiSurfaces: ApiSurfaces)
 
     /**
-     * Check the API surfaces that are configured based off the [arguments].
+     * Check the API surfaces that are configured based off the [apiSurface].
      *
-     * @param arguments the command line arguments to supply.
+     * @param apiSurface the [KnownApiSurface] to use.
      * @param checker the lambda that is invoked on [ApiSurfacesContext] and which checks its
      *   [ApiSurfacesContext.apiSurfaces] property to make sure that the [ApiSurfaces] were
      *   configured as expected.
      */
     private fun checkApiSurfaces(
-        vararg arguments: String,
+        apiSurface: KnownApiSurface,
         checker: ApiSurfacesContext.() -> Unit,
     ) {
         check(
+            apiSurface = apiSurface,
             sourceFiles =
                 arrayOf(
                     java(
@@ -53,9 +52,8 @@ class ApiSurfacesTest : DriverTest() {
                         """
                     ),
                 ),
-            extraArguments = arguments,
             postAnalysisChecker = {
-                val apiSurfaces = options.apiSurfaces
+                val apiSurfaces = codebase!!.config.apiSurfaces
                 val context = ApiSurfacesContext(apiSurfaces)
                 context.checker()
             },
@@ -64,7 +62,7 @@ class ApiSurfacesTest : DriverTest() {
 
     @Test
     fun `Test generating public API does not need to track the base API surface`() {
-        checkApiSurfaces {
+        checkApiSurfaces(KnownApiSurface.PUBLIC) {
             // The public API surface does not extend another API surface so there is no need to
             // track the base API surface.
             apiSurfaces.assertBaseWasNotCreated()
@@ -80,13 +78,7 @@ class ApiSurfacesTest : DriverTest() {
      */
     @Test
     fun `Test generating system + public API does not need to track the base API surface`() {
-        checkApiSurfaces(
-            // Do not make system a delta on top of public by including public APIs.
-            ARG_SHOW_UNANNOTATED,
-            // Include system APIs.
-            ARG_SHOW_ANNOTATION,
-            ANDROID_SYSTEM_API,
-        ) {
+        checkApiSurfaces(KnownApiSurface.SYSTEM_WITH_PUBLIC) {
             // The system API surface that includes public does not extend public so there is no
             // need to track the base API surface.
             apiSurfaces.assertBaseWasNotCreated()
@@ -95,11 +87,7 @@ class ApiSurfacesTest : DriverTest() {
 
     @Test
     fun `Test generating system API as delta on public does need to track the base API surface`() {
-        checkApiSurfaces(
-            // Include system API only, no ARG_SHOW_UNANNOTATED means no public API.
-            ARG_SHOW_ANNOTATION,
-            ANDROID_SYSTEM_API,
-        ) {
+        checkApiSurfaces(KnownApiSurface.SYSTEM) {
             // The system API surface that extends public does need to track the base API surface.
             apiSurfaces.assertBaseWasCreated()
         }
@@ -107,21 +95,13 @@ class ApiSurfacesTest : DriverTest() {
 
     @Test
     fun `Test generating test API as delta on system does need to track the base API surface`() {
-        checkApiSurfaces(
-            // Include test APIs only, no ARG_SHOW_UNANNOTATED means no public API.
-            ARG_SHOW_ANNOTATION,
-            ANDROID_TEST_API,
-            // Include system APIs only for stubs which always have to be complete.
-            ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION,
-            ANDROID_SYSTEM_API,
-        ) {
-            apiSurfaces.assertBaseWasCreated()
-        }
+        checkApiSurfaces(KnownApiSurface.TEST) { apiSurfaces.assertBaseWasCreated() }
     }
 
     @Test
     fun `Test no show annotations with signature sources`() {
         check(
+            apiSurface = KnownApiSurface.SYSTEM,
             signatureSource =
                 """
                     package test.pkg {
@@ -130,16 +110,62 @@ class ApiSurfacesTest : DriverTest() {
                         }
                     }
                 """,
-            configFiles = arrayOf(KnownConfigFiles.configPublicAndSystemSurfaces),
-            extraArguments =
-                arrayOf(
-                    ARG_API_SURFACE,
-                    "system",
-                ),
         ) {
-            val apiSurfaces = options.apiSurfaces
+            val apiSurfaces = codebase!!.config.apiSurfaces
             apiSurfaces.assertBaseWasCreated()
         }
+    }
+
+    @Test
+    fun `Test that @hide doc tag hides the class when API surfaces are NOT configured`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /**
+                             * @hide
+                             */
+                            public class Foo {
+                                public void bar() {}
+                            }
+                        """
+                    ),
+                ),
+            expectedApiSignature = ""
+        )
+    }
+
+    @Test
+    fun `Test that @hide doc tag is ignored when API surfaces are configured`() {
+        check(
+            apiSurface = KnownApiSurface.PUBLIC,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /**
+                             * @hide
+                             */
+                            public class Foo {
+                                public void bar() {}
+                            }
+                        """
+                    ),
+                ),
+            expectedApiSignature =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Foo {
+                        ctor public Foo();
+                        method public void bar();
+                      }
+                    }
+                """
+        )
     }
 }
 

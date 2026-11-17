@@ -47,8 +47,11 @@ class ModelTestSuiteRunner(clazz: Class<*>) :
 
     companion object {
         private fun getModelSuiteRunners(): List<CodebaseCreatorConfig<ModelSuiteRunner>> {
+            // Get the wrapper for the runners, may do nothing.
+            val wrapper = ModelSuiteRunnerWrapper.selectWrapper()
+
             val loader = ServiceLoader.load(ModelSuiteRunnerProvider::class.java)
-            val modelSuiteRunners = loader.flatMap { it.runners }.toList()
+            val modelSuiteRunners = loader.flatMap { it.runners }.map { wrapper.wrap(it) }.toList()
             if (modelSuiteRunners.isEmpty()) {
                 fail("No runners found")
             }

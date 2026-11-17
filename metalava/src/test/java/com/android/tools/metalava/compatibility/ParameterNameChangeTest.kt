@@ -26,11 +26,11 @@ import org.junit.Test
 class ParameterNameChangeTest : DriverTest() {
 
     @Test
-    fun `Change formal parameter name class method (Incompatible)`() {
+    fun `Change formal parameter name class method - Incompatible`() {
         check(
             expectedIssues =
                 """
-                    load-api.txt:4: error: Attempted to change parameter name from bread to toast in method test.pkg.Foo.bar [ParameterNameChange]
+                    load-api.txt:4: error: Source breaking change: Attempted to change parameter name from bread to toast in method test.pkg.Foo.bar [ParameterNameChange]
                 """,
             signatureSource =
                 """
@@ -52,11 +52,11 @@ class ParameterNameChangeTest : DriverTest() {
     }
 
     @Test
-    fun `Change formal parameter name interface method (Incompatible)`() {
+    fun `Change formal parameter name interface method - Incompatible`() {
         check(
             expectedIssues =
                 """
-                    load-api.txt:4: error: Attempted to change parameter name from bread to toast in method test.pkg.Foo.bar [ParameterNameChange]
+                    load-api.txt:4: error: Source breaking change: Attempted to change parameter name from bread to toast in method test.pkg.Foo.bar [ParameterNameChange]
                 """,
             signatureSource =
                 """
@@ -83,12 +83,12 @@ class ParameterNameChangeTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                    src/test/pkg/KotlinClass.kt:4: error: Attempted to change parameter name from prevName to newName in method test.pkg.KotlinClass.method1 [ParameterNameChange]
+                    src/test/pkg/KotlinClass.kt:4: error: Source breaking change: Attempted to change parameter name from prevName to newName in method test.pkg.KotlinClass.method1 [ParameterNameChange]
                 """,
-            format = FileFormat.V2,
+            format = FileFormat.V4,
             checkCompatibilityApiReleased =
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public final class KotlinClass {
                         ctor public KotlinClass();

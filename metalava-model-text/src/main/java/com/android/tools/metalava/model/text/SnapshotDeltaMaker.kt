@@ -16,19 +16,22 @@
 
 package com.android.tools.metalava.model.text
 
-import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassKind
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MemberItem
-import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.TypeComparator
+import com.android.tools.metalava.model.TypeParameterListOwner
+import com.android.tools.metalava.model.equalTo
 import com.android.tools.metalava.model.snapshot.EmittableDelegatingVisitor
 import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
 
@@ -41,8 +44,20 @@ import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
  *
  * This can be used to create deltas that can be used when class nesting is not maintained as it
  * does not emit a class just because a nested class needs emitting.
+ *
+ * If [checkMemberItemEquivalence] is true, then [MemberItem]s are emitted when there is a change
+ * between the base and extension members. If it is false, [MemberItem]s are not emitted when they
+ * are present in both the base and extension, even if there is some difference between them.
+ *
+ * If [allowClassModifierChanges] is true, a [ClassItem] will be emitted if its modifiers are not
+ * equivalent between the base and extension codebase.
  */
-class SnapshotDeltaMaker private constructor(private val base: Codebase) :
+class SnapshotDeltaMaker
+private constructor(
+    private val base: Codebase,
+    private val checkMemberItemEquivalence: Boolean,
+    private val allowClassModifierChanges: Boolean
+) :
     BaseItemVisitor(
         preserveClassNesting = true,
         visitParameterItems = false,
@@ -89,27 +104,46 @@ class SnapshotDeltaMaker private constructor(private val base: Codebase) :
     override fun skipPackage(pkg: PackageItem) = false
 
     /** Override to skip any non-public or protected items. */
-    override fun skip(item: Item): Boolean = !item.modifiers.isPublicOrProtected()
-
-    /** Convert a list of [AnnotationItem]s into a list of [String]s for comparison. */
-    // TODO(b/354633349): Use equality once value abstraction provides consistent behavior across
-    //   models.
-    private fun List<AnnotationItem>.normalize() = map { it.toString() }.sorted()
+    override fun skip(item: SelectableItem): Boolean = !item.modifiers.isPublicOrProtected()
 
     override fun visitClass(cls: ClassItem) {
         cls.findCorrespondingItemIn(base)?.let { baseClass ->
             // If super class type is set and is different to the base class then drop out to emit
-            // this class.
+            // this class. Compare using TypeComparator.STRICT so type variable references from the
+            // two different codebases are compared by name rather than object identity.
             val superClassType = cls.superClassType()
-            if (superClassType != null && baseClass.superClassType() != superClassType) {
+            if (
+                superClassType != null &&
+                    !superClassType.equalTo(baseClass.superClassType(), TypeComparator.STRICT)
+            ) {
+                return@let
+            }
+
+            // If the interface types are set and different from the base class then drop out to
+            // emit this class.
+            if (
+                cls.interfaceTypes().isNotEmpty() &&
+                    !equivalentInterfaceTypes(baseClass.interfaceTypes(), cls.interfaceTypes())
+            ) {
                 return@let
             }
 
             // If this class has different annotations to the base class then drop out to emit
             // this class.
-            val annotations = cls.modifiers.annotations().normalize()
-            val baseAnnotations = baseClass.modifiers.annotations().normalize()
-            if (annotations != baseAnnotations) {
+            if (!equivalentAnnotations(baseClass, cls)) {
+                return@let
+            }
+
+            if (allowClassModifierChanges) {
+                // If the modifiers are different then drop out to emit this class.
+                if (!cls.modifiers.equivalentTo(baseClass, baseClass.modifiers)) return@let
+            }
+
+            // If the class has changed to a typealias then drop out to emit it (no other class kind
+            // changes are allowed).
+            if (
+                baseClass.classKind != ClassKind.TYPEALIAS && cls.classKind == ClassKind.TYPEALIAS
+            ) {
                 return@let
             }
 
@@ -122,11 +156,29 @@ class SnapshotDeltaMaker private constructor(private val base: Codebase) :
     }
 
     override fun visitCallable(callable: CallableItem) {
-        callable.findCorrespondingItemIn(base)?.let {
+        callable.findCorrespondingItemIn(base)?.let { baseCallable ->
+            if (checkMemberItemEquivalence) {
+                // Check if a change in modifiers requires emitting the callable.
+                if (!equivalentModifiers(baseCallable, callable)) return@let
+
+                // Check if a change in a parameter requires emitting the callable.
+                val zippedParameters = baseCallable.parameters().zip(callable.parameters())
+                for ((baseParameter, callableParameter) in zippedParameters) {
+                    if (!equivalentModifiers(baseParameter, callableParameter)) {
+                        return@let
+                    }
+                }
+
+                // Check if there are changes in type parameters that require emitting the callable.
+                if (!equivalentTypeParameters(baseCallable, callable)) {
+                    return@let
+                }
+            }
+
             return
         }
 
-        // The callable is new.
+        // The callable is new or changed.
         callable.markEmit()
     }
 
@@ -140,12 +192,84 @@ class SnapshotDeltaMaker private constructor(private val base: Codebase) :
     }
 
     override fun visitProperty(property: PropertyItem) {
-        property.findCorrespondingItemIn(base)?.let {
+        property.findCorrespondingItemIn(base)?.let { baseProperty ->
+            if (checkMemberItemEquivalence) {
+                // Check if a change in modifiers requires emitting the property.
+                if (!equivalentModifiers(baseProperty, property)) return@let
+
+                // Check if there are changes in type parameters that require emitting the property.
+                if (!equivalentTypeParameters(baseProperty, property)) {
+                    return@let
+                }
+
+                // Check if a change in a context parameter requires emitting the property.
+                val zippedParameters =
+                    baseProperty.contextParameters.zip(property.contextParameters)
+                for ((baseParameter, callableParameter) in zippedParameters) {
+                    if (!equivalentModifiers(baseParameter, callableParameter)) {
+                        return@let
+                    }
+                }
+            }
+
             return
         }
 
-        // The property is new.
+        // The property is new or changed.
         property.markEmit()
+    }
+
+    /**
+     * Checks if [baseInterfaces] and [extensionInterfaces] contain the same set of interface types
+     * according to [TypeComparator.STRICT].
+     *
+     * [TypeComparator.STRICT] is used instead of [com.android.tools.metalava.model.TypeItem.equals]
+     * ([TypeComparator.IDENTICAL]) so that type variable references from the two different
+     * codebases are compared by name rather than
+     * [com.android.tools.metalava.model.TypeParameterItem] object identity.
+     */
+    private fun equivalentInterfaceTypes(
+        baseInterfaces: List<ClassTypeItem>,
+        extensionInterfaces: List<ClassTypeItem>,
+    ): Boolean {
+        if (baseInterfaces.size != extensionInterfaces.size) return false
+
+        // TypeComparator.STRICT does not have a corresponding hashCode implementation so Set
+        // equality cannot be used; check mutual inclusion in both directions instead.
+        return extensionInterfaces.all { extItf ->
+            baseInterfaces.any { baseItf -> extItf.equalTo(baseItf, TypeComparator.STRICT) }
+        } &&
+            baseInterfaces.all { baseItf ->
+                extensionInterfaces.any { extItf -> baseItf.equalTo(extItf, TypeComparator.STRICT) }
+            }
+    }
+
+    /** Checks if the two items have the same set of annotations. */
+    private fun equivalentAnnotations(baseItem: Item, extensionItem: Item): Boolean {
+        val baseAnnotations = baseItem.modifiers.annotations().toSet()
+        val extensionAnnotations = extensionItem.modifiers.annotations().toSet()
+        return extensionAnnotations == baseAnnotations
+    }
+
+    /** Checks whether the two items have equivalent modifiers and annotations. */
+    private fun equivalentModifiers(baseItem: Item, extensionItem: Item): Boolean {
+        if (!baseItem.modifiers.equivalentTo(baseItem, extensionItem.modifiers)) return false
+        return equivalentAnnotations(baseItem, extensionItem)
+    }
+
+    /**
+     * Checks if the type parameter lists on the two owners should be considered equivalent. They
+     * are not equivalent if any type parameters differ in whether they are reified.
+     */
+    private fun equivalentTypeParameters(
+        baseOwner: TypeParameterListOwner,
+        extensionOwner: TypeParameterListOwner,
+    ): Boolean {
+        val zippedParameters = baseOwner.typeParameterList.zip(extensionOwner.typeParameterList)
+        for ((baseParameter, callableParameter) in zippedParameters) {
+            if (baseParameter.isReified() != callableParameter.isReified()) return false
+        }
+        return true
     }
 
     companion object {
@@ -165,13 +289,20 @@ class SnapshotDeltaMaker private constructor(private val base: Codebase) :
          * * The modifiers are not [ModifierList.equivalentTo] each other.
          * * The [ClassItem.superClassType]s are not the same.
          *
-         * Note: A [MemberItem] that exists in both will not be emitted even if they differ in some
-         * way, e.g. annotations, extends list. That is because [ApiFile] has no mechanism to
-         * combine them and does not even throw an error if it encounters duplicates.
+         * If [checkMemberItemEquivalence] is false, a [MemberItem] that exists in both will not be
+         * emitted even if they differ in some way, e.g. annotations, extends list. If it is true,
+         * then [MemberItem]s will be emitted if they differ. When being parsed back by [ApiFile],
+         * the definition from the extension file will be used and the [base] definition will be
+         * ignored.
+         *
+         * If [allowClassModifierChanges] is true, a [ClassItem] will be emitted if its modifiers
+         * are not equivalent between [base] and [codebaseFragment].
          */
         fun createDelta(
             base: Codebase,
             codebaseFragment: CodebaseFragment,
+            checkMemberItemEquivalence: Boolean,
+            allowClassModifierChanges: Boolean,
         ): CodebaseFragment {
             // Take a snapshot.
             val snapshotFragment =
@@ -193,10 +324,14 @@ class SnapshotDeltaMaker private constructor(private val base: Codebase) :
             // Mark those items that are new (or different) to be emitted. Also, marks their
             // containers, e.g. class members and nested classes will mark their containing class,
             // classes will mark their containing package.
-            val deltaMaker = SnapshotDeltaMaker(base)
+            val deltaMaker =
+                SnapshotDeltaMaker(base, checkMemberItemEquivalence, allowClassModifierChanges)
             snapshot.accept(deltaMaker)
 
-            return CodebaseFragment.create(snapshot, ::EmittableDelegatingVisitor)
+            return CodebaseFragment.create(
+                snapshot,
+                factory = ::EmittableDelegatingVisitor,
+            )
         }
     }
 }

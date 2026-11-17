@@ -16,151 +16,75 @@
 
 package com.android.tools.metalava.model
 
-import java.util.TreeSet
+import com.android.tools.metalava.model.parser.LineMap
+import com.android.tools.metalava.model.scope.ReferencableNameScope
+import com.android.tools.metalava.model.snapshot.SourceFileSnapshot
+import com.android.tools.metalava.reporter.FileLocation
 
 /** Represents a Kotlin/Java source file */
-interface SourceFile {
+interface SourceFile : ReferencableNameScope {
+    /**
+     * The location of this [SourceFile]
+     *
+     * If this is not [FileLocation.UNKNOWN] then it will not have a line number.
+     */
+    val fileLocation: FileLocation
+
+    /** The [LineMap] for this [SourceFile]. */
+    val lineMap: LineMap
+
+    /**
+     * Create a [FileLocation] for [sourcePosition] within this [SourceFile], or return
+     * [fileLocation] if [sourcePosition] is not [SourcePosition.isKnown].
+     */
+    fun fileLocation(
+        sourcePosition: SourcePosition,
+        includeCharacterPosition: Boolean = false,
+    ): FileLocation {
+        if (!sourcePosition.isKnown) return fileLocation
+        val path = fileLocation.path ?: return FileLocation.UNKNOWN
+        return lineMap.fileLocation(path, sourcePosition.offset, includeCharacterPosition)
+    }
+
+    /** The [Codebase] to which this [SourceFile] belongs. */
+    override val codebase: Codebase
+
+    /** The [PackageItem] to which this [SourceFile] belongs. */
+    val containingPackage: PackageItem
+
     /** Top level classes contained in this file */
     fun classes(): Sequence<ClassItem>
 
     fun getHeaderComments(): String? = null
 
-    /** Get all the imports. */
-    fun getImports() = getImports { true }
-
-    /** Get only those imports that reference [Item]s for which [predicate] returns `true`. */
-    fun getImports(predicate: FilterPredicate): Collection<Import> = emptyList()
-
     /**
-     * Compute set of import statements that are actually referenced from the documentation (we do
-     * inexact matching here; we don't need to have an exact set of imports since it's okay to have
-     * some extras). This isn't a big problem since our code style forbids/discourages wildcards, so
-     * it shows up in fewer places, but we need to handle it when it does -- such as in ojluni.
+     * Get all the Java imports, no filtering, no sorting, includes static and on demand.
+     *
+     * Returns an empty list for Kotlin as this will be used for resolving references in Javadoc
+     * comments that are written to the stubs, which is only done for Java APIs.
      */
-    fun filterImports(imports: TreeSet<Import>, predicate: FilterPredicate): TreeSet<Import> {
-        // Create a map from the short name for the import to a list of the items imported. A
-        // list is needed because classes and members could be imported with the same short
-        // name.
-        val remainingImports = mutableMapOf<String, MutableList<Import>>()
-        imports.groupByTo(remainingImports) { it.name }
+    fun allJavaImports(): List<JavaImport>
 
-        val result = TreeSet<Import>(compareBy { it.pattern })
-
-        // We keep the wildcard imports since we don't know which ones of those are relevant
-        imports.filter { it.name == "*" }.forEach { result.add(it) }
-
-        for (cls in classes().filter { predicate.test(it) }) {
-            cls.accept(
-                object : TraversingVisitor() {
-                    override fun visitItem(item: Item): TraversalAction {
-                        if (item !is SelectableItem) return TraversalAction.SKIP_CHILDREN
-
-                        // Do not let documentation on hidden items affect the imports.
-                        if (!predicate.test(item)) {
-                            // Just because an item like a class is hidden does not mean
-                            // that its child items are so make sure to visit them.
-                            return TraversalAction.CONTINUE
-                        }
-                        val doc = item.documentation.text
-                        if (doc.isNotBlank()) {
-                            // Scan the documentation text to see if it contains any of the
-                            // short names imported. It does not check whether the names
-                            // are actually used as part of a link, so they could just be in
-                            // as text but having extra imports should not be an issue.
-                            var found: MutableList<String>? = null
-                            for (name in remainingImports.keys) {
-                                if (docContainsWord(doc, name)) {
-                                    if (found == null) {
-                                        found = mutableListOf()
-                                    }
-                                    found.add(name)
-                                }
-                            }
-
-                            // For every imported name add all the matching imports and then
-                            // remove them from the available imports as there is no need to
-                            // check them again.
-                            found?.let {
-                                for (name in found) {
-                                    val all = remainingImports.remove(name) ?: continue
-                                    result.addAll(all)
-                                }
-
-                                if (remainingImports.isEmpty()) {
-                                    // There is nothing to do if the map of imports to add
-                                    // is empty.
-                                    return TraversalAction.SKIP_TRAVERSAL
-                                }
-                            }
-                        }
-
-                        return TraversalAction.CONTINUE
-                    }
-                }
-            )
-        }
-        return result
-    }
-
-    fun docContainsWord(doc: String, word: String): Boolean {
-        // Cache pattern compilation across source files
-        val regexMap = HashMap<String, Regex>()
-
-        if (!doc.contains(word)) {
-            return false
-        }
-
-        val regex =
-            regexMap[word]
-                ?: run {
-                    val new = Regex("""\b$word\b""")
-                    regexMap[word] = new
-                    new
-                }
-        return regex.find(doc) != null
-    }
+    fun snapshot(targetCodebase: Codebase): SourceFile =
+        SourceFileSnapshot(
+            targetCodebase,
+            originalSourceFile = this,
+        )
 }
 
-/** Encapsulates information about the imports used in a [SourceFile]. */
-@ConsistentCopyVisibility
-data class Import
-internal constructor(
+/** Encapsulates information about the imports used in a Java [SourceFile]. */
+data class JavaImport(
     /**
-     * The import pattern, i.e. the whole part of the import statement after `import static? ` and
-     * before the optional `;`, excluding any whitespace.
+     * The qualified name of the import.
+     *
+     * If [onDemand] is `true` then this is everything before the `.*`. Otherwise, this is the
+     * qualified name of the imported item(s).
      */
-    val pattern: String,
+    val qualifiedName: String,
 
-    /**
-     * The name that is being imported, i.e. the part after the last `.`. Is `*` for wildcard
-     * imports.
-     */
-    val name: String,
+    /** `true` if the import used a wildcard, i.e. ended with `.*`. */
+    val onDemand: Boolean,
 
-    /**
-     * True if the item that is being imported is a member of a class. Corresponds to the `static`
-     * keyword in Java, has no effect on Kotlin import statements.
-     */
-    val isMember: Boolean,
-) {
-    /** Import a whole [PackageItem], i.e. uses a wildcard. */
-    constructor(pkgItem: PackageItem) : this("${pkgItem.qualifiedName()}.*", "*", false)
-
-    /** Import a [ClassItem]. */
-    constructor(
-        classItem: ClassItem
-    ) : this(
-        classItem.qualifiedName(),
-        classItem.simpleName(),
-        false,
-    )
-
-    /** Import a [MemberItem]. */
-    constructor(
-        memberItem: MemberItem
-    ) : this(
-        "${memberItem.containingClass().qualifiedName()}.${memberItem.name()}",
-        memberItem.name(),
-        true,
-    )
-}
+    /** `true` if the import used the `static` keyword. */
+    val static: Boolean,
+)

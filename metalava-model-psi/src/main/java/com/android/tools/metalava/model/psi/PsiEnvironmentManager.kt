@@ -16,36 +16,30 @@
 
 package com.android.tools.metalava.model.psi
 
+import androidx.tracing.Tracer
 import com.android.tools.lint.UastEnvironment
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ModelOptions
+import com.android.tools.metalava.model.source.Environment
 import com.android.tools.metalava.model.source.EnvironmentManager
-import com.android.tools.metalava.model.source.SourceParser
+import com.android.tools.metalava.model.source.SourceSet
+import com.android.tools.metalava.reporter.Reporter
 import com.intellij.core.CoreApplicationEnvironment
 import com.intellij.openapi.diagnostic.DefaultLogger
 import com.intellij.openapi.util.Disposer
-import com.intellij.pom.java.LanguageLevel
 import com.intellij.psi.javadoc.CustomJavadocTagProvider
 import com.intellij.psi.javadoc.JavadocTagInfo
 import java.io.File
 import kotlin.io.path.createTempDirectory
-import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
 import org.jetbrains.kotlin.config.CommonConfigurationKeys
 
 /** Manages the [UastEnvironment] objects created when processing sources. */
-class PsiEnvironmentManager(
+internal class PsiEnvironmentManager(
     private val disableStderrDumping: Boolean = false,
     private val forTesting: Boolean = false,
 ) : EnvironmentManager {
-
-    /**
-     * True if this is responsible for creating and this owning the application environment.
-     *
-     * This is needed to allow a [PsiEnvironmentManager] to be created while using another
-     * [PsiEnvironmentManager], e.g. in tests that require two [Codebase]s.
-     */
-    private val ownApplicationEnvironment: Boolean =
-        KotlinCoreEnvironment.applicationEnvironment == null
+    init {
+        openManagerCount++
+    }
 
     /**
      * An empty directory, used when it is necessary to create an environment without any source.
@@ -125,24 +119,28 @@ class PsiEnvironmentManager(
         }
     }
 
-    override fun createSourceParser(
-        codebaseConfig: Codebase.Config,
+    override fun createEnvironment(
+        sourceSet: SourceSet,
+        classPath: List<File>,
+        projectDescription: File?,
         javaLanguageLevel: String,
         kotlinLanguageLevel: String,
         modelOptions: ModelOptions,
-        allowReadingComments: Boolean,
         jdkHome: File?,
-    ): SourceParser {
-        return PsiSourceParser(
-            psiEnvironmentManager = this,
-            codebaseConfig = codebaseConfig,
-            javaLanguageLevel = javaLanguageLevelFromString(javaLanguageLevel),
-            kotlinLanguageLevel = kotlinLanguageVersionSettings(kotlinLanguageLevel),
-            useK2Uast = modelOptions[PsiModelOptions.useK2Uast],
-            allowReadingComments = allowReadingComments,
+        reporter: Reporter,
+        tracer: Tracer,
+    ): Environment =
+        PsiEnvironment(
+            environmentManager = this,
+            rawSourceSet = sourceSet,
+            rawClassPath = classPath,
+            projectDescription = projectDescription,
+            javaLanguageLevel = javaLanguageLevel,
+            kotlinLanguageLevel = kotlinLanguageLevel,
             jdkHome = jdkHome,
+            reporter = reporter,
+            tracer = tracer,
         )
-    }
 
     override fun close() {
         closed = true
@@ -155,11 +153,12 @@ class PsiEnvironmentManager(
         }
         uastEnvironments.clear()
 
-        // Only dispose of the application environment if this object was responsible for creating.
+        // Only dispose of the application environment if this is the final environment to close.
         // If it was not then there is no point in checking to make sure that [Disposer] is empty
-        // because it will include items that have not yet been disposed of by the
-        // [PsiEnvironmentManager] which does own the application environment.
-        if (ownApplicationEnvironment) {
+        // because it will include items that have not yet been disposed of by the other open
+        // [PsiEnvironmentManager]s.
+        openManagerCount--
+        if (openManagerCount == 0) {
             UastEnvironment.disposeApplicationEnvironment()
             if (forTesting) {
                 Disposer.assertIsEmpty(true)
@@ -168,18 +167,11 @@ class PsiEnvironmentManager(
     }
 
     companion object {
-        fun javaLanguageLevelFromString(value: String): LanguageLevel {
-            val level = LanguageLevel.parse(value)
-            when {
-                level == null ->
-                    throw IllegalStateException(
-                        "$value is not a valid or supported Java language level"
-                    )
-                level.isLessThan(LanguageLevel.JDK_1_7) ->
-                    throw IllegalStateException("$value must be at least 1.7")
-                else -> return level
-            }
-        }
+        /**
+         * Track how many open [PsiEnvironmentManager]s exist. This is so that when the final
+         * manager is closed, it can ensure that everything has been disposed.
+         */
+        private var openManagerCount = 0
     }
 }
 

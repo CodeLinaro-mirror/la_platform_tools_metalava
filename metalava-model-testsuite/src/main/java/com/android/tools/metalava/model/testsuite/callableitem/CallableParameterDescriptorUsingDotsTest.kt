@@ -16,10 +16,12 @@
 
 package com.android.tools.metalava.model.testsuite.callableitem
 
-import com.android.tools.metalava.model.Assertions
+import com.android.tools.metalava.model.Assertions.Companion.assertClass
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.getCallableParameterDescriptorUsingDots
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import org.intellij.lang.annotations.Language
@@ -32,7 +34,7 @@ class CallableParameterDescriptorUsingDotsTest : BaseModelTest() {
     @Parameterized.Parameter(0) lateinit var params: TestParams
 
     data class TestParams(
-        @Language("JAVA") val inputSource: String,
+        @param:Language("JAVA") val inputSource: String,
         val constructor: Boolean = false,
         val callableGetter: (Codebase) -> CallableItem = {
             val classItem = it.assertClass("test.pkg.Foo")
@@ -46,7 +48,7 @@ class CallableParameterDescriptorUsingDotsTest : BaseModelTest() {
         }
     }
 
-    companion object : Assertions {
+    companion object {
         private val params =
             listOf(
                 TestParams(
@@ -116,6 +118,7 @@ class CallableParameterDescriptorUsingDotsTest : BaseModelTest() {
         @JvmStatic @Parameterized.Parameters fun params() = params
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test getCallableParameterDescriptorUsingDots`() {
         runCodebaseTest(java(params.inputSource)) {

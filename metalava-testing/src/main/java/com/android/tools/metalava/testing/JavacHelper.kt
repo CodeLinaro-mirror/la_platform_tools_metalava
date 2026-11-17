@@ -57,9 +57,7 @@ object JavacHelper {
             }
 
         if (exitCode != 0) {
-            error(
-                "Executing `$command` failed with the following output:\n${output.toString(Charsets.UTF_8).prependIndent()}"
-            )
+            throw JavacCompilationError(command, output.toString(Charsets.UTF_8))
         }
     }
 
@@ -97,7 +95,11 @@ object JavacHelper {
     }
 
     /** Compile the [sources] into [jarFile] throwing an exception if it fails. */
-    fun compileAndJar(jarFile: File, sources: List<TestFile>, classPath: List<File> = emptyList()) {
+    fun compileAndJar(
+        jarFile: File,
+        sources: List<TestFile>,
+        classPath: List<TestFile> = emptyList(),
+    ) {
         // Make sure that the directory in which the jar file will be written exists.
         val jarDir = jarFile.parentFile
         jarDir.mkdirs()
@@ -108,8 +110,11 @@ object JavacHelper {
         val sourceFiles = sources.map { it.createFile(srcDir) }
         val classesDir = tempDir.resolve("classes")
 
+        val classPathDir = tempDir.resolve("class-path")
+        val classPathFiles = classPath.map { it.createFile(classPathDir) }
+
         // Compile the source files.
-        compile(outputDirectory = classesDir, sourceFiles, classPath)
+        compile(outputDirectory = classesDir, sourceFiles, classPathFiles)
 
         // Jar up the class files.
         jar(jarFile, classesDir)
@@ -117,4 +122,18 @@ object JavacHelper {
         // Clean-up the temporary directory.
         tempDir.deleteRecursively()
     }
+}
+
+/**
+ * Error thrown when compiling java.
+ *
+ * @param command the command that failed.
+ * @param output the output of the failed command.
+ */
+class JavacCompilationError(
+    private val command: List<String>,
+    val output: String,
+) : IllegalStateException() {
+    override val message: String
+        get() = "Executing `$command` failed with the following output:\n${output.prependIndent()}"
 }

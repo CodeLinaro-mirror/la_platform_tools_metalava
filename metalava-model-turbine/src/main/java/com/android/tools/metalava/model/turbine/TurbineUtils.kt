@@ -16,14 +16,24 @@
 
 package com.android.tools.metalava.model.turbine
 
+import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemDocumentationFactory
+import com.android.tools.metalava.model.source.NO_SOURCE_COMMENT_FACTORY
+import com.android.tools.metalava.model.source.createSourceItemDocumentation
 import com.google.turbine.binder.bound.EnumConstantValue
 import com.google.turbine.binder.bound.TurbineClassValue
 import com.google.turbine.binder.sym.ClassSymbol
 import com.google.turbine.model.Const
 import com.google.turbine.model.Const.Kind
 import com.google.turbine.model.Const.Value
+import com.google.turbine.tree.Tree
 import com.google.turbine.tree.Tree.CompUnit
 import com.google.turbine.tree.Tree.Ident
+import com.google.turbine.tree.Tree.MethDecl
+import com.google.turbine.tree.Tree.PkgDecl
+import com.google.turbine.tree.Tree.TyDecl
+import com.google.turbine.tree.Tree.VarDecl
+import kotlin.jvm.optionals.getOrNull
 
 /**
  * Extracts the package name from a provided compilation unit.
@@ -53,17 +63,45 @@ internal val List<Ident>.dotSeparatedName: String
     }
 
 /**
- * Extracts header comments from a source file string. Header comments are defined as any content
- * appearing before the "package" keyword.
+ * Extracts header comments from a [CompUnit].
  *
- * @param source The source file string.
+ * Header comments are defined as any content appearing before the "package" keyword.
+ *
  * @return The extracted header comments, or an empty string if no "package" keyword or comments are
  *   found.
  */
-internal fun getHeaderComments(source: String): String {
-    val packageIndex = source.indexOf("package")
-    // Return everything before "package" keyword
-    return if (packageIndex == -1) "" else source.substring(0, packageIndex)
+internal fun CompUnit.getHeaderComments(): String {
+    // Find the package statement.
+    val pkgDecl = pkg().getOrNull() ?: return ""
+    // The PkgDecl.position() is the start of the package name not the `package` keyword.
+    val packageNamePosition = pkgDecl.position()
+    val source = source().substring(0, packageNamePosition)
+    // Search backwards for the start of the `package` keyword.
+    val packageKeywordStart = source.lastIndexOf("package")
+    // Return the content before the `package` keyword to match Java.
+    return source.substring(0, packageKeywordStart).replace("\r\n", "\n")
+}
+
+/** Get an [ItemDocumentationFactory] for [decl]. */
+internal fun TurbineGlobalContext.itemDocumentationFactoryForDecl(
+    decl: Tree?
+): ItemDocumentationFactory {
+    // If comments are not read then ignore the javadoc.
+    if (!allowReadingComments) return ItemDocumentation.NONE_FACTORY
+
+    val turbineJavadoc =
+        when (decl) {
+            is TyDecl -> decl.javadoc()
+            is MethDecl -> decl.javadoc()
+            is VarDecl -> decl.javadoc()
+            is PkgDecl -> decl.javadoc()
+            null -> null
+            else -> error("Should never be called")
+        } ?: return NO_SOURCE_COMMENT_FACTORY
+
+    return ItemDocumentationFactory { item ->
+        createSourceItemDocumentation(item, TurbineSourceComment(item, turbineJavadoc))
+    }
 }
 
 /**
@@ -99,3 +137,6 @@ internal val Const.underlyingValue: Any?
             }
         }
     }
+
+internal val ClassSymbol.dotSeparatedPackageName
+    get() = packageName().replace('/', '.')

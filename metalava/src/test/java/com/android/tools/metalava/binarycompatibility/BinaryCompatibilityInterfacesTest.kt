@@ -27,7 +27,7 @@ import org.junit.Test
 class BinaryCompatibilityInterfacesTest : DriverTest() {
     @Ignore("b/220960090")
     @Test
-    fun `Add abstract method, if method need not be implemented by client (Compatible)`() {
+    fun `Add abstract method, if method need not be implemented by client - Compatible`() {
         check(
             signatureSource =
                 """
@@ -48,12 +48,12 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
     }
 
     @Test
-    fun `Add abstract method, if method must be implemented by client (Incompatible)`() {
+    fun `Add abstract method, if method must be implemented by client - Incompatible`() {
         check(
             expectedIssues =
                 """
-                load-api.txt:4: error: Added method test.pkg.Foo.bar() [AddedAbstractMethod]
-            """,
+                load-api.txt:4: error: Binary breaking change: Added method test.pkg.Foo.bar() [AddedAbstractMethod]
+                """,
             signatureSource =
                 """
                 package test.pkg {
@@ -74,7 +74,7 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
 
     @Ignore("b/220960090")
     @Test
-    fun `Add default method, if interface not implementable by clients (Compatible)`() {
+    fun `Add default method, if interface not implementable by clients - Compatible`() {
         check(
             signatureSource =
                 """
@@ -96,11 +96,12 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
 
     @Ignore("b/222739015")
     @Test
-    fun `Add default method, if interface implementable by clients (Incompatible)`() {
+    fun `Add default method, if interface implementable by clients - Incompatible`() {
         check(
-            expectedIssues = """
-                (expected issue for interface Foo)
-            """,
+            expectedIssues =
+                """
+                    (expected issue for interface Foo)
+                """,
             signatureSource =
                 """
                 package test.pkg {
@@ -120,7 +121,7 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
     }
 
     @Test
-    fun `Add static method (Compatible)`() {
+    fun `Add static method - Compatible`() {
         check(
             signatureSource =
                 """
@@ -141,14 +142,14 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
     }
 
     @Test
-    fun `Delete API method (Incompatible)`() {
+    fun `Delete API method - Incompatible`() {
         check(
             expectedIssues =
                 """
-                released-api.txt:4: error: Removed method test.pkg.Foo.bar() [RemovedMethod]
-                released-api.txt:5: error: Removed method test.pkg.Foo.baz() [RemovedMethod]
-                released-api.txt:6: error: Removed method test.pkg.Foo.bax() [RemovedMethod]
-            """,
+                released-api.txt:4: error: Binary breaking change: Removed method test.pkg.Foo.bar() [RemovedMethod]
+                released-api.txt:5: error: Binary breaking change: Removed method test.pkg.Foo.baz() [RemovedMethod]
+                released-api.txt:6: error: Binary breaking change: Removed method test.pkg.Foo.bax() [RemovedMethod]
+                """,
             signatureSource =
                 """
                 package test.pkg {
@@ -171,7 +172,7 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
 
     @Ignore("b/220960090")
     @Test
-    fun `Move API method up type hierarchy, if method in supertype need not be implemented by client (Compatible)`() {
+    fun `Move API method up type hierarchy, if method in supertype need not be implemented by client - Compatible`() {
         check(
             signatureSource =
                 """
@@ -197,12 +198,12 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
     }
 
     @Test
-    fun `Move API method up the type hierarchy, if method in supertype must be implemented by client (Incompatible)`() {
+    fun `Move API method up the type hierarchy, if method in supertype must be implemented by client - Incompatible`() {
         check(
             expectedIssues =
                 """
-                load-api.txt:4: error: Added method test.pkg.Upper.bar() [AddedAbstractMethod]
-            """,
+                load-api.txt:4: error: Binary breaking change: Added method test.pkg.Upper.bar() [AddedAbstractMethod]
+                """,
             signatureSource =
                 """
                 package test.pkg {
@@ -227,12 +228,12 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
     }
 
     @Test
-    fun `Move method down type hierarchy (Incompatible)`() {
+    fun `Move method down type hierarchy - Incompatible`() {
         check(
             expectedIssues =
                 """
-                released-api.txt:4: error: Removed method test.pkg.Upper.bar() [RemovedMethod]
-            """,
+                released-api.txt:4: error: Binary breaking change: Removed method test.pkg.Upper.bar() [RemovedMethod]
+                """,
             signatureSource =
                 """
                 package test.pkg {
@@ -257,7 +258,7 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
     }
 
     @Test
-    fun `Add API field (Compatible)`() {
+    fun `Add API field - Compatible`() {
         check(
             signatureSource =
                 """
@@ -278,12 +279,12 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
     }
 
     @Test
-    fun `Delete API field (Incompatible)`() {
+    fun `Delete API field - Incompatible`() {
         check(
             expectedIssues =
                 """
-                released-api.txt:4: error: Removed field test.pkg.Foo.BAR [RemovedField]
-            """,
+                released-api.txt:4: error: Binary breaking change: Removed field test.pkg.Foo.BAR [RemovedField]
+                """,
             signatureSource =
                 """
                 package test.pkg {
@@ -303,7 +304,7 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
     }
 
     @Test
-    fun `Expand superinterfaces set (Compatible)`() {
+    fun `Expand superinterfaces set - Compatible`() {
         check(
             signatureSource =
                 """
@@ -331,12 +332,12 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
     }
 
     @Test
-    fun `Contract superinterface set (Incompatible)`() {
+    fun `Contract superinterface set - Incompatible`() {
         check(
             expectedIssues =
                 """
-                load-api.txt:7: error: Class test.pkg.Foo no longer implements test.pkg.Two [RemovedInterface]
-            """,
+                load-api.txt:7: error: Binary breaking change: Class test.pkg.Foo no longer implements test.pkg.Two [RemovedInterface]
+                """,
             signatureSource =
                 """
                 package test.pkg {
@@ -363,7 +364,7 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
     }
 
     @Test
-    fun `Add API type member (Compatible)`() {
+    fun `Add API type member - Compatible`() {
         check(
             signatureSource =
                 """
@@ -385,12 +386,12 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
     }
 
     @Test
-    fun `Delete API type member (Incompatible)`() {
+    fun `Delete API type member - Incompatible`() {
         check(
             expectedIssues =
                 """
-                released-api.txt:5: error: Removed class test.pkg.Outer.Inner [RemovedInterface]
-            """,
+                released-api.txt:5: error: Binary breaking change: Removed class test.pkg.Outer.Inner [RemovedInterface]
+                """,
             signatureSource =
                 """
                 package test.pkg {
@@ -411,7 +412,7 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
     }
 
     @Test
-    fun `Add type parameter, if interface has no type parameters (Compatible)`() {
+    fun `Add type parameter, if interface has no type parameters - Compatible`() {
         check(
             signatureSource =
                 """
@@ -431,12 +432,12 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
     }
 
     @Test
-    fun `Add type parameter, if interface has type parameters (Incompatible)`() {
+    fun `Add type parameter, if interface has type parameters - Incompatible`() {
         check(
             expectedIssues =
                 """
-                load-api.txt:3: error: Class test.pkg.Foo changed number of type parameters from 1 to 2 [ChangedType]
-            """,
+                load-api.txt:3: error: Binary breaking change: Class test.pkg.Foo changed number of type parameters from 1 to 2 [ChangedType]
+                """,
             signatureSource =
                 """
                 package test.pkg {
@@ -455,12 +456,12 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
     }
 
     @Test
-    fun `Delete type parameter (Incompatible)`() {
+    fun `Delete type parameter - Incompatible`() {
         check(
             expectedIssues =
                 """
-                load-api.txt:3: error: Class test.pkg.Foo changed number of type parameters from 1 to 0 [ChangedType]
-            """,
+                load-api.txt:3: error: Binary breaking change: Class test.pkg.Foo changed number of type parameters from 1 to 0 [ChangedType]
+                """,
             signatureSource =
                 """
                 package test.pkg {
@@ -480,11 +481,12 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
 
     @Ignore("b/217746739")
     @Test
-    fun `Re-order type parameters (Incompatible)`() {
+    fun `Re-order type parameters - Incompatible`() {
         check(
-            expectedIssues = """
-                (expected issue for interface Foo)
-            """,
+            expectedIssues =
+                """
+                    (expected issue for interface Foo)
+                """,
             signatureSource =
                 """
                 package test.pkg {
@@ -504,11 +506,12 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
 
     @Ignore("b/217746739")
     @Test
-    fun `Rename type parameter (Incompatible)`() {
+    fun `Rename type parameter - Incompatible`() {
         check(
-            expectedIssues = """
-                (expected issue for interface Foo)
-            """,
+            expectedIssues =
+                """
+                    (expected issue for interface Foo)
+                """,
             signatureSource =
                 """
                 package test.pkg {
@@ -528,7 +531,7 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
 
     @Ignore("b/217747331")
     @Test
-    fun `Add, delete, or change type bounds of type parameter (Incompatible)`() {
+    fun `Add, delete, or change type bounds of type parameter - Incompatible`() {
         check(
             expectedIssues =
                 """
@@ -562,7 +565,7 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
     }
 
     @Test
-    fun `Add element to annotation type, if element has a default value (Compatible)`() {
+    fun `Add element to annotation type, if element has a default value - Compatible`() {
         check(
             signatureSource =
                 """
@@ -583,12 +586,12 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
     }
 
     @Test
-    fun `Add element to annotation type, if element has no default value (Incompatible)`() {
+    fun `Add element to annotation type, if element has no default value - Incompatible`() {
         check(
             expectedIssues =
                 """
-                load-api.txt:4: error: Added method test.pkg.Foo.bar() [AddedAbstractMethod]
-            """,
+                load-api.txt:4: error: Binary breaking change: Added method test.pkg.Foo.bar() [AddedAbstractMethod]
+                """,
             signatureSource =
                 """
                 package test.pkg {
@@ -608,13 +611,13 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
     }
 
     @Test
-    fun `Delete element from annotation type (Incompatible)`() {
+    fun `Delete element from annotation type - Incompatible`() {
         check(
             expectedIssues =
                 """
-                released-api.txt:4: error: Removed method test.pkg.Foo.bar() [RemovedMethod]
-                released-api.txt:5: error: Removed method test.pkg.Foo.baz() [RemovedMethod]
-            """,
+                released-api.txt:4: error: Binary breaking change: Removed method test.pkg.Foo.bar() [RemovedMethod]
+                released-api.txt:5: error: Binary breaking change: Removed method test.pkg.Foo.baz() [RemovedMethod]
+                """,
             signatureSource =
                 """
                 package test.pkg {

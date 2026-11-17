@@ -16,67 +16,87 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.reporter.Issues
 import java.io.Writer
 
-class ModifierListWriter
-private constructor(
+class ModifierListWriter(
     private val writer: Writer,
-    /**
-     * Can be one of [AnnotationTarget.SIGNATURE_FILE], [AnnotationTarget.SDK_STUBS_FILE] or
-     * [AnnotationTarget.DOC_STUBS_FILE].
-     */
-    private val target: AnnotationTarget,
-    private val runtimeAnnotationsOnly: Boolean = false,
-    private val skipNullnessAnnotations: Boolean = false,
+    config: Config,
 ) {
-    companion object {
-        fun forSignature(
-            writer: Writer,
-            skipNullnessAnnotations: Boolean,
-        ) =
-            ModifierListWriter(
-                writer = writer,
-                target = AnnotationTarget.SIGNATURE_FILE,
-                skipNullnessAnnotations = skipNullnessAnnotations,
-            )
+    data class Config(
+        /**
+         * Can be one of [AnnotationTarget.SIGNATURE_FILE], [AnnotationTarget.SDK_STUBS_FILE] or
+         * [AnnotationTarget.DOC_STUBS_FILE].
+         */
+        val target: AnnotationTarget,
 
-        fun forStubs(
-            writer: Writer,
-            docStubs: Boolean,
-            runtimeAnnotationsOnly: Boolean = false,
-        ) =
-            ModifierListWriter(
-                writer = writer,
-                target =
-                    if (docStubs) AnnotationTarget.DOC_STUBS_FILE
-                    else AnnotationTarget.SDK_STUBS_FILE,
-                runtimeAnnotationsOnly = runtimeAnnotationsOnly,
-            )
+        /** The [AnnotationFormatter] that is used for formatting any [AnnotationItem]s. */
+        val annotationFormatter: AnnotationFormatter,
 
         /**
-         * Checks whether the `abstract` modifier should be ignored on the method item when
-         * generating stubs.
-         *
-         * Methods that are in annotations are implicitly `abstract`. Methods in an enum can be
-         * `abstract` which requires them to be implemented in each Enum constant but the stubs do
-         * not generate overrides in the enum constants so the method needs to be concrete otherwise
-         * the stubs will not compile.
+         * If `true` then only annotations with [AnnotationRetention.RUNTIME] will be written out,
+         * otherwise the retention is ignored.
          */
-        private fun mustIgnoreAbstractInStubs(methodItem: MethodItem): Boolean {
-            val containingClass = methodItem.containingClass()
+        val runtimeAnnotationsOnly: Boolean,
 
-            // Need to filter out abstract from the modifiers list and turn it into
-            // a concrete method to make the stub compile
-            return containingClass.isEnum() || containingClass.isAnnotationType()
-        }
+        /** If `true` then nullness annotations will not be written out, otherwise they will. */
+        val skipNullnessAnnotations: Boolean,
 
+        /**
+         * If `true` then the `final` modifier on a method in a `final` class will not be written
+         * out, otherwise it will.
+         */
+        val normalizeFinal: Boolean = true,
+
+        /**
+         * If `true` then any unnecessary `abstract` modifiers, e.g. on an annotation or enum class
+         * will not be written out, otherwise `abstract` modifier will always be written out except
+         * on interface methods.
+         */
+        val normalizeAbstract: Boolean = true,
+
+        /**
+         * If `true` then a [ClassKind.RECORD] class will be represented as a `record` class and the
+         * `final` modifier will not be written out as `record` classes are implicitly `final`.
+         * Otherwise, a [ClassKind.RECORD] class will be written out as an explicitly `final` normal
+         * class.
+         */
+        val javaRecordClasses: Boolean = false,
+
+        /**
+         * If `true` then `sealed`, `non-sealed`, `exhaustive` and `nonexhaustive` modifiers will be
+         * written out for java classes, otherwise they will not.
+         */
+        val javaSealedClasses: Boolean = false,
+    )
+
+    private val target = config.target
+    private val annotationFormatter = config.annotationFormatter
+    private val runtimeAnnotationsOnly = config.runtimeAnnotationsOnly
+    private val skipNullnessAnnotations = config.skipNullnessAnnotations
+    private val normalizeFinal = config.normalizeFinal
+    private val normalizeAbstract = config.normalizeAbstract
+    private val javaRecordClasses: Boolean = config.javaRecordClasses
+    private val javaSealedClasses = config.javaSealedClasses
+
+    /**
+     * Whether the `abstract` modifier should only be disallowed on interface methods.
+     *
+     * Signature files only disallow `abstract` on interfaces when not normalizing abstract. All
+     * other files disallow `abstract` on methods iff it is disallowed on the method's containing
+     * class.
+     */
+    private val onlyDisallowAbstractOnInterfaceMethods =
+        target == AnnotationTarget.SIGNATURE_FILE && !normalizeAbstract
+
+    companion object {
         /**
          * Checks whether the method requires a body to be generated in the stubs.
          * * Methods that are annotations are implicitly `abstract` but the body is provided by the
          *   runtime, so they never need bodies.
          * * Native methods never need bodies.
          * * Abstract methods do not need bodies unless they are enums in which case see
-         *   [mustIgnoreAbstractInStubs] for an explanation as to why they need bodies.
+         *   [MethodItem.allowAbstract] for an explanation as to why they need bodies.
          */
         fun requiresMethodBodyInStubs(methodItem: MethodItem): Boolean {
             val modifiers = methodItem.modifiers
@@ -90,13 +110,16 @@ private constructor(
     }
 
     /** Write the modifier list (possibly including annotations) to the supplied [writer]. */
-    fun write(item: Item, normalizeFinal: Boolean = false) {
-        writeAnnotations(item)
-        writeKeywords(item, normalizeFinal = normalizeFinal)
+    fun write(
+        item: Item,
+        annotations: List<AnnotationItem> = item.modifiers.annotations(),
+    ) {
+        writeAnnotations(item, annotations)
+        writeKeywords(item)
     }
 
     /** Write the modifier keywords. */
-    fun writeKeywords(item: Item, normalizeFinal: Boolean = false) {
+    fun writeKeywords(item: Item) {
         if (
             item is PackageItem ||
                 (target != AnnotationTarget.SIGNATURE_FILE &&
@@ -111,8 +134,11 @@ private constructor(
         // Kotlin order:
         //   https://kotlinlang.org/docs/reference/coding-conventions.html#modifiers
 
-        // Abstract: should appear in interfaces if in compat mode
         val classItem = item as? ClassItem
+        val classKind =
+            classItem?.classKind?.let { kind ->
+                if (kind == ClassKind.RECORD && !javaRecordClasses) ClassKind.CLASS else kind
+            }
         val methodItem = item as? MethodItem
 
         val list = item.modifiers
@@ -122,22 +148,9 @@ private constructor(
             writer.write("$modifier ")
         }
 
-        val isInterface =
-            classItem?.isInterface() == true || methodItem?.containingClass()?.isInterface() == true
-
+        // Abstract: should appear in interfaces if in compat mode
         val isAbstract = list.isAbstract()
-        val ignoreAbstract =
-            isAbstract &&
-                target != AnnotationTarget.SIGNATURE_FILE &&
-                methodItem?.let { mustIgnoreAbstractInStubs(methodItem) } ?: false
-
-        if (
-            isAbstract &&
-                !ignoreAbstract &&
-                classItem?.isEnum() != true &&
-                classItem?.isAnnotationType() != true &&
-                !isInterface
-        ) {
+        if (isAbstract && allowAbstract(classKind, methodItem)) {
             writer.write("abstract ")
         }
 
@@ -145,7 +158,7 @@ private constructor(
             writer.write("default ")
         }
 
-        if (list.isStatic() && (classItem == null || !classItem.isEnum())) {
+        if (list.isStatic() && classKind?.implicitlyStatic != true) {
             writer.write("static ")
         }
 
@@ -154,7 +167,7 @@ private constructor(
                 // Don't show final on parameters: that's an implementation detail
                 item !is ParameterItem &&
                 // Don't add final on enum or enum members as they are implicitly final.
-                classItem?.isEnum() != true &&
+                classKind?.implicitlyFinal != true &&
                 // If normalizing and the current item is a method and its containing class is final
                 // then do not write out the final keyword.
                 (!normalizeFinal || methodItem?.containingClass()?.modifiers?.isFinal() != true)
@@ -162,8 +175,37 @@ private constructor(
             writer.write("final ")
         }
 
-        if (list.isSealed()) {
-            writer.write("sealed ")
+        // Only write sealed keywords if they do not come from java or java sealed classes are
+        // specifically supported. When [item] is read from a signature file it will be set to
+        // [SourceLanguage.UNKNOWN] whether it was originally from Kotlin or Java. This check
+        // ensures that reading a [Codebase] from a signature file, and then writing it out (as is
+        // done by many of the signature related commands) does not drop the sealed keywords.
+        val allowSealedKeywords = item.sourceLanguage != SourceLanguage.JAVA || javaSealedClasses
+        if (allowSealedKeywords) {
+            if (list.isSealed()) {
+                writer.write("sealed ")
+
+                // Only write exhaustive to signature files.
+                if (target == AnnotationTarget.SIGNATURE_FILE) {
+                    if (list.isExhaustive()) {
+                        writer.write("exhaustive ")
+                    } else if (javaSealedClasses) {
+                        writer.write("non-exhaustive ")
+                    } else {
+                        writer.write("nonexhaustive ")
+                    }
+                }
+            }
+
+            if (list.isNonSealed()) {
+                writer.write("non-sealed ")
+            }
+        } else if (list.isSealed()) {
+            item.codebase.reporter.report(
+                Issues.ADDED_SEALED,
+                item,
+                "`sealed` is not currently supported, see b/482391240 for more details.",
+            )
         }
 
         if (list.isSuspend()) {
@@ -207,7 +249,42 @@ private constructor(
         }
     }
 
-    private fun writeAnnotations(item: Item) {
+    /** Determine whether the `abstract` modifier is required on [classKind] or [methodItem]. */
+    private fun allowAbstract(classKind: ClassKind?, methodItem: MethodItem?) =
+        classKind?.allowAbstract ?: methodItem?.allowAbstract() ?: true
+
+    /**
+     * Determine whether the `abstract` modifier is allowed on this [MethodItem].
+     *
+     * In signature files, only interface methods disallow `abstract` modifier. Annotation and enum
+     * methods could also disallow them but are inconsistent.
+     *
+     * In all other files, including but not limited to stubs, neither interfaces, annotation types,
+     * nor enums allow `abstract` modifier. In fact only normal class kinds allow them.
+     *
+     * Interface and annotation types do not allow the `abstract` modifier on methods because while
+     * they are usable on their methods they are unnecessary.
+     *
+     * Methods in an enum can also be `abstract` but that requires them to be implemented in each
+     * Enum constant. However, the stubs do not generate overrides of those methods for the enum
+     * constants so they must always to be concrete otherwise the stubs for the enum class will not
+     * compile.
+     */
+    private fun MethodItem.allowAbstract(): Boolean {
+        val containingClassKind = containingClass().classKind
+        return if (onlyDisallowAbstractOnInterfaceMethods) {
+            containingClassKind != ClassKind.INTERFACE
+        } else {
+            // Otherwise, disallow it on the methods iff it is disallowed on the method's containing
+            // class.
+            containingClassKind.allowAbstract
+        }
+    }
+
+    fun writeAnnotations(
+        item: Item,
+        annotations: List<AnnotationItem> = item.modifiers.annotations(),
+    ) {
         // Generate annotations on separate lines in stub files for packages, classes and
         // methods and also for enum constants.
         val separateLines =
@@ -220,10 +297,7 @@ private constructor(
                     else -> false
                 }
 
-        val list = item.modifiers
-        var annotations = list.annotations()
-
-        // Do not write deprecate or suppress compatibility annotations on a package.
+        // Do not write deprecate annotations on a package.
         if (item !is PackageItem) {
             val writeDeprecated =
                 when {
@@ -236,79 +310,77 @@ private constructor(
                 writer.write("@Deprecated")
                 writer.write(if (separateLines) "\n" else " ")
             }
+        }
 
-            if (annotations.any { it.isSuppressCompatibilityAnnotation() }) {
-                writer.write("@$SUPPRESS_COMPATIBILITY_ANNOTATION")
-                writer.write(if (separateLines) "\n" else " ")
-            }
+        if (annotations.isEmpty()) {
+            return
+        }
+
+        if (annotations.any { it.isSuppressCompatibilityAnnotation() }) {
+            writer.write("@$SUPPRESS_COMPATIBILITY_ANNOTATION")
+            writer.write(if (separateLines) "\n" else " ")
         }
 
         // Remove @SuppressCompatibility if it exists (it will for text codebases) because it was
         // already written out above.
-        annotations =
-            annotations.filter { it.qualifiedName != SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED }
         // Ensure stable signature file order
-        if (annotations.size > 1) {
-            annotations = annotations.sortedBy { it.qualifiedName }
-        }
+        val filteredAnnotations =
+            annotations
+                .filter { it.qualifiedName != SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED }
+                .sortedBy { it.qualifiedName }
 
-        if (annotations.isNotEmpty()) {
-            // Omit common packages in signature files.
-            val omitCommonPackages = target == AnnotationTarget.SIGNATURE_FILE
-            var index = -1
-            for (annotation in annotations) {
-                index++
+        var index = -1
+        for (annotation in filteredAnnotations) {
+            index++
 
-                if (runtimeAnnotationsOnly && annotation.retention != AnnotationRetention.RUNTIME) {
+            if (runtimeAnnotationsOnly && annotation.retention != AnnotationRetention.RUNTIME) {
+                continue
+            }
+
+            var printAnnotation = annotation
+            if (!annotation.targets.contains(target)) {
+                continue
+            } else if (annotation.isNullnessAnnotation()) {
+                // skip Nullness annotations if requested, otherwise fall through the if-statements
+                // like any other annotation
+                if (skipNullnessAnnotations) {
                     continue
                 }
-
-                var printAnnotation = annotation
-                if (!annotation.targets.contains(target)) {
-                    continue
-                } else if ((annotation.isNullnessAnnotation())) {
-                    if (skipNullnessAnnotations) {
-                        continue
+            } else if (annotation.qualifiedName == "java.lang.Deprecated") {
+                // Special cased in stubs and signature files: emitted first
+                continue
+            } else {
+                val typedefMode = item.codebase.annotationManager.typedefMode
+                if (typedefMode == TypedefMode.INLINE) {
+                    val typedef = annotation.findTypedefAnnotation()
+                    if (typedef != null) {
+                        printAnnotation = typedef
                     }
-                } else if (annotation.qualifiedName == "java.lang.Deprecated") {
-                    // Special cased in stubs and signature files: emitted first
-                    continue
-                } else {
-                    val typedefMode = item.codebase.annotationManager.typedefMode
-                    if (typedefMode == TypedefMode.INLINE) {
-                        val typedef = annotation.findTypedefAnnotation()
-                        if (typedef != null) {
-                            printAnnotation = typedef
-                        }
-                    } else if (
-                        typedefMode == TypedefMode.REFERENCE &&
-                            annotation.targets === ANNOTATION_SIGNATURE_ONLY &&
-                            annotation.findTypedefAnnotation() != null
-                    ) {
-                        // For annotation references, only include the simple name
-                        writer.write("@")
-                        writer.write(annotation.resolve()?.simpleName() ?: annotation.qualifiedName)
-                        if (separateLines) {
-                            writer.write("\n")
-                        } else {
-                            writer.write(" ")
-                        }
-                        continue
+                } else if (
+                    typedefMode == TypedefMode.REFERENCE &&
+                        annotation.targets === ANNOTATION_SIGNATURE_ONLY &&
+                        annotation.findTypedefAnnotation() != null
+                ) {
+                    // For annotation references, only include the simple name
+                    writer.write("@")
+                    writer.write(annotation.resolve()?.simpleName() ?: annotation.qualifiedName)
+                    if (separateLines) {
+                        writer.write("\n")
+                    } else {
+                        writer.write(" ")
                     }
+                    continue
                 }
+            }
 
-                val source = printAnnotation.toSource(target, showDefaultAttrs = false)
+            val source =
+                annotationFormatter.formatAnnotation(printAnnotation, AnnotationPurpose.ITEM, item)
+            writer.write(source)
 
-                if (omitCommonPackages) {
-                    writer.write(AnnotationItem.shortenAnnotation(source))
-                } else {
-                    writer.write(source)
-                }
-                if (separateLines) {
-                    writer.write("\n")
-                } else {
-                    writer.write(" ")
-                }
+            if (separateLines) {
+                writer.write("\n")
+            } else {
+                writer.write(" ")
             }
         }
     }
@@ -375,5 +447,5 @@ const val SUPPRESS_COMPATIBILITY_ANNOTATION = "SuppressCompatibility"
  * This is only used at run-time for matching against [AnnotationItem.qualifiedName], so it doesn't
  * need to maintain compatibility.
  */
-internal val SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED =
-    AnnotationItem.unshortenAnnotation("@$SUPPRESS_COMPATIBILITY_ANNOTATION").substring(1)
+val SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED =
+    AnnotationItem.unshortenAnnotation(SUPPRESS_COMPATIBILITY_ANNOTATION)

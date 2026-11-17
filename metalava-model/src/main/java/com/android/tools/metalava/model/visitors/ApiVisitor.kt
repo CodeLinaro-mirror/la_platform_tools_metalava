@@ -17,13 +17,13 @@
 package com.android.tools.metalava.model.visitors
 
 import com.android.tools.metalava.model.BaseItemVisitor
-import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.PackageItem
-import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.testOrTrue
 
 open class ApiVisitor(
     /** @see BaseItemVisitor.preserveClassNesting */
@@ -32,102 +32,88 @@ open class ApiVisitor(
     /** @see BaseItemVisitor.visitParameterItems */
     visitParameterItems: Boolean = true,
 
-    /** Whether to include inherited fields too */
-    private val inlineInheritedFields: Boolean = true,
-
-    /** Comparator to sort callables with. */
-    private val callableComparator: Comparator<CallableItem> = CallableItem.comparator,
-
     /** The filters to use to determine what parts of the API will be visited. */
-    private val apiFilters: ApiFilters,
+    apiFilters: ApiFilters?,
 
-    /**
-     * Whether this visitor should visit elements that have not been annotated with one of the
-     * annotations passed in using the --show-annotation flag. This is normally true, but signature
-     * files sometimes sets this to false so the signature file only contains the "diff" of the
-     * annotated API relative to the base API.
-     */
-    protected val showUnannotated: Boolean = true,
-) : BaseItemVisitor(preserveClassNesting, visitParameterItems) {
-
-    constructor(
-        /** @see BaseItemVisitor.visitParameterItems */
-        visitParameterItems: Boolean = true,
-
-        /** Configuration that may come from the command line. */
-        apiPredicateConfig: ApiPredicate.Config,
-    ) : this(
+    /** @see BaseItemVisitor.orderClassesByName */
+    orderClassesByName: Boolean = true,
+) :
+    BaseItemVisitor(
+        preserveClassNesting = preserveClassNesting,
         visitParameterItems = visitParameterItems,
-        apiFilters = defaultFilters(apiPredicateConfig),
-    )
+        orderClassesByName = orderClassesByName,
+    ) {
 
     /** The filter to use to determine if we should emit an item */
-    protected val filterEmit = apiFilters.emit
+    protected val filterEmit: FilterPredicate? = apiFilters?.emit
 
     /** The filter to use to determine if we should emit a reference to an item */
-    protected val filterReference = apiFilters.reference
+    protected val filterReference: FilterPredicate? = apiFilters?.reference
 
-    companion object {
-        /** Get the default [ApiFilters] to use with [ApiVisitor]. */
-        fun defaultFilters(
-            apiPredicateConfig: ApiPredicate.Config,
-        ): ApiFilters {
-            return ApiFilters(
-                emit = defaultEmitFilter(apiPredicateConfig),
-                reference =
-                    ApiPredicate(
-                        ignoreRemoved = false,
-                        config = apiPredicateConfig.copy(ignoreShown = true),
-                    ),
-            )
+    /** The filter to use to determine if an item should be visited during traversal */
+    private val traversalPredicate = apiFilters?.traversal
+
+    /**
+     * If a [traversalPredicate] is configured, skip any [SelectableItem] that does not match it.
+     * Otherwise, do not skip any items here.
+     */
+    override fun skip(item: SelectableItem): Boolean {
+        if (traversalPredicate != null) {
+            return !traversalPredicate.test(item)
         }
 
-        /** Get the default emit filter to use with [ApiVisitor]. */
-        fun defaultEmitFilter(apiPredicateConfig: ApiPredicate.Config) =
-            ApiPredicate(
-                matchRemoved = false,
-                includeApisForStubPurposes = true,
-                config = apiPredicateConfig.copy(ignoreShown = true),
-            )
+        return false
     }
 
     /**
-     * Visit a [List] of [ClassItem]s after sorting it into order defined by
-     * [ClassItem.classNameSorter].
-     */
-    private fun visitClassList(classes: List<ClassItem>) {
-        classes.sortedWith(ClassItem.classNameSorter()).forEach { it.accept(this) }
-    }
-
-    /**
-     * Implement to redirect to [VisitCandidate.accept] if necessary,
+     * Implement to redirect to [VisitCandidate.accept] if necessary, or delegate to
+     * [BaseItemVisitor.visit] when [traversalPredicate] is set.
      *
-     * This is not called by this [ApiVisitor]. Instead, it calls [VisitCandidate.accept] which does
-     * not delegate to this method but visits the class and its members itself so that it can access
-     * the filtered and sorted members. However, this may be called by some other code calling
+     * When [traversalPredicate] is null, this is not called during normal codebase traversal by
+     * this [ApiVisitor]. Instead, [visit(PackageItem)] calls [VisitCandidate.accept] which does not
+     * delegate to this method but visits the class and its members itself so that it can access the
+     * filtered and sorted members. However, this may be called by some other code calling
      * [ClassItem.accept] directly on this [ApiVisitor]. In that case this creates and then
-     * delegates through to the [VisitCandidate.visitWrappedClassAndFilteredMembers]
+     * delegates through to [VisitCandidate.visitWrappedClassAndFilteredMembers].
+     *
+     * When [traversalPredicate] is set, [visit(PackageItem)] delegates to [BaseItemVisitor.visit],
+     * which calls this method to traverse the class and its members directly while respecting
+     * [skip].
      */
     override fun visit(cls: ClassItem) {
+        // When [traversalPredicate] is set, delegate directly to [BaseItemVisitor.visit] to
+        // traverse the class and its members directly while respecting [skip].
+        if (traversalPredicate != null) {
+            super.visit(cls)
+            return
+        }
+
         // Get a VisitCandidate and visit it, if needed.
         getVisitCandidateIfNeeded(cls)?.visitWrappedClassAndFilteredMembers()
     }
 
     override fun visit(pkg: PackageItem) {
+        // When [traversalPredicate] is set, bypass [VisitCandidate] creation and delegate directly
+        // to [BaseItemVisitor.visit] to traverse the package and its classes directly while
+        // respecting [skip].
+        if (traversalPredicate != null) {
+            super.visit(pkg)
+            return
+        }
+
         if (!pkg.emit) {
             return
         }
 
         // Get the list of classes to visit directly. If nested classes are to appear as nested
         // then just visit the top level classes directly and then the nested classes will be
-        // visited
-        // by their containing classes. Otherwise, flatten the nested classes and treat them all as
-        // top level classes.
+        // visited by their containing classes. Otherwise, flatten the nested classes and treat
+        // them all as top level classes.
         val classesToVisitDirectly: List<ClassItem> =
             packageClassesAsSequence(pkg).mapNotNull { getVisitCandidateIfNeeded(it) }.toList()
 
-        // If none of the classes in this package will be visited them ignore the package entirely.
-        // TODO (b/135191699): also check if there are type aliases before returning
+        // If none of the classes or typealiases in this package will be visited then ignore the
+        // package entirely.
         if (classesToVisitDirectly.isEmpty()) return
 
         wrapBodyWithCallsToVisitMethodsForSelectableItem(pkg) {
@@ -135,14 +121,12 @@ open class ApiVisitor(
 
             visitClassList(classesToVisitDirectly)
 
-            pkg.typeAliases().sortedBy { it.simpleName }.forEach { it.accept(this) }
-
             afterVisitPackage(pkg)
         }
     }
 
     /** @return Whether this class is generally one that we want to recurse into */
-    open fun include(cls: ClassItem): Boolean {
+    private fun include(cls: ClassItem): Boolean {
         if (skip(cls)) {
             return false
         }
@@ -162,7 +146,7 @@ open class ApiVisitor(
 
         // Check to see whether this class should be emitted in its entirety. If not then it may
         // still be emitted if it contains emittable members.
-        val emit = filterEmit.test(cls)
+        val emit = filterEmit.testOrTrue(cls)
 
         // If the class is emitted then create a VisitCandidate immediately.
         if (emit) return VisitCandidate(cls)
@@ -170,7 +154,7 @@ open class ApiVisitor(
         // Check to see if the class could be emitted if it contains emittable members. If not then
         // return `null` to ignore this class. This will happen for a hidden class, e.g. package
         // private, that implements/overrides methods from the API.
-        if (!filterReference.test(cls)) return null
+        if (!filterReference.testOrTrue(cls)) return null
 
         // Create a VisitCandidate to encapsulate the emittable members, if any.
         val vc = VisitCandidate(cls)
@@ -197,62 +181,27 @@ open class ApiVisitor(
      * `visitClass(...)`.
      */
     private inner class VisitCandidate(val cls: ClassItem) : ClassItem by cls {
+        /** The backing field of [members]. */
+        private lateinit var _members: List<MemberItem>
 
-        /**
-         * If the list this is called upon is empty then just return [emptyList], else apply the
-         * [transform] to the list and return that.
-         */
-        private inline fun <T> List<T>.mapIfNotEmpty(transform: List<T>.() -> List<T>) =
-            if (isEmpty()) emptyList() else transform(this)
-
-        /**
-         * Sort the sequence into a [List].
-         *
-         * The standard [Sequence.sortedWith] will sort it into a list and then return a sequence
-         * wrapper which would then have to be converted back into a list. Instead, this just sorts
-         * it into a [List] and returns that.
-         */
-        private fun <T> Sequence<T>.sortToList(comparator: Comparator<in T>) =
-            if (none()) emptyList()
-            else
-                toMutableList().let {
-                    // Sort the list in place.
-                    it.sortWith(comparator)
-                    // Return the sorter list.
-                    it
+        /** Get the members. */
+        private val members: List<MemberItem>
+            get() {
+                if (!::_members.isInitialized) {
+                    // Construct a single list of all members.
+                    _members = buildList {
+                        cls.constructors().filterTo(this) { filterEmit.testOrTrue(it) }
+                        cls.methods().filterTo(this) { filterEmit.testOrTrue(it) }
+                        cls.properties().filterTo(this) { filterEmit.testOrTrue(it) }
+                        cls.fields().filterTo(this) { filterEmit.testOrTrue(it) }
+                    }
                 }
 
-        private val constructors =
-            cls.constructors().mapIfNotEmpty {
-                asSequence().filter { filterEmit.test(it) }.sortToList(callableComparator)
+                return _members
             }
 
-        private val methods =
-            cls.methods().mapIfNotEmpty {
-                asSequence().filter { filterEmit.test(it) }.sortToList(callableComparator)
-            }
-
-        private val fields by
-            lazy(LazyThreadSafetyMode.NONE) {
-                val fieldSequence =
-                    if (inlineInheritedFields) {
-                        cls.filteredFields(filterEmit, showUnannotated).asSequence()
-                    } else {
-                        cls.fields().asSequence().filter { filterEmit.test(it) }
-                    }
-
-                // Sort the fields so that enum constants come first.
-                fieldSequence.sortToList(FieldItem.comparatorEnumConstantFirst)
-            }
-
-        private val properties =
-            cls.properties().mapIfNotEmpty {
-                asSequence().filter { filterEmit.test(it) }.sortToList(PropertyItem.comparator)
-            }
-
-        /** Whether the class body contains any emmittable [MemberItem]s. */
-        fun containsNoEmittableMembers() =
-            constructors.isEmpty() && methods.isEmpty() && fields.isEmpty() && properties.isEmpty()
+        /** Whether the class body contains any emittable [MemberItem]s. */
+        fun containsNoEmittableMembers() = members.isEmpty()
 
         /**
          * Intercepts the call to visit this class and instead of using the default implementation
@@ -270,19 +219,8 @@ open class ApiVisitor(
             wrapBodyWithCallsToVisitMethodsForSelectableItem(cls) {
                 visitClass(cls)
 
-                for (constructor in constructors) {
-                    constructor.accept(this@ApiVisitor)
-                }
-
-                for (method in methods) {
-                    method.accept(this@ApiVisitor)
-                }
-
-                for (property in properties) {
-                    property.accept(this@ApiVisitor)
-                }
-                for (field in fields) {
-                    field.accept(this@ApiVisitor)
+                for (member in members) {
+                    member.accept(this@ApiVisitor)
                 }
 
                 if (preserveClassNesting) { // otherwise done in visit(PackageItem)

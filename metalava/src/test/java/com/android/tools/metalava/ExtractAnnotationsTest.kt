@@ -167,7 +167,7 @@ class ExtractAnnotationsTest : DriverTest() {
                     longDefAnnotationSource
                 ),
             expectedIssues =
-                "src/test/pkg/LongDefTest.kt:12: error: Typedef class references hidden field field LongDefTestKt.HIDDEN: removed from typedef metadata [HiddenTypedefConstant]",
+                "src/test/pkg/LongDefTest.kt:12: error: Typedef class references hidden field field test.pkg.LongDefTestKt.HIDDEN: removed from typedef metadata [HiddenTypedefConstant]",
             extractAnnotations =
                 mapOf(
                     "test.pkg" to
@@ -176,7 +176,7 @@ class ExtractAnnotationsTest : DriverTest() {
                     <root>
                       <item name="test.pkg.LongDefTest void setFlags(java.lang.Object, int) 1">
                         <annotation name="androidx.annotation.LongDef">
-                          <val name="value" val="{test.pkg.LongDefTestKt.STYLE_NORMAL, test.pkg.LongDefTestKt.STYLE_NO_TITLE, test.pkg.LongDefTestKt.STYLE_NO_FRAME, test.pkg.LongDefTestKt.STYLE_NO_INPUT, 3, 4L}" />
+                          <val name="value" val="{test.pkg.LongDefTestKt.STYLE_NORMAL, test.pkg.LongDefTestKt.STYLE_NO_TITLE, test.pkg.LongDefTestKt.STYLE_NO_FRAME, test.pkg.LongDefTestKt.STYLE_NO_INPUT, 3L, 4L}" />
                           <val name="flag" val="true" />
                         </annotation>
                       </item>
@@ -187,7 +187,7 @@ class ExtractAnnotationsTest : DriverTest() {
                       </item>
                       <item name="test.pkg.LongDefTest.Inner void setInner(int) 0">
                         <annotation name="androidx.annotation.LongDef">
-                          <val name="value" val="{test.pkg.LongDefTestKt.STYLE_NORMAL, test.pkg.LongDefTestKt.STYLE_NO_TITLE, test.pkg.LongDefTestKt.STYLE_NO_FRAME, test.pkg.LongDefTestKt.STYLE_NO_INPUT, 3, 4L}" />
+                          <val name="value" val="{test.pkg.LongDefTestKt.STYLE_NORMAL, test.pkg.LongDefTestKt.STYLE_NO_TITLE, test.pkg.LongDefTestKt.STYLE_NO_FRAME, test.pkg.LongDefTestKt.STYLE_NO_INPUT, 3L, 4L}" />
                           <val name="flag" val="true" />
                         </annotation>
                       </item>
@@ -250,7 +250,7 @@ class ExtractAnnotationsTest : DriverTest() {
                     longDefAnnotationSource
                 ),
             expectedIssues =
-                "src/test/pkg/LongDefTest.kt:12: error: Typedef class references hidden field field LongDefTestKt.HIDDEN: removed from typedef metadata [HiddenTypedefConstant]",
+                "src/test/pkg/LongDefTest.kt:12: error: Typedef class references hidden field field test.pkg.LongDefTestKt.HIDDEN: removed from typedef metadata [HiddenTypedefConstant]",
             extractAnnotations =
                 mapOf(
                     "test.pkg" to
@@ -259,7 +259,7 @@ class ExtractAnnotationsTest : DriverTest() {
                     <root>
                       <item name="test.pkg.LongDefTest void setFlags(java.lang.Object, int) 1">
                         <annotation name="androidx.annotation.LongDef">
-                          <val name="value" val="{test.pkg.LongDefTestKt.STYLE_NORMAL, test.pkg.LongDefTestKt.STYLE_NO_TITLE, test.pkg.LongDefTestKt.STYLE_NO_FRAME, test.pkg.LongDefTestKt.STYLE_NO_INPUT, 3, 4L}" />
+                          <val name="value" val="{test.pkg.LongDefTestKt.STYLE_NORMAL, test.pkg.LongDefTestKt.STYLE_NO_TITLE, test.pkg.LongDefTestKt.STYLE_NO_FRAME, test.pkg.LongDefTestKt.STYLE_NO_INPUT, 3L, 4L}" />
                           <val name="flag" val="true" />
                         </annotation>
                       </item>
@@ -270,7 +270,7 @@ class ExtractAnnotationsTest : DriverTest() {
                       </item>
                       <item name="test.pkg.LongDefTest.Inner void setInner(int) 0">
                         <annotation name="androidx.annotation.LongDef">
-                          <val name="value" val="{test.pkg.LongDefTestKt.STYLE_NORMAL, test.pkg.LongDefTestKt.STYLE_NO_TITLE, test.pkg.LongDefTestKt.STYLE_NO_FRAME, test.pkg.LongDefTestKt.STYLE_NO_INPUT, 3, 4L}" />
+                          <val name="value" val="{test.pkg.LongDefTestKt.STYLE_NORMAL, test.pkg.LongDefTestKt.STYLE_NO_TITLE, test.pkg.LongDefTestKt.STYLE_NO_FRAME, test.pkg.LongDefTestKt.STYLE_NO_INPUT, 3L, 4L}" />
                           <val name="flag" val="true" />
                         </annotation>
                       </item>
@@ -357,7 +357,6 @@ class ExtractAnnotationsTest : DriverTest() {
     fun `Include merged annotations in exported source annotations`() {
         check(
             format = FileFormat.V2,
-            includeSystemApiAnnotations = false,
             expectedIssues = "error: Unexpected reference to Nonexistent.Field [InternalError]",
             sourceFiles =
                 arrayOf(
@@ -424,7 +423,6 @@ class ExtractAnnotationsTest : DriverTest() {
     fun `Only including class retention annotations in stubs`() {
         check(
             format = FileFormat.V2,
-            includeSystemApiAnnotations = false,
             sourceFiles =
                 arrayOf(
                     java(
@@ -441,7 +439,7 @@ class ExtractAnnotationsTest : DriverTest() {
                     intRangeAnnotationSource,
                     recentlyNullableSource
                 ),
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -463,91 +461,10 @@ class ExtractAnnotationsTest : DriverTest() {
                     <root>
                       <item name="test.pkg.Test java.lang.String sayHello(int) 0">
                         <annotation name="androidx.annotation.IntRange">
-                          <val name="from" val="10" />
+                          <val name="from" val="10L" />
                         </annotation>
                       </item>
                     </root>
-                """
-                )
-        )
-    }
-
-    @Test
-    fun `Check warning about unexpected returns from typedef method`() {
-        check(
-            expectedIssues =
-                "src/test/pkg/IntDefTest.java:36: warning: Returning unexpected constant UNRELATED; is @DialogStyle missing this constant? Expected one of STYLE_NORMAL, STYLE_NO_TITLE, STYLE_NO_FRAME, STYLE_NO_INPUT [ReturningUnexpectedConstant]",
-            sourceFiles =
-                arrayOf(
-                    java(
-                            """
-                    package test.pkg;
-
-                    import android.annotation.IntDef;
-                    import android.annotation.IntRange;
-                    import java.lang.annotation.Retention;
-                    import java.lang.annotation.RetentionPolicy;
-
-                    @SuppressWarnings({"UnusedDeclaration", "WeakerAccess"})
-                    public class IntDefTest {
-                        @IntDef({STYLE_NORMAL, STYLE_NO_TITLE, STYLE_NO_FRAME, STYLE_NO_INPUT})
-                        @IntRange(from = 20)
-                        @Retention(RetentionPolicy.SOURCE)
-                        private @interface DialogStyle {
-                        }
-
-                        public static final int STYLE_NORMAL = 0;
-                        public static final int STYLE_NO_TITLE = 1;
-                        public static final int STYLE_NO_FRAME = 2;
-                        public static final int STYLE_NO_INPUT = 3;
-                        public static final int UNRELATED = 3;
-                        public static final int[] EMPTY_ARRAY = new int[0];
-
-                        private int mField1 = 4;
-                        private int mField2 = 5;
-
-                        @DialogStyle
-                        public int getStyle1() {
-                            //noinspection ConstantConditions
-                            if (mField1 < 1) {
-                                return STYLE_NO_TITLE; // OK
-                            } else if (mField1 < 2) {
-                                return 0; // OK
-                            } else if (mField1 < 3) {
-                                return mField2; // OK
-                            } else {
-                                return UNRELATED; // WARN
-                            }
-                        }
-
-                        @DialogStyle
-                        public int[] getStyle2() {
-                            return EMPTY_ARRAY; // OK
-                        }
-                    }
-                    """
-                        )
-                        .indented(),
-                    intDefAnnotationSource,
-                    intRangeAnnotationSource
-                ),
-            extractAnnotations =
-                mapOf(
-                    "test.pkg" to
-                        """
-                <?xml version="1.0" encoding="UTF-8"?>
-                <root>
-                  <item name="test.pkg.IntDefTest int getStyle1()">
-                    <annotation name="androidx.annotation.IntDef">
-                      <val name="value" val="{test.pkg.IntDefTest.STYLE_NORMAL, test.pkg.IntDefTest.STYLE_NO_TITLE, test.pkg.IntDefTest.STYLE_NO_FRAME, test.pkg.IntDefTest.STYLE_NO_INPUT}" />
-                    </annotation>
-                  </item>
-                  <item name="test.pkg.IntDefTest int[] getStyle2()">
-                    <annotation name="androidx.annotation.IntDef">
-                      <val name="value" val="{test.pkg.IntDefTest.STYLE_NORMAL, test.pkg.IntDefTest.STYLE_NO_TITLE, test.pkg.IntDefTest.STYLE_NO_FRAME, test.pkg.IntDefTest.STYLE_NO_INPUT}" />
-                    </annotation>
-                  </item>
-                </root>
                 """
                 )
         )
@@ -559,7 +476,7 @@ class ExtractAnnotationsTest : DriverTest() {
             extraArguments = arrayOf(ARG_TYPEDEFS_IN_SIGNATURES, "none"),
             format = FileFormat.V2,
             sourceFiles = sourceFiles1,
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 2.0
                 package test.pkg {
@@ -592,13 +509,13 @@ class ExtractAnnotationsTest : DriverTest() {
             extraArguments = arrayOf(ARG_TYPEDEFS_IN_SIGNATURES, "inline"),
             format = FileFormat.V2,
             sourceFiles = sourceFiles1,
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 2.0
                 package test.pkg {
                   public class IntDefTest {
                     ctor public IntDefTest();
-                    method public void setFlags(Object, @IntDef(value={test.pkg.IntDefTest.STYLE_NORMAL, test.pkg.IntDefTest.STYLE_NO_TITLE, test.pkg.IntDefTest.STYLE_NO_FRAME, test.pkg.IntDefTest.STYLE_NO_INPUT, 3, 3 + 1}, flag=true) int);
+                    method public void setFlags(Object, @IntDef(value={test.pkg.IntDefTest.STYLE_NORMAL, test.pkg.IntDefTest.STYLE_NO_TITLE, test.pkg.IntDefTest.STYLE_NO_FRAME, test.pkg.IntDefTest.STYLE_NO_INPUT, 3, 0x4}, flag=true) int);
                     method public void setStyle(@IntDef({test.pkg.IntDefTest.STYLE_NORMAL, test.pkg.IntDefTest.STYLE_NO_TITLE, test.pkg.IntDefTest.STYLE_NO_FRAME, test.pkg.IntDefTest.STYLE_NO_INPUT}) int, int);
                     method public void testIntDef(int);
                     field public static final int STYLE_NORMAL = 0; // 0x0
@@ -612,7 +529,7 @@ class ExtractAnnotationsTest : DriverTest() {
                   }
                   public static class IntDefTest.Inner {
                     ctor public IntDefTest.Inner();
-                    method public void setInner(@IntDef(value={test.pkg.IntDefTest.STYLE_NORMAL, test.pkg.IntDefTest.STYLE_NO_TITLE, test.pkg.IntDefTest.STYLE_NO_FRAME, test.pkg.IntDefTest.STYLE_NO_INPUT, 3, 3 + 1}, flag=true) int);
+                    method public void setInner(@IntDef(value={test.pkg.IntDefTest.STYLE_NORMAL, test.pkg.IntDefTest.STYLE_NO_TITLE, test.pkg.IntDefTest.STYLE_NO_FRAME, test.pkg.IntDefTest.STYLE_NO_INPUT, 3, 0x4}, flag=true) int);
                   }
                 }
             """
@@ -625,7 +542,7 @@ class ExtractAnnotationsTest : DriverTest() {
             extraArguments = arrayOf(ARG_TYPEDEFS_IN_SIGNATURES, "ref"),
             format = FileFormat.V2,
             sourceFiles = sourceFiles1,
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 2.0
                 package test.pkg {
@@ -656,7 +573,6 @@ class ExtractAnnotationsTest : DriverTest() {
     fun `Test generics in XML attributes are encoded`() {
         check(
             format = FileFormat.V2,
-            includeSystemApiAnnotations = false,
             sourceFiles =
                 arrayOf(
                     java(
@@ -680,7 +596,7 @@ class ExtractAnnotationsTest : DriverTest() {
                 <root>
                   <item name="test.pkg.MyTest void test(java.util.List&lt;java.lang.Integer&gt;, int) 1">
                     <annotation name="androidx.annotation.IntRange">
-                      <val name="from" val="10" />
+                      <val name="from" val="10L" />
                     </annotation>
                   </item>
                 </root>
@@ -766,8 +682,6 @@ class ExtractAnnotationsTest : DriverTest() {
             extractAnnotations =
                 mapOf(
                     "test.pkg" to
-                        // TODO(b/329116156): One of the IntDef annotations should be on
-                        //  PublicNestedClassB
                         """
                             <?xml version="1.0" encoding="UTF-8"?>
                             <root>
@@ -810,15 +724,23 @@ class ExtractAnnotationsTest : DriverTest() {
             extractAnnotations =
                 mapOf(
                     "test.pkg" to
-                        // TODO(b/331752084): Add missing annotations
                         """
                             <?xml version="1.0" encoding="UTF-8"?>
                             <root>
                               <item name="test.pkg.Foo void foo1()">
+                                <annotation name="androidx.annotation.RequiresPermission">
+                                  <val name="value" val="&quot;Permission1&quot;" />
+                                </annotation>
                               </item>
                               <item name="test.pkg.Foo void foo2()">
+                                <annotation name="androidx.annotation.RequiresPermission">
+                                  <val name="value" val="&quot;Permission2&quot;" />
+                                </annotation>
                               </item>
                               <item name="test.pkg.Foo void foo3()">
+                                <annotation name="androidx.annotation.RequiresPermission">
+                                  <val name="value" val="&quot;UnresolvedPermission&quot;" />
+                                </annotation>
                               </item>
                             </root>
                         """
@@ -857,6 +779,51 @@ class ExtractAnnotationsTest : DriverTest() {
                               </item>
                               <item name="test.pkg.Test Test()">
                                 <annotation name="androidx.annotation.UiThread"/>
+                              </item>
+                            </root>
+                        """,
+                ),
+        )
+    }
+
+    @Test
+    fun `Extract int def with single value`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            import android.annotation.IntDef;
+
+                            import java.lang.annotation.Retention;
+                            import java.lang.annotation.RetentionPolicy;
+
+                            public class IntDefTest {
+                                @IntDef(SINGLE_VALUE)
+                                @Retention(RetentionPolicy.SOURCE)
+                                private @interface SingleAllowableValue {}
+
+                                public static final int SINGLE_VALUE = 0;
+
+                                public void setValue(@SingleAllowableValue int value) {
+                                }
+                            }
+                        """
+                    ),
+                    intDefAnnotationSource,
+                ),
+            extractAnnotations =
+                mapOf(
+                    "test.pkg" to
+                        """
+                            <?xml version="1.0" encoding="UTF-8"?>
+                            <root>
+                              <item name="test.pkg.IntDefTest void setValue(int) 0">
+                                <annotation name="androidx.annotation.IntDef">
+                                  <val name="value" val="{test.pkg.IntDefTest.SINGLE_VALUE}" />
+                                </annotation>
                               </item>
                             </root>
                         """,

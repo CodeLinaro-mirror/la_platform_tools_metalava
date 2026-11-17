@@ -17,9 +17,9 @@
 package com.android.tools.metalava.lint
 
 import com.android.tools.metalava.DriverTest
-import com.android.tools.metalava.androidxNullableSource
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
@@ -41,7 +41,6 @@ class AutoBoxingTest : DriverTest() {
                 src/test/pkg/MyClass.java:12: error: Must avoid boxed primitives (`java.lang.Short`) [AutoBoxing]
                 src/test/pkg/MyClass.java:14: error: Must avoid boxed primitives (`java.lang.Boolean`) [AutoBoxing]
                 """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -74,7 +73,7 @@ class AutoBoxingTest : DriverTest() {
                     }
                 """
                     ),
-                    androidxNullableSource
+                    KnownSourceFiles.androidxNullableJavaSource
                 )
         )
     }

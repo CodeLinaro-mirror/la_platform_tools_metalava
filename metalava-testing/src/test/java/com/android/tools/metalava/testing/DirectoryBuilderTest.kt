@@ -19,13 +19,9 @@ package com.android.tools.metalava.testing
 import java.io.File
 import java.util.jar.JarInputStream
 import kotlin.test.assertEquals
-import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
 
-class DirectoryBuilderTest : TemporaryFolderOwner {
-    @get:Rule override val temporaryFolder = TemporaryFolder()
-
+class DirectoryBuilderTest : BaseTemporaryFolderOwner() {
     private fun File.assertJarFileContents(expected: String) {
         val entries = buildList {
             JarInputStream(inputStream()).use { inputStream ->
@@ -66,7 +62,7 @@ class DirectoryBuilderTest : TemporaryFolderOwner {
                         public class Foo extends Bar {}
                     """
                     ),
-                    classPath = listOf(classPathJarFile),
+                    classPath = listOf(classPathJarFile.toTestFile()),
                 )
         }
 

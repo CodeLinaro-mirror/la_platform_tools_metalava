@@ -27,11 +27,22 @@ const val DOT_KT = ".kt"
 /** Finds the package of the given Java/Kotlin source file, if possible */
 fun findPackage(file: File): String? {
     val source = file.readText(Charsets.UTF_8)
+    val path = file.path
     return findPackage(source)
+        // If no package was found, and it was a .kt file then it only has package level
+        // declarations but no classes and is in the root package.
+        ?: if (path.endsWith(DOT_KT)) "" else null
 }
 
 /** Finds the package of the given Java/Kotlin source code, if possible */
 private fun findPackage(source: String): String? {
     // Replace is there to handle kotlin packages that have `` in them like com.`receiver`.example
-    return ClassName(source).packageName?.replace("`", "")
+    val className = ClassName(source)
+    val simpleClassName = className.className
+    val packageName =
+        className.packageName?.replace("`", "")
+            // If no package could be found but a class was found then the class is from the root
+            // package.
+            ?: simpleClassName?.let { "" }
+    return packageName
 }

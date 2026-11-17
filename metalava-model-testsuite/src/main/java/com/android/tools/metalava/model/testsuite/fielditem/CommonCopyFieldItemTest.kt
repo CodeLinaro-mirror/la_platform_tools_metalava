@@ -19,20 +19,47 @@ package com.android.tools.metalava.model.testsuite.fielditem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.VisibilityLevel
-import com.android.tools.metalava.model.testsuite.memberitem.CommonCopyMemberItemTest
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
+import com.android.tools.metalava.model.testsuite.memberitem.CommonCopyInheritableItemTest
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import org.junit.Test
 
 /** Common tests for [FieldItem.duplicate]. */
-class CommonCopyFieldItemTest : CommonCopyMemberItemTest<FieldItem>() {
+class CommonCopyFieldItemTest : CommonCopyInheritableItemTest<FieldItem>() {
 
     override fun getMember(sourceClassItem: ClassItem) = sourceClassItem.assertField("field")
 
     override fun copyMember(sourceMemberItem: FieldItem, targetClassItem: ClassItem) =
         sourceMemberItem.duplicate(targetClassItem)
 
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `test duplicate creates item in same codebase as target class`() {
+        checkDuplicateUsesTargetCodebase(
+            sourceFile =
+                java(
+                    """
+                        package test.pkg;
+                        public class Source {
+                            public int field;
+                        }
+                    """
+                ),
+            targetFile =
+                java(
+                    """
+                        package test.pkg;
+                        public class Target {
+                        }
+                    """
+                ),
+        )
+    }
+
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `test copy field from interface to class uses public visibility`() {
         runCopyTest(
@@ -77,6 +104,7 @@ class CommonCopyFieldItemTest : CommonCopyMemberItemTest<FieldItem>() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `test copy field from interface to class does copy static modifier`() {
         runCopyTest(
@@ -121,6 +149,7 @@ class CommonCopyFieldItemTest : CommonCopyMemberItemTest<FieldItem>() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `test copy field from interface to class does set implicit static modifier`() {
         runCopyTest(
@@ -151,6 +180,7 @@ class CommonCopyFieldItemTest : CommonCopyMemberItemTest<FieldItem>() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `test copy non deprecated field from non deprecated class to deprecated class treats field as deprecated`() {
         runCopyTest(
@@ -162,7 +192,7 @@ class CommonCopyFieldItemTest : CommonCopyMemberItemTest<FieldItem>() {
                           public class Source {
                             field public int field;
                           }
-                          @Deprecated public class Target implements test.pkg.Source {
+                          @Deprecated public class Target extends test.pkg.Source {
                           }
                         }
                     """
@@ -186,7 +216,7 @@ class CommonCopyFieldItemTest : CommonCopyMemberItemTest<FieldItem>() {
 
                         /** @deprecated */
                         @Deprecated
-                        public final class Target implements Source {}
+                        public final class Target extends Source {}
                     """
                 ),
             ),
@@ -203,6 +233,7 @@ class CommonCopyFieldItemTest : CommonCopyMemberItemTest<FieldItem>() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `test copy non deprecated field from deprecated class to non deprecated class treats field as not deprecated`() {
         runCopyTest(
@@ -214,7 +245,7 @@ class CommonCopyFieldItemTest : CommonCopyMemberItemTest<FieldItem>() {
                           @Deprecated public class Source {
                             field public int field;
                           }
-                          public class Target implements test.pkg.Source {
+                          public class Target extends test.pkg.Source {
                           }
                         }
                     """
@@ -238,7 +269,7 @@ class CommonCopyFieldItemTest : CommonCopyMemberItemTest<FieldItem>() {
                     """
                         package test.pkg;
 
-                        public final class Target implements Source {}
+                        public final class Target extends Source {}
                     """
                 ),
             ),
@@ -255,6 +286,7 @@ class CommonCopyFieldItemTest : CommonCopyMemberItemTest<FieldItem>() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `test copy deprecated field from one class to another keeps field as deprecated`() {
         runCopyTest(
@@ -289,7 +321,7 @@ class CommonCopyFieldItemTest : CommonCopyMemberItemTest<FieldItem>() {
                     """
                         package test.pkg;
 
-                        public final class Target implements Source {}
+                        public final class Target extends Source {}
                     """
                 ),
             ),

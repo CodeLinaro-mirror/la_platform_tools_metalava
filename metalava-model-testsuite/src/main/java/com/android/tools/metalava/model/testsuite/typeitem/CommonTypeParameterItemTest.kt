@@ -18,14 +18,45 @@ package com.android.tools.metalava.model.testsuite.typeitem
 
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.StripJavaLangPrefix
+import com.android.tools.metalava.model.TypeComparator
 import com.android.tools.metalava.model.TypeStringConfiguration
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
+import com.android.tools.metalava.model.testing.classTypeItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.testing.TestFileCache
+import com.android.tools.metalava.testing.TestFileCacheRule
+import com.android.tools.metalava.testing.cacheIn
+import com.android.tools.metalava.testing.jarFromSources
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
+import org.junit.ClassRule
 import org.junit.Test
 
 class CommonTypeParameterItemTest : BaseModelTest() {
+
+    companion object {
+        /** Create a [TestFileCache] whose lifespan encompasses all the tests in this class. */
+        @ClassRule @JvmField val testFileCacheRule = TestFileCacheRule()
+
+        /** Jar file containing an `other.pkg.Other` class with a `Nested` class. */
+        @Suppress("TypeParameterExplicitlyExtendsObject")
+        private val typeParametersJar =
+            jarFromSources(
+                    "type-parameters.jar",
+                    java(
+                        """
+                            package test.pkg;
+                            public class Test<A, B extends Object, C extends Comparable<C>, D extends Object & Comparable<D>> {
+                                private Test() {}
+                            }
+                        """
+                    ),
+                )
+                .cacheIn(testFileCacheRule)
+    }
+
     @Test
     fun `Test typeBounds no extends`() {
         runCodebaseTest(
@@ -43,21 +74,19 @@ class CommonTypeParameterItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Foo<T> {
                         ctor public Foo();
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val typeParameter = fooClass.typeParameterList.single()
             assertThat(typeParameter.toSource()).isEqualTo("T")
-            val typeBounds = typeParameter.typeBounds()
-            assertThat(typeBounds.size).isEqualTo(0)
+            typeParameter.assertUsesDefaultTypeBounds()
         }
     }
 
@@ -78,14 +107,13 @@ class CommonTypeParameterItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Foo<T extends Comparable<T>> {
                         ctor public Foo();
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
@@ -115,14 +143,13 @@ class CommonTypeParameterItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Foo<T extends Object & Comparable<T>> {
                         ctor public Foo();
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
@@ -134,6 +161,33 @@ class CommonTypeParameterItemTest : BaseModelTest() {
             assertThat((first as ClassTypeItem).qualifiedName).isEqualTo("java.lang.Object")
             assertThat(second).isInstanceOf(ClassTypeItem::class.java)
             assertThat((second as ClassTypeItem).qualifiedName).isEqualTo("java.lang.Comparable")
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test typeBounds on jar`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    public class Placeholder {}
+                """
+            ),
+            testFixture =
+                TestFixture(
+                    additionalClassPath = listOf(typeParametersJar.toFile()),
+                ),
+        ) {
+            val testClass = codebase.assertResolvedClass("test.pkg.Test")
+            testClass.assertTypeParameterListBounds(
+                """
+                    A -> [java.lang.Object!]
+                    B -> [java.lang.Object!]
+                    C -> [java.lang.Comparable<C>!]
+                    D -> [java.lang.Object!, java.lang.Comparable<D>!]
+                """
+            )
         }
     }
 
@@ -149,7 +203,6 @@ class CommonTypeParameterItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             ),
             java(
                 """
@@ -201,7 +254,6 @@ class CommonTypeParameterItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             ),
             java(
                 """
@@ -231,7 +283,7 @@ class CommonTypeParameterItemTest : BaseModelTest() {
             bBound.assertReferencesTypeParameter(a)
 
             // C
-            assertThat(c.typeBounds()).isEmpty()
+            c.assertUsesDefaultTypeBounds()
         }
     }
 
@@ -247,7 +299,6 @@ class CommonTypeParameterItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             ),
             java(
                 """
@@ -278,6 +329,7 @@ class CommonTypeParameterItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test type parameter bounds with multiple class parameters`() {
         runCodebaseTest(
@@ -287,7 +339,6 @@ class CommonTypeParameterItemTest : BaseModelTest() {
                     import java.util.Map;
                     public class Foo<T extends Map<Integer, String>> {}
                 """
-                    .trimIndent()
             ),
             signature(
                 """
@@ -297,7 +348,6 @@ class CommonTypeParameterItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val clazz = codebase.assertClass("test.pkg.Foo")
@@ -315,6 +365,7 @@ class CommonTypeParameterItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.KOTLIN)
     @Test
     fun `Test reified type parameter`() {
         runCodebaseTest(
@@ -326,7 +377,6 @@ class CommonTypeParameterItemTest : BaseModelTest() {
                         inline fun <reified T: List<String>> foo(): T {}
                     }
                 """
-                    .trimIndent()
             ),
             signature(
                 """
@@ -334,30 +384,29 @@ class CommonTypeParameterItemTest : BaseModelTest() {
                     package test.pkg {
                       public final class Foo {
                         ctor public Foo();
-                        method public inline <reified T extends java.util.List<? extends java.lang.String>> T foo();
+                        method @KotlinOnly public inline <reified T extends java.util.List<java.lang.String>> T foo();
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
             val typeParam = method.typeParameterList.single()
             assertThat(typeParam.isReified()).isTrue()
             assertThat(typeParam.toSource())
-                .isEqualTo("reified T extends java.util.List<? extends java.lang.String>")
+                .isEqualTo("reified T extends java.util.List<java.lang.String>")
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
-    fun `Test explicit Object bound`() {
+    fun `Test explicit Object bound - java`() {
         runCodebaseTest(
             java(
                 """
                     package test.pkg;
                     public class Foo<T extends Object, U extends Object & Comparable<U>> {}
                 """
-                    .trimIndent()
             ),
             signature(
                 """
@@ -367,7 +416,6 @@ class CommonTypeParameterItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val clazz = codebase.assertClass("test.pkg.Foo")
@@ -393,6 +441,30 @@ class CommonTypeParameterItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
+    @Test
+    fun `Test explicit Any bounds - kotlin`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+                    class Foo<T: Any?, U: Any>
+                """
+            ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            // TODO(b/488322332): This is wrong, U should not be nullable. That is happening because
+            //   Kotlin is dropping Any, even if it non-nullable.
+            fooClass.assertTypeParameterListBounds(
+                """
+                    T -> [java.lang.Object?]
+                    U -> [java.lang.Object?]
+                """
+            )
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test toType`() {
         runCodebaseTest(
@@ -413,10 +485,9 @@ class CommonTypeParameterItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
-            val method = codebase.assertClass("test.pkg.Foo").assertMethod("foo", "")
+            val method = codebase.assertClass("test.pkg.Foo").assertMethod("foo", emptyList())
             val typeParameter = method.typeParameterList.single()
             val typeVariable = method.returnType()
 
@@ -478,6 +549,190 @@ class CommonTypeParameterItemTest : BaseModelTest() {
             val typeParameter = fooClass.typeParameterList.single()
             val annotation = typeParameter.modifiers.annotations().single()
             assertThat(annotation.qualifiedName).isEqualTo("test.pkg.TypeParameterAnnotation")
+        }
+    }
+
+    @Test
+    fun `Test asErasedType for simple type parameter no extends`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    public interface Foo<A> {
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    interface Foo<A> {
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public interface Foo<A> {
+                      }
+                    }
+                """
+            ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val typeParameterItem = fooClass.typeParameterList.single()
+            // Ignore nullability when comparing types because classTypeItem does not specify
+            // nullability, while asErasedType() may have model-specific nullability.
+            assertTypeComparison(
+                classTypeItem("java.lang.Object"),
+                typeParameterItem.asErasedType(),
+                TypeComparator.IGNORE_NULLABILITY,
+            )
+        }
+    }
+
+    @Test
+    fun `Test asErasedType for simple type parameter extends Exception`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    public interface Foo<A extends Exception> {
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    interface Foo<A : Exception> {
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public interface Foo<A extends Exception> {
+                      }
+                    }
+                """
+            ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val typeParameterItem = fooClass.typeParameterList.single()
+            // Ignore nullability when comparing types because classTypeItem does not specify
+            // nullability, while asErasedType() may have model-specific nullability.
+            assertTypeComparison(
+                classTypeItem("java.lang.Exception"),
+                typeParameterItem.asErasedType(),
+                TypeComparator.IGNORE_NULLABILITY,
+            )
+        }
+    }
+
+    @Test
+    fun `Test asErasedType for simple type parameter extends generic class`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        public interface Foo<A extends Generic<A>> {
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public interface Generic<A> {
+                        }
+                    """
+                ),
+            ),
+            inputSet(
+                kotlin(
+                    """
+                        package test.pkg
+                        interface Foo<A : Generic<A>> {
+                        }
+                    """
+                ),
+                kotlin(
+                    """
+                        package test.pkg
+                        interface Generic<A> {
+                        }
+                    """
+                ),
+            ),
+            inputSet(
+                signature(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public interface Foo<A extends test.pkg.Generic<A>> {
+                          }
+                          public interface Generic<A> {
+                          }
+                        }
+                    """
+                ),
+            ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val typeParameterItem = fooClass.typeParameterList.single()
+            // Ignore nullability when comparing types because classTypeItem does not specify
+            // nullability, while asErasedType() may have model-specific nullability.
+            assertTypeComparison(
+                classTypeItem("test.pkg.Generic"),
+                typeParameterItem.asErasedType(),
+                TypeComparator.IGNORE_NULLABILITY,
+            )
+        }
+    }
+
+    @Test
+    fun `Test asErasedType when parameter extends another parameter`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    public interface Foo<A extends Exception, B extends A, C extends B> {
+                        C method();
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    interface Foo<A: Exception, B: A, C: B> {
+                        fun method(): C
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public interface Foo<A extends Exception, B extends A, C extends B> {
+                          method C method();
+                      }
+                    }
+                """
+            ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val exceptionTypeItem = classTypeItem("java.lang.Exception")
+            for (typeParameterItem in fooClass.typeParameterList) {
+                // Ignore nullability when comparing types because classTypeItem does not specify
+                // nullability, while asErasedType() may have model-specific nullability.
+                assertTypeComparison(
+                    exceptionTypeItem,
+                    typeParameterItem.asErasedType(),
+                    TypeComparator.IGNORE_NULLABILITY,
+                    message = "type parameter ${typeParameterItem.name()}",
+                )
+            }
         }
     }
 }

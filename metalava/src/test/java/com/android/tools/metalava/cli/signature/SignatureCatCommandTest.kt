@@ -208,6 +208,24 @@ class SignatureCatCommandTest : BaseCommandTest<SignatureCatCommand>({ Signature
     }
 
     @Test
+    fun `Cat from empty file to file`() {
+        val signature = "// Signature format: 2.0"
+
+        commandTest {
+            val outputFile = outputFile("cat.txt")
+            args +=
+                listOf(
+                    "signature-cat",
+                    unindentedInputFile("current.txt", signature),
+                    "--output-file",
+                    outputFile,
+                )
+
+            verify { outputFile.assertSignatureContents(signature) }
+        }
+    }
+
+    @Test
     fun `Cat merge surfaces`() {
         val surface1 =
             """

@@ -16,8 +16,16 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.annotation.AnnotationClass
+import com.android.tools.metalava.model.api.ApiSurfaceSelector
+
 /** Provides support for managing annotations within Metalava. */
 interface AnnotationManager {
+    /**
+     * The [ApiSurfaceSelector] used by this [AnnotationManager] to match API surface annotations
+     * and keep track of whether unannotated items are included in a surface.
+     */
+    val apiSurfaceSelector: ApiSurfaceSelector
 
     /** Get the [AnnotationInfo] for the specified [annotation]. */
     fun getAnnotationInfo(annotation: AnnotationItem): AnnotationInfo
@@ -27,43 +35,15 @@ interface AnnotationManager {
      *
      * Annotations that should not be used internally are mapped to null.
      */
-    fun normalizeInputName(qualifiedName: String?): String?
+    fun normalizeInputName(qualifiedName: String): String?
 
     /**
      * Maps an annotation name to the name to be used in signatures/stubs/external annotation files.
-     * Annotations that should not be exported are mapped to null.
      */
     fun normalizeOutputName(
-        qualifiedName: String?,
+        qualifiedName: String,
         target: AnnotationTarget = AnnotationTarget.SIGNATURE_FILE
-    ): String?
-
-    /** Returns true if [annotationName] is the name of one of the show annotations. */
-    fun isShowAnnotationName(annotationName: String): Boolean = false
-
-    /**
-     * Checks to see if this has any show for stubs purposes annotations.
-     *
-     * Returns true if it has, false otherwise.
-     */
-    fun hasAnyStubPurposesAnnotations(): Boolean = false
-
-    /**
-     * Get the [Showability] for the supplied [SelectableItem].
-     *
-     * This combines the [Showability] of all the annotations of this item and returns the result.
-     *
-     * If the annotations on the item conflict then this could throw an exception or report an error
-     * as appropriate.
-     */
-    fun getShowabilityForItem(item: SelectableItem): Showability = Showability.NO_EFFECT
-
-    /**
-     * Checks to see if the modifiers contain any hide annotations.
-     *
-     * See [AnnotationItem.isHideAnnotation]
-     */
-    fun hasHideAnnotations(modifiers: ModifierList): Boolean = false
+    ): String
 
     /**
      * Checks to see if the modifiers contain any suppress compatibility annotations.
@@ -140,21 +120,22 @@ abstract class BaseAnnotationManager : AnnotationManager {
  */
 internal class NoOpAnnotationManager : BaseAnnotationManager() {
 
+    override val apiSurfaceSelector: ApiSurfaceSelector = ApiSurfaceSelector.DEFAULT
+
     override fun getKeyForAnnotationItem(annotationItem: AnnotationItem): String {
         // Just use the qualified name as the key as [computeAnnotationInfo] does not use anything
         // else.
         return annotationItem.qualifiedName
     }
 
-    override fun computeAnnotationInfo(annotationItem: AnnotationItem): AnnotationInfo {
-        return NoOpAnnotationInfo(annotationItem.qualifiedName)
-    }
+    override fun computeAnnotationInfo(annotationItem: AnnotationItem) =
+        NoOpAnnotationInfo(annotationItem)
 
-    override fun normalizeInputName(qualifiedName: String?): String? {
+    override fun normalizeInputName(qualifiedName: String): String {
         return qualifiedName
     }
 
-    override fun normalizeOutputName(qualifiedName: String?, target: AnnotationTarget): String? {
+    override fun normalizeOutputName(qualifiedName: String, target: AnnotationTarget): String {
         return qualifiedName
     }
 
@@ -168,23 +149,33 @@ internal class NoOpAnnotationManager : BaseAnnotationManager() {
  * [qualifiedName]. Any other properties are set to the default, usually `false`.
  */
 internal class NoOpAnnotationInfo(
-    /** The fully qualified and normalized name of the annotation class. */
-    val qualifiedName: String,
+    /** The [AnnotationItem], needed for retrieving the [AnnotationClass]. */
+    private val annotationItem: AnnotationItem,
 ) : AnnotationInfo {
+    /** The fully qualified and normalized name of the annotation class. */
+    private val qualifiedName: String = annotationItem.qualifiedName
 
     override val targets
         get() = ANNOTATION_IN_ALL_STUBS
 
     override val typeNullability = computeTypeNullability(qualifiedName)
 
-    override val showability
-        get() = Showability.NO_EFFECT
+    override val surfaceData
+        get() = null
 
     override val apiFlag
         get() = null
 
     override val suppressCompatibility
         get() = qualifiedName == SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED
+
+    override val annotationClass: AnnotationClass?
+        get() = annotationItem.resolve()?.annotationClass
 }
 
-val noOpAnnotationManager: AnnotationManager = NoOpAnnotationManager()
+/**
+ * Get a [NoOpAnnotationManager], creates a new one on each call as it caches information specific
+ * to a [Codebase].
+ */
+val noOpAnnotationManager: AnnotationManager
+    get() = NoOpAnnotationManager()

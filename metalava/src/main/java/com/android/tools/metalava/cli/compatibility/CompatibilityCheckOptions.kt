@@ -16,22 +16,22 @@
 
 package com.android.tools.metalava.cli.compatibility
 
-import com.android.tools.metalava.SignatureFileCache
 import com.android.tools.metalava.cli.common.BaselineOptionsMixin
-import com.android.tools.metalava.cli.common.CommonBaselineOptions
+import com.android.tools.metalava.cli.common.ComputedCommonBaselineOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
+import com.android.tools.metalava.cli.common.MetalavaOptionGroup
 import com.android.tools.metalava.cli.common.PreviouslyReleasedApi
 import com.android.tools.metalava.cli.common.allowStructuredOptionName
+import com.android.tools.metalava.cli.common.enumOption
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.map
-import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.api.surface.ApiVariantType
-import com.android.tools.metalava.model.visitors.ApiType
-import com.github.ajalt.clikt.parameters.groups.OptionGroup
+import com.android.tools.metalava.cli.compatibility.CheckRequest.CheckType
+import com.android.tools.metalava.reporter.Baseline
 import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.unique
-import java.io.File
+
+const val ARG_CHECK_COMPATIBILITY = "--check-compatibility"
 
 const val ARG_CHECK_COMPATIBILITY_API_RELEASED = "--check-compatibility:api:released"
 const val ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED = "--check-compatibility:removed:released"
@@ -45,11 +45,8 @@ const val ARG_API_COMPAT_ANNOTATION = "--api-compat-annotation"
 /** The name of the group, can be used in help text to refer to the options in this group. */
 const val COMPATIBILITY_CHECK_GROUP = "Compatibility Checks"
 
-class CompatibilityCheckOptions(
-    executionEnvironment: ExecutionEnvironment = ExecutionEnvironment(),
-    commonBaselineOptions: CommonBaselineOptions = CommonBaselineOptions(),
-) :
-    OptionGroup(
+class CompatibilityCheckOptions() :
+    MetalavaOptionGroup(
         name = COMPATIBILITY_CHECK_GROUP,
         help =
             """
@@ -58,6 +55,21 @@ class CompatibilityCheckOptions(
             """
                 .trimIndent(),
     ) {
+
+    private val checkCompatibility: CheckCompatibility by
+        enumOption(
+            ARG_CHECK_COMPATIBILITY,
+            help =
+                """
+                   Determines whether the $ARG_CHECK_COMPATIBILITY_API_RELEASED and
+                   $ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED cause a compatibility check to be
+                   performed. This must be set to `disabled` when those options are only provided to
+                   supply the previously released API to which flagged APIs are reverted.
+                """
+                    .trimIndent(),
+            enumValueHelpGetter = { it.help },
+            default = CheckCompatibility.ENABLED,
+        )
 
     private val checkReleasedApi: CheckRequest? by
         option(
@@ -76,7 +88,7 @@ class CompatibilityCheckOptions(
             .existingFile()
             .multiple()
             .allowStructuredOptionName()
-            .map { CheckRequest.optionalCheckRequest(it, ApiType.PUBLIC_API) }
+            .map { CheckRequest.optionalCheckRequest(it, CheckType.PUBLIC_API) }
 
     private val checkReleasedRemoved: CheckRequest? by
         option(
@@ -95,9 +107,9 @@ class CompatibilityCheckOptions(
             .existingFile()
             .multiple()
             .allowStructuredOptionName()
-            .map { CheckRequest.optionalCheckRequest(it, ApiType.REMOVED) }
+            .map { CheckRequest.optionalCheckRequest(it, CheckType.REMOVED) }
 
-    internal val apiCompatAnnotations: Set<String> by
+    private val apiCompatAnnotations: Set<String> by
         option(
                 ARG_API_COMPAT_ANNOTATION,
                 help =
@@ -133,76 +145,82 @@ class CompatibilityCheckOptions(
 
     private val baselineOptionsMixin =
         BaselineOptionsMixin(
-            containingGroup = this,
-            executionEnvironment,
+            containingParameterHolder = this,
             baselineOptionName = ARG_BASELINE_CHECK_COMPATIBILITY_RELEASED,
             updateBaselineOptionName = ARG_UPDATE_BASELINE_CHECK_COMPATIBILITY_RELEASED,
             issueType = "compatibility",
             description = "compatibility:released",
-            commonBaselineOptions = commonBaselineOptions,
         )
 
-    internal val baseline by baselineOptionsMixin::baseline
-
-    /**
-     * Encapsulates information needed to perform a compatibility check of the current API being
-     * generated against a previously released API.
-     */
-    data class CheckRequest(
-        /**
-         * The previously released API with which the API being generated must be compatible.
-         *
-         * Each file is either a jar file (i.e. has an extension of `.jar`), or otherwise is a
-         * signature file. The latter's extension is not checked because while it usually has an
-         * extension of `.txt`, for legacy reasons Metalava will treat any file without a `,jar`
-         * extension as if it was a signature file.
-         */
-        val previouslyReleasedApi: PreviouslyReleasedApi,
-
-        /** The part of the API to be checked. */
-        val apiType: ApiType,
-    ) {
-        /** The last signature file, if any, defining the previously released API. */
-        val lastSignatureFile by previouslyReleasedApi::lastSignatureFile
-
-        companion object {
-            /** Create a [CheckRequest] if [files] is not empty, otherwise return `null`. */
-            internal fun optionalCheckRequest(files: List<File>, apiType: ApiType) =
-                PreviouslyReleasedApi.optionalPreviouslyReleasedApi(
-                        checkCompatibilityOptionForApiType(apiType),
-                        files,
-                        apiVariantType =
-                            when (apiType) {
-                                ApiType.REMOVED -> ApiVariantType.REMOVED
-                                else -> ApiVariantType.CORE
-                            },
-                    )
-                    ?.let { previouslyReleasedApi -> CheckRequest(previouslyReleasedApi, apiType) }
-
-            private fun checkCompatibilityOptionForApiType(apiType: ApiType) =
-                "--check-compatibility:${apiType.flagName}:released"
-        }
-
-        override fun toString(): String {
-            // This is only used when reporting progress.
-            return "${checkCompatibilityOptionForApiType(apiType)} $previouslyReleasedApi"
-        }
+    /** Returns a [Baseline] for compatibility checks, if there is one. */
+    internal fun computeBaseline(
+        executionEnvironment: ExecutionEnvironment = ExecutionEnvironment(),
+        commonBaselineOptions: ComputedCommonBaselineOptions,
+    ): Baseline? {
+        return baselineOptionsMixin.computeBaseline(
+            executionEnvironment,
+            commonBaselineOptions = commonBaselineOptions,
+        )
     }
 
     /**
-     * The list of [CheckRequest] instances that need to be performed on the API being generated.
+     * Returns a [ComputedCompatibilityCheckOptions] instance based on the current state of the
+     * options.
      */
-    val compatibilityChecks by
-        lazy(LazyThreadSafetyMode.NONE) { listOfNotNull(checkReleasedApi, checkReleasedRemoved) }
+    fun compute(): ComputedCompatibilityCheckOptions {
+        return ComputedCompatibilityCheckOptions(
+            checkReleasedApi,
+            checkReleasedRemoved,
+            checkCompatibility,
+            apiCompatAnnotations,
+        )
+    }
+}
+
+/**
+ * Options related to compatibility checks and additional values computed based on those options.
+ */
+class ComputedCompatibilityCheckOptions
+internal constructor(
+    checkReleasedApi: CheckRequest?,
+    checkReleasedRemoved: CheckRequest?,
+    checkCompatibility: CheckCompatibility?,
+    val apiCompatAnnotations: Set<String>,
+) {
+    /**
+     * The list of unfiltered [CheckRequest] instances that need to be performed on the API being
+     * generated.
+     */
+    private val unfilteredCompatibilityChecks: List<CheckRequest> =
+        listOfNotNull(checkReleasedApi, checkReleasedRemoved)
 
     /**
-     * The optional Codebase corresponding to [compatibilityChecks].
-     *
-     * This is used to provide the previously released API needed for `--revert-annotation`.
+     * The list of [CheckRequest] instances that need to be performed on the API being generated
+     * taking into account [checkCompatibility].
      */
-    fun previouslyReleasedCodebase(signatureFileCache: SignatureFileCache): Codebase? =
-        compatibilityChecks
+    val compatibilityChecks: List<CheckRequest> =
+        when (checkCompatibility) {
+            CheckCompatibility.ENABLED -> unfilteredCompatibilityChecks
+            else -> emptyList()
+        }
+
+    /** The optional [PreviouslyReleasedApi]. */
+    val previouslyReleasedApi: PreviouslyReleasedApi? =
+        unfilteredCompatibilityChecks
             .map { it.previouslyReleasedApi }
             .reduceOrNull { p1, p2 -> p1.combine(p2) }
-            ?.load({ signatureFileCache.load(it) })
+}
+
+/**
+ * Determines whether [compatibilityChecks] returns a list of [checkReleasedApi] and
+ * [checkReleasedRemoved] or not.
+ */
+internal enum class CheckCompatibility(val help: String) {
+    ENABLED(
+        help = "Compatibility checks are performed.",
+    ),
+    @Suppress("unused") // Used implicitly by [checkCompatibility]
+    DISABLED(
+        help = "Compatibility checks are NOT performed.",
+    ),
 }

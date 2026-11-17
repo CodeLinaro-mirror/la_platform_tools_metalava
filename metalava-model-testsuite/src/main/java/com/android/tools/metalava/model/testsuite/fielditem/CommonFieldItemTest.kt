@@ -17,11 +17,14 @@
 package com.android.tools.metalava.model.testsuite.fielditem
 
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testing.testTypeString
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.testsuite.assertHasNonNullNullability
 import com.android.tools.metalava.model.testsuite.assertHasNullableNullability
 import com.android.tools.metalava.model.testsuite.runNullabilityTest
+import com.android.tools.metalava.model.value.asFloat
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
@@ -33,7 +36,7 @@ import org.junit.Test
 
 /** Common tests for implementations of [FieldItem]. */
 class CommonFieldItemTest : BaseModelTest() {
-
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test access type parameter of outer class`() {
         runCodebaseTest(
@@ -176,6 +179,7 @@ class CommonFieldItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test implicit nullability of companion object`() {
         runCodebaseTest(
@@ -249,6 +253,7 @@ class CommonFieldItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test nullability of field annotated with @not-type-use-NonNull`() {
         runCodebaseTest(
@@ -294,7 +299,7 @@ class CommonFieldItemTest : BaseModelTest() {
                     "field2" to "java.lang.String![]",
                     "field3" to "java.lang.String![]![]",
                     "field4" to "T",
-                    "field5" to "java.util.Map.Entry<T!,java.lang.String!>",
+                    "field5" to "java.util.Map.Entry<T,java.lang.String!>",
                 )
             val fields = codebase.assertClass("test.pkg.Foo").fields()
             assertEquals(expectedTypes.size, fields.size, message = "field count")
@@ -310,6 +315,7 @@ class CommonFieldItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test nullability of field annotated with @not-type-use-Nullable`() {
         runCodebaseTest(
@@ -355,7 +361,7 @@ class CommonFieldItemTest : BaseModelTest() {
                     "field2" to "java.lang.String![]?",
                     "field3" to "java.lang.String![]![]?",
                     "field4" to "T?",
-                    "field5" to "java.util.Map.Entry<T!,java.lang.String!>?",
+                    "field5" to "java.util.Map.Entry<T,java.lang.String!>?",
                 )
             val fields = codebase.assertClass("test.pkg.Foo").fields()
             assertEquals(expectedTypes.size, fields.size, message = "field count")
@@ -425,6 +431,7 @@ class CommonFieldItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA, InputFormat.KOTLIN)
     @Test
     fun `Test implicit nullability of constant field initialized from @NonNull method`() {
         runCodebaseTest(
@@ -464,6 +471,7 @@ class CommonFieldItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test handling of Float MIN_NORMAL`() {
         runCodebaseTest(
@@ -499,13 +507,13 @@ class CommonFieldItemTest : BaseModelTest() {
             val fields = testClass.fields()
             assertEquals(3, fields.size, message = "field count")
             for (field in fields) {
-                val value = field.initialValue(true) as Float
+                val value = field.constantValue?.asFloat()!!
                 val valueBits = value.toBits()
                 assertEquals(
                     minNormalBits,
                     valueBits,
                     message =
-                        "field ${field.name()} - expected ${Integer.toHexString(minNormalBits)}, found ${Integer.toHexString(valueBits)}"
+                        "field ${field.name()} - constantValue - expected ${Integer.toHexString(minNormalBits)}, found ${Integer.toHexString(valueBits)}"
                 )
 
                 val written =
@@ -517,6 +525,30 @@ class CommonFieldItemTest : BaseModelTest() {
 
                 assertEquals(" = 1.17549435E-38f;", written, message = "field ${field.name()}")
             }
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.KOTLIN)
+    @Test
+    fun `Test private const in interface companion`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                package test.pkg
+                interface Foo {
+                    companion object {
+                        const val PUBLIC_CONST = "CONST"
+                        private const val PRIVATE_CONST = "CONST"
+                    }
+                }
+                """
+            )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val publicConst = fooClass.assertField("PUBLIC_CONST")
+            assertEquals(publicConst.modifiers.getVisibilityModifiers(), "public")
+            val privateConst = fooClass.assertField("PRIVATE_CONST")
+            assertEquals(privateConst.modifiers.getVisibilityModifiers(), "private")
         }
     }
 }

@@ -16,45 +16,21 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.model.item.CodebaseAssembler
-import com.android.tools.metalava.model.item.DefaultCodebase
-import com.android.tools.metalava.model.item.PackageDoc
-import java.io.File
+import com.android.tools.metalava.model.testing.value.arrayValue
+import com.android.tools.metalava.model.testing.value.fieldReferenceValue
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class DefaultAnnotationItemTest {
-    // Placeholder for use in test where we don't need codebase functionality
-    private val placeholderCodebase =
-        DefaultCodebase(
-            location = File("").canonicalFile,
-            description = "",
-            preFiltered = false,
-            config = Codebase.Config.NOOP,
-            trustedApi = false,
-            supportsDocumentation = false,
-            assembler =
-                object : CodebaseAssembler {
-                    override fun createPackageItem(
-                        packageName: String,
-                        packageDoc: PackageDoc,
-                        containingPackage: PackageItem?,
-                    ) = error("unsupported")
-
-                    override fun createClassFromUnderlyingModel(qualifiedName: String) = null
-                },
-        )
+class DefaultAnnotationItemTest : Assertions {
 
     private fun createDefaultAnnotationItem(source: String) =
-        DefaultAnnotationItem.create(placeholderCodebase, source)
+        AnnotationItem.createFromSource(AnnotationContext.DEFAULT_RESOLVE_NULL, source)
             ?: error("Could not create annotation from: '$source'")
 
     @Test
     fun testSimple() {
         val annotation = createDefaultAnnotationItem("@androidx.annotation.Nullable")
-        assertEquals("@androidx.annotation.Nullable", annotation.toSource())
         assertEquals("androidx.annotation.Nullable", annotation.qualifiedName)
         assertTrue(annotation.attributes.isEmpty())
     }
@@ -63,13 +39,12 @@ class DefaultAnnotationItemTest {
     fun testIntRange() {
         val annotation =
             createDefaultAnnotationItem("@androidx.annotation.IntRange(from = 20, to = 40)")
-        assertEquals("@androidx.annotation.IntRange(from=20, to=40)", annotation.toSource())
         assertEquals("androidx.annotation.IntRange", annotation.qualifiedName)
         assertEquals(2, annotation.attributes.size)
-        assertEquals("from", annotation.findAttribute("from")?.name)
-        assertEquals("20", annotation.findAttribute("from")?.value.toString())
-        assertEquals("to", annotation.findAttribute("to")?.name)
-        assertEquals("40", annotation.findAttribute("to")?.value.toString())
+        assertEquals("from", annotation.assertAttribute("from").name)
+        assertEquals("20", annotation.assertAttribute("from").value.toValueString())
+        assertEquals("to", annotation.assertAttribute("to").name)
+        assertEquals("40", annotation.assertAttribute("to").value.toValueString())
     }
 
     @Test
@@ -78,25 +53,23 @@ class DefaultAnnotationItemTest {
             createDefaultAnnotationItem(
                 "@androidx.annotation.IntDef({STYLE_NORMAL, STYLE_NO_TITLE, STYLE_NO_FRAME, STYLE_NO_INPUT})"
             )
-        assertEquals(
-            "@androidx.annotation.IntDef({STYLE_NORMAL, STYLE_NO_TITLE, STYLE_NO_FRAME, STYLE_NO_INPUT})",
-            annotation.toSource()
-        )
         assertEquals("androidx.annotation.IntDef", annotation.qualifiedName)
         assertEquals(1, annotation.attributes.size)
-        val attribute = annotation.findAttribute("value")
-        assertNotNull(attribute)
-        assertEquals("value", attribute?.name)
+        val attribute = annotation.assertAttribute("value")
+        assertEquals("value", attribute.name)
         assertEquals(
             "{STYLE_NORMAL, STYLE_NO_TITLE, STYLE_NO_FRAME, STYLE_NO_INPUT}",
-            annotation.findAttribute("value")?.value.toString()
+            attribute.value.toValueString()
         )
 
-        assertTrue(attribute?.value is AnnotationArrayAttributeValue)
-        if (attribute is AnnotationArrayAttributeValue) {
-            val list = attribute.values
-            assertEquals(3, list.size)
-            assertEquals("STYLE_NO_TITLE", list[1].toSource())
-        }
+        assertEquals(
+            arrayValue(
+                fieldReferenceValue("", "STYLE_NORMAL"),
+                fieldReferenceValue("", "STYLE_NO_TITLE"),
+                fieldReferenceValue("", "STYLE_NO_FRAME"),
+                fieldReferenceValue("", "STYLE_NO_INPUT"),
+            ),
+            attribute.value
+        )
     }
 }

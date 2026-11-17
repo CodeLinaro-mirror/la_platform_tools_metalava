@@ -24,16 +24,20 @@ import com.android.tools.metalava.model.ModifierFlags.Companion.DATA
 import com.android.tools.metalava.model.ModifierFlags.Companion.DEFAULT
 import com.android.tools.metalava.model.ModifierFlags.Companion.DEPRECATED
 import com.android.tools.metalava.model.ModifierFlags.Companion.EQUIVALENCE_MASK
+import com.android.tools.metalava.model.ModifierFlags.Companion.EXHAUSTIVE
 import com.android.tools.metalava.model.ModifierFlags.Companion.EXPECT
 import com.android.tools.metalava.model.ModifierFlags.Companion.FINAL
 import com.android.tools.metalava.model.ModifierFlags.Companion.FUN
 import com.android.tools.metalava.model.ModifierFlags.Companion.INFIX
 import com.android.tools.metalava.model.ModifierFlags.Companion.INLINE
+import com.android.tools.metalava.model.ModifierFlags.Companion.INTERNAL
 import com.android.tools.metalava.model.ModifierFlags.Companion.NATIVE
+import com.android.tools.metalava.model.ModifierFlags.Companion.NON_SEALED
 import com.android.tools.metalava.model.ModifierFlags.Companion.OPERATOR
 import com.android.tools.metalava.model.ModifierFlags.Companion.PACKAGE_PRIVATE
 import com.android.tools.metalava.model.ModifierFlags.Companion.PRIVATE
 import com.android.tools.metalava.model.ModifierFlags.Companion.PROTECTED
+import com.android.tools.metalava.model.ModifierFlags.Companion.PUBLIC
 import com.android.tools.metalava.model.ModifierFlags.Companion.SEALED
 import com.android.tools.metalava.model.ModifierFlags.Companion.STATIC
 import com.android.tools.metalava.model.ModifierFlags.Companion.STRICT_FP
@@ -45,15 +49,17 @@ import com.android.tools.metalava.model.ModifierFlags.Companion.VARARG
 import com.android.tools.metalava.model.ModifierFlags.Companion.VISIBILITY_LEVEL_ENUMS
 import com.android.tools.metalava.model.ModifierFlags.Companion.VISIBILITY_MASK
 import com.android.tools.metalava.model.ModifierFlags.Companion.VOLATILE
+import com.android.tools.metalava.model.value.Value
 import java.lang.annotation.Retention
 import java.lang.annotation.RetentionPolicy
 
 /** Default [BaseModifierList]. */
-internal abstract class DefaultBaseModifierList
-constructor(
+internal sealed class DefaultBaseModifierList(
     protected var flags: Int,
     protected var annotations: List<AnnotationItem> = emptyList(),
 ) : BaseModifierList {
+
+    override val keywordList = ModifierKeyword.entries.filter { it.isSetIn(flags) }
 
     protected operator fun set(mask: Int, set: Boolean) {
         flags =
@@ -64,13 +70,9 @@ constructor(
             }
     }
 
-    private fun isSet(mask: Int): Boolean {
-        return flags and mask != 0
-    }
+    private fun isSet(mask: Int) = flags and mask != 0
 
-    override fun annotations(): List<AnnotationItem> {
-        return annotations
-    }
+    override fun annotations() = annotations
 
     override fun getVisibilityLevel(): VisibilityLevel {
         val visibilityFlags = flags and VISIBILITY_MASK
@@ -86,112 +88,89 @@ constructor(
         return levels[visibilityFlags]
     }
 
-    override fun isPublic(): Boolean {
-        return getVisibilityLevel() == VisibilityLevel.PUBLIC
+    override fun isPublic() = getVisibilityLevel() == VisibilityLevel.PUBLIC
+
+    override fun isProtected() = getVisibilityLevel() == VisibilityLevel.PROTECTED
+
+    override fun isInternal() = getVisibilityLevel() == VisibilityLevel.INTERNAL
+
+    override fun isPublishedApi(): Boolean {
+        return isInternal() && hasPublishedApiAnnotation()
     }
 
-    override fun isProtected(): Boolean {
-        return getVisibilityLevel() == VisibilityLevel.PROTECTED
+    /**
+     * Check if the [BaseModifierList] is accessible as part of an API.
+     *
+     * If this has [VisibilityLevel.INTERNAL] then it is only accessible if it is annotated with the
+     * [PublishedApi] annotation.
+     */
+    override fun hasApiVisibility(): Boolean {
+        return when (getVisibilityLevel()) {
+            VisibilityLevel.PUBLIC,
+            VisibilityLevel.PROTECTED -> true
+            VisibilityLevel.INTERNAL -> hasPublishedApiAnnotation()
+            else -> false
+        }
     }
 
-    override fun isPrivate(): Boolean {
-        return getVisibilityLevel() == VisibilityLevel.PRIVATE
+    private fun hasPublishedApiAnnotation(): Boolean {
+        return annotations().any { it.qualifiedName == KOTLIN_PUBLISHED_API }
     }
 
-    override fun isStatic(): Boolean {
-        return isSet(STATIC)
-    }
+    override fun isPrivate() = getVisibilityLevel() == VisibilityLevel.PRIVATE
 
-    override fun isAbstract(): Boolean {
-        return isSet(ABSTRACT)
-    }
+    override fun isPackagePrivate() = getVisibilityLevel() == VisibilityLevel.PACKAGE_PRIVATE
 
-    override fun isFinal(): Boolean {
-        return isSet(FINAL)
-    }
+    override fun isStatic() = isSet(STATIC)
 
-    override fun isNative(): Boolean {
-        return isSet(NATIVE)
-    }
+    override fun isAbstract() = isSet(ABSTRACT)
 
-    override fun isSynchronized(): Boolean {
-        return isSet(SYNCHRONIZED)
-    }
+    override fun isFinal() = isSet(FINAL)
 
-    override fun isStrictFp(): Boolean {
-        return isSet(STRICT_FP)
-    }
+    override fun isNative() = isSet(NATIVE)
 
-    override fun isTransient(): Boolean {
-        return isSet(TRANSIENT)
-    }
+    override fun isSynchronized() = isSet(SYNCHRONIZED)
 
-    override fun isVolatile(): Boolean {
-        return isSet(VOLATILE)
-    }
+    override fun isStrictFp() = isSet(STRICT_FP)
 
-    override fun isDefault(): Boolean {
-        return isSet(DEFAULT)
-    }
+    override fun isTransient() = isSet(TRANSIENT)
 
-    override fun isDeprecated(): Boolean {
-        return isSet(DEPRECATED)
-    }
+    override fun isVolatile() = isSet(VOLATILE)
 
-    override fun isVarArg(): Boolean {
-        return isSet(VARARG)
-    }
+    override fun isDefault() = isSet(DEFAULT)
 
-    override fun isSealed(): Boolean {
-        return isSet(SEALED)
-    }
+    override fun isDeprecated() = isSet(DEPRECATED)
 
-    override fun isFunctional(): Boolean {
-        return isSet(FUN)
-    }
+    override fun isVarArg() = isSet(VARARG)
 
-    override fun isInfix(): Boolean {
-        return isSet(INFIX)
-    }
+    override fun isSealed() = isSet(SEALED)
 
-    override fun isConst(): Boolean {
-        return isSet(CONST)
-    }
+    override fun isNonSealed() = isSet(NON_SEALED)
 
-    override fun isSuspend(): Boolean {
-        return isSet(SUSPEND)
-    }
+    override fun isExhaustive() = isSet(EXHAUSTIVE)
 
-    override fun isCompanion(): Boolean {
-        return isSet(COMPANION)
-    }
+    override fun isFunctional() = isSet(FUN)
 
-    override fun isOperator(): Boolean {
-        return isSet(OPERATOR)
-    }
+    override fun isInfix() = isSet(INFIX)
 
-    override fun isInline(): Boolean {
-        return isSet(INLINE)
-    }
+    override fun isConst() = isSet(CONST)
 
-    override fun isValue(): Boolean {
-        return isSet(VALUE)
-    }
+    override fun isSuspend() = isSet(SUSPEND)
 
-    override fun isData(): Boolean {
-        return isSet(DATA)
-    }
+    override fun isCompanion() = isSet(COMPANION)
 
-    override fun isExpect(): Boolean {
-        return isSet(EXPECT)
-    }
+    override fun isOperator() = isSet(OPERATOR)
+
+    override fun isInline() = isSet(INLINE)
+
+    override fun isValue() = isSet(VALUE)
+
+    override fun isData() = isSet(DATA)
+
+    override fun isExpect() = isSet(EXPECT)
 
     override fun isActual(): Boolean {
         return isSet(ACTUAL)
-    }
-
-    override fun isPackagePrivate(): Boolean {
-        return flags and VISIBILITY_MASK == PACKAGE_PRIVATE
     }
 
     override fun equivalentTo(owner: Item?, other: BaseModifierList): Boolean {
@@ -226,6 +205,14 @@ constructor(
         return false
     }
 
+    override fun mayBeSubtypeOfJavaSealedType() = flags and ModifierFlags.SEALED_SUBTYPE_MASK != 0
+
+    /**
+     * Returns the flags for the modifiers from this list which are considered significant, as
+     * defined by [EQUIVALENCE_MASK].
+     */
+    internal fun significantFlags(): Int = flags and EQUIVALENCE_MASK
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is DefaultBaseModifierList) return false
@@ -242,10 +229,7 @@ constructor(
         return result
     }
 
-    override fun toString(): String {
-        val binaryFlags = Integer.toBinaryString(flags)
-        return "ModifierList(flags = 0b$binaryFlags, annotations = $annotations)"
-    }
+    override fun toString() = "ModifierList(flags = $keywordList, annotations = $annotations)"
 }
 
 interface ModifierFlags {
@@ -315,6 +299,11 @@ interface ModifierFlags {
         const val VALUE = 1 shl 23
         const val EXPECT = 1 shl 24
         const val ACTUAL = 1 shl 25
+        const val EXHAUSTIVE = 1 shl 26
+        const val NON_SEALED = 1 shl 27
+
+        // Add new flags before this line and make sure to add a corresponding enum to
+        // [ModifierKeyword].
 
         /**
          * Modifiers considered significant to include signature files (and similarly to consider
@@ -334,8 +323,71 @@ interface ModifierFlags {
                 INFIX or
                 OPERATOR or
                 SUSPEND or
-                COMPANION
+                COMPANION or
+                INLINE
+
+        /**
+         * The set of flags that if set indicate that a class could be a subtype of a `sealed`
+         * class.
+         */
+        internal const val SEALED_SUBTYPE_MASK = FINAL or SEALED or NON_SEALED
     }
+}
+
+/** An enumeration of all the modifier keywords. */
+enum class ModifierKeyword(
+    /** The bits that represent this keyword in [DefaultBaseModifierList.flags]. */
+    private val bitSet: Int,
+    /**
+     * The mask that selects the bits of [DefaultBaseModifierList.flags] to compare [bitSet]
+     * against.
+     */
+    private val mask: Int,
+) {
+    // Visibility accessors.
+    PACKAGE_PRIVATE_KEYWORD(PACKAGE_PRIVATE, VISIBILITY_MASK),
+    PRIVATE_KEYWORD(PRIVATE, VISIBILITY_MASK),
+    INTERNAL_KEYWORD(INTERNAL, VISIBILITY_MASK),
+    PROTECTED_KEYWORD(PROTECTED, VISIBILITY_MASK),
+    PUBLIC_KEYWORD(PUBLIC, VISIBILITY_MASK),
+
+    // Other flags.
+    STATIC_KEYWORD(STATIC),
+    ABSTRACT_KEYWORD(ABSTRACT),
+    FINAL_KEYWORD(FINAL),
+    NATIVE_KEYWORD(NATIVE),
+    SYNCHRONIZED_KEYWORD(SYNCHRONIZED),
+    STRICT_FP_KEYWORD(STRICT_FP),
+    TRANSIENT_KEYWORD(TRANSIENT),
+    VOLATILE_KEYWORD(VOLATILE),
+    DEFAULT_KEYWORD(DEFAULT),
+    DEPRECATED_KEYWORD(DEPRECATED),
+    VARARG_KEYWORD(VARARG),
+    SEALED_KEYWORD(SEALED),
+    FUN_KEYWORD(FUN),
+    INFIX_KEYWORD(INFIX),
+    OPERATOR_KEYWORD(OPERATOR),
+    INLINE_KEYWORD(INLINE),
+    SUSPEND_KEYWORD(SUSPEND),
+    COMPANION_KEYWORD(COMPANION),
+    CONST_KEYWORD(CONST),
+    DATA_KEYWORD(DATA),
+    VALUE_KEYWORD(VALUE),
+    EXPECT_KEYWORD(EXPECT),
+    ACTUAL_KEYWORD(ACTUAL),
+    EXHAUSTIVE_KEYWORD(EXHAUSTIVE),
+    ;
+
+    /** Special constructor for non-visibility related flags. */
+    constructor(bit: Int) : this(bit, bit)
+
+    /** The string representation of this keyword, used in [toString]. */
+    private val keyword = name.removeSuffix("_KEYWORD").lowercase()
+
+    /** Is this keyword set in [flags]. */
+    fun isSetIn(flags: Int) = (flags and mask == bitSet)
+
+    override fun toString() = keyword
 }
 
 /** Default [MutableModifierList]. */
@@ -344,13 +396,9 @@ internal class DefaultMutableModifierList(
     annotations: List<AnnotationItem> = emptyList(),
 ) : DefaultBaseModifierList(flags, annotations), MutableModifierList {
 
-    override fun toMutable(): MutableModifierList {
-        return this
-    }
+    override fun toMutable(): MutableModifierList = this
 
-    override fun toImmutable(): ModifierList {
-        return DefaultModifierList.create(flags, annotations)
-    }
+    override fun toImmutable() = DefaultModifierList.create(flags, annotations)
 
     override fun setVisibilityLevel(level: VisibilityLevel) {
         flags = (flags and VISIBILITY_MASK.inv()) or level.visibilityFlagValue
@@ -394,6 +442,14 @@ internal class DefaultMutableModifierList(
 
     override fun setSealed(sealed: Boolean) {
         set(SEALED, sealed)
+    }
+
+    override fun setNonSealed(nonSealed: Boolean) {
+        set(NON_SEALED, nonSealed)
+    }
+
+    override fun setExhaustive(exhaustive: Boolean) {
+        set(EXHAUSTIVE, exhaustive)
     }
 
     override fun setFunctional(functional: Boolean) {
@@ -444,10 +500,24 @@ internal class DefaultMutableModifierList(
         set(ACTUAL, actual)
     }
 
+    override fun setConst(const: Boolean) {
+        set(CONST, const)
+    }
+
     override fun mutateAnnotations(mutator: MutableList<AnnotationItem>.() -> Unit) {
         val mutable = annotations.toMutableList()
         mutable.mutator()
         annotations = mutable.toList()
+    }
+
+    override fun makeEquivalentTo(other: ModifierList) {
+        other as DefaultBaseModifierList
+        // For any flags in the equivalence mask, the new value should be the value from other.
+        val significantFlagsFromOther = other.significantFlags()
+        // For any flags not in the equivalence mask, the new value should be the same.
+        val insignificantFlagsFromThis = flags and EQUIVALENCE_MASK.inv()
+        // Combine the significant flags from other and the insignificant flags from this.
+        flags = significantFlagsFromOther or insignificantFlagsFromThis
     }
 }
 
@@ -458,18 +528,27 @@ private constructor(
     annotations: List<AnnotationItem>,
 ) : DefaultBaseModifierList(flags, annotations), ModifierList {
 
-    override fun toMutable(): MutableModifierList {
-        return DefaultMutableModifierList(flags, annotations)
-    }
+    override fun toMutable(): MutableModifierList = DefaultMutableModifierList(flags, annotations)
 
-    override fun toImmutable(): ModifierList {
-        return this
-    }
+    override fun toImmutable(): ModifierList = this
 
-    override fun snapshot(targetCodebase: Codebase): ModifierList {
-        if (annotations.isEmpty()) return this
+    override fun snapshot(
+        targetCodebase: Codebase,
+        revertFromModifiers: ModifierList?,
+    ): ModifierList {
+        // Find any annotations on the reverted item's modifiers that have targets (so are included
+        // in some output such as stubs or external annotations) but are not included in signature
+        // files.
+        val nonSignatureAnnotations =
+            revertFromModifiers?.annotations()?.filter { annotation ->
+                val targets = annotation.targets
+                targets.isNotEmpty() && AnnotationTarget.SIGNATURE_FILE !in targets
+            } ?: emptyList()
 
-        val newAnnotations = annotations.map { it.snapshot(targetCodebase) }
+        if (annotations.isEmpty() && nonSignatureAnnotations.isEmpty()) return this
+
+        val newAnnotations =
+            (annotations + nonSignatureAnnotations).map { it.snapshot(targetCodebase) }
         return create(flags, newAnnotations)
     }
 
@@ -501,19 +580,22 @@ fun MutableModifierList.addDefaultRetentionPolicyAnnotation(
 ) {
     // By policy, include explicit retention policy annotation if missing
     val defaultRetentionPolicy = AnnotationRetention.getDefault(isKotlin)
-    addAnnotation(
-        codebase.createAnnotation(
-            buildString {
-                append('@')
-                append(Retention::class.qualifiedName)
-                append('(')
-                append(RetentionPolicy::class.qualifiedName)
-                append('.')
-                append(defaultRetentionPolicy.name)
-                append(')')
-            },
+    // Create a reference to the default retention policy enum value.
+    val policyValue =
+        Value.createFieldReferenceValue(
+            codebase,
+            RetentionPolicy::class.qualifiedName!!,
+            defaultRetentionPolicy.name
         )
-    )
+    // Create a retention annotation.
+    val retentionAnnotation =
+        AnnotationItem.createSingleElementAnnotation(
+            codebase,
+            Retention::class.qualifiedName!!,
+            policyValue,
+        )
+    // Add the retention annotation.
+    addAnnotation(retentionAnnotation)
 }
 
 /**
@@ -523,9 +605,7 @@ fun MutableModifierList.addDefaultRetentionPolicyAnnotation(
 fun createImmutableModifiers(
     visibility: VisibilityLevel,
     annotations: List<AnnotationItem> = emptyList(),
-): ModifierList {
-    return DefaultModifierList.create(visibility.visibilityFlagValue, annotations)
-}
+): ModifierList = DefaultModifierList.create(visibility.visibilityFlagValue, annotations)
 
 /**
  * Create a [MutableModifierList] with the [visibility] level and an optional list of
@@ -534,44 +614,7 @@ fun createImmutableModifiers(
 fun createMutableModifiers(
     visibility: VisibilityLevel,
     annotations: List<AnnotationItem> = emptyList(),
-): MutableModifierList {
-    return DefaultMutableModifierList(visibility.visibilityFlagValue, annotations)
-}
-
-/**
- * Modifies the modifier flags based on the `VisibleForTesting` annotation's `otherwise` value.
- *
- * @param otherwiseValue the value of the `otherwise` attribute, or `""` if no attribute is
- *   provided.
- */
-private fun useVisibilityFromVisibleForTesting(otherwiseValue: String, flags: Int): Int {
-    /** Check to see if this matches [visibility] or numeric [value]. */
-    fun String.matchesVisibility(visibility: String, value: Int) =
-        endsWith(visibility) || equals(value.toString())
-
-    val visibilityFlags =
-        when {
-            otherwiseValue.matchesVisibility("PROTECTED", VisibleForTesting.PROTECTED) -> {
-                PROTECTED
-            }
-            otherwiseValue.matchesVisibility(
-                "PACKAGE_PRIVATE",
-                VisibleForTesting.PACKAGE_PRIVATE
-            ) -> {
-                PACKAGE_PRIVATE
-            }
-            otherwiseValue.matchesVisibility("PRIVATE", VisibleForTesting.PRIVATE) ||
-                otherwiseValue.matchesVisibility("NONE", VisibleForTesting.NONE) -> {
-                PRIVATE
-            }
-            else -> {
-                // Return the flags without changes.
-                return flags
-            }
-        }
-
-    return (flags and VISIBILITY_MASK.inv()) or visibilityFlags
-}
+): MutableModifierList = DefaultMutableModifierList(visibility.visibilityFlagValue, annotations)
 
 /**
  * Create a [MutableModifierList] from a set of [flags] and an optional list of [AnnotationItem]s.
@@ -579,30 +622,4 @@ private fun useVisibilityFromVisibleForTesting(otherwiseValue: String, flags: In
 fun createMutableModifiers(
     flags: Int,
     annotations: List<AnnotationItem> = emptyList(),
-): MutableModifierList {
-    val actualFlags =
-        annotations
-            .find { it.qualifiedName == ANDROIDX_VISIBLE_FOR_TESTING }
-            ?.let { visibleForTesting ->
-                visibleForTesting.findAttribute(ATTR_OTHERWISE)?.value?.let { otherwiseValue ->
-                    useVisibilityFromVisibleForTesting(otherwiseValue.toSource(), flags)
-                }
-            }
-            ?: flags
-
-    return DefaultMutableModifierList(actualFlags, annotations)
-}
-
-private const val ANDROIDX_VISIBLE_FOR_TESTING = "androidx.annotation.VisibleForTesting"
-private const val ATTR_OTHERWISE = "otherwise"
-
-/** Defines the numeric values of the symbols used in tests that use numbers instead of symbols. */
-// TODO(b/387992791): Use a real VisibleForTesting annotation.
-interface VisibleForTesting {
-    companion object {
-        const val PRIVATE = 2
-        const val PACKAGE_PRIVATE = 3
-        const val PROTECTED = 4
-        const val NONE = 5
-    }
-}
+): MutableModifierList = DefaultMutableModifierList(flags, annotations)

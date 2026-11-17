@@ -32,6 +32,24 @@ interface DelegatedVisitor {
     val requiresClassNesting: Boolean
         get() = false
 
+    /**
+     * If `true` then classes are visited in name order, otherwise they are visited in declaration
+     * order.
+     *
+     * Defaults to `false` simply because most implementations do not need classes to be sorted.
+     */
+    val requiresSortedClasses: Boolean
+        get() = false
+
+    /**
+     * If `true` then a class's members are visited in deterministic sorted order, otherwise they
+     * are visited in declaration order.
+     *
+     * Defaults to `true` because most implementations need members to be sorted.
+     */
+    val requiresSortedMembers: Boolean
+        get() = true
+
     fun visitCodebase(codebase: Codebase) {}
 
     fun afterVisitCodebase(codebase: Codebase) {}
@@ -51,6 +69,4 @@ interface DelegatedVisitor {
     fun visitMethod(method: MethodItem) {}
 
     fun visitProperty(property: PropertyItem) {}
-
-    fun visitTypeAlias(typeAlias: TypeAliasItem) {}
 }

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ ! Update the contents of this file using the following:
+ !     scripts/update-verification-metadata.sh
+ !
+ ! The contents of this file are completely rewritten everytime that script is
+ ! run. If you want to add something to this file that will appear in all
+ ! subsequent updates then add it to the
+ ! `scripts/verification-metadata-template.xml` file.
+ !-->
+<verification-metadata xmlns="https://schema.gradle.org/dependency-verification" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="https://schema.gradle.org/dependency-verification https://schema.gradle.org/dependency-verification/dependency-verification-1.3.xsd">
+   <configuration>
+      <verify-metadata>true</verify-metadata>
+      <verify-signatures>true</verify-signatures>
+      <keyring-format>armored</keyring-format>
+      <key-servers enabled="false">
+         <key-server uri="https://keyserver.ubuntu.com"/>
+         <key-server uri="https://keys.openpgp.org"/>
+      </key-servers>
+      <trusted-artifacts>
+         <trust group="gradle" name="gradle" reason="Needed for IDE syncing"/>
+         <trust group="org.apache.groovy" reason="Needed for IDE syncing"/>
+         <trust file=".*-sources[.]jar" regex="true" reason="Needed for IDE syncing"/>
+      </trusted-artifacts>
+   </configuration>
+   <components/>
+</verification-metadata>

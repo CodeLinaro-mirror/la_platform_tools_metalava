@@ -17,15 +17,24 @@
 package com.android.tools.metalava.config
 
 import com.android.tools.lint.checks.infrastructure.TestFile
-import com.android.tools.metalava.testing.TemporaryFolderOwner
+import com.android.tools.metalava.testing.BaseTemporaryFolderOwner
 import com.google.common.truth.Truth.assertThat
+import javax.xml.XMLConstants
+import javax.xml.transform.stream.StreamSource
+import javax.xml.validation.SchemaFactory
 import org.intellij.lang.annotations.Language
-import org.junit.Rule
-import org.junit.rules.TemporaryFolder
 
 /** Base for tests for objects that are loaded from a configuration file. */
-open class BaseConfigParserTest : TemporaryFolderOwner {
-    @get:Rule override val temporaryFolder = TemporaryFolder()
+abstract class BaseConfigParserTest : BaseTemporaryFolderOwner() {
+    companion object {
+        /** The XSD schema used to validate written configuration XML. */
+        private val schema by
+            lazy(LazyThreadSafetyMode.NONE) {
+                val schemaUrl = ConfigParser::class.java.getResource("/schemas/config.xsd")
+                val schemaFactory = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI)
+                schemaFactory.newSchema(schemaUrl)
+            }
+    }
 
     /** Context for the tests. */
     data class TestContext(
@@ -46,7 +55,7 @@ open class BaseConfigParserTest : TemporaryFolderOwner {
         expectedFail: String = "",
         body: (TestContext.() -> Unit)? = null,
     ) {
-        val dir = temporaryFolder.newFolder()
+        val dir = temporaryFolder.newFolderWithTestLabel(testLabel = "TESTROOT")
         val expectingFailure = expectedFail != ""
         val hasBody = body != null
 
@@ -64,23 +73,33 @@ open class BaseConfigParserTest : TemporaryFolderOwner {
             val context = TestContext(config = config)
             if (body != null) context.body()
         } catch (e: Exception) {
-            errors = cleanupString(e.message ?: "", project = dir)
+            errors = removeTestSpecificDirectories(e.message ?: "")
         }
         assertThat(errors.trimIndent()).isEqualTo(expectedFail.trimIndent())
     }
 
     /**
-     * Round trip [config], i.e. write it to XML, check it matches [xml], read it back in, check
-     * that it matches [config].
+     * Round trip [config], i.e. write it to XML, check it matches [xml], validate it against the
+     * XSD schema, read it back in, check that it matches [config].
+     *
+     * If [xml] is `null` then it will not check if it matches [xml]. That is typically set to
+     * `null` when generating [config] to verify the schema without having to generate the matching
+     * [xml].
      *
      * Writing configuration to XML is not something that Metalava needs at runtime, but it is
      * useful to test what is written to a file as that is what can be read from the file.
      */
-    protected fun roundTrip(config: Config, @Language("xml") xml: String) {
+    protected fun roundTrip(config: Config, @Language("xml") xml: String?) {
         val configFile = temporaryFolder.newFile("round-trip-config.xml")
 
         config.writeTo(configFile)
-        assertThat(configFile.readText().trimEnd()).isEqualTo(xml.trimIndent())
+        if (xml != null) {
+            assertThat(configFile.readText().trimEnd()).isEqualTo(xml.trimIndent())
+        }
+
+        // Validate the written XML against schemas/config.xsd to ensure the schema and
+        // ConfigWriter/ConfigParser stay in sync.
+        schema.newValidator().validate(StreamSource(configFile))
 
         val readConfig = ConfigParser.parse(listOf(configFile))
         assertThat(readConfig).isEqualTo(config)

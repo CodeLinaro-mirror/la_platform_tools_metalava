@@ -16,7 +16,8 @@
 
 package com.android.tools.metalava.cli.common
 
-import com.android.tools.metalava.ProgressTracker
+import androidx.tracing.Tracer
+import com.android.tools.metalava.trace
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.NoSuchOption
 import com.github.ajalt.clikt.core.PrintHelpMessage
@@ -41,7 +42,7 @@ const val ARG_VERSION = "--version"
  * the subcommand called [defaultCommandName] passing in all the arguments not already consumed by
  * Clikt options.
  */
-internal open class MetalavaCommand(
+open class MetalavaCommand(
     internal val executionEnvironment: ExecutionEnvironment,
 
     /**
@@ -49,7 +50,7 @@ internal open class MetalavaCommand(
      * command line arguments.
      */
     private val defaultCommandName: String? = null,
-    internal val progressTracker: ProgressTracker,
+    internal val tracer: Tracer,
 ) :
     CliktCommand(
         // Gather all the options and arguments into a list so that they can be handled by some
@@ -154,8 +155,8 @@ internal open class MetalavaCommand(
     fun process(args: Array<String>): Int {
         var exitCode = 0
         try {
-            processThrowCliException(args)
-        } catch (e: PrintVersionException) {
+            tracer.trace("processThrowCliException") { processThrowCliException(args) }
+        } catch (_: PrintVersionException) {
             // Print the version and exit.
             stdout.println("\n$commandName version: ${Version.VERSION}")
         } catch (e: MetalavaCliException) {
@@ -184,8 +185,7 @@ internal open class MetalavaCommand(
         }
 
         // Perform any subcommand specific actions, e.g. flushing files they have opened, etc.
-        performPostCommandActions()
-
+        tracer.trace("performPostCommandActions") { performPostCommandActions() }
         return exitCode
     }
 
@@ -329,9 +329,9 @@ val CliktCommand.terminal
     // Retrieve the terminal from the CommonOptions.
     get() = commonOptions.terminal
 
-val CliktCommand.progressTracker
-    // Retrieve the ProgressTracker that is made available by the containing MetalavaCommand.
-    get() = metalavaCommand.progressTracker
+val CliktCommand.tracer
+    // Retrieve the Tracer that is made available by the containing MetalavaCommand.
+    get() = metalavaCommand.tracer
 
 fun CliktCommand.registerPostCommandAction(action: () -> Unit) {
     metalavaCommand.registerPostCommandAction(action)

@@ -16,10 +16,28 @@
 
 package com.android.tools.metalava.config
 
+import com.android.tools.lint.checks.infrastructure.TestFile
+import com.android.tools.metalava.testing.xml
 import java.io.File
+import java.io.StringReader
+import org.xml.sax.InputSource
 
 /** Write [this] to [file] in the same format as [ConfigParser] reads. */
 fun Config.writeTo(file: File) {
-    val xmlMapper = ConfigParser.configXmlMapper()
-    xmlMapper.writeValue(file, this)
+    file.writeText(toConfigXml())
+}
+
+/**
+ * Create a [TestFile] at [targetPath] containing [this] in the same format as [ConfigParser] reads.
+ */
+fun Config.toTestFile(targetPath: String = "config.xml"): TestFile {
+    return xml(targetPath, toConfigXml())
+}
+
+/** Get an [InputSource] to access the contents of this [TestFile]. */
+fun TestFile.toInputSource(): InputSource = StringInputSource(targetRelativePath, rawContents)
+
+/** An [InputSource] wrapper around a [path] and [String] [contents]. */
+private class StringInputSource(path: String, private val contents: String) : InputSource(path) {
+    override fun getCharacterStream() = StringReader(contents)
 }

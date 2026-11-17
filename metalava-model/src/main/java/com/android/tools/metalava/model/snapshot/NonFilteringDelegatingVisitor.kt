@@ -25,19 +25,20 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
-import com.android.tools.metalava.model.TypeAliasItem
 
 /**
  * A [BaseItemVisitor] that will delegate to [delegate].
  *
  * Preserves class nesting as required by the [delegate]'s [DelegatedVisitor.requiresClassNesting]
- * property.
+ * property and sorts classes as required by the [delegate]'s
+ * [DelegatedVisitor.requiresSortedClasses] property.
  */
 open class NonFilteringDelegatingVisitor(private val delegate: DelegatedVisitor) :
     BaseItemVisitor(
         preserveClassNesting = delegate.requiresClassNesting,
         // [DelegatedVisitor] does not support visiting parameters.
         visitParameterItems = false,
+        orderClassesByName = delegate.requiresSortedClasses,
     ) {
 
     override fun visitCodebase(codebase: Codebase) {
@@ -78,9 +79,5 @@ open class NonFilteringDelegatingVisitor(private val delegate: DelegatedVisitor)
 
     override fun visitProperty(property: PropertyItem) {
         delegate.visitProperty(property)
-    }
-
-    override fun visitTypeAlias(typeAlias: TypeAliasItem) {
-        delegate.visitTypeAlias(typeAlias)
     }
 }

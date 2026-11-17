@@ -19,15 +19,17 @@
 package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
-import com.android.tools.metalava.cli.common.ARG_ERROR
-import com.android.tools.metalava.cli.common.ARG_HIDE
-import com.android.tools.metalava.lint.DefaultLintErrorMessage
+import com.android.tools.metalava.cli.common.ARG_KOTLIN_SOURCE
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.INCLUDE_TYPE_USE_ANNOTATIONS
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_NAME_TYPE_ORDER
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.OVERLOADED_METHOD_ORDER
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.SORT_WHOLE_EXTENDS_LIST
 import com.android.tools.metalava.model.text.FileFormat
-import com.android.tools.metalava.model.text.FileFormat.OverloadedMethodOrder
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.KnownJarFiles
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.createAndroidModuleDescription
 import com.android.tools.metalava.testing.createCommonModuleDescription
 import com.android.tools.metalava.testing.createProjectDescription
@@ -74,11 +76,206 @@ class ApiFileTest : DriverTest() {
 
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
+    fun `Correctly mark sealed class and interface as nonexhaustive even when private subclass is declared before sealed parent class`() {
+        check(
+            format = FileFormat.V4,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        private class PrivateSubclassOfSealedClass: ParentNonExhaustiveSealedClass()
+                        private class PrivateSubclassOfSealedInterface: ParentNonExhaustiveSealedInterface
+                        """
+                    ),
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        public sealed class ParentNonExhaustiveSealedClass
+                        public sealed interface ParentNonExhaustiveSealedInterface
+                        """
+                    ),
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        public class PublicSubclassOfSealedClass : ParentNonExhaustiveSealedClass()
+                        public class PublicSubclassOfSealedInterface : ParentNonExhaustiveSealedInterface
+                        """
+                    )
+                ),
+            expectedApiSignature =
+                """
+                package test.pkg {
+                  public abstract sealed nonexhaustive class ParentNonExhaustiveSealedClass {
+                  }
+                  public sealed nonexhaustive interface ParentNonExhaustiveSealedInterface {
+                  }
+                  public final class PublicSubclassOfSealedClass extends test.pkg.ParentNonExhaustiveSealedClass {
+                    ctor public PublicSubclassOfSealedClass();
+                  }
+                  public final class PublicSubclassOfSealedInterface implements test.pkg.ParentNonExhaustiveSealedInterface {
+                    ctor public PublicSubclassOfSealedInterface();
+                  }
+                }
+                """
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Mark a sealed class and interface as exhaustive if no non-accessible classes inherit from it - basic case`() {
+        check(
+            format = FileFormat.V4,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        public sealed class ExhaustiveSealedClass
+                        public class PublicSealedClassChild1 : ExhaustiveSealedClass()
+                        public class PublicSealedClassChild2 : ExhaustiveSealedClass()
+
+                        public sealed interface ExhaustiveSealedInterface
+                        public class PublicSealedInterfaceImplementor1 : ExhaustiveSealedInterface
+                        public class PublicSealedInterfaceImplementor2 : ExhaustiveSealedInterface
+                        """
+                    )
+                ),
+            expectedApiSignature =
+                """
+                package test.pkg {
+                  public abstract sealed exhaustive class ExhaustiveSealedClass {
+                  }
+                  public sealed exhaustive interface ExhaustiveSealedInterface {
+                  }
+                  public final class PublicSealedClassChild1 extends test.pkg.ExhaustiveSealedClass {
+                    ctor public PublicSealedClassChild1();
+                  }
+                  public final class PublicSealedClassChild2 extends test.pkg.ExhaustiveSealedClass {
+                    ctor public PublicSealedClassChild2();
+                  }
+                  public final class PublicSealedInterfaceImplementor1 implements test.pkg.ExhaustiveSealedInterface {
+                    ctor public PublicSealedInterfaceImplementor1();
+                  }
+                  public final class PublicSealedInterfaceImplementor2 implements test.pkg.ExhaustiveSealedInterface {
+                    ctor public PublicSealedInterfaceImplementor2();
+                  }
+                }
+                """
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Mark a sealed class and interface as exhaustive even if sealed subclass is nonexhaustive`() {
+        check(
+            format = FileFormat.V4,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        public sealed class SealedExhaustiveParentClass
+                        public class PublicChildOfSealedParentClass : SealedExhaustiveParentClass()
+
+                        public sealed interface SealedExhaustiveParentInterface
+                        public class PublicChildOfSealedParentInterface : SealedExhaustiveParentInterface
+                        """
+                    ),
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        public sealed class SealedNonExhaustiveChildClass : SealedExhaustiveParentClass()
+                        public class PublicChildOfSealedChildClass: SealedNonExhaustiveChildClass()
+                        private class PrivateChildOfSealedChildClass : SealedNonExhaustiveChildClass()
+
+                        public sealed interface SealedNonExhaustiveChildInterface : SealedExhaustiveParentInterface
+                        public class PublicChildOfSealedChildInterface: SealedNonExhaustiveChildInterface
+                        private class PrivateChildOfSealedChildInterface : SealedNonExhaustiveChildInterface
+                        """
+                    )
+                ),
+            expectedApiSignature =
+                """
+                package test.pkg {
+                  public final class PublicChildOfSealedChildClass extends test.pkg.SealedNonExhaustiveChildClass {
+                    ctor public PublicChildOfSealedChildClass();
+                  }
+                  public final class PublicChildOfSealedChildInterface implements test.pkg.SealedNonExhaustiveChildInterface {
+                    ctor public PublicChildOfSealedChildInterface();
+                  }
+                  public final class PublicChildOfSealedParentClass extends test.pkg.SealedExhaustiveParentClass {
+                    ctor public PublicChildOfSealedParentClass();
+                  }
+                  public final class PublicChildOfSealedParentInterface implements test.pkg.SealedExhaustiveParentInterface {
+                    ctor public PublicChildOfSealedParentInterface();
+                  }
+                  public abstract sealed exhaustive class SealedExhaustiveParentClass {
+                  }
+                  public sealed exhaustive interface SealedExhaustiveParentInterface {
+                  }
+                  public abstract sealed nonexhaustive class SealedNonExhaustiveChildClass extends test.pkg.SealedExhaustiveParentClass {
+                  }
+                  public sealed nonexhaustive interface SealedNonExhaustiveChildInterface extends test.pkg.SealedExhaustiveParentInterface {
+                  }
+                }
+                """
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Mark a sealed class and interface as nonexhaustive if a private subclass inherits from it`() {
+        check(
+            format = FileFormat.V4,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        class AnOuterClass {
+                            private class InnerClassA : SealedParentClass()
+                            private class InnerClassB : SealedParentInterface
+                        }
+                        """
+                    ),
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        public sealed class SealedParentClass
+                        public sealed interface SealedParentInterface
+                        """
+                    )
+                ),
+            expectedApiSignature =
+                """
+                package test.pkg {
+                  public final class AnOuterClass {
+                    ctor public AnOuterClass();
+                  }
+                  public abstract sealed nonexhaustive class SealedParentClass {
+                  }
+                  public sealed nonexhaustive interface SealedParentInterface {
+                  }
+                }
+                """
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
     fun `Kotlin language level`() {
         // static method in interface is not overridable.
         // See https://kotlinlang.org/docs/reference/whatsnew13.html
         check(
-            format = FileFormat.V2,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -97,12 +294,12 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public interface Foo {
                     method public static void sayHello();
-                    field @NonNull public static final test.pkg.Foo.Companion Companion;
+                    field public static final test.pkg.Foo.Companion Companion;
                     field public static final int answer = 42; // 0x2a
                   }
                   public static final class Foo.Companion {
@@ -131,7 +328,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public class Foo {
@@ -144,156 +341,9 @@ class ApiFileTest : DriverTest() {
 
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
-    fun `Default Values and Names in Kotlin`() {
-        // Kotlin code which explicitly specifies parameter names
-        check(
-            format = FileFormat.V3,
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        """
-                    package test.pkg
-                    import some.other.pkg.Constants.Misc.SIZE
-                    import android.graphics.Bitmap
-                    import android.view.View
-
-                    class Foo {
-                        fun method1(myInt: Int = 42,
-                            myInt2: Int? = null,
-                            myByte: Int = 2 * 21,
-                            str: String = "hello " + "world",
-                            vararg args: String) { }
-
-                        fun method2(myInt: Int, myInt2: Int = (2*myInt) * SIZE) { }
-
-                        fun method3(str: String, myInt: Int, myInt2: Int = double(myInt) + str.length) { }
-
-                        fun emptyLambda(sizeOf: () -> Unit = {  }) {}
-
-                        fun View.drawToBitmap(config: Bitmap.Config = Bitmap.Config.ARGB_8888): Bitmap? = null
-
-                        companion object {
-                            fun double(myInt: Int) = 2 * myInt
-                            fun print(foo: Foo = Foo()) { println(foo) }
-                        }
-                    }
-                    """
-                    ),
-                    java(
-                        """
-                    package some.other.pkg;
-                    /** @hide */
-                    public class Constants {
-                        public static class Misc {
-                            public static final int SIZE = 5;
-                        }
-                    }
-                    """
-                    ),
-                ),
-            api =
-                """
-                // Signature format: 3.0
-                package test.pkg {
-                  public final class Foo {
-                    ctor public Foo();
-                    method public android.graphics.Bitmap? drawToBitmap(android.view.View, android.graphics.Bitmap.Config config = android.graphics.Bitmap.Config.ARGB_8888);
-                    method public void emptyLambda(kotlin.jvm.functions.Function0<kotlin.Unit> sizeOf = {});
-                    method public void method1(int myInt = 42, Integer? myInt2 = null, int myByte = 42, String str = "hello world", java.lang.String... args);
-                    method public void method2(int myInt, int myInt2 = (2*myInt) * some.other.pkg.Constants.Misc.SIZE);
-                    method public void method3(String str, int myInt, int myInt2 = double(myInt) + str.length);
-                    field public static final test.pkg.Foo.Companion Companion;
-                  }
-                  public static final class Foo.Companion {
-                    method public int double(int myInt);
-                    method public void print(test.pkg.Foo foo = test.pkg.Foo());
-                  }
-                }
-                """,
-        )
-    }
-
-    @RequiresCapabilities(Capability.KOTLIN)
-    @Test
-    fun `Default Values in Kotlin for expressions`() {
-        // Testing trickier default values; regression test for problem
-        // observed in androidx.core.util with LruCache
-        check(
-            format = FileFormat.V3,
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        """
-                    package androidx.core.util
-
-                    import android.util.LruCache
-
-                    inline fun <K : Any, V : Any> lruCache(
-                        maxSize: Int,
-                        crossinline sizeOf: (key: K, value: V) -> Int = { _, _ -> 1 },
-                        @Suppress("USELESS_CAST") // https://youtrack.jetbrains.com/issue/KT-21946
-                        crossinline create: (key: K) -> V? = { null as V? },
-                        crossinline onEntryRemoved: (evicted: Boolean, key: K, oldValue: V, newValue: V?) -> Unit =
-                            { _, _, _, _ -> }
-                    ): LruCache<K, V> {
-                        return object : LruCache<K, V>(maxSize) {
-                            override fun sizeOf(key: K, value: V) = sizeOf(key, value)
-                            override fun create(key: K) = create(key)
-                            override fun entryRemoved(evicted: Boolean, key: K, oldValue: V, newValue: V?) {
-                                onEntryRemoved(evicted, key, oldValue, newValue)
-                            }
-                        }
-                    }
-                    """
-                    ),
-                    java(
-                        """
-                    package androidx.collection;
-
-                    import androidx.annotation.NonNull;
-                    import androidx.annotation.Nullable;
-
-                    import java.util.LinkedHashMap;
-                    import java.util.Locale;
-                    import java.util.Map;
-
-                    /** @hide */
-                    public class LruCache<K, V> {
-                        @Nullable
-                        protected V create(@NonNull K key) {
-                            return null;
-                        }
-
-                        protected int sizeOf(@NonNull K key, @NonNull V value) {
-                            return 1;
-                        }
-
-                        protected void entryRemoved(boolean evicted, @NonNull K key, @NonNull V oldValue,
-                                @Nullable V newValue) {
-                        }
-                    }
-                    """
-                    ),
-                    androidxNullableSource,
-                    androidxNonNullSource,
-                ),
-            api =
-                """
-                // Signature format: 3.0
-                package androidx.core.util {
-                  public final class TestKt {
-                    method public static inline <K, V> android.util.LruCache<K,V> lruCache(int maxSize, kotlin.jvm.functions.Function2<? super K,? super V,java.lang.Integer> sizeOf = { _, _ -> return 1 }, kotlin.jvm.functions.Function1<? super K,? extends V?> create = { it -> return null as V }, kotlin.jvm.functions.Function4<? super java.lang.Boolean,? super K,? super V,? super V?,kotlin.Unit> onEntryRemoved = { _, _, _, _ ->  });
-                  }
-                }
-                """,
-        )
-    }
-
-    @RequiresCapabilities(Capability.KOTLIN)
-    @Test
     fun `Basic Kotlin class`() {
         check(
-            format = FileFormat.V2,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -332,19 +382,19 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public final class Kotlin extends test.pkg.Parent {
-                    ctor public Kotlin(@NonNull String property1 = "Default Value", int arg2);
-                    method @NonNull public String getProperty1();
-                    method @Nullable public String getProperty2();
+                    ctor public Kotlin(optional String property1, int arg2);
+                    method @InaccessibleFromKotlin public String getProperty1();
+                    method @InaccessibleFromKotlin public String? getProperty2();
                     method public void otherMethod(boolean ok, int times);
-                    method public void setProperty2(@Nullable String);
-                    property @NonNull public String property1;
-                    property @Nullable public String property2;
+                    method @InaccessibleFromKotlin public void setProperty2(String?);
+                    property public String property1;
+                    property public String? property2;
                     property public int someField2;
-                    field @NonNull public static final test.pkg.Kotlin.Companion Companion;
+                    field public static final test.pkg.Kotlin.Companion Companion;
                     field public static final int MY_CONST = 42; // 0x2a
                     field public int someField2;
                   }
@@ -352,17 +402,17 @@ class ApiFileTest : DriverTest() {
                     property public static int MY_CONST;
                   }
                   public final class KotlinKt {
-                    method @NonNull public static inline operator String component1(@NonNull String);
-                    method public static inline int getRed(int);
-                    method public static inline boolean isSrgb(long);
+                    method public static inline operator String component1(String);
+                    method @InaccessibleFromKotlin public static inline int getRed(int);
+                    method @InaccessibleFromKotlin public static inline boolean isSrgb(long);
                     property public static inline boolean long.isSrgb;
                     property public static inline int int.red;
                   }
                   public class Parent {
                     ctor public Parent();
-                    method @Nullable public String method();
-                    method @Nullable public String method2(boolean value, @Nullable Boolean value);
-                    method public int method3(@Nullable Integer value, int value2);
+                    method public String? method();
+                    method public String? method2(boolean value, Boolean? value);
+                    method public int method3(Integer? value, int value2);
                   }
                 }
                 """
@@ -373,7 +423,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Kotlin Reified Methods`() {
         check(
-            format = FileFormat.V2,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     java(
@@ -397,16 +447,46 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 17.0.6+10-b802.1)
+                    "" +
+                        "H4sIAAAAAAAA/wvwZmYRYeDg4GBgYFBkQAYiDCwMvq4hjrqefm76vo5+nm6u" +
+                        "wSF6vm7/TjEwfPY9c9rHW1fvIq+3rta5M+c3BxlcMX7wtEjPy1fH0/di6aot" +
+                        "QR+8dAu1vM6c0Q77cE7/5Mkzj58+esrEEODNzrFeWHO9JdACcyAOwGm9KBCX" +
+                        "pBaX6Bdkp+uHABneJXrJOYnFxa3Bsf7CjiK2m3XvBgle01p6RV+HdSFX9Mfb" +
+                        "SlkeHdLcQrc/HLq8haf01lu9mzPNPh2bbH8k/sFkQ7sZx9zrp3zMWxnhLXz5" +
+                        "zZm51t/n7Px+5/b8/ftq2T8w6Ess2xJwyy7r2lsuyfwtnMcSTCvab+t9f/Xt" +
+                        "dpbzlRPSiTNCjnt1h0WyyEYKf5cQm+6V/sL3/uVHzXp609s2urZN/Xpq8+d/" +
+                        "vYEfvFofJb/+tTdEuvCIZJ5J7Vuv83klUduWLDjweN3bCqsJ8yaZpiodNIit" +
+                        "1s86Kxv/fkts+XT2PaoaEx5+u/QznN3m6YQlcTH3Zh9g0VMrYJzMs0ao/egE" +
+                        "rhabKY8evJ3IsWPavu1nm9NOzIwqcgtWKbRcssNp1r+990t2LpIJXvKyYK3a" +
+                        "pSdruWPlpkxNTDR4KVc3ZYXwiQdZTJt3HCuwVC9u3/nwnUH7Qy89kU93Qj/t" +
+                        "+XD4bezv+urfW43PTP+zIM+8ZR3bnF1Jxec/l/qbpH6fHfQnfYXfRDUxt2f7" +
+                        "zKzyi+K1vrYnRmfUHTBVj1p8tfOCweYCSX7xgJdnLxi8+NTMs5Ypkj2kfGd1" +
+                        "kmpPhUriEt5bLzerGUeurp7keUbyZ8asvcvizcSWG0xLq1wsUPn3cfKf48tn" +
+                        "JLoaX752Y/4GpzUCv4ulg4KzjJfPXHtpxrp3u2LkfzmuLqpx+buk5kzA8avL" +
+                        "0jryfrE/ma3l6f9mS3SoYEjFVdFE7z9S5d8rFA4X37eMm1ba/7rMoexd7O3L" +
+                        "m1Rl1itPXfJ6s2X91/C8Npeb+eymG1Wd/+TIby7vkuA4YivR0ZZ1cEOaYZvE" +
+                        "3PkXVrZwRDpYzZf537XyRNU9n7hfXS9TtnTP1N/xz9LlgeZaQy0dv4vnT/hN" +
+                        "7P9ntqNx9hNVk2cF3d+S9G8tMTybtO//IbG3D7lPbhaf1O1y5+gjg/KSBuvG" +
+                        "27XvVKZV3Xn9ZeaV7CdVG57v/WpollHveS9VS2t/f0ezNd87q4iDq5ilWdu9" +
+                        "4m+zB+/oZ/9tIHpMRKe1nWu7SBJXZKv7fkZQ7kgpPG11m4mBQYkVX+6QBmJ4" +
+                        "5sxNzMzTy84vycnMi8/NTynNSU1OSEhIA2KWJD82jQdCjx5peAIzq/YJP/Ek" +
+                        "bsZNe7ynSGyRAOdF/aZ9YqpAs3TAeZGRSYQBYR9yPgUVBqgAV9GAbgqyf0RR" +
+                        "TKjHlcPRjUB2pDSKEXOZ8QZDgDcrG0gZMxBeAtLcYE8AACkmDZvzBAAA"
+                ),
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class Context {
                     ctor public Context();
-                    method public final <T> T getSystemService(Class<T>);
+                    method public final <T> T getSystemService(Class<T>!);
                   }
                   public final class TestKt {
-                    method public static inline <reified T> T systemService1(@NonNull test.pkg.Context);
-                    method public static inline String systemService2(@NonNull test.pkg.Context);
+                    method @KotlinOnly public static inline <reified T> T! systemService1(test.pkg.Context);
+                    method public static inline String! systemService2(test.pkg.Context);
                   }
                 }
                 """
@@ -417,7 +497,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Kotlin Reified Methods 2`() {
         check(
-            format = FileFormat.V2,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -438,16 +518,51 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 17.0.6+10-b802.1)
+                    "" +
+                        "H4sIAAAAAAAA/wvwZmYRYeDg4GBgYFBkQAYiDCwMvq4hjrqefm76vo5+nm6u" +
+                        "wSF6vm7/TjEwfPY9c9rHW1fvIq+3rta5M+c3BxlcMX7wtEjPy1fH0/di6aot" +
+                        "QR+8dAu1vM6c0Q77cE7/5Mkzj58+esrEEODNzrFeWHO9JdACcyAOwGm9KBCX" +
+                        "pBaX6Bdkp+uHABneJXrJOYnFxb1hscG33UT2aktGi5UpnXHfUMBZ6GPgJ834" +
+                        "10NKJsp/2dyKR5f4Kio++qS37FXsTp15cd3ML70vnes96h1/X3vp3H4yuT5k" +
+                        "eXlrzgRV1Z70reHP5c7ZVpdvPbz//9+//Aw1jLxM5axPD1m9nh+RyxPXzSPA" +
+                        "dGxlbV5039t5EfZy8y/pLdIKmvnaYPo7fn6N6sMZ/QcWZ2XP2rlbspVjzbXb" +
+                        "5xf/iNt6997dI44JCw9p5WtNZFrS6SygcaTz2foXwp+S5sxWZlrKL3K85KHb" +
+                        "y85rh2YeP5frODtxx4vix8XdZ0SvFOemc5kz/73x5M/NFzcS72qW/FzlE5Ol" +
+                        "mfJld3nTrjm8sUzShqv73x//+6SORTeyc9sTt6VBrntSbQz/KkzJuF17Sjrv" +
+                        "fUPXxOef2p7f3C+wIsza8F6SAVM2Z571pdU1GQseM77mZw3b6nee/dqOq2GX" +
+                        "ReWcw2PnNf7e4Xh3+5bb9+W7/k58/Cel+luD0sfFc62nKKnfmC5j07CJL/uD" +
+                        "gH/dFueP2nP746+0/9t01ELuZ9GDLJUZyZ4Zf1JjmVni1EzSuyLre2pvdXNc" +
+                        "qZ1y4Je7eHHqyQ6pGdmsvf8buXanc0sbphase/TV6YmytnyDfGE8G5fafUPJ" +
+                        "3MQrt9WWlFYGXhLNdQvnYU2XORZjsN7zjo7kdPFln7qmBN962upYdqlNKT5+" +
+                        "73/f6v/VUYYhxVc9Zp665mP5Vnja4ilbIo2NloV5iArcvbSu01LF7wGnbfY6" +
+                        "6V8s83uXn/eymnZOdco+ielxpp84p8Sv1yz/I6qm52B6+tjdCV68lwVnKVbv" +
+                        "at6bJ3zzU8+em/O/FN4P0m+37fpe7h23bvFBw6+3vm10frrV6s2tcxPfGv6U" +
+                        "a7jpXPbo1o63Eq/bD0+8vvS+8UwNuZ6Yg2xfOgrbzrS95mvV/TD7+QZeriVP" +
+                        "/JrZXGc0mux7/+i28ZeFD+YEvd5q/4Sxwcrust2sNnEJ/USVeqkUQVe1Fwbd" +
+                        "n+edPyfhesLRLqBaasXKrL/nNTee4TWMyVRY1nbknYSaxHbBy05JxZxJrhp3" +
+                        "3HSkhWb7i0TvCL38JeCymPDsbSzfmbayGYXcv9Wdmb153w2pZUu3KnX9zGa4" +
+                        "LC49W6XxjdGpdQ6aE+5+5mV4sfXQq/iAzoirBfePhZnKvG4Mla3vVwuzdzzL" +
+                        "u+JelLH8pTV3L9TYXLxz5GOvvG17fuE/Scv5j2b+WcOcJTzP5GDWIbEc80R2" +
+                        "u/xH9o7xZQ0FP7jmlSX0HeZpT5cp4cvks+SLLz5RHPGxWaid116jwMBCpyDi" +
+                        "UcH7elAW/7OSq28BMwODLye+LC4NxPASJjcxM08vO78kJzMvPjc/pTQnNTkh" +
+                        "ISENiFmS/Ng0Hgg9eqThCSxxtE/4iSdxM27a4z1FYosEuEDRb9onpgo0Swdc" +
+                        "oDAyiTAg7EMubEAlGirAVb6hm4LsH1EUE+pxFVPoRiA7UhrFiCQWvMEQ4M3K" +
+                        "BlLGDISXgPQFsCcAHeKkPLgFAAA="
+                ),
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public final class TestKt {
                     method public static inline <T> T inlineNoReified(T t);
-                    method public static inline <reified T> void inlineReified(T t);
-                    method public static inline <reified T> void inlineReifiedExtension(T, T t);
-                    method @NonNull public static inline <reified T> T[] inlineReifiedTakesAndReturnsArray(@NonNull T[] t);
-                    method @NonNull public static inline <reified T> java.util.List<T> inlineReifiedTakesAndReturnsList(@NonNull java.util.List<? extends T> t);
-                    method public static inline <reified T> T publicInlineReified(T t);
+                    method @KotlinOnly public static inline <reified T> void inlineReified(T t);
+                    method @KotlinOnly public static inline <reified T> void inlineReifiedExtension(T, T t);
+                    method @KotlinOnly public static inline <reified T> T[] inlineReifiedTakesAndReturnsArray(T[] t);
+                    method @KotlinOnly public static inline <reified T> java.util.List<T> inlineReifiedTakesAndReturnsList(java.util.List<T> t);
+                    method @KotlinOnly public static inline <reified T> T publicInlineReified(T t);
                   }
                 }
                 """
@@ -458,7 +573,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Suspend functions`() {
         check(
-            format = FileFormat.V2,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -472,13 +587,13 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public final class TestKt {
-                    method @Nullable public static suspend inline Object hello(int foo, @NonNull kotlin.coroutines.Continuation<? super kotlin.Unit>);
-                    method @Nullable public static suspend Object hello(@NonNull String, int foo = 0, @NonNull kotlin.coroutines.Continuation<? super kotlin.Unit>);
-                    method @Nullable public static suspend Object helloTwoContinuations(@NonNull kotlin.coroutines.Continuation<java.lang.Object> myContinuation, @NonNull kotlin.coroutines.Continuation<? super kotlin.Unit>);
+                    method public static suspend inline Object? hello(int foo, kotlin.coroutines.Continuation<? super kotlin.Unit>);
+                    method public static suspend Object? hello(String, optional int foo, kotlin.coroutines.Continuation<? super kotlin.Unit>);
+                    method public static suspend Object? helloTwoContinuations(kotlin.coroutines.Continuation<java.lang.Object> myContinuation, kotlin.coroutines.Continuation<? super kotlin.Unit>);
                   }
                 }
                 """
@@ -489,7 +604,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Var properties with private setters`() {
         check(
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -506,14 +621,14 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   public final class MyClass {
                     ctor public MyClass();
-                    method public boolean getReadOnlyVar();
-                    method public boolean getReadOnlyVarWithPublicModifier();
+                    method @InaccessibleFromKotlin public boolean getReadOnlyVar();
+                    method @InaccessibleFromKotlin public boolean getReadOnlyVarWithPublicModifier();
                     property public boolean readOnlyVar;
                     property public boolean readOnlyVarWithPublicModifier;
                   }
@@ -526,7 +641,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Kotlin Generics`() {
         check(
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -540,9 +655,9 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   public final class Bar {
                     ctor public Bar();
@@ -602,26 +717,112 @@ class ApiFileTest : DriverTest() {
                     ),
                     uiThreadSource,
                 ),
-            api =
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 17.0.6+10-b802.1)
+                    "" +
+                        "H4sIAAAAAAAA/4WXB1BT27vFQ0cIFwWkSu9NqkiRZqRLD71ID0hCR4pwAaX3" +
+                        "DgGkCQQCUkK51Ig06UqRIr0qgkiNgkD+eH3zHvievnNmz5wzc+a3z+y117e/" +
+                        "paOBh08FICYmBgAArICLFxUAH6CpBFYUVNNSFtJU1FJTVtIH39RUPusHAPY1" +
+                        "BwfuawjeHCHTEOQbHnxTqyc8Lra45nFTXVNATXPEG1mnt6Mu6M6nPjjIb7gz" +
+                        "LNTXN7iytryGC9DRICKuouStkjqf4Pb50Pnt9NfPh5e9p5eQmzNECHz+oOF1" +
+                        "0xZq7emZBoZpUype/RtDYikVk7pnCt4pVldcIkGPRdukuRVQsYeG7jjxapj4" +
+                        "zyW3COrK7/Yt2J6wjXRdlT9+HltLxMOX6ds0A/d7hIHPTcO/Y07HaAA+IgNv" +
+                        "C5RK556ZvrPgsrecsQL2wdADFnnlyJZGtCBfaA8ttNsH8uRhr3C6IKNQthcE" +
+                        "z/IFafE+O3f7XoFz1MvAFIiviXDP+PjCX0cb2AI+AeZK1n5PgjbOzg3JZeDT" +
+                        "+nBMscc/PpuVYFP86O+VCC8WAx7+ArKIAgSKk6/eA5SRjcYmE7Xe7E2yljQ7" +
+                        "3q8+ouxNZi1bVzGkUM2fe+VnzlKpfxvC3vfWpkJSD9gWkpitBxXYjgx2ntYh" +
+                        "vVMKj2wz+XIAmPsoguNPJ40lsXqOjfVEU2TLwbJwp2hZMMi3MYoiV81jjnrb" +
+                        "Pu4nbkMPVhXZY1EB92hveDTuR/jiZrhNv1ICihZhSxMGda/ZcUHNrSMfrxWv" +
+                        "wT12CTq7R+GVXb5kkzNu1+EL2jXT4JEJkA9GdWC60cnFiK8MQVeCgmzVHLim" +
+                        "8xSYxEp+7OIBsbGLZcPzDgfuhGNiefMfGH918lY1cr/hqOiIfnWLexD5pac0" +
+                        "KJPu/SCgsIKuu7BvctRRalSCi5aJcYvz2VPZ15/+iScIxAP1PW0L8UVy2g+Z" +
+                        "SD0aikrJfvdG+YV5LDq9qerLcrhVcsGXwcpP0sXPSjXIJC3HwDHdPeH5fwmp" +
+                        "cfYPHTcTpx81a6six0vdgsKIRqdUrGaSK/gqs3E2rmjzXrsXRZ1KDykbAfLZ" +
+                        "GNK/PCgvGUXdNLTjcVqK1SNjfOcTecXYUTE1wY7+haQKhhJleKVe1ZJRs/7z" +
+                        "c3bDb7HDBjLv6hPQYH9mELPbCqCT2X2zTY01d/RjYuyYb9h7l/Ct+V6tFYke" +
+                        "nul7Ye6NHHlK/B+/htrURY/E+o36Mg3dXyHo4+3wrCuIutV1575/48rIwpfc" +
+                        "iO++i0usTC9CwlbTHoCcHefvRoIjX7POMv8wSeUnR55lXABAgOBPJmH+3ybh" +
+                        "cLF+pOgB8eQQ+WmXerCZK4MS1ZlD4FDPqmUWaV3JFauWjHpQUzdXtyZjDdKZ" +
+                        "74YJck+8IWKoZ3P6oZBhv/7fpC/zr1MkleJfSzjh6YIfZhlrdjDwfx6Eex6t" +
+                        "m8sNPQjCYmSCIxyFKwg6yGMz8AYkWZacqjmPSrdNzgw58Xp2WqXc8F6n9+w6" +
+                        "Ok6JXs1djR9Z7XTJM0LA5MNRNFOVB3GnxnyTWZRbsBV3nu/xpduGdBNVKoMs" +
+                        "fW6bL3XFVMWKnBvqnlqE3yuYslalHrThjhDwYuQdTGaTRAWGx63Xv9NlczKL" +
+                        "nw2xMualEkL0V097yQ5IUitOrkgUtxd74clpIdYIX7x1793EiDC7dy6Nit5/" +
+                        "fY3a5/0qBz237K7ekUP1vaitx7P0JHSrCY15GVTwD7nX+eLyukk64+7u4yIY" +
+                        "fRvqkCvJ85M1sdkrHELm6C9MMZY6Q9ZMpNLiFWJ2zrLcn6Kjs3T7ydWcGt4T" +
+                        "HU5YskfMZGaz2udau4s2QtgWA5nc+EAM8RRdV0rS6eqDQ8hSE1lWol4UTXIc" +
+                        "8gPX9sekTk/Ak4b1MbClEy8L/loZ/3Q7WFpanceyzOmbvDFTibLlBjoHZ/Pm" +
+                        "vXdvyQLp50YNZLWRG8IC2tOmK0lJ7mfPnBwU8uG+RcCvpPq6KeFGMRkFWScI" +
+                        "o/HmiG85HWmHr1iseCzUDhsY/GV373mByt0piDfGVHnTxiNlWHURY38bBlW+" +
+                        "pj0eI1YQqt+ndHrwMrtqlRvjPF2akeVvX+tRhWoDeYAQyltNgQVZq5jGsaXc" +
+                        "oZZ4SR3SwwInjRGSCIul7qw45rt0UyDr/qTPM0XIB25prBB13lbZiO/o/JUA" +
+                        "EObGJHf0yEnCrFzn/ZkGDvK7CfkH7t3fGzosmpAB/uLLm9IZN0FhPOls2283" +
+                        "Q251Sy1rJtsVcrwwkIYlET2XtVDPYf3KZWMaNzFrHPO1MFOpG7pXoUxuwIba" +
+                        "cK05sdnooTPE5qeEu7IF2cOf3X1rGzo31UwsMH4FJohe0BkskTU4vs5QtYAz" +
+                        "igjWE9GhZj7JPtHcM1zYMnMUGnbbpAk44NKz2+EhgdR00qPj+LDAB/lMFsnt" +
+                        "K45Yisd1WO2uV5Qd8wUC2zrH2RGqmVOiuzVR2jtlUbjRXOqNj4nXV5i2mdnW" +
+                        "VkLIO1Xgyh/0M8CT6zxn/Mcv408eneH8cOskZQjaGg8AECL8k1tpLrhVVEjr" +
+                        "p09/utQ+Xlu7Q+Fq9wI07e6p0T2KEwpqetfcxkxxRU3x3dExXOfaOiiZjDjT" +
+                        "kTkTECKf6o6cz1GbR9+uPbKXezkvDzC3Vf1Yu5vTmq6UNbvp0MwbQMzWxT/3" +
+                        "sWi0UpVpnb928WpIQG7aLaMJTp/wQ71aNGupNyVxrOlGPS5ummhQLYw+xkyL" +
+                        "uPO0kqEsKRossG1ft1D88P5nUU6gA7byKiq48KWXASoU4d9ikmlmRtextjJR" +
+                        "Y5EN2fzcKqr/4eEE1PmDDG43zt8a1jvPPzQm+rD1gja04llAmQXZBRGqAvGi" +
+                        "N1Y4iPxylgUi9iJljxd+LBcbB4vvp/PF4Mf503LRXlouZQ9rCMze5b+aAHvd" +
+                        "Fi1cRSpZn2AlI6p74B2D8jD+Li3bQi4OjtIoenokDpfkHYehYQWBI2pse39X" +
+                        "x1UN+X5fn/paKakEmdsfHNDoBXlAjlWGjld/86LTVBXBoSrmdX+jQKQObW8Z" +
+                        "UHn04OnMsIL3tOa1VjFYnQx3EYbcVMpu8UiVXUO1RQV2pXgd640Ifbcu7MUO" +
+                        "e+K8Zqct3ZdLq61v/sTGOBYHnx6FrbD1Hqww4twagqCF+jtoCBz2TfzkyqNs" +
+                        "mwcD0L6FLMtl9N2upwxSbZHHGMePjcMGU/qhAfoM3mJ0PuADFhn2R9FD1fwq" +
+                        "gnQbxlj4WaBkVDOy0la3KZsW8RpZ/GL9oCPzrRoCZKsbtuiMRfa8Fks3IYgi" +
+                        "FI1wNfa1Z9OxPqAY66S23fYBxOykBMi80tziwCoYLwtMKiND1ggN6Xuft1OV" +
+                        "k1HVTBCapFYPN4W51lgvnf7blxFTkiJ1zhXp+qMq1JdUuevtYge1/6mJhe6A" +
+                        "Fq4IlaygcG/k3g4BeuJTB86yli0bFxdHZBS9RAWJuDGtdDj1crLrLrk5vFG4" +
+                        "q5jZvpXRpOlck5lsz7EveQnaAIikVa+ZE3TnDv34k2PwVxCckN2Hx4GNOIwJ" +
+                        "32euYGtanAI4HzbabynKER8/Y1J0LgnbUGKddr8wVTY245kYVdbz3nB1on9G" +
+                        "o9HVT+7I5XKWAjwT3QGEEmxYJSkD1okq0Rs319FvNGY/+NnE+DmJVO2SlCPQ" +
+                        "lrK5H1yQPbNmLzkdjFJCpBhN+DwZDzlBlWV1UM3XFlJ+VHM6zf662qEwEV0t" +
+                        "IU0sa5aW/56ylC4672F5D+pFbOGB+mYvSTkbTIcAYZZhMLcRyqmnWBEy3idj" +
+                        "OB/plnqlbeq+bYbw99vBwBPJhRh3ou+7zMIVeumfWUbaTfE2yVYTuaPv4ilB" +
+                        "vdqBEjVKTSGu1bDFU9wfiuTaez7WOlej/Y+KMPxfZeW+tb/fT1megWe0KBVp" +
+                        "zxzM/I1jUpXwFaWISai9SHOvEkdlJYobcihEXjECyUwUz5jUis2UGsUlLLJ/" +
+                        "I7SkjaMpWRqNED0boy59wrrrcLb/ldkn6Oz4DK9dVkAM+LCg7nuJqYnXbd9T" +
+                        "d2NdpbMzC4rYJQzyWkZGDMLccCKaqHXYIm8g+rsNViH1gASEcbWgcA/vQnLL" +
+                        "tvVU3zGrIHz/tYgh2kgOPgfRDqwc7086zrf0fKCEKmpT4PNp61wzcvksunXG" +
+                        "7uuNsHjjx1JuoXknym6ahso2GBGtaOxOHjpP3qRyzbxfYf/RgXL+bbYFxIQo" +
+                        "as6XH0Ii0WlsJKf98Jr6dgtBGQh3V50vCjjUcGCaimRM1WTay2JRCYdPj61s" +
+                        "jkIZEkkMMl4pHUx/VEoPH+hUB1PquYYrSvFFCRNEsEo4t1I02j0negoEYWnd" +
+                        "CSXCR6uFB4Xd51vF3IRtclTolo/rEcBtOORuCp08RAj49QxyC3iqYv0mbN2+" +
+                        "UmqjwlRWOWJgMEWCnNY47cBVln0til9IOAAqwQV1nkJlx1HXoLq8vrEbxDC6" +
+                        "SHiUgWuT7KX4XQVNj6ZS1LhT4hKKchptBW8xHDFRUMJE8vq5yeU5K6D+m3r/" +
+                        "bK8tRTSOUDLRNdu2CJSglOgRcJLOdro8KrEhSRXNPGgnjzZZ5Kvtrrmyh+EH" +
+                        "DUZJ5ioFVrRz0UWYh4Usm7l7mMDdb6uFZcEIRXjOcXQuFYMu7EGoTE7A/eT8" +
+                        "rlMLJn/lbR4Etkdablle4fNnFhINmzkxESNpkRYEyjbEBRmBsRsJGZGlsICq" +
+                        "rTRqiCueIqKk10/iYZRBU45zXdzXnufRsPS6YOSkP5h/Cz/zgwTPzxqZDw8F" +
+                        "vkqbPaExP53FbVp4Esf+lAqFL666oRIZpHAcJYFfaT14g8q9RHxiuZlUbYl1" +
+                        "xHKzkWK/R7qHNt3UCychkrpXWu2Z5QKoIrgMt4S0MSS7y6Yk2GT2PZ5+r7UL" +
+                        "eUNHZkdrByxMpj8SRBL/pDzRSPWM8IdtjE0c5bbPe2fkH3vnH7b573wLs3Zy" +
+                        "uens6gV1cnkAc7XzhtrbWllZOZwPfBstQp5FiuVlHrXzvMvfq0VjQ4qDatVI" +
+                        "pa2j/bdsCj1BU3OeswT+jbM4uFSA/5nvYtT9kacvX79L179SLmaB65cIQb8L" +
+                        "yb8iLjYozJcQRXj/b4T4FXbx+Ka5BNMj+m2H8yvk4mlDewkSQvz7c/9XysUK" +
+                        "SX2JQkPyu3PqV8bF7cJwiVFG+sfK+ivo4k64DFr86497TUeDgPDHZ8Tn9+3z" +
+                        "P9Ei//H2H7sYnHGbEQAA"
+                ),
+            expectedApiSignature =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   public final class TestKt {
-                    method @UiThread public static inline <reified Args extends test.pkg2.NavArgs> test.pkg2.NavArgsLazy<Args> navArgs(test.pkg2.Fragment);
+                    method @KotlinOnly @UiThread public static inline <reified Args extends test.pkg2.NavArgs> test.pkg2.NavArgsLazy<Args> navArgs(test.pkg2.Fragment);
                   }
                 }
                 """,
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             extraArguments =
-                arrayOf(
-                    ARG_HIDE,
-                    "ReferencesHidden",
-                    ARG_HIDE,
-                    "UnavailableSymbol",
-                    ARG_HIDE,
-                    "HiddenTypeParameter",
-                    ARG_HIDE,
-                    "HiddenSuperclass"
+                hiddenIssues(
+                    Issues.REFERENCES_HIDDEN,
+                    Issues.HIDDEN_SUPERCLASS,
                 )
         )
     }
@@ -724,14 +925,14 @@ class ApiFileTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNonNullSource,
-                    androidxNullableSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
                 ),
-            api =
+            expectedApiSignature =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package androidx.collection {
-                  public class ArrayMap<K, V> extends java.util.HashMap<K!,V!> implements java.util.Map<K!,V!> {
+                  public class ArrayMap<K, V> extends java.util.HashMap<K,V> implements java.util.Map<K,V> {
                     ctor public ArrayMap();
                   }
                   public final class ArrayMapKt {
@@ -739,7 +940,7 @@ class ApiFileTest : DriverTest() {
                     method public static <K, V> androidx.collection.ArrayMap<K,V> arrayMapOf(kotlin.Pair<? extends K,? extends V>... pairs);
                     method public static <K, V> androidx.collection.ArrayMap<K,V>? arrayMapOfNullable(kotlin.Pair<? extends K,? extends V>?... pairs);
                   }
-                  public class ArraySet<E> extends java.util.HashSet<E!> implements java.util.Set<E!> {
+                  public class ArraySet<E> extends java.util.HashSet<E> implements java.util.Set<E> {
                     ctor public ArraySet();
                   }
                   public final class ArraySetKt {
@@ -755,15 +956,10 @@ class ApiFileTest : DriverTest() {
                   }
                 }
                 """,
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             extraArguments =
-                arrayOf(
-                    ARG_HIDE,
-                    "ReferencesHidden",
-                    ARG_HIDE,
-                    "UnavailableSymbol",
-                    ARG_HIDE,
-                    "HiddenTypeParameter"
+                hiddenIssues(
+                    Issues.REFERENCES_HIDDEN,
                 )
         )
     }
@@ -803,7 +999,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public final class NonNullUpperBound<T> {
@@ -858,7 +1054,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public final class TestKt {
@@ -894,14 +1090,14 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public final class CircularArray<E> {
                     ctor public CircularArray();
-                    method public E getFirst();
-                    method public E getLast();
-                    method public void setLast(E);
+                    method @InaccessibleFromKotlin public E getFirst();
+                    method @InaccessibleFromKotlin public E getLast();
+                    method @InaccessibleFromKotlin public void setLast(E);
                     property public E first;
                     property public E last;
                   }
@@ -914,7 +1110,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Propagate Platform types in Kotlin`() {
         check(
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -995,12 +1191,12 @@ class ApiFileTest : DriverTest() {
                     inline operator fun <F, S> PlatformJavaPair<F, S>.component1() = first
                     """
                     ),
-                    androidxNonNullSource,
-                    androidxNullableSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
                 ),
-            api =
+            expectedApiSignature =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package androidx.util {
                   public class NonNullableJavaPair<F, S> {
                     ctor public NonNullableJavaPair(F, S);
@@ -1009,8 +1205,8 @@ class ApiFileTest : DriverTest() {
                   }
                   public final class NonNullableKotlinPair<F, S> {
                     ctor public NonNullableKotlinPair(F first, S second);
-                    method public F getFirst();
-                    method public S getSecond();
+                    method @InaccessibleFromKotlin public F getFirst();
+                    method @InaccessibleFromKotlin public S getSecond();
                     property public F first;
                     property public S second;
                   }
@@ -1021,15 +1217,15 @@ class ApiFileTest : DriverTest() {
                   }
                   public final class NullableKotlinPair<F, S> {
                     ctor public NullableKotlinPair(F? first, S? second);
-                    method public F? getFirst();
-                    method public S? getSecond();
+                    method @InaccessibleFromKotlin public F? getFirst();
+                    method @InaccessibleFromKotlin public S? getSecond();
                     property public F? first;
                     property public S? second;
                   }
                   public class PlatformJavaPair<F, S> {
-                    ctor public PlatformJavaPair(F!, S!);
-                    field public final F! first;
-                    field public final S! second;
+                    ctor public PlatformJavaPair(F, S);
+                    field public final F first;
+                    field public final S second;
                   }
                   public final class TestKt {
                     method public static inline operator <F, S> F! component1(androidx.util.PlatformJavaPair<F,S>);
@@ -1045,7 +1241,7 @@ class ApiFileTest : DriverTest() {
         // Don't emit platform types for some unannotated elements that we know the
         // nullness for: annotation type members, equals-parameters, initialized constants, etc.
         check(
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     java(
@@ -1150,19 +1346,19 @@ class ApiFileTest : DriverTest() {
                     """
                         )
                         .indented(),
-                    androidxNonNullSource,
-                    androidxNullableSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
                 ),
-            api =
+            expectedApiSignature =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test {
                   public class MyClass {
                     ctor public MyClass();
                     method @Deprecated public boolean equals(Object?);
                     method @Deprecated public String toString();
                     field public static final String MY_CONSTANT1 = "constant";
-                    field public final String MY_CONSTANT2 = "constant";
+                    field public final String MY_CONSTANT2;
                     field public String! MY_CONSTANT3;
                   }
                 }
@@ -1205,7 +1401,7 @@ class ApiFileTest : DriverTest() {
     fun JvmOverloads() {
         // Regression test for https://github.com/android/android-ktx/issues/366
         check(
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -1236,16 +1432,16 @@ class ApiFileTest : DriverTest() {
                     """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package androidx.content {
                   public final class TestKt {
                     method public static void blahblahblah(String);
-                    method public static void blahblahblah(String, String firstArg = "hello");
-                    method public static void blahblahblah(String, String firstArg = "hello", int secondArg = 42);
-                    method public static void blahblahblah(String, String firstArg = "hello", int secondArg = 42, String thirdArg = "world");
-                    method public static inline void edit(android.content.SharedPreferences, boolean commit = false, kotlin.jvm.functions.Function1<? super android.content.SharedPreferences.Editor,kotlin.Unit> action);
+                    method public static void blahblahblah(String, optional String firstArg);
+                    method public static void blahblahblah(String, optional String firstArg, optional int secondArg);
+                    method public static void blahblahblah(String, optional String firstArg, optional int secondArg, optional String thirdArg);
+                    method public static inline void edit(android.content.SharedPreferences, optional boolean commit, kotlin.jvm.functions.Function1<? super android.content.SharedPreferences.Editor,kotlin.Unit> action);
                     method public static inline void edit(android.content.SharedPreferences, kotlin.jvm.functions.Function1<? super android.content.SharedPreferences.Editor,kotlin.Unit> action);
                   }
                 }
@@ -1273,10 +1469,10 @@ class ApiFileTest : DriverTest() {
                 """
                     )
                 ),
-            format = FileFormat.V3,
-            api =
+            format = FileFormat.V4,
+            expectedApiSignature =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   public final class SimpleClass {
                     ctor public SimpleClass();
@@ -1311,15 +1507,15 @@ class ApiFileTest : DriverTest() {
                 """
                     )
                 ),
-            format = FileFormat.V3,
-            api =
+            format = FileFormat.V4,
+            expectedApiSignature =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   public final class SimpleClass {
                     ctor public SimpleClass();
-                    method public int getNonJvmField();
-                    method public void setNonJvmField(int);
+                    method @InaccessibleFromKotlin public int getNonJvmField();
+                    method @InaccessibleFromKotlin public void setNonJvmField(int);
                     property public int jvmField;
                     property public int nonJvmField;
                     field public int jvmField;
@@ -1348,17 +1544,17 @@ class ApiFileTest : DriverTest() {
                 """
                     )
                 ),
-            format = FileFormat.V3,
-            api =
+            format = FileFormat.V4,
+            expectedApiSignature =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   public final class SimpleClass {
                     ctor public SimpleClass();
-                    method public int getAnotherProperty();
-                    method public int myPropertyJvmGetter();
-                    method public void setAnotherProperty(int);
-                    method public void setMyProperty(int);
+                    method @InaccessibleFromKotlin public int getAnotherProperty();
+                    method @InaccessibleFromKotlin public int myPropertyJvmGetter();
+                    method @InaccessibleFromKotlin public void setAnotherProperty(int);
+                    method @InaccessibleFromKotlin public void setMyProperty(int);
                     property public int anotherProperty;
                     property public int myProperty;
                   }
@@ -1394,10 +1590,10 @@ class ApiFileTest : DriverTest() {
                 """
                     )
                 ),
-            format = FileFormat.V3,
-            api =
+            format = FileFormat.V4,
+            expectedApiSignature =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   @SuppressCompatibility @kotlin.RequiresOptIn @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.BINARY) @kotlin.annotation.Target(allowedTargets={kotlin.annotation.AnnotationTarget.CLASS, kotlin.annotation.AnnotationTarget.FUNCTION}) public @interface ExperimentalBar {
                   }
@@ -1410,6 +1606,104 @@ class ApiFileTest : DriverTest() {
                   }
                 }
             """,
+            suppressCompatibilityMetaAnnotations = arrayOf("kotlin.RequiresOptIn")
+        )
+    }
+
+    /**
+     * Test for b/174708311 [RequiresOptIn] annotations on properties should be implicitly
+     * propagated to getters / setters to match Kotlin compiler behavior
+     */
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Test RequiresOptIn on properties`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        @RequiresOptIn
+                        @Retention(AnnotationRetention.BINARY)
+                        annotation class ExperimentalBar
+
+                        class FancyBar
+
+                        @ExperimentalBar
+                        val ExperimentalPropertyWithGetter: FancyBar = FancyBar()
+
+                        @JvmField
+                        @ExperimentalBar
+                        val ExperimentalJvmFieldProperty: FancyBar = FancyBar()
+
+                        @ExperimentalBar
+                        const val ExperimentalConstField: Int = 5
+
+                        @ExperimentalBar
+                        var experimentalPropertyWithGetterAndSetter: FancyBar? = null
+
+                        object Bar {
+                            @ExperimentalBar
+                            val ExperimentalPropertyWithGetterInsideObject: FancyBar = FancyBar()
+                        }
+
+                        @ExperimentalBar
+                        var experimentalPropertyWithCustomGetterAndSetter: FancyBar?
+                            get() = null
+                            set(value) {}
+
+                        /*
+                        The Kotlin compiler does not support explicit RequiresOptIn annotations on
+                        getters (it does for setters), but previously this was used by consumers in
+                        order to enable proper Metalava tracking and make the experimental lint
+                        check consider the getter experimental. This is a regression test to make
+                        sure that we do not add the annotation twice, if it is already present.
+                         */
+                        @Suppress("OPT_IN_MARKER_ON_WRONG_TARGET")
+                        @get:ExperimentalBar
+                        @set:ExperimentalBar
+                        @ExperimentalBar
+                        var experimentalPropertyWithExplicitAnnotationsOnGetterAndSetter: FancyBar?
+                            get() = null
+                            set(value) {}
+                        """
+                    )
+                ),
+            format = FileFormat.V5,
+            expectedApiSignature =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Bar {
+                    method @InaccessibleFromKotlin @SuppressCompatibility @test.pkg.ExperimentalBar public test.pkg.FancyBar getExperimentalPropertyWithGetterInsideObject();
+                    property @SuppressCompatibility @test.pkg.ExperimentalBar public test.pkg.FancyBar ExperimentalPropertyWithGetterInsideObject;
+                    field public static final test.pkg.Bar INSTANCE;
+                  }
+                  @SuppressCompatibility @kotlin.RequiresOptIn @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.BINARY) public @interface ExperimentalBar {
+                  }
+                  @SuppressCompatibility public final class ExperimentalBarKt {
+                    method @InaccessibleFromKotlin @SuppressCompatibility @test.pkg.ExperimentalBar public static test.pkg.FancyBar? getExperimentalPropertyWithCustomGetterAndSetter();
+                    method @InaccessibleFromKotlin @SuppressCompatibility @test.pkg.ExperimentalBar public static test.pkg.FancyBar? getExperimentalPropertyWithExplicitAnnotationsOnGetterAndSetter();
+                    method @InaccessibleFromKotlin @SuppressCompatibility @test.pkg.ExperimentalBar public static test.pkg.FancyBar getExperimentalPropertyWithGetter();
+                    method @InaccessibleFromKotlin @SuppressCompatibility @test.pkg.ExperimentalBar public static test.pkg.FancyBar? getExperimentalPropertyWithGetterAndSetter();
+                    method @InaccessibleFromKotlin @SuppressCompatibility @test.pkg.ExperimentalBar public static void setExperimentalPropertyWithCustomGetterAndSetter(test.pkg.FancyBar?);
+                    method @InaccessibleFromKotlin @SuppressCompatibility @test.pkg.ExperimentalBar public static void setExperimentalPropertyWithExplicitAnnotationsOnGetterAndSetter(test.pkg.FancyBar?);
+                    method @InaccessibleFromKotlin @SuppressCompatibility @test.pkg.ExperimentalBar public static void setExperimentalPropertyWithGetterAndSetter(test.pkg.FancyBar?);
+                    property @SuppressCompatibility @test.pkg.ExperimentalBar public static int ExperimentalConstField;
+                    property @SuppressCompatibility @test.pkg.ExperimentalBar public static test.pkg.FancyBar ExperimentalJvmFieldProperty;
+                    property @SuppressCompatibility @test.pkg.ExperimentalBar public static test.pkg.FancyBar ExperimentalPropertyWithGetter;
+                    property @SuppressCompatibility @test.pkg.ExperimentalBar public static test.pkg.FancyBar? experimentalPropertyWithCustomGetterAndSetter;
+                    property @SuppressCompatibility @test.pkg.ExperimentalBar public static test.pkg.FancyBar? experimentalPropertyWithExplicitAnnotationsOnGetterAndSetter;
+                    property @SuppressCompatibility @test.pkg.ExperimentalBar public static test.pkg.FancyBar? experimentalPropertyWithGetterAndSetter;
+                    field @SuppressCompatibility @test.pkg.ExperimentalBar public static final int ExperimentalConstField = 5; // 0x5
+                    field @SuppressCompatibility @test.pkg.ExperimentalBar public static final test.pkg.FancyBar ExperimentalJvmFieldProperty;
+                  }
+                  public final class FancyBar {
+                    ctor public FancyBar();
+                  }
+                }
+                """,
             suppressCompatibilityMetaAnnotations = arrayOf("kotlin.RequiresOptIn")
         )
     }
@@ -1478,7 +1772,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                     package a.b.c {
                       public interface MyStream<T, S extends a.b.c.MyStream<T, S>> extends test.pkg.AutoCloseable {
@@ -1505,7 +1799,10 @@ class ApiFileTest : DriverTest() {
                       }
                     }
                 """,
-            extraArguments = arrayOf(ARG_HIDE, "KotlinKeyword")
+            extraArguments =
+                hiddenIssues(
+                    Issues.KOTLIN_KEYWORD,
+                ),
         )
     }
 
@@ -1528,7 +1825,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class Foo {
@@ -1557,7 +1854,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class Foo {
@@ -1586,7 +1883,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public interface Foo {
@@ -1613,7 +1910,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public enum Foo {
@@ -1640,7 +1937,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public enum Foo {
@@ -1667,7 +1964,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public enum Foo {
@@ -1713,7 +2010,7 @@ class ApiFileTest : DriverTest() {
                 ),
             // Override default to emit android.annotation classes.
             skipEmitPackages = emptyList(),
-            api =
+            expectedApiSignature =
                 """
                 package android.annotation {
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE, java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.PARAMETER, java.lang.annotation.ElementType.CONSTRUCTOR, java.lang.annotation.ElementType.LOCAL_VARIABLE}) public @interface SuppressLint {
@@ -1738,7 +2035,6 @@ class ApiFileTest : DriverTest() {
                 """
                 src/test/pkg/PublicSuper.java:3: error: isContiguous cannot be hidden and abstract when PublicSuper has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
             """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -1775,10 +2071,10 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
-                  public class MyStringBuilder<A, B> extends test.pkg.PublicSuper<A!,B!> {
+                  public class MyStringBuilder<A, B> extends test.pkg.PublicSuper<A,B> {
                     ctor public MyStringBuilder();
                     method public void setLength(int);
                   }
@@ -1817,7 +2113,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class Foo extends test.pkg.Super {
@@ -1868,7 +2164,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class Foo {
@@ -1932,8 +2228,7 @@ class ApiFileTest : DriverTest() {
                 src/test/pkg/Foo.java:10: error: Class test.pkg.Foo.Inner2: @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
                 src/test/pkg/Foo.java:11: error: Class test.pkg.Foo.Inner3: @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
                 """,
-            expectedFail = DefaultLintErrorMessage,
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public abstract class Foo {
@@ -1964,68 +2259,71 @@ class ApiFileTest : DriverTest() {
         // package is not marked @hide, but doclava now treats subpackages of a hidden package
         // as also hidden.
         check(
+            apiSurface = KnownApiSurface.PUBLIC,
             sourceFiles =
                 arrayOf(
                     java(
                         """
-                    ${"/** @hide hidden package */" /* avoid dangling javadoc warning */}
-                    package test.pkg1;
-                    """
+                            @android.annotation.Hide
+                            package test.pkg1;
+                        """
                     ),
                     java(
                         """
-                    package test.pkg1;
-                    @SuppressWarnings("ALL")
-                    public class Foo {
-                        // Hidden by package hide
-                    }
-                    """
+                            package test.pkg1;
+                            @SuppressWarnings("ALL")
+                            public class Foo {
+                                // Hidden by package hide
+                            }
+                        """
                     ),
                     java(
                         """
-                    package test.pkg2;
-                    /** @hide hidden class in this package */
-                    @SuppressWarnings("ALL")
-                    public class Bar {
-                    }
-                    """
+                            package test.pkg2;
+                            import android.annotation.Hide;
+                            @Hide
+                            @SuppressWarnings("ALL")
+                            public class Bar {
+                            }
+                        """
                     ),
                     java(
                         """
-                    package test.pkg2;
-                    /** @doconly hidden class in this package */
-                    @SuppressWarnings("ALL")
-                    public class Baz {
-                    }
-                    """
+                            package test.pkg2;
+                            import android.annotation.DocOnly;
+                            @DocOnly
+                            @SuppressWarnings("ALL")
+                            public class Baz {
+                            }
+                        """
                     ),
                     java(
                         """
-                    package test.pkg1.sub;
-                    // Hidden by @hide in package above
-                    @SuppressWarnings("ALL")
-                    public class Test {
-                    }
-                    """
+                            package test.pkg1.sub;
+                            // Hidden by @hide in package above
+                            @SuppressWarnings("ALL")
+                            public class Test {
+                            }
+                        """
                     ),
                     java(
                         """
-                    package test.pkg3;
-                    // The only really visible class
-                    @SuppressWarnings("ALL")
-                    public class Boo {
-                    }
-                    """
-                    )
+                            package test.pkg3;
+                            // The only really visible class
+                            @SuppressWarnings("ALL")
+                            public class Boo {
+                            }
+                        """
+                    ),
                 ),
-            api =
+            expectedApiSignature =
                 """
-                package test.pkg3 {
-                  public class Boo {
-                    ctor public Boo();
-                  }
-                }
-                """
+                    package test.pkg3 {
+                      public class Boo {
+                        ctor public Boo();
+                      }
+                    }
+                """,
         )
     }
 
@@ -2062,7 +2360,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public enum FooBar {
@@ -2098,7 +2396,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public final class Test<T> {
@@ -2146,7 +2444,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public abstract class Collections {
@@ -2212,7 +2510,7 @@ class ApiFileTest : DriverTest() {
                     )
                 ),
             importedPackages = emptyList(),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public enum ChronUnit implements test.pkg.TempUnit {
@@ -2257,7 +2555,7 @@ class ApiFileTest : DriverTest() {
               }
             }
                     """
-        check(format = FileFormat.V2, signatureSource = source, api = source)
+        check(format = FileFormat.V2, signatureSource = source, expectedApiSignature = source)
     }
 
     @Test
@@ -2287,7 +2585,7 @@ class ApiFileTest : DriverTest() {
                     )
                 ),
             expectedIssues = "",
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public class MyClass {
@@ -2328,7 +2626,7 @@ class ApiFileTest : DriverTest() {
                     )
                 ),
             expectedIssues = "",
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public class MyClass {
@@ -2369,7 +2667,7 @@ class ApiFileTest : DriverTest() {
                     )
                 ),
             expectedIssues = "",
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public class MyClass {
@@ -2379,7 +2677,10 @@ class ApiFileTest : DriverTest() {
                       }
                     }
             """,
-            extraArguments = arrayOf(ARG_HIDE, Issues.INHERIT_CHANGES_SIGNATURE.name),
+            extraArguments =
+                hiddenIssues(
+                    Issues.INHERIT_CHANGES_SIGNATURE,
+                ),
         )
     }
 
@@ -2391,24 +2692,24 @@ class ApiFileTest : DriverTest() {
                 arrayOf(
                     java(
                         """
-                    package test.pkg;
-                    public class MyClass {
-                        public <T> MyClass(Class<T> klass) { }
-                        public <U> void method1(Function<U> func) { }
-                    }
-                    """
-                    )
+                            package test.pkg;
+                            public class MyClass {
+                                public <T> MyClass(Class<T> klass) { }
+                                public <U> void method1(java.util.function.Consumer<U> func) { }
+                            }
+                        """
+                    ),
                 ),
             expectedIssues = "",
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public class MyClass {
                         ctor public <T> MyClass(Class<T>);
-                        method public <U> void method1(Function<U>);
+                        method public <U> void method1(java.util.function.Consumer<U>);
                       }
                     }
-            """
+                """,
         )
     }
 
@@ -2447,7 +2748,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class MyClass implements test.pkg.OtherInterface {
@@ -2499,7 +2800,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class MyClass implements test.pkg.OtherInterface {
@@ -2547,7 +2848,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class MyClass implements test.pkg.SuperInterface {
@@ -2592,7 +2893,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public abstract class AbstractCursor extends test.pkg.Parent {
@@ -2638,7 +2939,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
             package test.pkg {
               public class Foo implements test.pkg.SomeInterface2 {
@@ -2686,7 +2987,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class Foo implements test.pkg.SomeInterface test.pkg.SomeInterface2 {
@@ -2722,7 +3023,10 @@ class ApiFileTest : DriverTest() {
                         public int removedField;
                         /** @removed */
                         public void removedMethod() { }
-                        /** @removed and @hide - should not be listed */
+                        /**
+                         * @removed
+                         * @hide - should not be listed
+                         */
                         public int hiddenField;
 
                         /** @removed */
@@ -2894,7 +3198,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public class Child extends test.pkg.Parent {
@@ -2906,6 +3210,10 @@ class ApiFileTest : DriverTest() {
                       }
                     }
                     """,
+            expectedIssues =
+                """
+                    src/test/pkg/Child.java:9: error: Attempting to hide method test.pkg.Child.toString() which overrides method test.pkg.Parent.toString() which is already part of the API [HidingApiMethodOverride]
+                """,
         )
     }
 
@@ -2914,7 +3222,7 @@ class ApiFileTest : DriverTest() {
     fun `Test invalid class name`() {
         // Regression test for b/73018978
         check(
-            format = FileFormat.V2,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -2929,11 +3237,11 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public final class -Foo {
-                    method public static inline void printHelloWorld(@NonNull String);
+                    method public static inline void printHelloWorld(String);
                   }
                 }
                 """
@@ -2975,7 +3283,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg1 {
                       public class MyParent implements java.io.Closeable {
@@ -2988,9 +3296,6 @@ class ApiFileTest : DriverTest() {
                     package test.pkg2 {
                       public class MyChild extends test.pkg1.MyParent {
                         ctor public MyChild();
-                        field public static final long CONSTANT1 = 12345L; // 0x3039L
-                        field public static final long CONSTANT2 = 67890L; // 0x10932L
-                        field public static final long CONSTANT3 = 42L; // 0x2aL
                       }
                     }
                 """
@@ -3043,7 +3348,7 @@ class ApiFileTest : DriverTest() {
                 """
                 src/android/net/http/HttpResponseCache.java:7: warning: Public class android.net.http.HttpResponseCache stripped of unavailable superclass com.squareup.okhttp.OkCacheContainer [HiddenSuperclass]
             """,
-            api =
+            expectedApiSignature =
                 """
                 package android.net.http {
                   public final class HttpResponseCache implements java.io.Closeable {
@@ -3092,7 +3397,7 @@ class ApiFileTest : DriverTest() {
                     """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package mine {
                   public interface Bar {
@@ -3115,7 +3420,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Test whether partial or total ordering -  sort-whole-extends-list=yes`() {
         check(
-            format = FileFormat.V2.copy(specifiedSortWholeExtendsList = true),
+            format = FileFormat.V2.buildCopy { this[SORT_WHOLE_EXTENDS_LIST] = true },
             checkCompilation = true,
             sourceFiles =
                 arrayOf(
@@ -3150,7 +3455,7 @@ class ApiFileTest : DriverTest() {
                     """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package mine {
                   public interface Bar {
@@ -3215,7 +3520,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package android.content.res {
                   public interface XmlResourceParser extends org.xmlpull.v1.XmlPullParser android.util.AttributeSet my.AutoCloseable {
@@ -3242,7 +3547,7 @@ class ApiFileTest : DriverTest() {
     fun `Extend from multiple interfaces - sort-whole-extends-list=yes`() {
         // Real-world example: XmlResourceParser
         check(
-            format = FileFormat.V2.copy(specifiedSortWholeExtendsList = true),
+            format = FileFormat.V2.buildCopy { this[SORT_WHOLE_EXTENDS_LIST] = true },
             checkCompilation = true,
             sourceFiles =
                 arrayOf(
@@ -3283,7 +3588,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package android.content.res {
                   public interface XmlResourceParser extends android.util.AttributeSet my.AutoCloseable org.xmlpull.v1.XmlPullParser {
@@ -3302,50 +3607,6 @@ class ApiFileTest : DriverTest() {
                   public interface XmlPullParser {
                   }
                 }
-                """
-        )
-    }
-
-    @Test
-    fun `Test KDoc suppress`() {
-        // Basic class; also checks that default constructor is made explicit
-        check(
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-                    public class Foo {
-                        private Foo() { }
-                        /** @suppress */
-                        public void hidden() {
-                        }
-                    }
-                    """
-                    ),
-                    java(
-                        """
-                    package test.pkg;
-                    /**
-                    * Some comment.
-                    * @suppress
-                    */
-                    public class Hidden {
-                        private Hidden() { }
-                        public void hidden() {
-                        }
-                        public class Inner {
-                        }
-                    }
-                    """
-                    )
-                ),
-            api =
-                """
-                    package test.pkg {
-                      public class Foo {
-                      }
-                    }
                 """
         )
     }
@@ -3414,7 +3675,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public final class Child1 extends test.pkg.Parent {
@@ -3462,7 +3723,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg2 {
                   public class Child1 extends test.pkg2.Parent {
@@ -3551,7 +3812,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package android.test.mock {
                   public abstract class MockContentProvider {
@@ -3566,7 +3827,10 @@ class ApiFileTest : DriverTest() {
     fun `References Deprecated`() {
         check(
             extraArguments =
-                arrayOf(ARG_ERROR, "ReferencesDeprecated", ARG_ERROR, "ExtendsDeprecated"),
+                errorIssues(
+                    Issues.REFERENCES_DEPRECATED,
+                    Issues.EXTENDS_DEPRECATED,
+                ),
             expectedIssues =
                 """
             src/test/pkg/MyClass.java:2: error: Extending deprecated super class class test.pkg.DeprecatedClass from test.pkg.MyClass: this class should also be deprecated [ExtendsDeprecated]
@@ -3574,7 +3838,6 @@ class ApiFileTest : DriverTest() {
             src/test/pkg/MyClass.java:3: error: Parameter references deprecated type test.pkg.DeprecatedClass in test.pkg.MyClass.method1(): this method should also be deprecated [ReferencesDeprecated]
             src/test/pkg/MyClass.java:4: error: Return type references deprecated type test.pkg.DeprecatedInterface in test.pkg.MyClass.method2(): this method should also be deprecated [ReferencesDeprecated]
             """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -3613,9 +3876,9 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    fun `v3 format for qualified references in types`() {
+    fun `v4 format for qualified references in types`() {
         check(
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     java(
@@ -3639,9 +3902,9 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package androidx.appcompat.app {
                   public class ActionBarDrawerToggle {
                     method public android.view.View.OnClickListener! getToolbarNavigationClickListener1();
@@ -3657,7 +3920,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `FooKt class constructors are not public`() {
         check(
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -3669,9 +3932,9 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   public final class Bar {
                     ctor public Bar();
@@ -3723,7 +3986,7 @@ class ApiFileTest : DriverTest() {
                     )
                 ),
             expectedIssues = "",
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class Class1 {
@@ -3785,7 +4048,7 @@ class ApiFileTest : DriverTest() {
                 ),
             expectedIssues =
                 "src/test/pkg/Class3.java:2: warning: Public class test.pkg.Class3 stripped of unavailable superclass test.pkg.Class2 [HiddenSuperclass]",
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class Class1 {
@@ -3838,10 +4101,10 @@ class ApiFileTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNonNullSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
                 ),
             expectedIssues = "",
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class Class2 {
@@ -3854,7 +4117,10 @@ class ApiFileTest : DriverTest() {
                   }
                 }
                 """,
-            extraArguments = arrayOf(ARG_HIDE, Issues.INHERIT_CHANGES_SIGNATURE.name),
+            extraArguments =
+                hiddenIssues(
+                    Issues.INHERIT_CHANGES_SIGNATURE,
+                ),
         )
     }
 
@@ -3916,8 +4182,8 @@ class ApiFileTest : DriverTest() {
         val expected =
             """
             package Test.pkg {
-              public class IpcDataCache<Query, Result> extends android.app.PropertyInvalidatedCache<Query!,Result!> {
-                ctor public IpcDataCache(int, String, String, String, android.os.IpcDataCache.QueryHandler<Query!,Result!>);
+              public class IpcDataCache<Query, Result> extends android.app.PropertyInvalidatedCache<Query,Result> {
+                ctor public IpcDataCache(int, String, String, String, android.os.IpcDataCache.QueryHandler<Query,Result>);
                 method public void disableForCurrentProcess();
                 method public static void disableForCurrentProcess(String);
                 method public void invalidateCache();
@@ -3931,7 +4197,7 @@ class ApiFileTest : DriverTest() {
                     """
         check(
             signatureSources = arrayOf(source1, source2),
-            api = expected,
+            expectedApiSignature = expected,
         )
     }
 
@@ -3974,11 +4240,11 @@ class ApiFileTest : DriverTest() {
             """
         check(
             signatureSources = arrayOf(source1, source2),
-            api = expected,
+            expectedApiSignature = expected,
             format =
-                FileFormat.V2.copy(
-                    specifiedOverloadedMethodOrder = OverloadedMethodOrder.SOURCE,
-                ),
+                FileFormat.V2.buildCopy {
+                    this[OVERLOADED_METHOD_ORDER] = FileFormat.OverloadedMethodOrder.SOURCE
+                },
         )
     }
 
@@ -3986,7 +4252,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Test tracking of @Composable annotation from classpath`() {
         check(
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             classpath =
                 arrayOf(
                     /* The following source file, compiled, then ran
@@ -4045,9 +4311,9 @@ class ApiFileTest : DriverTest() {
                     )
                 ),
             expectedIssues = "",
-            api =
+            expectedApiSignature =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   public final class RadioGroupScope {
                     ctor public RadioGroupScope();
@@ -4062,7 +4328,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Test for experimental annotations from classpath`() {
         check(
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             classpath =
                 arrayOf(
                     /* The following source file, compiled, then ran
@@ -4115,17 +4381,17 @@ class ApiFileTest : DriverTest() {
                     )
                 ),
             expectedIssues = "",
-            api =
+            expectedApiSignature =
                 """
-                // Signature format: 3.0
-                package test.pkg {
+                // Signature format: 4.0
+                package @SuppressCompatibility test.pkg {
                   @SuppressCompatibility @test.pkg.ExternalExperimentalAnnotation public final class ClassUsingExternalExperimentalApi {
                     ctor public ClassUsingExternalExperimentalApi();
                   }
                   @SuppressCompatibility @test.pkg.InLibraryExperimentalAnnotation public final class ClassUsingInLibraryExperimentalApi {
                     ctor public ClassUsingInLibraryExperimentalApi();
                   }
-                  @SuppressCompatibility @kotlin.RequiresOptIn public @interface InLibraryExperimentalAnnotation {
+                  @SuppressCompatibility @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) @kotlin.RequiresOptIn public @interface InLibraryExperimentalAnnotation {
                   }
                 }
                 """,
@@ -4138,7 +4404,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Inline suppress compatibility metadata for experimental annotations from classpath`() {
         check(
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             classpath =
                 arrayOf(
                     /* The following source file, compiled, then ran
@@ -4191,17 +4457,17 @@ class ApiFileTest : DriverTest() {
                     )
                 ),
             expectedIssues = "",
-            api =
+            expectedApiSignature =
                 """
-                // Signature format: 3.0
-                package test.pkg {
+                // Signature format: 4.0
+                package @SuppressCompatibility test.pkg {
                   @SuppressCompatibility @test.pkg.ExternalExperimentalAnnotation public final class ClassUsingExternalExperimentalApi {
                     ctor public ClassUsingExternalExperimentalApi();
                   }
                   @SuppressCompatibility @test.pkg.InLibraryExperimentalAnnotation public final class ClassUsingInLibraryExperimentalApi {
                     ctor public ClassUsingInLibraryExperimentalApi();
                   }
-                  @SuppressCompatibility @kotlin.RequiresOptIn public @interface InLibraryExperimentalAnnotation {
+                  @SuppressCompatibility @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) @kotlin.RequiresOptIn public @interface InLibraryExperimentalAnnotation {
                   }
                 }
             """,
@@ -4213,7 +4479,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `@IntRange value in kotlin`() {
         check(
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -4231,16 +4497,16 @@ class ApiFileTest : DriverTest() {
                 ),
             // Access androidx.annotation.IntRange
             classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
-            api =
+            expectedApiSignature =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   public final class KotlinClass {
                     ctor public KotlinClass(@IntRange(from=1L) int param);
                     ctor public KotlinClass(@IntRange(from=2L) int differentParam);
-                    method public int getParam();
+                    method @InaccessibleFromKotlin public int getParam();
                     method public void myMethod(@IntRange(from=3L) int methodParam);
-                    property @IntRange(from=1L) public int param;
+                    property public int param;
                   }
                 }
             """
@@ -4260,7 +4526,7 @@ class ApiFileTest : DriverTest() {
                     import androidx.annotation.IntRange;
 
                     public final class ApiClass {
-                        private int hiddenConstant = 1;
+                        private static final int hiddenConstant = 1;
                         public ApiClass(@IntRange(from=1) int x) {}
                         public void method(@IntRange(from = hiddenConstant) int x) {}
                     }
@@ -4269,7 +4535,7 @@ class ApiFileTest : DriverTest() {
                 ),
             // Access androidx.annotation.IntRange
             classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 2.0
                 package test.pkg {
@@ -4286,7 +4552,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Kotlin properties with overriding get`() {
         check(
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -4304,14 +4570,14 @@ class ApiFileTest : DriverTest() {
                 ),
             // Access androidx.annotation.IntRange
             classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
-            api =
+            expectedApiSignature =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   public final class KotlinClass {
                     ctor public KotlinClass();
-                    method public boolean getPropertyWithGetter();
-                    method public boolean getPropertyWithNoGetter();
+                    method @InaccessibleFromKotlin public boolean getPropertyWithGetter();
+                    method @InaccessibleFromKotlin public boolean getPropertyWithNoGetter();
                     property public boolean propertyWithGetter;
                     property public boolean propertyWithNoGetter;
                   }
@@ -4324,7 +4590,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Constructor property tracking`() {
         check(
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -4348,14 +4614,14 @@ class ApiFileTest : DriverTest() {
                 """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
-                  public abstract sealed class MyClass {
-                    method public final int getFirstConstructorProperty();
-                    method public final String getNonConstructorProperty();
-                    method public final boolean getSecondConstructorProperty();
+                  public abstract sealed exhaustive class MyClass {
+                    method @InaccessibleFromKotlin public final int getFirstConstructorProperty();
+                    method @InaccessibleFromKotlin public final String getNonConstructorProperty();
+                    method @InaccessibleFromKotlin public final boolean getSecondConstructorProperty();
                     property public final int firstConstructorProperty;
                     property public final String nonConstructorProperty;
                     property public final boolean secondConstructorProperty;
@@ -4363,8 +4629,8 @@ class ApiFileTest : DriverTest() {
                   public final class MyDataClass {
                     ctor public MyDataClass(String constructorProperty, String internalConstructorProperty);
                     method public String component1();
-                    method public test.pkg.MyDataClass copy(String constructorProperty, String internalConstructorProperty);
-                    method public String getConstructorProperty();
+                    method public test.pkg.MyDataClass copy(optional String constructorProperty, optional String internalConstructorProperty);
+                    method @InaccessibleFromKotlin public String getConstructorProperty();
                     property public String constructorProperty;
                   }
                 }
@@ -4374,7 +4640,7 @@ class ApiFileTest : DriverTest() {
 
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
-    fun `Concise default Values and Names in Kotlin`() {
+    fun `Default Values and Names in Kotlin`() {
         // Kotlin code which explicitly specifies parameter names
         check(
             format = FileFormat.V4,
@@ -4421,7 +4687,7 @@ class ApiFileTest : DriverTest() {
                     """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 4.0
                 package test.pkg {
@@ -4446,7 +4712,7 @@ class ApiFileTest : DriverTest() {
 
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
-    fun `Concise default Values in Kotlin for expressions`() {
+    fun `Default Values in Kotlin for expressions`() {
         // Testing trickier default values; regression test for problem
         // observed in androidx.core.util with LruCache
         check(
@@ -4505,10 +4771,10 @@ class ApiFileTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNullableSource,
-                    androidxNonNullSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 4.0
                 package androidx.core.util {
@@ -4539,7 +4805,7 @@ class ApiFileTest : DriverTest() {
                 """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 4.0
                 package test.pkg {
@@ -4566,6 +4832,7 @@ class ApiFileTest : DriverTest() {
                     package test.pkg
 
                     inline class Dp(val value: Float) : Comparable<Dp> {
+                        override fun compareTo(other: Dp): Int = value.compareTo(other.value)
                         inline operator fun plus(other: Dp) = Dp(value = this.value + other.value)
                         inline operator fun minus(other: Dp) = Dp(value = this.value - other.value)
                         val someBits
@@ -4576,16 +4843,75 @@ class ApiFileTest : DriverTest() {
                 """
                     )
                 ),
-            api =
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 17.0.6+10-b802.1)
+                    "" +
+                        "H4sIAAAAAAAA/32VeTzU+R/HvxjXDpbMMprKOJpcM9MauWI1rswMmpxRwjBs" +
+                        "QwwzVHL0S47YKHLkqBwzpVCZKRK7ibGOiVyVezKs3OMYJWG1f/x+tY/f7vvz" +
+                        "eD3ej8/j8Xm93u/PX08iQQwEAaSkpAAAUAO+LggAAhxsXLBInKMt2gHriLO1" +
+                        "cXZBOdhutgHAsgO33Z6ARHXJEpA6HdxOltP+XgxvIhyFd9DDOXRF3GM7CfDI" +
+                        "MB08l6vrJuhAt7Zy+RNjE6IAkSAp9UBR+4HJ9gCjbRH/cbzCtuhkGh1NDQpE" +
+                        "W1NRfsG+NFqM27AzzBWyNfzyTYCHT+aT68TbBj6w2wYiQccZcO8rCd3oQ+wK" +
+                        "t5yHzy1/zRtuuoeR48eb8s8Hlh/5NEa4U4LBqxzkw2OWQ8N7aUZGrTvUMf4L" +
+                        "5oGdC2c6zCeHWJ+FnQtxQE1yp0pecGMVf61C+NH+J6CZei7WGT21yL7plT56" +
+                        "st/AafUuAVPYPi68+GuGYWXHs6sl/BIZT/P9ALpx0ZYHfJZZqvVFz0wVN/Au" +
+                        "C/epRDOqmjJ0IAbialiyYADG5LyKfq5qpTXxUIXwtOjxQTDj3TOjy/Bs+9VO" +
+                        "ffbraESPSaGoNAYEOsQJuwTZ1Sg99ho8I/1iYla25BDpF56OweZJS8n4vCPK" +
+                        "FUWMsiuHl/t1L94S7XN6Wk5WTtE+6A7Vx6zRVfC+Z/gGSavE6JiAUc9RrFnJ" +
+                        "2zxMwOsK8MHICPwVJ1ZuO9SZeVpacoCSFqSl0h+R00kmsWmpkUXMn7AU99a2" +
+                        "BS2/fTMRzjaYegpEFOov8D7AYprPXyd5cORRWsbpxlZUhCptWh/hlzu7Ej3S" +
+                        "Uqkvw5FbN551q4G6LpqiwpuNoKYwzqRhHVf2AbVxqkR2dCyRrv80Q4RSfSye" +
+                        "dR/aaFwdc9zGQuJsAkI7FFb7+MfC4wesR8ZTykkSCiNqbwroxMP2NI8XEbXo" +
+                        "5pLim5UQBjLbLNrr0wJGizOLn3/kxyDtwaYxJWRVnzCvZ2ufe7fzWlluo2ya" +
+                        "N5HH/+GaLrcXYpY1f75BV5nfvHC0Ouvuf7zeIazFnM86xeZa2N6t6wtasdgs" +
+                        "XOcVbPqZLnx263DM7/8YoK14S5ccwNKEfjZ0OzlkEBzjWh3RjbuRkdQsw0+H" +
+                        "x10gDahv+GUSIGlsU+7bpZHVvTaUHAguyHX1ySlprYzZIlfmAbv7muOIT2Fi" +
+                        "HkUO4IqMui2h9frIavKu1URG00jkRYfHiRt5vWp7zdYtPtVXuS+/LOx2yRDT" +
+                        "iK14Gg/zGo1Trx8gnx9Ms0l9bfqm/NQKYrzFd+7tiaTIgnFFDX21ujm9rsiN" +
+                        "vkz9UVxFjGOPekE6ndsV8TN2KaztXaTJGr7MZKq3tqV0XSuzx7/4lPnKH/ZZ" +
+                        "JveEqEsGFh8i9+J2xiW5Zz+GT+nsu67tV+rCZm6E5rK3GBBi9NLm98PSzSyC" +
+                        "kFHQnp2r2VtfqWY5zLPfnacRjb9mnPnbQ3JmywIg23VOZ66CFMDR0lu88fKZ" +
+                        "UU53T3tUw3gV0RA9EEWZYd5UDqd2neicjnx06Dz5R3e90l9KW72tlVI8BrnQ" +
+                        "diY5Y8LfMJ8VMViKS/GdRqna4FXhl9be31k1TpT3B+H8MiGT9Vb3Q3nuBhZ3" +
+                        "rlxSN99I647fYd5XJeL5qg2WdiRMJDa1fG/I7rlhm0GWKfsNtjoLSe0O6zgz" +
+                        "x+Y7lq2Ld+bypJfgydO9R12wClKjWWXq761zbkclBbd9IOkNPKtKxUh2NvU0" +
+                        "lEW12BWzrbt07XQX++zWd2ZWHoALVeExc1LdrD6r5QEBS7x4NFGwoCw8LFcb" +
+                        "ripvrVBgZf9csjDoyG/e0xdSwC2g/S13WMBJpVgNdNjmCFjzhcbBGshwQ77n" +
+                        "llzlvM9YoOQxjctSO5qT6uEmugO2f/wwyHExt62MbKcLn9dnuaXOq6+Vy/Hu" +
+                        "m94oohvR9Y+nl5kUYVH7wcUuXvFxllHf3Zrs5+0p3T1UqzRXsmcjLahu4kTc" +
+                        "mL/bd5tXro5PP6ik9NXepVQXQud5lfcpfW67hzgk5F3bORzVYeyWnIiqMpXM" +
+                        "E8+WiIqzosWsmaFQjDaGcU5OIrB12I4qTF6x65qMuHytzd0rleelB56hNc2u" +
+                        "9BHsPhSjBbExrRdrJi9YfmZ5ele10X1kEZagD4uHAARnzbPgsgAisnBEEEVZ" +
+                        "W8U67RuaojRIqg8iP15VPZrfZBWt+R4BKjSF36sRq98srlFkuikyUwbOCd4+" +
+                        "+sBzDnwsUKkY7QlJeA0RZ38CbnpAWcfyOaaGP4NpSvlvizEedhrLQIySJ/KV" +
+                        "mWtBYHVCj1J4x2Z5QrKNtygIacZ+FYJlyVddPTNykyXPov7e3zNakABTCtCz" +
+                        "P37WP2wABRYHFyo174qPBYttiXxBiS3tyQ0ZCQCwkfk3lMC29V+SnfY9FYIK" +
+                        "CqUHnwrxPh3qHxFM9vPx8QnYFojkKKFFJL0iAX9hSqheV6+47YT+hSkRUQjw" +
+                        "v/SvEfaFk9/WP1Hz7ylfb6/wTULc/4Pf3+1fLwj7xt4m8a8fJhLEJb48E9s+" +
+                        "HdsdIfnl9iewH8XSCggAAA=="
+                ),
+            expectedApiSignature =
                 """
                 // Signature format: 4.0
                 package test.pkg {
                   public final inline class Dp implements java.lang.Comparable<test.pkg.Dp> {
-                    ctor public Dp();
-                    method public void doSomething();
-                    method public float getValue();
-                    method public inline operator float minus(float other);
-                    method public inline operator float plus(float other);
+                    ctor @KotlinOnly public Dp(float value);
+                    method @BytecodeOnly public static test.pkg.Dp! box-impl(float);
+                    method @KotlinOnly public operator int compareTo(test.pkg.Dp other);
+                    method @BytecodeOnly public int compareTo-fPRv1QM(float);
+                    method @BytecodeOnly public static int compareTo-fPRv1QM(float, float);
+                    method @BytecodeOnly public static float constructor-impl(float);
+                    method @KotlinOnly public void doSomething();
+                    method @BytecodeOnly public static void doSomething-impl(float);
+                    method @BytecodeOnly public static int getSomeBits-impl(float);
+                    method @InaccessibleFromKotlin public float getValue();
+                    method @KotlinOnly public inline operator test.pkg.Dp minus(test.pkg.Dp other);
+                    method @BytecodeOnly public static float minus-TBhqLn8(float, float);
+                    method @KotlinOnly public inline operator test.pkg.Dp plus(test.pkg.Dp other);
+                    method @BytecodeOnly public static float plus-TBhqLn8(float, float);
+                    method @BytecodeOnly public float unbox-impl();
                     property public int someBits;
                     property public float value;
                   }
@@ -4620,22 +4946,93 @@ class ApiFileTest : DriverTest() {
                 """
                     )
                 ),
-            api =
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 17.0.6+10-b802.1)
+                    "" +
+                        "H4sIAAAAAAAA/31WeTQUahufrBPJtVzrUCJMzJqGIdUwRkzEGEINmRFjGNuM" +
+                        "mOxkzU6SPakrTZcaqTu2uilNdklxhSxprFn6yKSu7nfO91Xn3vu85/fHe877" +
+                        "/J73fc7znt/PDi8sIg8AAoEAAEAD8G3IA0QANhZEDMTKFgezwdha4SwciFAb" +
+                        "3OdnAMCKTUf7MTwE2iuFh+zr6ujmEOD9+8emgqHWNvpWNr0h1XWE99aQoH3W" +
+                        "HR16Tu+7YDxex8TU+JQQwA4vDqyRA9egtwoYbsHuH8vLbIF5hsGEBfp6w7CB" +
+                        "UIqfB4MR6TR7HOQo/+X14MsO+IO5PkL+8kwcJJOgPlBvjXEjNeQ1A3rrXdVO" +
+                        "x8RGhizqO9nsWIovXG9K+ZAbtYR/Tq3Ie9W6e/PtqGc/wxsG19fbHr5oOl26" +
+                        "YtIdntjy+eOmNEBxCW1+0ZdxD9bS3Gd4OTMGcarUjYNiN9ddJPEbmmq9YFzz" +
+                        "Q11YaO49iQGzoWbj+ecgFWUyvP1nTSCyuKoShCnAkG6/ZumR6pSFSkhWiT24" +
+                        "FLKVsHG1gS5cKW6h+pFytfQgBb7M37NYouoeaVDSZMYt4VU+gCsyXBYUUi/4" +
+                        "/9oz67nsI/SuUlUY0c8/HxanMfSGqR8KGvAGy9ZJ6G2KXGScmBdy6TByaTna" +
+                        "4aBHKZRv9YNSMk2ga4OaBgywDvSpYC510at0DnYupXY6uKk91AsltjCS9znX" +
+                        "aR7DzeEXW6CPwbGVcbE7i3t7M17uqEvJjWNM/lJUFCIp7mSb87M7zzo077bD" +
+                        "VONSRa7bHUmZVfj5GmOXNrUla0RAuaIis9hyVzzq8uLqDJJNjplkR4x0QRGr" +
+                        "Z9XvBvWzDRCeYyGn5JMD4AaOy92wMBegm0ycXJtk814RMDIEJtzvX/Iz2RCe" +
+                        "JqMhqI+FMi80ptuPOEGajbNP3jkz0m869ECr0KKwhsU/qlzwU13c7KrbnKWF" +
+                        "XtOJmY2uyd7pvpAyDMxLMTjTFCz8vOc8yhF9llhIcI2TT7gp4nVawvD857SM" +
+                        "rKpkbtIxU20CP1qxIviW2bopjS91bu+hUMGZS9nh1lFH9OOJI5tun3YJwL00" +
+                        "t9VdDo3PZ9GG856CARQy0kH1MjEfWEROXiAN15F8ecGQcfDldEC6sraCjf7u" +
+                        "soGUL69k5H+7qi8FR7VwWFYnVORJCN8PJTZDe7gVYtQTPi+pJ7RIFoc1ymeY" +
+                        "VVdI9qEt6vRXgyAi5WFBXwtnsPuJL8XDwYe4IdxwODGe1rPDpgQlVaEZ78Hh" +
+                        "2gNJo5EVjUNeJkWl2HQXE0d6IVPuw7sCF8MX1NLdG5Pl1ioPxQbcozdf5MqO" +
+                        "gDkezwwmhDLDOiYOFKoMGs17CNIiru1S8kEWWVVOGWU7ySI6UVw0J7MY/od3" +
+                        "hZezc0OOlu19RFX1dVxjE9DxmRIihENbU70+F3UDu5rFFZjjD8sNXtsgdDlC" +
+                        "p+VCagK07Q3DOGlPcpQSsLZvYewGbKrhkVxqoXX4zQKXWkkG2evCQifElc+6" +
+                        "OQZ0Rd70JvkGbV6/eKkONcv2hNxzLuccKtJTUJiv1ISO73/MnvWcYyWZaKHz" +
+                        "O9+eag+hnqLEcPWwpX3iyU8M0qNomcbYK2aaGXhi2Tu1IfPXLRUbaDV5eR+p" +
+                        "8A4AinrAWqgKA5kPKhCxI0QlVeJtjIqp7q+e8B4BJOLUj6huB0+am9r22o5T" +
+                        "3x+U+cWoRFfEwEmM9CtAxVjk3IZSj7YB3i4bKGOhtUSX/xK1xNbvSYb1JIuk" +
+                        "XhW9RWhqC6esCq4ds/8ARt6oSjmeTIy4UJkQ+gYrQHXlF704OL+R09r8xYN/" +
+                        "WG4FM74DD7LJSyk3zozv87yxk3Alha9/BdpObHUf/9Sk+C5Tyv8NgSwZUEg6" +
+                        "eZ+b0FvW5LxzPBXfXaD0H9lJtp+q4zonfSlYzZFbnrIdFjK05gq5nT7JQSb0" +
+                        "NGdbzcSk4ghTxuI4aha+RHnQtNM02oyVajfm0r0zDzLMzX9XLhGhY/SQsHxo" +
+                        "KfUWNVqzev3Oy0b3ZC+JzfrpR2rDHw70RWmcq0eEjxGvTeZybyQfTyLuyp45" +
+                        "tybZEXLvS+LMcobEeu1qpP7r8MaKrNXR/FZaLt9etrtd9mpeKVe5raHgUt80" +
+                        "cNA375Ldwl63sc3lHJ/702CLx953Gz3Dn8c6FgPXlo7sS+Ot0xqjolOPvtcR" +
+                        "ERb/uBODwG3yqx+KI/84sG53nprxRuNQTuBV2a53+Y7DcY4jHz8PKQu27/ec" +
+                        "Fwqb44m8v3GPEYETrDFdyyOzQa7nYo5InJVoB7NPX8wIJDg/Mn7cmo17u83Y" +
+                        "iIamls6MqExUTTxlTWtneNm6C1FB0uhxEB3kbbQ8Qpe01GtTWzwW7QAyNNJG" +
+                        "axupBxkEY9ESIO22Wp2ex72bu76qCV3OyklaDACw2PFvaiL3vZrgmf/VE7q9" +
+                        "TYCsvbzp2kM4XNSEfkuI9qJ+n/MfsU/UEE9eZf30y12FR4kvAJSVZxEJrCyu" +
+                        "5me5TXEuPF3SPHA6EzmCUbwVtLTAWhtmLLabLk7XBIxuO2iRbmfnz2ZTw2hq" +
+                        "2Jq8nXsKvLtabx/UMbrrttY1fIgD/p0AOzgaGRqBvNGC1qrU66Ql8fCvjZlm" +
+                        "KHurw8thO/Bz+A84dbSS2B1n7jJOEMk+5W4ZmyXRllrrD0tF1mVYIu3oB4LV" +
+                        "yhouebwNlNI7f/cLkMmWWdXVaIxJIs5Fv6QSTVjsicTY2ftW5cnHc2vJ0uZT" +
+                        "vAfGzIv7A/Oe7wZG55CTdLf/phVz99Hknvth0FzVIh2xkN9XBvsNvBzMC8jb" +
+                        "LDyS2bqKnYN1+rS6MoQoZaZNtPP6yvHLTBSdtiJtZlg392kCl56DEDSamFjy" +
+                        "TBL0rsvUxVMDntZXuicKX6r1a39gqiIwDV0d4LM62EMeo0vGXUe1P7r3UZMm" +
+                        "7Efpz7TAJWnCeyPvaVJ4LxQxP+2z5MGT7ZOOqESj9DHmiUFJHLGVuNu1rNjG" +
+                        "TdGbJu72n4qVYnRAUjgp0cmP5mfR3QzVCyws68rgyda2WqWyoHmFmwGh2bQ3" +
+                        "tpKqkOHHTQoLFE4CxC8Ug1Af81C8rJRJJpLzyEQKFYFs2fZ1UrrSTq7wtwEA" +
+                        "t4T+bVJUt/A/20P38PGH+gYw/Xz83ekBniF+ZyinT5/22oII2VZMd0x2bFzX" +
+                        "assG6T21VSQHgd9D7ck9ZMBfLkex2CJ37xbXvr9czjYhecD/633rgL7arO/j" +
+                        "n0zXjyzfTr7MdwzRf+edfkz/th1y36V3iv3tZ/mR4NsXqn5HsAb81x7a4UXF" +
+                        "vh4T2VrSWzc4s/3r7k+Fg8CTigoAAA=="
+                ),
+            expectedApiSignature =
                 """
                 // Signature format: 4.0
                 package test.pkg {
                   @kotlin.jvm.JvmInline public final value class Dp implements java.lang.Comparable<test.pkg.Dp> {
-                    ctor public Dp(float value);
-                    method public int compareTo(float other);
-                    method public void doSomething();
-                    method public float getValue();
-                    method public inline operator float minus(float other);
-                    method public inline operator float plus(float other);
+                    ctor @KotlinOnly public Dp(float value);
+                    method @BytecodeOnly public static test.pkg.Dp! box-impl(float);
+                    method @KotlinOnly public operator int compareTo(test.pkg.Dp other);
+                    method @BytecodeOnly public int compareTo-fPRv1QM(float);
+                    method @BytecodeOnly public static int compareTo-fPRv1QM(float, float);
+                    method @BytecodeOnly public static float constructor-impl(float);
+                    method @KotlinOnly public void doSomething();
+                    method @BytecodeOnly public static void doSomething-impl(float);
+                    method @BytecodeOnly public static int getSomeBits-impl(float);
+                    method @InaccessibleFromKotlin public float getValue();
+                    method @KotlinOnly public inline operator test.pkg.Dp minus(test.pkg.Dp other);
+                    method @BytecodeOnly public static float minus-TBhqLn8(float, float);
+                    method @KotlinOnly public inline operator test.pkg.Dp plus(test.pkg.Dp other);
+                    method @BytecodeOnly public static float plus-TBhqLn8(float, float);
+                    method @BytecodeOnly public float unbox-impl();
                     property public int someBits;
                     property public float value;
                   }
                   public final class DpKt {
-                    method public static void box(float p);
+                    method @KotlinOnly public static void box(test.pkg.Dp p);
+                    method @BytecodeOnly public static void box-fPRv1QM(float);
                   }
                 }
             """
@@ -4646,7 +5043,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Kotlin doesn't expand java named constants`() {
         check(
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -4656,12 +5053,13 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface Foo {
-                    method public abstract long bar() default java.lang.Long.MIN_VALUE;
+                    ctor @KotlinOnly public Foo(optional long bar);
+                    method @InaccessibleFromKotlin public abstract long bar() default java.lang.Long.MIN_VALUE;
                     property public abstract long bar;
                   }
                 }
@@ -4708,7 +5106,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 4.0
                 package test.pkg {
@@ -4737,13 +5135,10 @@ class ApiFileTest : DriverTest() {
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Kotlin expect-actual with JvmOverloads constructors`() {
-        check(
-            format = FileFormat.V4,
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        "src/commonMain/test/pkg/Expect.kt",
-                        """
+        val commonSource =
+            kotlin(
+                "src/commonMain/test/pkg/Expect.kt",
+                """
                         package test.pkg
 
                         expect class AllOptionalJvmOverloads @JvmOverloads constructor(
@@ -4764,10 +5159,11 @@ class ApiFileTest : DriverTest() {
                             private val bar: Int = 0
                         )
                     """
-                    ),
-                    kotlin(
-                        "src/jvmMain/test/pkg/Actual.kt",
-                        """
+            )
+        val androidSource =
+            kotlin(
+                "src/androidMain/test/pkg/Actual.kt",
+                """
                         package test.pkg
 
                         actual class AllOptionalJvmOverloads @JvmOverloads actual constructor(
@@ -4788,9 +5184,16 @@ class ApiFileTest : DriverTest() {
                             private val bar: Int = 0
                         )
                     """
-                    )
+            )
+        check(
+            format = FileFormat.V4,
+            sourceFiles = arrayOf(commonSource, androidSource),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                    createAndroidModuleDescription(arrayOf(androidSource)),
                 ),
-            api =
+            expectedApiSignature =
                 """
                     // Signature format: 4.0
                     package test.pkg {
@@ -4855,7 +5258,7 @@ class ApiFileTest : DriverTest() {
                     createAndroidModuleDescription(arrayOf(androidSource)),
                     createCommonModuleDescription(arrayOf(commonSource)),
                 ),
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public final class Foo {
@@ -4877,7 +5280,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Kotlin public methods with DeprecationLevel HIDDEN are public API`() {
         check(
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -4906,12 +5309,38 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 17.0.6+10-b802.1)
+                    "" +
+                        "H4sIAAAAAAAA/wvwZmYRYeDg4GBgYFBkQAYiDCwMvq4hjrqefm76vo5+nm6u" +
+                        "wSF6vm7/TjEwfPY9c9rHW1fvIq+3rta5M+c3BxlcMX7wtEjPy1fH0/di6aot" +
+                        "QR+8dAu1vM6c0Q77cE7/5Mkzj58+esrEEODNzrFeWHO9JdACcyAOwGm9KBCX" +
+                        "pBaX6Bdkp+uHABneJXrJOYnFxVMDo/OFHEX+pU3fJKJ1gTvqQ9s174+OUclJ" +
+                        "SseWaF7NW5Jxa9mxDyatE/1u3sxNS+/c8zV+Zsai2m/ukucnKHXym+YYpe+3" +
+                        "nP5+Tv659ffv1zFU9KnzsConBdtLf3ndznJPkr9nYcWp9j1yHzbE19fXaO16" +
+                        "UipplLVF/YznleSC69nuPKfXOqYwSV6b/cinW8980fWED1M6ku+J8/xsXrFq" +
+                        "0jvP0O59Ym2JegLOggZT/utOCbyxSVHL//2vs8/8Zi8smnm5r2f9OaaFLh68" +
+                        "ZVv6trRnT/nh1XZpT1rGuu3LPstJ6B6uOzy/xEJ21a4lTrKfGm7VPvNM2LbY" +
+                        "wMzq5SyP94W2ArsCraMcGI/qfIpQ+Zn1JH6aD4v4lRfN05wnWXxcsyrQ+lIX" +
+                        "e/DHyRO+F2bvf7v9vpGO37EFAu8LD3suWNymt9duc9o9KYMNjax8rPs9us04" +
+                        "vppJxsXMSd9cMmfR5FKjPNXgPRbrLaRzpguWHDuh/OSf60rDotyfxmkzbXff" +
+                        "X85c9edK2ZXFS0WijETeushy157oZ/6Uspwrw/S3Z8YSIXejaSJ3uQ6f6Pku" +
+                        "HPzIccqLdRXKzI2+Fh43H07UmmbYbhJjs+S2VOLvp/uU/3cuvRGu81fGu8bF" +
+                        "zLc+W74/+NpLnZuCnVrCyXKRjTJiHXmVYrvu1L/QipjZuq7CVPaUxlmn8F2T" +
+                        "3lndzSr7XGFwrsJT0ryjZCvzdfeb7keP+975VChdXnPHdSuz2GO5d+UG4smW" +
+                        "x6JyHDWPnZIHpbKFp+3rlZkYGK4y40tl0kAMT+S5iZl5etn5JTmZefG5+Sml" +
+                        "OanJCQkJaUDMkuTHpvFA6NEjDU9gotc+4SeexM24aY/3FIktEuA0rd+0T0wV" +
+                        "aJYOOE0zMokwIOxDTu+gTIUKcGUxdFOQ/SOKYkI9rpyCbgSyI6VRjADmTHzB" +
+                        "EODNygZSxgyEl4B0MDOIBwDRacUzOwQAAA=="
+                ),
+            expectedApiSignature =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   public final class TestKt {
-                    method @Deprecated public static void myMethod();
+                    method @BytecodeOnly @Deprecated public static void myMethod();
                     method @Deprecated public static void myNormalDeprecatedMethod();
                   }
                 }
@@ -4924,7 +5353,7 @@ class ApiFileTest : DriverTest() {
     fun `Annotations aren't dropped when DeprecationLevel is HIDDEN`() {
         // Regression test for http://b/219792969
         check(
-            format = FileFormat.V2,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -4954,14 +5383,41 @@ class ApiFileTest : DriverTest() {
                 ),
             // Access androidx.annotation.IntRange
             classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
-            api =
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 17.0.6+10-b802.1)
+                    "" +
+                        "H4sIAAAAAAAA/wvwZmYRYeDg4GBgYFBkQAYiDCwMvq4hjrqefm76vo5+nm6u" +
+                        "wSF6vm7/TjEwfPY9c9rHW1fvIq+3rta5M+c3BxlcMX7wtEjPy1fH0/di6aot" +
+                        "QR+8dAu1vM6c0Q77cE7/5Mkzj58+esrEEODNzrFeWHO9JdACcyAOwGm9KBCX" +
+                        "pBaX6Bdkp+uHABneJXrJOYnFxb1Bsf7CjiK2m29fCtowhemT5rX31/jFJqgb" +
+                        "qrUlxeiaMjolVUjtco7cZX35zDmzD8f8P511EX56Uz51z25doYkS5tbl787s" +
+                        "/X7GtvjZ8fP69xnWJLYmnuk4YXHX7/ZN1ed7TzYaTumr7LdmnJ77/PDBjRkX" +
+                        "152dwO+/vcUySK45du1bQx8Tq1Ms+0peLVrt2i39cK3xEydB1z26El3Wq4SO" +
+                        "rV3cJZary+NsJmAraHAmTvfL1BwVRS35qtfXXs/2bTvKNn1e2L7yRwWaUz03" +
+                        "y4TPyn3lHZD2LGC1QffB4wbmDLlaj9vuOrQ4BbnPjtKee9hCcf+XpflxhldW" +
+                        "93o3Wbv93rT3XdyWkjvcsvO5tj5h/Fp+4vGBHA1JSdntPZeiY8pb4ta/7U1i" +
+                        "msw6xdDVpTN2TeqVkE2S7C4Fm6J+/+Zo08xaK3T07rpLVyJbT18OyNylkZ1r" +
+                        "2m/ZNtO+UEis7rT5Qc3DP1zrVRi/73jIkt5qa504b0bi7nrONZMtxFj9/xyJ" +
+                        "VjuvPHf+/Pmi3M/TWVenfF2eYjpdf+LGaTdvy+wUqyx7lforLmjXKaErMZ+8" +
+                        "plmpJKY5V175GHF4+iLJdnan95+aG8q4pvc3sNzrW/rReeNzdzvX+P/X9JNm" +
+                        "yB+JublbLepG4Ma8TvM6hQ1M3DNDYnabdOu0ZXxtCft+Ibz2ifYp+ci22mNn" +
+                        "32v+XJ7SnsH2qWLaMp2LGuosHFryiRKsjYI9hzxPZf5n631k3SP4zyQtYfmP" +
+                        "z5osc6Pm/S9h3V5h++4Nw/QEsX/saZ/uG2yJ8gs58tjkMWvqHaVz3b83xN4p" +
+                        "CywsZC+P3dXxW0/uwUO7iBb3Fe+UpVXrdQ+VZInXMYKSaehjl/UpTAwMr5nx" +
+                        "JVNpIIbnktzEzDy97PySnMy8+Nz8lNKc1OSEhIQ0IGZJ8mPTeCD06JGGJzDX" +
+                        "aJ/wE0/iZty0x3uKxBYJcKbQb9onpgo0SwecKRiZRBgQ9iFnGFCuRAW48ii6" +
+                        "Kcj+EUUxoR5XVkM3AtmR0ihGqDHjDYYAb1Y2kDJmILwEpKcwg3gAMjwVH3wE" +
+                        "AAA="
+                ),
+            expectedApiSignature =
                 """
-                // Signature format: 2.0
                 package test.pkg {
                   public final class TestKt {
-                    method @Deprecated @IntRange(from=0L) public static void myMethod();
-                    method @Deprecated @NonNull public static String returnsNonNull();
-                    method @Deprecated @NonNull public static String returnsNonNullImplicitly();
+                    method @BytecodeOnly @Deprecated @IntRange(from=0L) public static void myMethod();
+                    method @BytecodeOnly @Deprecated public static String! returnsNonNull();
+                    method @BytecodeOnly @Deprecated public static String! returnsNonNullImplicitly();
                   }
                 }
             """
@@ -4987,7 +5443,7 @@ class ApiFileTest : DriverTest() {
                     restrictToSource,
                 ),
             format = FileFormat.V4,
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 4.0
                 package test.pkg {
@@ -5023,9 +5479,10 @@ class ApiFileTest : DriverTest() {
                 arrayOf(
                     "androidx.annotation.RestrictTo(androidx.annotation.RestrictTo.Scope.LIBRARY)"
                 ),
-            api = """
-                // Signature format: 4.0
-            """
+            expectedApiSignature =
+                """
+                    // Signature format: 4.0
+                """,
         )
     }
 
@@ -5047,13 +5504,14 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 4.0
                 package test.pkg {
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface Foo {
-                    method public abstract String[] bar();
-                    method public abstract String[] baz();
+                    ctor @KotlinOnly public Foo(String[] bar, java.lang.String... baz);
+                    method @InaccessibleFromKotlin public abstract String[] bar();
+                    method @InaccessibleFromKotlin public abstract String[] baz();
                     property public abstract String[] bar;
                     property public abstract String[] baz;
                   }
@@ -5075,13 +5533,13 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public final class Foo {
                     ctor public Foo(int bar);
-                    method public int getBar();
-                    method public void setBar(int);
+                    method @InaccessibleFromKotlin public int getBar();
+                    method @InaccessibleFromKotlin public void setBar(int);
                     property public int bar;
                   }
                 }
@@ -5099,20 +5557,58 @@ class ApiFileTest : DriverTest() {
                         """
                         package test.pkg
                         class MyList : List<String> {
-                          override operator fun get(index: Int): String {}
+                            override val size: Int = 0
+                            override fun isEmpty(): Boolean = true
+                            override fun contains(element: String): Boolean = false
+                            override fun iterator(): Iterator<String> = error("")
+                            override fun containsAll(elements: Collection<String>): Boolean = false
+                            override operator fun get(index: Int): String = error("")
+                            override fun indexOf(element: String): Int = -1
+                            override fun lastIndexOf(element: String): Int = -1
+                            override fun listIterator(): ListIterator<String> = error("")
+                            override fun listIterator(index: Int): ListIterator<String> = error("")
+                            override fun subList(fromIndex: Int, toIndex: Int): List<String> = emptyList()
                         }
-                    """
+                        """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
+                // Signature format: 5.0
                 package test.pkg {
                   public final class MyList implements kotlin.jvm.internal.markers.KMappedMarker java.util.List<java.lang.String> {
                     ctor public MyList();
+                    method @InaccessibleFromKotlin public void add(int p, String! p1);
+                    method @InaccessibleFromKotlin public boolean add(String! p);
+                    method @InaccessibleFromKotlin public boolean addAll(int p, java.util.Collection<? extends java.lang.String!>! p1);
+                    method @InaccessibleFromKotlin public boolean addAll(java.util.Collection<? extends java.lang.String!>! p);
+                    method @InaccessibleFromKotlin public void clear();
+                    method @InaccessibleFromKotlin public boolean contains(Object element);
+                    method public boolean contains(String element);
+                    method public boolean containsAll(java.util.Collection<? extends java.lang.Object?> elements);
                     method public operator String get(int index);
+                    method @InaccessibleFromKotlin public int getSize();
+                    method @InaccessibleFromKotlin public int indexOf(Object element);
+                    method public int indexOf(String element);
+                    method public boolean isEmpty();
+                    method public java.util.Iterator<java.lang.String> iterator();
+                    method @InaccessibleFromKotlin public int lastIndexOf(Object element);
+                    method public int lastIndexOf(String element);
+                    method public java.util.ListIterator<java.lang.String> listIterator();
+                    method public java.util.ListIterator<java.lang.String> listIterator(int index);
+                    method @InaccessibleFromKotlin public String! remove(int p);
+                    method @InaccessibleFromKotlin public boolean remove(Object! p);
+                    method @InaccessibleFromKotlin public boolean removeAll(java.util.Collection<? extends java.lang.Object?>! p);
+                    method @InaccessibleFromKotlin public boolean retainAll(java.util.Collection<? extends java.lang.Object?>! p);
+                    method @InaccessibleFromKotlin public String! set(int p, String! p1);
+                    method @InaccessibleFromKotlin public int size();
+                    method public java.util.List<java.lang.String> subList(int fromIndex, int toIndex);
+                    method @InaccessibleFromKotlin public Object![]! toArray();
+                    method @InaccessibleFromKotlin public <T> T[]! toArray(T[]! p);
+                    property public int size;
                   }
                 }
-            """
+                """
         )
     }
 
@@ -5135,11 +5631,12 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface Dimension {
-                    method public abstract int unit() default test.pkg.Dimension.PX;
+                    ctor @KotlinOnly public Dimension(optional int unit);
+                    method @InaccessibleFromKotlin public abstract int unit() default test.pkg.Dimension.PX;
                     property public abstract int unit;
                     field public static final test.pkg.Dimension.Companion Companion;
                     field public static final int DP = 0; // 0x0
@@ -5162,8 +5659,6 @@ class ApiFileTest : DriverTest() {
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `APIs before and after @Deprecated(HIDDEN)`() {
-        val sameModifiersAndReturnType = "public static test.pkg.State<java.lang.String>"
-        val sameParameters = "(Integer? i, String? s, java.lang.Object... vs);"
         check(
             sourceFiles =
                 arrayOf(
@@ -5197,16 +5692,93 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 17.0.6+10-b802.1)
+                    "" +
+                        "H4sIAAAAAAAA/4WXeTTUbf/Hx07GbRtUtjD2bSyPLST7YMZOZZ9h0GAYI1EU" +
+                        "Zd+yL1NZIxpb4bY0YxDZ1xBCtpIlRJYey0/Pc87vqZ777rmu8/nje8513p9z" +
+                        "vu/zuq7P28yYihoEoKenBwAAAoAfFwhADYDpWV2WhsL1ZWGX4VB9PUsrGZj+" +
+                        "cTcAsA3r7TExlpYZYjKWlujvHXhhAXmj8H4JK2MEk4LChgLKaiw2jaT9JIx6" +
+                        "eyVtNvtlu7p6F5bmlygBZsZ09JXs4pWqpw2UT8vsN+0BAJybP07WF+0ua4lz" +
+                        "wbnJIL1c/P29zWCmrVosIVPa4tbVFyTy6JLetwhuOYNgL7MeOJvkCYg85LSH" +
+                        "5oPafGJeH3MyH9MzF88tJ8nDh+L4M4P4JyaCFDb4KzEAeNXAA0ttiY9+8tjG" +
+                        "WMlkCuRTpekXu1my9Qvbzovv/uhAPO2XPbkG3MXI3gPdU2Ure31kBgE9qz35" +
+                        "Njyas8r2YSo1+wuR3MAaO+vf3jVSzPhovrrINZWSVkngpMvY6tHbIzkdhURs" +
+                        "hs0wQeW54kXxYh/NtPnlQchCJ4qOkD9aC28Zk5z05JmWdrLocW97WtSb9gh+" +
+                        "7GF2uDvw1VPN/6o8hLjfjak4LIxBdN4gmpOtVUSnVvpbD8zsb2nGYEWBacoc" +
+                        "GqbBVE72NC3xOS+vXmDKuadoc3HQATgYYi7ypOX+cR/OyuZKK98cDbHTImk0" +
+                        "aqb1GuOqtNcFAxBe+m3nXgv4zNuVtgdiRl7Ga4Zr3booTYrvtpyYLXpaUwAA" +
+                        "UxS/s4Xzv2wxxv3bmHIrOwy7AegYtU5QNmZTUiqKEX9Aq8OWR0gdZgygf0L9" +
+                        "Kpwh0yq5zNAQ6e6r7DigfxH5LOmQiW/KaVCZxdD6jUEoaL73rTA4UULCJch9" +
+                        "4OH2o57b7v2kkL1vGIDtloJOXsTwnE8Th49HRXuIA0Bo/Y+NLcjccw5Nr7Vo" +
+                        "EU9/oI+OurFCiy8mn8QcXcQpnTyqaeG9LJVRPmlz5Js1iThyJp3XKZ2BB7D1" +
+                        "+MLWUAXQbu9hTjVt8ZkCV+HsfpHSItCLsqYmPIra+SxU1xQMVIgiLliNJcQg" +
+                        "6gMLa2unVoFw06Cz7ioK5M87ai4mbu4posWhZTbtMGuyX2Rq36zuC+Ljla8+" +
+                        "Kerz5zboKeV7ZYG5qP3OODwyS3fI4C4bR2DWO6Pclm4LCtFSUvqVjuB0l7mR" +
+                        "fcWWZnJNkngvxIQH6EgWp+Xk1oxCJuvJgaJ02A6jZViJh9kaX0cGxj6lu1Ra" +
+                        "G+EqHqPKfQ2W9TtKGQUy5Ufr4iR4FMPM0k+0We8rs/mnF0ft172G4Jw25TBX" +
+                        "8Id7JHWWHIx/X1ffpx2sInOvVCGKYmtUKVynYxYpZA2ddETsIzcOCM177wKL" +
+                        "eWcZRAhnb5IWstfBGvpzqktocBoRQVq2eiRhtxtur3qprywoRZ+wKMVF9eca" +
+                        "l0MSa8czzg8eRx9Nxxn0e2rJJyekQMYQjOWyfMLmZtFQtbqkkyc68rAch+9Y" +
+                        "vamRgSBOeUavcekUNoh4pori1eP6QvN29kpSP39NrXjjZ+DVISGy2nfkA4n3" +
+                        "eSXdFTB+WxTO5Ju8xhtG4KkLzaqjqqo2NEqeNqq3CK871p/sy5mHP6SXark8" +
+                        "s8MI36QU8k1uY665ZXJtpGZ4af6V5MOb90qdZB2DY77wkQ577vol2GQu+8pF" +
+                        "8kMfr7f5nXf3qmfrT0m86snjlGzQt2K7LJ5C0jpv6gIikeVityj9QZJ3cF+C" +
+                        "8Lfnohctc7MOG79ejBoNc4+YUY7XMMBv75J2bZGdc6J2T3S4Zg5RYrCTkJHI" +
+                        "g5nHBfBlvYK1eU4sq4xePc8c2j6GpeA8a3WP3U4XWbm+MQJ5xv/MrMTtEt/J" +
+                        "CneOjnKtO7YuixrfeQO1IbelqAAAc9rf8cb/F7yBEW4oDNYNLPdv8BIs7UzZ" +
+                        "zVmO+3ef9zSmWWg1ROfl1dFc1XplTKFXAK11piw2vDmZgbzauJYybTkv1Ny6" +
+                        "vyY7qCu31cLCp7hlEONfB7vLyZ6KQvXjPuCzMag7JwfHVGTgY/kdBj56/8pr" +
+                        "cuP3hfeN5a7NYzRyk+ClzsAXEbzoWXnenvKsSqOLL6WwEdvn/N0Fx+5jmtLf" +
+                        "aScKTDwsEex+oJL7TLCfJfeFg50UpGjEPe9LxXuOzx+vDSnoRRqqWSrmXR5n" +
+                        "bROO7M/Q5VgH5myuQIHTn0wk08L+AAeAB7vyek3Qy4jodTt4gkKRzJmNliUl" +
+                        "sfpWFo6pG2SI2b7oHd1w+esKOAdI+qGkioEF8X4s+k1ARByCGJMc/tG2l1fG" +
+                        "iOTWFObZUGHg5pW0xmFKeMMjOq5uh4TRRi55ndGPfqw9yp64ntNjf8Uuo8qV" +
+                        "qumfrGqUInp4kLOz9ZfmF0voFEK5eGRE4T340bKWbTCHA1QEpxfnOjEUVrzH" +
+                        "x2uCLvUwyrYSmbgeKD9sOoZf2BtaSPJLkP9WeE3xXKrYiKIHO8wqt1sY32B5" +
+                        "uXpLLQwoe7zBp2TnPqCYqbD8doP1xRy6QMLD79k/bN82qW98ngpzwO7Pi9fW" +
+                        "TAtj4tQ8SvaxAROTt7zNqXUMWm4cGHn/+eooUtR6szvDsua2HYkbLrTR+M4J" +
+                        "S7jwnnpsq1f6oqMWke1oaoZTZyrHwU/aPNVyBe3YJ7v9sa53DY2z9vrEYFnT" +
+                        "fTZZP1fY4gsL9FKeXjvUSVQ6szg/wZG565sW5lNDxhGt0MW6LfZvAhbczc6E" +
+                        "pNT4ypLG5oI9/6y96EXqNHacYIG2ebKZHPgfRwhR6sl5Xu1ELJsLDZV5DfLB" +
+                        "Dg8xctV6KCo0yMKV6b3EV3D55ZWrAvjPKTVrw2nKBmoZR+Ezpq5iAr7quLqo" +
+                        "u/oaeRQ3Ue8XBSmmPeJvncFFD6EuLFDmnf0AXVm0bNX8Z5WWfGxTVvsC5FK4" +
+                        "aD4pSW94GxSU+tzHWzDl9br6cJDrA2F2ZFD8Qr/IFS2pHHw03fDDogSaZQYI" +
+                        "z4UDru88feIj0FGd8uRH8zue+P6KJxcUzg37VzhdM7bzocE8feqtx8lS2S5x" +
+                        "HlZGww7RaxvJ5+kZdstce6yk+UUyfuCYEvYSrJnVQQc7NF956M2e3/6qKNvO" +
+                        "nZR90L824OREorxCDokkgMJqds8HoGFY8ced4scWZ+5ch9Mh6x0n5qR9VN+V" +
+                        "25kqB+rCOCWjGDmZXQnQ2Rur7RbJAqN2JULdD9Ttnwn1szjVONhlnMU2UJm5" +
+                        "2cY2bsYdLR9I6IAzK0WcyYqsbXKROKf8xAVg5I6aHrCt4fYlK8p7htmGgn15" +
+                        "0r3cZxHRtfUjIGB24bABRA3AhASaN3jTAdnT7wwZ8HhYKrUNshqXNofr8ASo" +
+                        "LavAdMYjCDdQKk5bh421QovFA97KVfWrwW/adzsdtxaNRvxiic8CnMTDoLU5" +
+                        "kduv4E/moK9vlLsJHHBm2jNVTcUOMkCEadMAVGizw/Tyl1ef1304a7R+VDMx" +
+                        "o1xLQF0vLSo9l0yJ3uBG1REvYVwLznnb4N2etZV2Ul8daCYmht7iVn6KELyu" +
+                        "aykXIW8at1ule1TqUJapxpvGzXiAvHl4Z7xqqDmY9KdduMzReVbuYAWmLl9E" +
+                        "7SejW7Zp0xm8b/GJV771SBHXqTBxby/BD2o75GdvdYjfc6lCNCGeNDSJH/qA" +
+                        "LbeuvyvFztqEKmeJNVVs8quo01OHMWni0Ilcg4RXx3V/tkOqUOMOMnhNYTza" +
+                        "caQyxqCujGcDbr2OZ/DfSZGbj9c0cn1zLoUE3QCJhmTUBCtQUS1OC64yHUhg" +
+                        "GzfPxbQucc26hGp/aGcGj5VAO8YV2viTQ/jHpkVUqdaVh6OXB3HggIfmOaHV" +
+                        "s9STXBr3BEfBbX8URiOAJYayKcoTn2L9TJ7GCa5Sw4dNui1Uz0/gMopG0zLU" +
+                        "VIerW+lcZ5PzI8hbEBVOShE1BgcyFWNJBv2yfeB0s1YuZJRRMZjaDBhomAMa" +
+                        "aVV9bS54rt3a/vV0lWb4rXxSmPBwoNg2pbXDO62ieGO3xe7OQi0RmUy5BElu" +
+                        "Z4pqD+8LfGL+GY5SZMO7XYDSS99ZwteT4YBTlnx+yxL3af1/QvB28fSRQWNw" +
+                        "Xp4+Tt4Y1wAvN6SzszPqtKgRcFqx92wf5sWgp4lBshPOhWCWgUpBv8qYIwYR" +
+                        "gH9lgvYAywSxUznpf2UCCkoQ4D8tf8wL30PJz+vvIsqvKj+Ot6CfFO78TdL4" +
+                        "VeHHB5vz56GY8u+G4l81fryk+H/SiKT5nw/9r2I/usT3k9gY/f+65X7V+tEA" +
+                        "7p+0BIG/ddnMmIb2+zHa011x+m9Tgd+//g9J/9fpVw4AAA=="
+                ),
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public interface State<T> {
-                    method public T getValue();
+                    method @InaccessibleFromKotlin public T getValue();
                     property public abstract T value;
                   }
                   public final class StateKt {
-                    method $sameModifiersAndReturnType after$sameParameters
-                    method @Deprecated $sameModifiersAndReturnType before$sameParameters
+                    method public static test.pkg.State<java.lang.String> after(Integer? i, String? s, java.lang.Object... vs);
+                    method @BytecodeOnly @Deprecated public static test.pkg.State! before(Integer!, String!, java.lang.Object!...!);
                   }
                 }
             """
@@ -5254,16 +5826,68 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            // Compiled from the Kotlin source file above with [generateBase64gzipFromKotlin]
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 17.0.6+10-b802.1)
+                    "" +
+                        "H4sIAAAAAAAA/42Vd1AT2BbGE3pdWmgSepEWgqKwiBCJEEhCCRBYKQoJkBA6" +
+                        "JLAqlqcIruCCCquAFBGINAkIuKLEFZBAJEuTuPQSQCGiAkFQNOThvpn30Jl1" +
+                        "3r1z/rgz935nzv1mvh8GLSwCAkhISAAAAF3AzgUCiADcnbGOEKQHAuru6IFE" +
+                        "OPtgLdwRW88AAJ47q8cNDbEYkEVDTHtZfY3elkNW0/OJFih3c6T7QFJ1k/cy" +
+                        "CpJgimKxzPyWe6FMJmt2njMvBMCgxSVoSiY02+0GNtuF+U57AIASTqZA46OI" +
+                        "UB8KjhJuERqNI5NjMO6e7YfkT4/BTXwbdExviWdPt+mthIDcW/OuhLjd0jUq" +
+                        "VAlCloI6Yi91banIbUnIUWcWsvd6DGRq3zihPTJywuqdNi0O4FHfd8UHbvoq" +
+                        "YW/iwwyzq8DQSuuJxvU86INZXsjc+A8MfGUvVBAgsx4HTQWl2ipWd/ExlqCa" +
+                        "ZsHmILvgteLLsZz8VfqTFoWMKXIn8zlVuojTUB6WIyRmrStgorFFw/w9h62y" +
+                        "Eq/7Ddb+eG+fnQk11iGXs9BvOdtNEK8tZTd7tL0wGyWBJyDB3j3EjspyVm6R" +
+                        "x1YE5vN633vSAbL/Xkv6h2dxdZ/LLuG7k+leT3x/3D3G7W3/iAlKcbiUuFsm" +
+                        "10bZ3vOkcHCQaNvlglZ/HdmC1H1+dv1HZfpPexlVtF3Y+pOC9TvSrjUjSu/2" +
+                        "zmZfnGwPkH4NidZxAd2EDHdvtBlIDXM7rhijotFLrkvPnAgOwC+2CDBzJF8g" +
+                        "ADAG/J4tBjttcSSfiA3F4IikWKITjoJzIhEI4Yn/sanIN9BTwwW0RZBdx8vk" +
+                        "zf/Q0n9IqV43fV/M4CEkcHdnlTAoCIUO3Dec6t862Zz8wu94FeYsSuCohTHV" +
+                        "Ms3tqhaUC0q5+c3AUAuvKKYVsff9TXJvIZ9XMgsDHGRYd2h6ukK9TOeUeKtP" +
+                        "eutWW0mvcsZnkeSff3qga5neMMJqXHOgLV/ofHMKH04MDqPnt/SYp0foQy8Y" +
+                        "pU/Xkm5OgjtyGtb8W5OyU/AvBz+OtwWM3P+YZUhg2KipaECIs/ksVlAZ32Rj" +
+                        "F1R48fysP7VomAZSopl2/pYRD7n4ysBRG2kX69AAbdW8cfO+W/xYcnfFojx9" +
+                        "6XhPeI/eXZUkJVhulh8quAj2fP1CFNns6j37Gwfz/NXhGoc9kz3DpPer1ozP" +
+                        "OztmyMgxLIj1WY11hXOSySKav6QPZHlIxWXa3Jl5pDbaUwEeyBy/l3z8/q2y" +
+                        "i7qWVLfzC9Jl6nzsNQbIpT+jTSVCLeNWDWqCsPDYlKiwNl3nrUaIWF13Y1oW" +
+                        "Pm4JNXY5eqO6NnEqqeBTuXGLHnoJvJieAUcVqxr8XoTraeC1a16f92YmIM+V" +
+                        "jigq49i+b4cKuNf89FYVglCGOdDrSH8/K6Xs29mloYHsyJQhTmcRWLsoY7oU" +
+                        "lZHu5CLvI7PRC40eVb6jo0gK5jUvf7DoO5mVIt+un/6CY5s6Q9usZi914/uY" +
+                        "kAQ7oqRtQXIhvIXibEKzYoFznwqU/A5PRtud8a/eDJ9YC5zZ4yA7q3QKYXIC" +
+                        "Tp+9HpM+2bBSc3OGfNAqIp5VuS5V5XbGse9lqmeAMmylpJh2L6JykiLCY3Mh" +
+                        "8kPOwjLYj8WIlKnCUl5TIBaymBbPIXWi/vXEqrmpMi2oXmhlKo/rJFs6T1Xf" +
+                        "crAFy0TxAz7MWdY6k7zsNPfTWxhvYbaXFzeZuNzOJpM3CnzVk2sO+oqyMlxE" +
+                        "Tqm9vW1h5ElBICbTGnp5gW4g8UJyQS1y6Lkq5+QCwV5fLUZ9iNr++MzrgA3R" +
+                        "iT83/tjMkgAj4X+5jtZocY9wnw1Nm3dg91JgaXLSWr/mJ1nFkWlLg4/At8WW" +
+                        "WbddR5R9CoYkeK9Sr1Lbb+foV2Q1kTLnExNcHqizzWUQo8zEqNRH1AN/5ZX9" +
+                        "+riXMSN6Z4an4Aj9g9CY4Ly2/NAnuZFTUVXoogruyinuQbPf3sijJpOoo2Ih" +
+                        "lfkud+IWy2cMrSPkBos6mjQipY6ZlQFdKfa0/GTu2X0zdgf4cGv3pqlsjatT" +
+                        "ODe1iSaPXfQmxiRORwXWfnf4qcLbp0bZywOBMIbRXfpclw6MHtEm/1HT6IL2" +
+                        "4a4Ng0xfe44WAluiWNFvVVKN982Fq1SWvuiTv9+/Jcx/JLT/QVIUFqhtqC96" +
+                        "KvW8sQtiPA8TMrsSyhJ6Z/mzQpi818Po3WmWCxogw+ox8ZHAZgdhks7b1PFV" +
+                        "T9gmGPHTYHwwB8gQYSzipdp4u84fhd8qPnb2NBe/cim09YGQi4hwRJnEm9y6" +
+                        "2Nuf4se69gS9T0gvE5j781WlPlWUXLd+Aw8QY9ucixAlAtjaKa8zbaIk096F" +
+                        "b3VE/r5wgI0Bfp57pw6TNTPgZ1jUN6UdkqoCHatY3j/oxEmS6jkyIpRzpNMm" +
+                        "8BfXy661yFr0U0MxQ4RhgOFDg2L0muv4b9jMkqiRs6hzRlXM3VFYxRyB0Jd8" +
+                        "jDwxrdsrsp2Pkt/LR43t+i81Y3CkWIuoOEo0KTY4Ji4sKTo8NCQkhLBdIngP" +
+                        "MWMMvh8P+BuJ7/Va6UrbL9X+RiJQCAT4n/pOXH5h8tfrnwj9rcrOdAd9pXD2" +
+                        "H0D7rcLO+Q2+UlAR+v+Y8K3izqk1vlK0Fv/uL2LQomJfrolsb/3tga6Jfzn9" +
+                        "Gy2z08bLCAAA"
+                ),
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public final class AsyncPagingDataDiffer<T> {
-                    ctor @Deprecated public AsyncPagingDataDiffer(test.pkg.State<? extends T> state);
+                    ctor @BytecodeOnly @Deprecated public AsyncPagingDataDiffer(test.pkg.State!);
                     ctor public AsyncPagingDataDiffer(test.pkg.State<? extends T> initState, test.pkg.State<? extends T> nextState);
                     ctor public AsyncPagingDataDiffer(test.pkg.State<? extends T> initState, test.pkg.State<? extends T> nextState, Runnable updateCallback);
                   }
                   public interface State<T> {
-                    method public T getValue();
+                    method @InaccessibleFromKotlin public T getValue();
                     property public abstract T value;
                   }
                 }
@@ -5289,12 +5913,12 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
-                  @Deprecated public sealed interface LazyInfo {
-                    method @Deprecated public int getIndex();
-                    method @Deprecated public int getKey();
+                  @Deprecated public sealed exhaustive interface LazyInfo {
+                    method @InaccessibleFromKotlin @Deprecated public int getIndex();
+                    method @InaccessibleFromKotlin @Deprecated public int getKey();
                     property @Deprecated public abstract int index;
                     property @Deprecated public abstract int key;
                   }
@@ -5325,19 +5949,18 @@ class ApiFileTest : DriverTest() {
                 ),
             // Access androidx.annotation.IntRange
             classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
-                  @kotlin.annotation.Repeatable public @interface RequiresExtension {
-                    method public abstract int extension();
-                    method public abstract int version();
-                    property @IntRange(from=1L) public abstract int extension;
-                    property @IntRange(from=1L) public abstract int version;
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) @kotlin.annotation.Repeatable public @interface RequiresExtension {
+                    ctor @KotlinOnly public RequiresExtension(@IntRange(from=1L) int extension, @IntRange(from=1L) int version);
+                    method @InaccessibleFromKotlin public abstract int extension();
+                    method @InaccessibleFromKotlin public abstract int version();
+                    property public abstract int extension;
+                    property public abstract int version;
                   }
-                  @kotlin.annotation.Repeatable public static @interface RequiresExtension.Container {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) @kotlin.annotation.Repeatable public static @interface RequiresExtension.Container {
                     method public abstract test.pkg.RequiresExtension[] value();
-                    property @IntRange(from=1L) public abstract int extension;
-                    property @IntRange(from=1L) public abstract int version;
                   }
                 }
             """
@@ -5356,7 +5979,7 @@ class ApiFileTest : DriverTest() {
                         package test.pkg
                         internal fun bar() {}
 
-                        private val baz
+                        private val baz = 0
 
                         class Toast {
                             val foo: Int = 0
@@ -5375,13 +5998,10 @@ class ApiFileTest : DriverTest() {
                         """
                         package test.pkg
 
-                        /**
-                         * @suppress
-                         */
                         @PublishedApi
                         internal fun internalYetPublished() {}
 
-                        private val buzz
+                        private val buzz = 0
                     """
                     ),
                     kotlin(
@@ -5401,18 +6021,6 @@ class ApiFileTest : DriverTest() {
                          */
                         @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
                         fun conditionalError(): ConfigurationError? = null
-                    """
-                    ),
-                    kotlin(
-                        "test/pkg/test2.kt",
-                        """
-                        package test.pkg
-                        import androidx.annotation.VisibleForTesting
-
-                        @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
-                        fun shouldBePackagePrivate() {}
-
-                        private fun shouldBePrivate() {}
                     """
                     ),
                     kotlin(
@@ -5462,6 +6070,28 @@ class ApiFileTest : DriverTest() {
                     restrictToSource,
                     visibleForTestingSource,
                 ),
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 2.3.20 (JRE 21.0.9+10-b1163.91)
+                    "" +
+                        "H4sIAAAAAAAA/wvwZmYRYeDg4GBgYFBkQAYiDLwMvq4hjrqefm76vo5+nm6u" +
+                        "wSF6vm6hIawMjAzLzgn9O8XA8Nn3zGkfb129i7zeulrnzpzfHGRwxfjB0yI9" +
+                        "L18dT9+Lpau2BH3w0i3U8jpzRjvswzn9kyfPPH766CkTQ4A3O8d6Yc31lkCb" +
+                        "zIE4AKc7RBk4GUpSi0v0C7LT9UOADO8SveScxOJiuENS/U97MTsKrLnXW/kz" +
+                        "ytRO6OsjT/11XQ8cBV0Exeev6Jh0OcfoxYyza1LSmyu46rrqH1xtZumvm3JD" +
+                        "WJ7jnVNoqW/p5b//Pn7iShDd3JKoLPz4vum6v8Viv9XYlSq2L9L94/Ei+7/F" +
+                        "nqmmZbFOnpnK0VEu4ZfmLElcMkk6Un3HZ27xlo/NbjlKS//en77Weqvfifwr" +
+                        "N0LTJk/gvNzOzsTaMnH+l4Umi/R6Hiy5nLN7z9Tkg1sZzpnd2B++LSopNF7t" +
+                        "x91zDhtva1rN++z60+ve6zKtc0JvL96Z8HxDkf59ufJ78zaZJd4OO8F3+maw" +
+                        "uHSb+c2+15Py7QOi5JaeDdh2zlVio3HtrKzFs4wu5E7V2LZtS1+vgdY1zoUV" +
+                        "YsvXzroTahb1ry/uD3eSJJ/R3r/aGgsy+p0ka08Y+ReGHrvufn7vBN3NZx4s" +
+                        "O7X9nOHzn9tvbeP5l7vx87Jqi07JZ6Z8Xz//adS6w9DM2MbEczi5cyLDYonV" +
+                        "TUJTDOJc1RzjmzpZWI/5g+Iu7r+JRgEjAwMHE764kwbGHTwN5SZm5ull55fk" +
+                        "ZObF5+anlOakwmMwOSEhIQ2IkxouJBxQPXI0cFJUzKLwCXP1jogxpVRO1zDM" +
+                        "MGQAJ5kC2fu+qkCDdcBJhpFJhAFhMXJyAiVeVEAwKaMbh+xDUBpEgA4gxp8i" +
+                        "0c1CdrY0ilkuTAxEhVCANysbSD0zEL4F0ruZQDwAHw3PAL4DAAA="
+                ),
             extraArguments =
                 arrayOf(
                     ARG_SHOW_UNANNOTATED,
@@ -5471,7 +6101,7 @@ class ApiFileTest : DriverTest() {
                     "androidx.annotation.RestrictTo(androidx.annotation.RestrictTo.Scope.LIBRARY_GROUP)",
                 ),
             format = FileFormat.V4,
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 4.0
                 package test.pkg {
@@ -5480,7 +6110,7 @@ class ApiFileTest : DriverTest() {
                   }
                   public interface LazyLayoutItemProvider {
                     method public default int getIndex();
-                    method public int getItemCount();
+                    method @InaccessibleFromKotlin public int getItemCount();
                     property public abstract int itemCount;
                   }
                   public interface Path1 {
@@ -5493,11 +6123,11 @@ class ApiFileTest : DriverTest() {
                     method public static test.pkg.Path2 copy(test.pkg.Path2);
                   }
                   public final class TestKt {
-                    method @kotlin.PublishedApi internal static void internalYetPublished();
+                    method @BytecodeOnly @kotlin.PublishedApi internal static void internalYetPublished();
                   }
                   public final class Toast {
                     ctor public Toast();
-                    method public int getFoo();
+                    method @InaccessibleFromKotlin public int getFoo();
                     property public int foo;
                   }
                 }
@@ -5539,14 +6169,14 @@ class ApiFileTest : DriverTest() {
                     )
                 ),
             format = FileFormat.V4,
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 4.0
                 package test.pkg {
                   public final class Foo {
                     method public static void bar(String);
                     method public static void baz(String);
-                    method public static int getNonConstVal();
+                    method @InaccessibleFromKotlin public static int getNonConstVal();
                     property public static int constVal;
                     property public static int nonConstVal;
                     field public static final int constVal = 4; // 0x4
@@ -5569,29 +6199,58 @@ class ApiFileTest : DriverTest() {
                           @JvmName("newNameForRenamed")
                           fun renamed() = Unit
 
-                          @Deprecated(level = DeprecationLevel.HIDDEN)
+                          @Deprecated("deprecated", level = DeprecationLevel.HIDDEN)
                           fun deprecatedHidden() = Unit
 
                           @JvmName("newNameForRenamedAndDeprecatedError")
-                          @Deprecated(level = DeprecationLevel.ERROR)
+                          @Deprecated("deprecated", level = DeprecationLevel.ERROR)
                           fun renamedAndDeprecatedError() = Unit
 
                           @JvmName("newNameForRenamedAndDeprecatedHidden")
-                          @Deprecated(level = DeprecationLevel.HIDDEN)
+                          @Deprecated("deprecated", level = DeprecationLevel.HIDDEN)
                           fun renamedAndDeprecatedHidden() = Unit
                         }
                     """
                     )
                 ),
-            api =
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 17.0.6+10-b802.1)
+                    "" +
+                        "H4sIAAAAAAAA/wvwZmYRYeDg4GBgYFBkQAYiDCwMvq4hjrqefm76vo5+nm6u" +
+                        "wSF6vm7/TjEwfPY9c9rHW1fvIq+3rta5M+c3BxlcMX7wtEjPy1fH0/di6aot" +
+                        "QR+8dAu1vM6c0Q77cE7/5Mkzj58+esrEEODNzrFeWHO9JdACcyAOwGm9EBCX" +
+                        "pBaX6Bdkp+u75efrJeckFhdPDYr1F3YUsd2cW356Wv80/oULFjVxrchR3Jfp" +
+                        "c2FbpmfrEqm4CqldwjK7rL3Lpr1S3n+0/sHkTv62Hy/6je5FrjARNTSZebv6" +
+                        "vO3ze9bVz5+vz7/PaNN+3GAWx9yK43ed18u58kk4f+z4vkO8oPTFWzmZTr9H" +
+                        "CocT9k/xUlsvYaS9unrxiYNlE1sPT/C18zhrcE9K50vTwiVHjsvKdVWJbG9V" +
+                        "Op4+I690scqEU9avWu+V6ZtULkrznSX1+5GFmOw8jv2KtfEabSv3Lfil7lqj" +
+                        "LhL12XnSjulCbTEKVUoJGvzdKUui1FyDdl9cE5ZtzeNd37t96Z/Telst+pK0" +
+                        "IrO3l9/mOX198+/H037Nvd/V8tvm4ZWLXNWSv26cmSGYfODArpb6SWqrJjzP" +
+                        "N/iw+XLm9VmbY1ZXlL2Kqnx84eTt4vTls8Na9577+yNHeMtc/bRna722Pczp" +
+                        "Fy1+Pu/kk9yuuY0W/h9POLyZ5Tb7zJbyR/+cTn3c/96uPnRdffDsaXvu+WaU" +
+                        "5yvNFzO8OMnrzZwWdqW68/xMTmrRge3s1TbT1PYxiN9S15q4MGPVvCuTFugu" +
+                        "XaRyV2Cv4narDWc/sZa+13q0+4XKu45dPCxmCRedTfbLxPbeU70p2mXzeS7v" +
+                        "rm+iP/WfRESoZi9f0Gq6afFzlp4DS/8LcU3ZGvRxcolvSVvrTUbF3QJSRY1K" +
+                        "zX2ZIl2qPcK2xbWqz7u8/C9X2yw29rzB8rF71rNZIjMOmVgaLzkbF7+t4PCm" +
+                        "7W3H5y/8mP7/fvqjY4/5v85c+qUq6kuhVqagjftpjffKl4/UCHP73jkmW1S4" +
+                        "vdP1zm32yzv62X9rZOyQ8pbadqzilU42s92Sl6ZygW/vg9Lo9IQP21KYGBge" +
+                        "seBLo9JADM8iuYmZeXrZ+SU5mXnxufkppTmpyQkJCWlAzJLkx6YRkHQhiQGc" +
+                        "/r8q7dkrDNQpAU7/jEwiDAjTkfMGKAOiAlzZEd0UZNcLoZhQjzVXoetHdqE0" +
+                        "in5lZrw+DvBmZQMpYwbC8yDrmEE8AEJ8aHZkBAAA"
+                ),
+            expectedApiSignature =
                 """
                package test.pkg {
                  public final class Foo {
                    ctor public Foo();
-                   method @Deprecated public void deprecatedHidden();
-                   method public void newNameForRenamed();
-                   method @Deprecated public void newNameForRenamedAndDeprecatedError();
-                   method @Deprecated public void newNameForRenamedAndDeprecatedHidden();
+                   method @BytecodeOnly @Deprecated public void deprecatedHidden();
+                   method @InaccessibleFromKotlin public void newNameForRenamed();
+                   method @InaccessibleFromKotlin @Deprecated public void newNameForRenamedAndDeprecatedError();
+                   method @BytecodeOnly @Deprecated public void newNameForRenamedAndDeprecatedHidden();
+                   method @KotlinOnly public void renamed();
+                   method @KotlinOnly @Deprecated public void renamedAndDeprecatedError();
                  }
                }
             """
@@ -5620,7 +6279,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public final class Bar {
@@ -5641,6 +6300,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Partial signature files include affected subclass definitions`() {
         check(
+            apiSurface = KnownApiSurface.SYSTEM,
             format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
@@ -5658,7 +6318,6 @@ class ApiFileTest : DriverTest() {
 
                         import android.annotation.SystemApi;
 
-                        /** @hide */
                         @SystemApi
                         public class SystemSubClass extends SomePublicClass {
                         }
@@ -5672,9 +6331,8 @@ class ApiFileTest : DriverTest() {
                         }
                     """
                     ),
-                    systemApiSource,
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 2.0
                 package test.pkg {
@@ -5685,17 +6343,13 @@ class ApiFileTest : DriverTest() {
                   }
                 }
             """,
-            extraArguments =
-                arrayOf(
-                    ARG_SHOW_ANNOTATION,
-                    "android.annotation.SystemApi",
-                )
         )
     }
 
     @Test
     fun `Partial signature files include affected subclass definitions in complex class hierarchy`() {
         check(
+            apiSurface = KnownApiSurface.TEST,
             format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
@@ -5713,7 +6367,6 @@ class ApiFileTest : DriverTest() {
 
                         import android.annotation.SystemApi;
 
-                        /** @hide */
                         @SystemApi
                         public class SystemSubClass extends SomePublicClass {
                         }
@@ -5725,7 +6378,6 @@ class ApiFileTest : DriverTest() {
 
                         import android.annotation.TestApi;
 
-                        /** @hide */
                         @TestApi
                         public class TestSubClass extends SystemSubClass {
                         }
@@ -5737,7 +6389,6 @@ class ApiFileTest : DriverTest() {
 
                         import android.annotation.SystemApi;
 
-                        /** @hide */
                         @SystemApi
                         public class AnotherSystemSubClass extends TestSubClass {
                         }
@@ -5749,7 +6400,6 @@ class ApiFileTest : DriverTest() {
 
                         import android.annotation.TestApi;
 
-                        /** @hide */
                         @TestApi
                         public class AnotherTestSubClass extends AnotherSystemSubClass {
                         }
@@ -5763,14 +6413,14 @@ class ApiFileTest : DriverTest() {
                         }
                     """
                     ),
-                    systemApiSource,
-                    testApiSource,
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 2.0
                 package test.pkg {
                   public class AnotherPublicClass extends test.pkg.AnotherTestSubClass {
+                  }
+                  public class AnotherSystemSubClass extends test.pkg.TestSubClass {
                   }
                   public class AnotherTestSubClass extends test.pkg.AnotherSystemSubClass {
                     ctor public AnotherTestSubClass();
@@ -5780,13 +6430,79 @@ class ApiFileTest : DriverTest() {
                   }
                 }
             """,
-            extraArguments =
+        )
+    }
+
+    @Test
+    fun `Partial signature files do not include subclasses of reverted base API class`() {
+        check(
+            apiSurface = KnownApiSurface.TEST,
+            format = FileFormat.V2,
+            configFiles = arrayOf(KnownConfigFiles.configEmptyApiFlags),
+            checkCompatibilityApiReleasedList =
+                listOf(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class BaseSystemClass {
+                            ctor public BaseSystemClass();
+                          }
+                          public class SubSystemClass extends test.pkg.BaseSystemClass {
+                            ctor public SubSystemClass();
+                          }
+                        }
+                    """,
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class BaseSystemClass {
+                            method public void testMethod();
+                          }
+                        }
+                    """,
+                ),
+            sourceFiles =
                 arrayOf(
-                    ARG_SHOW_ANNOTATION,
-                    "android.annotation.TestApi",
-                    ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION,
-                    "android.annotation.SystemApi",
-                )
+                    java(
+                        """
+                            package test.pkg;
+
+                            import android.annotation.FlaggedApi;
+                            import android.annotation.SystemApi;
+                            import android.annotation.TestApi;
+
+                            @SystemApi
+                            @FlaggedApi("test.pkg.flags.foo_bar")
+                            public class BaseSystemClass {
+                                public BaseSystemClass() {}
+                                @TestApi
+                                public void testMethod() {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+
+                            import android.annotation.SystemApi;
+
+                            @SystemApi
+                            public class SubSystemClass extends BaseSystemClass {
+                                public SubSystemClass() {}
+                            }
+                        """
+                    ),
+                ),
+            classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
+            expectedApiSignature =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class BaseSystemClass {
+                        method public void testMethod();
+                      }
+                    }
+                """,
         )
     }
 
@@ -5815,7 +6531,6 @@ class ApiFileTest : DriverTest() {
                         import android.annotation.SystemApi;
 
                         /**
-                         * @hide
                          * @removed
                          */
                         @SystemApi
@@ -5889,8 +6604,11 @@ class ApiFileTest : DriverTest() {
                     )
                 ),
             format =
-                FileFormat.V5.copy(kotlinNameTypeOrder = true, includeTypeUseAnnotations = true),
-            api =
+                FileFormat.V5.buildCopy {
+                    this[INCLUDE_TYPE_USE_ANNOTATIONS] = true
+                    this[KOTLIN_NAME_TYPE_ORDER] = true
+                },
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public class Foo {
@@ -5941,7 +6659,7 @@ class ApiFileTest : DriverTest() {
             // `VisibleInterface` using [ClassItem.mapTypeVariables]. It really should become
             // `implements test.pkg.VisibleInterface<java.util.List<F>>`, but the `F` is erased from
             // `List` for legacy reasons.
-            api =
+            expectedApiSignature =
                 """
                     // Signature format: 5.0
                     package test.pkg {
@@ -5983,17 +6701,17 @@ class ApiFileTest : DriverTest() {
                         """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 5.0
                 package test.pkg {
                   public final class SeekableTransitionState<S> extends test.pkg.TransitionState<S> {
                     ctor public SeekableTransitionState(S initialState);
-                    method public S getCurrentState();
+                    method @InaccessibleFromKotlin public S getCurrentState();
                     property public S currentState;
                   }
-                  public abstract sealed class TransitionState<S> {
-                    method public abstract S getCurrentState();
+                  public abstract sealed exhaustive class TransitionState<S> {
+                    method @InaccessibleFromKotlin public abstract S getCurrentState();
                     property public abstract S currentState;
                   }
                 }
@@ -6024,17 +6742,170 @@ class ApiFileTest : DriverTest() {
                         """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public class Foo {
                         ctor public Foo();
                         method public java.util.List<java.lang.String?>! foo(Number?, Number!);
                       }
-                      @kotlin.annotation.Target(allowedTargets=kotlin.annotation.AnnotationTarget.TYPE) public @interface NullableType {
+                      @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) @kotlin.annotation.Target(allowedTargets=kotlin.annotation.AnnotationTarget.TYPE) public @interface NullableType {
                       }
                     }
                 """
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Test functions from delegate`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        internal interface Base {
+                            fun baseMethod()
+                            val baseVal: Int
+                        }
+                        internal class BaseImpl : Base {
+                            override fun baseMethod() = Unit
+                            override val baseVal = 0
+                        }
+                        class Delegated : Base by BaseImpl()
+                        """
+                    )
+                ),
+            // Compiled from the source above with [generateBase64gzipFromKotlin]
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 17.0.6+10-b802.1)
+                    "" +
+                        "H4sIAAAAAAAA/wvwZmYRYeDg4GBgYFBkQAYiDCwMvq4hjrqefm76vo5+nm6u" +
+                        "wSF6vm7/TjEwfPY9c9rHW1fvIq+3rta5M+c3BxlcMX7wtEjPy1fH0/di6aot" +
+                        "QR+8dAu1vM6c0Q77cE7/5Mkzj58+esrEEODNzrFeWHO9JdACcyAOwGm9MBCX" +
+                        "pBaX6Bdkp+s7JRan6iXnJBYXh/r7+h9yEJlzd9q2kIlNXQf4Dao2euyp/KR8" +
+                        "TKqHU+1IS3f0jYTczN7dAv1/xPj/cfC3FXxxl7w/qcLg5pnZc2t/p937fv65" +
+                        "eIPwFkmtKC3ZfUsmf4jReNlkyHI+Se+Qz5PJH/Tqpim/PZT0Iblq/9RfKyWM" +
+                        "I9jbmSepBc2OZ564dmnHwmve3HNVKz3mJulssUh9cHmna9kZh5sMEhFev6KT" +
+                        "8mSTHie3nX666OFnte+VG2J+lFQ8+Hln84qi9xt3xpRUtt+taLz8TPZ71f54" +
+                        "fgvD14lfE9ffk12eW10WYLR5F8/Ve/u3arBU7voYH3a9w33lMtF33Tdfe8Sp" +
+                        "zkzJ+Jq+029Z0YQVKueeRM4Tj3qx5MRU5+LE2S8emDlz8jlcbU0XMbm+o13s" +
+                        "KneRVnC7fYtoovKhtBaubR2LpBQdcjmWBRz/JjDvUN+hdU7JveuMvDp/6IPi" +
+                        "YG/Lnb3OjAwMCxnxxYE4ehx45hbkQOIhN+B03mUHEdtk629HVHpnT5vU9v23" +
+                        "6sMtSexOixZwLQ4IcBQMCnucMsXv8Y3QtKCNZ8I/MK65qaCouNEhcHqNyCM/" +
+                        "LtHcyDvV53eWn7tz/Hz8/XqGio7bPN1uWcLvedk/tl0wknybyijhvEX7m+uc" +
+                        "zhqB/X7lqedZCiRXHZdj1zD80R+67oww2/dzd/1YGSs4+FPZzr/ROLvhit3V" +
+                        "B4LOM4TqVM/6XVQ3mnDsmpXS7PrJBiwv489N4lLSmfZwgd/lbe2tJ0PkJod9" +
+                        "aRX8Mt34VnmmdFrsTasJWR4/+U9tElv4T+rw7JtbBK14n1+wiDyiuUtE1m/r" +
+                        "zZK7mRt7Lx1Un2+kXyliMlesfuOmvTI7W/Z8Z5efH9zbvjnz8uOlJ7b/X2d8" +
+                        "pU/fgznw/4FD7M7O6RVhX5bWLi3aaSq5tOiP3xLJ1FdvF6lv6pPQPv1f5fD2" +
+                        "oyl3Js8+NenqW8+8Kx5lU8JCamc9bxV0E915TGru4cV2dpF377WLlebGF3y6" +
+                        "3nH0G5eI9/d9in+cDhws/fTP5uVjtp+nHjLPUUxpXyfX+f685U3PxA/9E2Q5" +
+                        "xQOsr37VnmY3X+Dz/5LSguJ36x+JHfVdpRv8Nkc8r2kqy3Mhkw1eAmdZnhcu" +
+                        "5F5WKDh9l0Z2iIledkGvx+OuY01uvou9fpiDEkdG4ubYG8CE8YAJX+KQQE4c" +
+                        "Lqk5qemJJakpkNRRGhjrL+woYrv5dtn210q3+bdcyV/LEXrTqUYoWUkqyfMq" +
+                        "i+/il80zt03eVLLb2yr4kfL+JvkHm/VVtDrV2r5clE/ds/mKlIrdmb9W38/Z" +
+                        "Fj97vj7fnsGm4fyEcCet+u33P8/vDPiyQyiWu+fg7YfVd/grr3yO31ru4h5p" +
+                        "IJm27O7rGC7uzLYzixW4riSzFReufHmo6a1Cq47zu5D82g3SURbPD1ydEb2y" +
+                        "RP31vesSXL3Ge7P1ziWbcTPLOXvlsk9aeMPCu6z34EvOpcdn2fhEXIkVMVxu" +
+                        "HquwwfcE98Jtj9d1T1J7njTvhOmvjVzNJ9Q7ync+Kuk3vGHsKbbMN0zaYIPd" +
+                        "VXsWK+V5buWtCwv3xBf1TCosyrGa53tPJX9K3/fwXqlo/377NI27Z6rCbq64" +
+                        "ef44e472+5kiy+/18ZvM0lz+Zsv0i+XrjM7ME2s4EfHWXl9JbJqe3ndRzY8m" +
+                        "77juyrs8eppxQeyw+R7ZINX7HdY2OZ8SF3z2vFgp298mu1HwRUpdtsjKBIVZ" +
+                        "jTwctUKuGx9pdSh3ik6ydK02SoiLe+133vRr3I2U1VNsfYoOrJY7uLKu/fc7" +
+                        "DuP4CdZLZjXuTjHmfPdALvL7EvFKESHRl9Zq33UyfE/evnr+RO3Ro/6c/8qP" +
+                        "zTs3Zdnu/zM15f+lHzvw94he4sw/bInTJxx7KnbGat2Vwq192Tv8FPOuFApv" +
+                        "j0oQEr2Tp6gdOCFiwgbVdx46XiKqz1S8RP6zgZJVptGxH4LAJKXDjC9ZSQMx" +
+                        "vNrJTczM08vOL8nJzIvPzU8pzUlNTkhISANiliQ/No2ApAtJDOA65avSnr3C" +
+                        "0EQZ4M3IJMKAMB25vgFVaqgAVxWHbgpyiSmMYkI99poK3QDkXCWOYgAzE85i" +
+                        "Ft0Q5DCUQDFEgQV3dkQ3BTm0pFFMKWfDG/oB3qxsIGWsQBgN9MtlMA8AIz7W" +
+                        "WUQIAAA="
+                ),
+            // The delegate APIs shouldn't be bytecode only, but it is better that they are tracked
+            // that way than not tracked at all.
+            expectedApiSignature =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Delegated {
+                    ctor public Delegated();
+                    method public void baseMethod();
+                    method @BytecodeOnly public int getBaseVal();
+                    property public int baseVal;
+                  }
+                }
+                """
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Test primary constructor with defaults and secondary constructor with JvmOverloads`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        // Annotations defined to make it clear which constructor the output is based on
+                        annotation class A
+                        annotation class B
+                        class Foo @A constructor(i: Int = 0) {
+                            @JvmOverloads @B
+                            constructor(s: String = "", i: Int = 0): this(i)
+                        }
+                        """
+                    )
+                ),
+            expectedApiSignature =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface A {
+                  }
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface B {
+                  }
+                  public final class Foo {
+                    ctor @test.pkg.B public Foo();
+                    ctor @test.pkg.A public Foo(optional int i);
+                    ctor @test.pkg.B public Foo(optional String s);
+                    ctor @test.pkg.B public Foo(optional String s, optional int i);
+                  }
+                }
+                """
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Test typealiases from classpath are not listed`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        // The kotlin package is used here to make it so built-in kotlin typealiases
+                        // are also processed.
+                        """
+                        package kotlin
+                        """,
+                    ),
+                    kotlin(
+                        """
+                        package test.pkg
+                        typealias Foo = String
+                        """
+                    ),
+                ),
+            expectedApiSignature =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public typealias Foo = String;
+                }
+                """,
         )
     }
 }

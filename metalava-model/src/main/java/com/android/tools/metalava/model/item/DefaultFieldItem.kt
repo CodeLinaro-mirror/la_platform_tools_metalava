@@ -16,67 +16,92 @@
 
 package com.android.tools.metalava.model.item
 
-import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
-import com.android.tools.metalava.model.ItemLanguage
+import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.SourceLanguage
+import com.android.tools.metalava.model.SourcePosition
+import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TypeItem
-import com.android.tools.metalava.reporter.FileLocation
+import com.android.tools.metalava.model.duplicatingFactory
+import com.android.tools.metalava.model.scope.NameClassification
+import com.android.tools.metalava.model.scope.ReferencableNameScope
+import com.android.tools.metalava.model.value.ConstantValue
+import com.android.tools.metalava.model.value.OptionalValueProvider
 
-open class DefaultFieldItem(
+internal class DefaultFieldItem(
     codebase: Codebase,
-    fileLocation: FileLocation,
-    itemLanguage: ItemLanguage,
-    variantSelectorsFactory: ApiVariantSelectorsFactory,
+    fileLocationSource: FileLocationSource,
+    sourcePosition: SourcePosition,
+    sourceLanguage: SourceLanguage,
+    targetLanguages: Set<TargetLanguage>,
     modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
     name: String,
     containingClass: ClassItem,
     private var type: TypeItem,
     private val isEnumConstant: Boolean,
-    override val fieldValue: FieldValue?,
+    private val constantValueProvider: OptionalValueProvider?,
 ) :
     DefaultMemberItem(
         codebase = codebase,
-        fileLocation = fileLocation,
-        itemLanguage = itemLanguage,
+        fileLocationSource = fileLocationSource,
+        sourcePosition = sourcePosition,
+        sourceLanguage = sourceLanguage,
+        targetLanguages = targetLanguages,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
-        variantSelectorsFactory = variantSelectorsFactory,
         name = name,
         containingClass = containingClass,
     ),
     FieldItem {
 
-    final override var inheritedFrom: ClassItem? = null
+    override var inheritedFrom: ClassItem? = null
 
-    final override fun type(): TypeItem = type
+    override fun type(): TypeItem = type
 
-    final override fun setType(type: TypeItem) {
+    override fun setType(type: TypeItem) {
         this.type = type
     }
 
+    override var property: PropertyItem? = null
+
     override fun duplicate(targetContainingClass: ClassItem) =
         DefaultFieldItem(
-                codebase = codebase,
-                fileLocation = fileLocation,
-                itemLanguage = itemLanguage,
-                variantSelectorsFactory = variantSelectors::duplicate,
+                // Create it in the same codebase as targetContainingClass.
+                codebase = targetContainingClass.codebase,
+                fileLocationSource = duplicateFileLocationSource(),
+                sourcePosition = sourcePosition,
+                sourceLanguage = sourceLanguage,
+                targetLanguages = targetLanguages,
                 modifiers = modifiers,
-                documentationFactory = documentation::duplicate,
+                documentationFactory = documentation.duplicatingFactory(),
                 name = name(),
                 containingClass = targetContainingClass,
                 type = type,
                 isEnumConstant = isEnumConstant,
-                fieldValue = fieldValue,
+                constantValueProvider = constantValueProvider,
             )
             .also { duplicated -> duplicated.inheritedFrom = containingClass() }
 
-    final override fun initialValue(requireConstant: Boolean) =
-        fieldValue?.initialValue(requireConstant)
+    override val constantValue
+        get() = constantValueProvider?.optionalValue?.let { it as ConstantValue }
 
-    final override fun isEnumConstant(): Boolean = isEnumConstant
+    override fun isEnumConstant(): Boolean = isEnumConstant
+
+    override val containingScope: ReferencableNameScope?
+        get() =
+            // Fallback to the containing class.
+            containingClass()
+
+    override fun resolveReferencableItemBySimpleName(
+        simpleName: String,
+        nameClassification: NameClassification,
+        isFirstSimpleName: Boolean
+    ) =
+        // Field does not define a name scope.
+        null
 }

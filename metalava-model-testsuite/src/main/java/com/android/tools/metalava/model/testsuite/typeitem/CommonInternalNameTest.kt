@@ -153,8 +153,46 @@ class CommonInternalNameTest : BaseModelTest() {
                 ),
                 TestParams(
                     javaType = "java.util.List<java.lang.Number>[]",
-                    kotlinType = "Array<java.util.List<java.lang.Number>[]>",
+                    kotlinType = "Array<java.util.List<java.lang.Number>>",
                     internalName = "[Ljava/util/List;",
+                ),
+                TestParams(
+                    javaType = "T",
+                    internalName = "Ljava/lang/Object;",
+                ),
+                TestParams(
+                    javaType = "T[]",
+                    kotlinType = "Array<T>",
+                    internalName = "[Ljava/lang/Object;",
+                ),
+                TestParams(
+                    javaType = "N",
+                    internalName = "Ljava/lang/Number;",
+                ),
+                TestParams(
+                    javaType = "N[]",
+                    kotlinType = "Array<N>",
+                    internalName = "[Ljava/lang/Number;",
+                ),
+                TestParams(
+                    javaType = "kotlin.jvm.functions.Function1<java.lang.Integer,java.lang.String>",
+                    kotlinType = "(Int) -> String",
+                    internalName = "Lkotlin/jvm/functions/Function1;",
+                ),
+                TestParams(
+                    javaType = "test.pkg.Outer.middle",
+                    internalName = "Ltest/pkg/Outer\$middle;",
+                ),
+                TestParams(
+                    javaType = "test.pkg.Outer.middle.Inner",
+                    internalName = "Ltest/pkg/Outer\$middle\$Inner;",
+                ),
+                TestParams(
+                    javaType = "test.pkg.lower.Inner",
+                    internalName = "Ltest/pkg/lower\$Inner;",
+                    // Signature files do not resolve classes when parsing types so cannot
+                    // distinguish a top-level class with a lowercase name from a package name.
+                    skipForInputFormats = setOf(InputFormat.SIGNATURE),
                 ),
             )
 
@@ -187,31 +225,76 @@ class CommonInternalNameTest : BaseModelTest() {
             }
 
         runCodebaseTest(
-            signature(
-                """
-                // Signature format: 2.0
-                package test.pkg {
-                    public interface Foo {
-                        method public $returnType method($parameterType p);
-                    }
-                }
-                """
+            inputSet(
+                signature(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public interface Foo<T, N extends java.lang.Number> {
+                            method public $returnType method($parameterType p);
+                          }
+                          public class Outer {
+                          }
+                          public static class Outer.middle {
+                          }
+                          public static class Outer.middle.Inner {
+                          }
+                        }
+                    """
+                ),
             ),
-            java(
-                """
-                package test.pkg;
-                public interface Foo {
-                    $returnType method($parameterType p);
-                }
-                """
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        public interface Foo<T, N extends Number> {
+                            $returnType method($parameterType p);
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class Outer {
+                            private Outer() {}
+                            public static class middle {
+                                private middle() {}
+                                public static class Inner {
+                                    private Inner() {}
+                                }
+                            }
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class lower {
+                            private lower() {}
+                            public static class Inner {
+                                private Inner() {}
+                            }
+                        }
+                    """
+                ),
             ),
-            kotlin(
-                """
-                package test.pkg
-                interface Foo {
-                    fun method(${kotlinParameterPrefix}p: $kotlinParameterType): $kotlinReturnType
-                }
-                """
+            inputSet(
+                kotlin(
+                    """
+                        package test.pkg
+                        interface Foo<T, N : Number> {
+                            fun method(${kotlinParameterPrefix}p: $kotlinParameterType): $kotlinReturnType
+                        }
+                        class Outer private constructor() {
+                            class middle private constructor() {
+                                class Inner private constructor()
+                            }
+                        }
+                        class lower private constructor() {
+                            class Inner private constructor()
+                        }
+                    """
+                ),
             ),
         ) {
             val methodItem = codebase.assertClass("test.pkg.Foo").methods().single()

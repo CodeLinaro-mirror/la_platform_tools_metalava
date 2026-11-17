@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.testing.createAndroidModuleDescription
 import com.android.tools.metalava.testing.createCommonModuleDescription
 import com.android.tools.metalava.testing.createProjectDescription
+import com.android.tools.metalava.testing.defaultJvmPlatforms
 import com.android.tools.metalava.testing.getAndroidJar
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
@@ -87,7 +88,7 @@ class ProjectDescriptionTest : DriverTest() {
                     "project.xml",
                     """
                         <project>
-                          <module name="app" android="true" library="false">
+                          <module name="app" android="true" library="false" kotlinPlatforms="$defaultJvmPlatforms">
                             <src file="androidMain/src/some/pkg/Foo.kt" />
                             <src file="androidMain/src/test/Bar.java" />
                             <classpath file="${getAndroidJar()}"/>
@@ -95,7 +96,7 @@ class ProjectDescriptionTest : DriverTest() {
                         </project>
                     """
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package some.pkg {
                   public final class Foo {
@@ -147,21 +148,22 @@ class ProjectDescriptionTest : DriverTest() {
                     """
                         <project>
                           <root dir="src/androidMain"/>
-                          <module name="androidMain" android="true">
+                          <module name="androidMain" android="true" kotlinPlatforms="$defaultJvmPlatforms">
                             <src file="src/androidMain/some/pkg/Foo.kt" />
                             $standardProjectXmlClasspath
                           </module>
                         </project>
                     """
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 5.0
                 package some.pkg {
                   public final class Foo {
                     ctor public Foo();
                     method public static String foo(String x);
-                    method public void renamed();
+                    method @InaccessibleFromKotlin public void renamed();
+                    method @KotlinOnly public void wrongName();
                     field public static final some.pkg.Foo.Companion Companion;
                   }
                   public static final class Foo.Companion {
@@ -194,20 +196,20 @@ class ProjectDescriptionTest : DriverTest() {
                     """
                         <project>
                           <root dir="src/androidMain"/>
-                          <module name="androidMain">
+                          <module name="androidMain" kotlinPlatforms="$defaultJvmPlatforms">
                             <src file="src/androidMain/some/pkg/Foo.kt"/>
                             $standardProjectXmlClasspath
                           </module>
                         </project>
                     """
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 5.0
                 package some.pkg {
                   public final class Foo {
                     ctor public Foo();
-                    method public int getLazyVal();
+                    method @InaccessibleFromKotlin public int getLazyVal();
                     property public int lazyVal;
                   }
                 }
@@ -240,7 +242,7 @@ class ProjectDescriptionTest : DriverTest() {
                     createAndroidModuleDescription(arrayOf(androidSrc)),
                     createCommonModuleDescription(arrayOf(commonSrc)),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public final class Android {

@@ -16,33 +16,25 @@
 
 package com.android.tools.metalava.model.text
 
-import com.android.tools.metalava.model.ArrayTypeItem
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.JAVA_LANG_ANNOTATION
-import com.android.tools.metalava.model.JAVA_LANG_ENUM
-import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.type.ContextNullability
 import com.android.tools.metalava.model.type.DefaultTypeItemFactory
+import com.android.tools.metalava.model.type.TypeString
 
 internal class TextTypeItemFactory(
     private val assembler: TextCodebaseAssembler,
     private val typeParser: TextTypeParser,
     typeParameterScope: TypeParameterScope = TypeParameterScope.empty,
-) : DefaultTypeItemFactory<String, TextTypeItemFactory>(typeParameterScope) {
+) : DefaultTypeItemFactory<TypeString, TextTypeItemFactory>(typeParameterScope) {
 
-    /** A [JAVA_LANG_ANNOTATION] suitable for use as a super type. */
-    val superAnnotationType
-        get() = getInterfaceType(JAVA_LANG_ANNOTATION)
-
-    /** A [JAVA_LANG_ENUM] suitable for use as a super type. */
-    val superEnumType
-        get() = getSuperClassType(JAVA_LANG_ENUM)
-
-    /** A [JAVA_LANG_OBJECT] suitable for use as a super type. */
-    val superObjectType
-        get() = getSuperClassType(JAVA_LANG_OBJECT)
+    /** Construct a [TextTypeItemFactory] suitable for creating types within [classItem]. */
+    fun from(classItem: ClassItem?): TextTypeItemFactory {
+        val scope = TypeParameterScope.from(classItem)
+        return if (scope.isEmpty()) this else createNestedFactory(scope)
+    }
 
     override fun self() = this
 
@@ -50,48 +42,25 @@ internal class TextTypeItemFactory(
         TextTypeItemFactory(assembler, typeParser, scope)
 
     override fun getType(
-        underlyingType: String,
+        underlyingType: TypeString,
         contextNullability: ContextNullability,
         isVarArg: Boolean
-    ): TypeItem {
-        var typeItem =
-            typeParser.obtainTypeFromString(
-                underlyingType,
-                typeParameterScope,
-                contextNullability,
-            )
+    ): TypeItem =
+        typeParser.obtainTypeFromString(
+            underlyingType.type,
+            typeParameterScope,
+            contextNullability,
+            underlyingType.offset,
+        )
 
-        // Check if the type is an array and its component nullability needs to be updated based on
-        // the context.
-        val forcedComponentNullability = contextNullability.forcedComponentNullability
-        if (
-            typeItem is ArrayTypeItem &&
-                forcedComponentNullability != null &&
-                forcedComponentNullability != typeItem.componentType.modifiers.nullability
-        ) {
-            typeItem =
-                typeItem.substitute(
-                    componentType = typeItem.componentType.substitute(forcedComponentNullability),
-                )
-        }
-
-        // Check if the type's nullability needs to be updated based on the context.
-        val typeNullability = typeItem.modifiers.nullability
-        val actualTypeNullability =
-            contextNullability.compute(typeNullability, typeItem.modifiers.annotations)
-        return if (actualTypeNullability != typeNullability) {
-            typeItem.substitute(actualTypeNullability)
-        } else typeItem
-    }
-
-    override fun getExceptionType(underlyingType: String) =
+    override fun getExceptionType(underlyingType: TypeString) =
         super.getExceptionType(underlyingType).also { exceptionTypeItem ->
             if (exceptionTypeItem is ClassTypeItem) {
                 assembler.requireStubKindFor(exceptionTypeItem, StubKind.THROWABLE)
             }
         }
 
-    override fun getInterfaceType(underlyingType: String) =
+    override fun getInterfaceType(underlyingType: TypeString) =
         super.getInterfaceType(underlyingType).also { classTypeItem ->
             assembler.requireStubKindFor(classTypeItem, StubKind.INTERFACE)
         }

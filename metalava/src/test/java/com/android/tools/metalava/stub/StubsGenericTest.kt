@@ -60,18 +60,16 @@ class StubsGenericTest : AbstractStubsTest() {
                     )
                 ),
             expectedIssues = "",
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public interface MyInterface2<T extends java.lang.Number> extends test.pkg.MyBaseInterface {
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public abstract static class Range<T extends java.lang.Comparable<? super T>> {
                     public Range() { throw new RuntimeException("Stub!"); }
                     }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public static class TtsSpan<C extends test.pkg.MyInterface<?>> {
                     public TtsSpan() { throw new RuntimeException("Stub!"); }
                     }
@@ -158,7 +156,6 @@ class StubsGenericTest : AbstractStubsTest() {
                 public Collections() { throw new RuntimeException("Stub!"); }
                 public abstract <T extends java.util.Collection<java.lang.String>> T addAllTo(T t);
                 public static <T extends java.lang.Object & java.lang.Comparable<? super T>> T max(java.util.Collection<? extends T> collection) { throw new RuntimeException("Stub!"); }
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public final class Range<T extends java.lang.Comparable<? super T>> {
                 public Range() { throw new RuntimeException("Stub!"); }
                 }
@@ -197,7 +194,6 @@ class StubsGenericTest : AbstractStubsTest() {
                 public static void assertEquals(java.util.Set<?> arg1, java.util.Set<?> arg2) { throw new RuntimeException("Stub!"); }
                 }
                 """,
-            checkTextStubEquivalence = true
         )
     }
 
@@ -281,22 +277,18 @@ class StubsGenericTest : AbstractStubsTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Generics {
                     public Generics() { throw new RuntimeException("Stub!"); }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class MyClass<X extends java.lang.Number, Y> implements test.pkg.Generics.PublicParent<X,Y> {
                     public MyClass() { throw new RuntimeException("Stub!"); }
                     public java.util.Map<X,java.util.Map<Y,java.lang.String>> createMap(java.util.List<X> list) { throw new RuntimeException("Stub!"); }
                     }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class MyClass2<W> implements test.pkg.Generics.PublicParent<java.lang.Float,W> {
                     public MyClass2() { throw new RuntimeException("Stub!"); }
                     public java.util.Map<java.lang.Float,java.util.Map<W,java.lang.String>> createMap(java.util.List<java.lang.Float> list) { throw new RuntimeException("Stub!"); }
                     }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class MyClass3 implements test.pkg.Generics.PublicParent<java.lang.Float,java.lang.Double> {
                     public MyClass3() { throw new RuntimeException("Stub!"); }
                     public java.util.Map<java.lang.Float,java.util.Map<java.lang.Double,java.lang.String>> createMap(java.util.List<java.lang.Float> list) { throw new RuntimeException("Stub!"); }
                     }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public static interface PublicParent<A extends java.lang.Number, B> {
                     public java.util.Map<A,java.util.Map<B,java.lang.String>> createMap(java.util.List<A> list);
                     }

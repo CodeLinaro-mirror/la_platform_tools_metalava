@@ -21,6 +21,8 @@ interface ItemVisitor {
 
     fun visit(cls: ClassItem) {}
 
+    fun visit(component: RecordComponentItem) {}
+
     fun visit(field: FieldItem) {}
 
     fun visit(constructor: ConstructorItem) {}
@@ -32,6 +34,4 @@ interface ItemVisitor {
     fun visit(parameter: ParameterItem) {}
 
     fun visit(property: PropertyItem) {}
-
-    fun visit(typeAlias: TypeAliasItem) {}
 }

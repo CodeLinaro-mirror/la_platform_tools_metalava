@@ -28,7 +28,7 @@ class MergeSignaturesCommandTest :
 
     private fun checkMergeSignatures(
         vararg files: String,
-        format: FileFormat = FileFormat.LATEST,
+        format: FileFormat = FileFormat.V5,
         expectedOutput: String? = null,
         expectedStderr: String = "",
     ) {
@@ -408,9 +408,10 @@ Arguments:
             source1,
             source2,
             format = FileFormat.V4,
-            expectedOutput = """
-            // Signature format: 4.0
-            """,
+            expectedOutput =
+                """
+                    // Signature format: 4.0
+                """,
         )
     }
 }

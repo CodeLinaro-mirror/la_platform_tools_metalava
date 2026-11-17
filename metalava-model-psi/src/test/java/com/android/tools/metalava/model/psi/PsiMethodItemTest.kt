@@ -17,6 +17,8 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.TypeNullability
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
@@ -27,7 +29,7 @@ import kotlin.test.assertSame
 import org.junit.Test
 
 class PsiMethodItemTest : BaseModelTest() {
-
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `property accessors have properties`() {
         runCodebaseTest(kotlin("class Foo { var bar: Int = 0 }")) {
@@ -44,6 +46,7 @@ class PsiMethodItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `destructuring functions do not have a property relationship`() {
         runCodebaseTest(kotlin("data class Foo(val bar: Int)")) {
@@ -54,6 +57,7 @@ class PsiMethodItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `method return type is non-null`() {
         val sourceFile =
@@ -66,10 +70,10 @@ class PsiMethodItemTest : BaseModelTest() {
             """
             )
         runCodebaseTest(sourceFile) {
-            val ctorItem = codebase.assertClass("Foo").assertConstructor("")
+            val ctorItem = codebase.assertClass("Foo").assertConstructor(emptyList())
             val ctorReturnType = ctorItem.returnType()
 
-            val methodItem = codebase.assertClass("Foo").assertMethod("bar", "")
+            val methodItem = codebase.assertClass("Foo").assertMethod("bar", emptyList())
             val methodReturnType = methodItem.returnType()
 
             assertNotNull(ctorReturnType)
@@ -88,6 +92,7 @@ class PsiMethodItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `child method does not need to be added to signature file if super method is concrete`() {
         val sourceFile =
@@ -104,11 +109,13 @@ class PsiMethodItemTest : BaseModelTest() {
             )
 
         runCodebaseTest(sourceFile) {
-            val childMethodItem = codebase.assertClass("ChildClass").assertMethod("bar", "")
+            val childMethodItem =
+                codebase.assertClass("ChildClass").assertMethod("bar", emptyList())
             assertEquals(false, childMethodItem.isRequiredOverridingMethodForTextStub())
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `child method only needs to be added to signature file if all multiple direct super methods requires override`() {
 
@@ -132,11 +139,13 @@ class PsiMethodItemTest : BaseModelTest() {
             )
 
         runCodebaseTest(sourceFile) {
-            val childMethodItem = codebase.assertClass("ChildClass").assertMethod("bar", "")
+            val childMethodItem =
+                codebase.assertClass("ChildClass").assertMethod("bar", emptyList())
             assertEquals(false, childMethodItem.isRequiredOverridingMethodForTextStub())
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `child method does not need to be added to signature file if override requiring super method is hidden`() {
 
@@ -161,11 +170,13 @@ class PsiMethodItemTest : BaseModelTest() {
             )
 
         runCodebaseTest(sourceFile) {
-            val childMethodItem = codebase.assertClass("ChildClass").assertMethod("bar", "")
+            val childMethodItem =
+                codebase.assertClass("ChildClass").assertMethod("bar", emptyList())
             assertEquals(false, childMethodItem.isRequiredOverridingMethodForTextStub())
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `child method need to be added to signature file if extending Object method and return type changes`() {
         val sourceFile =
@@ -178,11 +189,13 @@ class PsiMethodItemTest : BaseModelTest() {
             )
 
         runCodebaseTest(sourceFile) {
-            val childMethodItem = codebase.assertClass("ChildClass").assertMethod("clone", "")
+            val childMethodItem =
+                codebase.assertClass("ChildClass").assertMethod("clone", emptyList())
             assertEquals(true, childMethodItem.isRequiredOverridingMethodForTextStub())
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `child method need to be added to signature file if extending Object method and visibility changes`() {
         val sourceFile =
@@ -195,11 +208,13 @@ class PsiMethodItemTest : BaseModelTest() {
             )
 
         runCodebaseTest(sourceFile) {
-            val childMethodItem = codebase.assertClass("ChildClass").assertMethod("clone", "")
+            val childMethodItem =
+                codebase.assertClass("ChildClass").assertMethod("clone", emptyList())
             assertEquals(true, childMethodItem.isRequiredOverridingMethodForTextStub())
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `child method does not need to be added to signature file even if extending Object method and modifier changes when it is not a direct override`() {
         val sourceFile =
@@ -215,11 +230,13 @@ class PsiMethodItemTest : BaseModelTest() {
             )
 
         runCodebaseTest(sourceFile) {
-            val childMethodItem = codebase.assertClass("ChildClass").assertMethod("clone", "")
+            val childMethodItem =
+                codebase.assertClass("ChildClass").assertMethod("clone", emptyList())
             assertEquals(false, childMethodItem.isRequiredOverridingMethodForTextStub())
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `child method does not need to be added to signature file if extending Object method and modifier does not change`() {
         val sourceFile =
@@ -232,11 +249,13 @@ class PsiMethodItemTest : BaseModelTest() {
             )
 
         runCodebaseTest(sourceFile) {
-            val childMethodItem = codebase.assertClass("ChildClass").assertMethod("toString", "")
+            val childMethodItem =
+                codebase.assertClass("ChildClass").assertMethod("toString", emptyList())
             assertEquals(false, childMethodItem.isRequiredOverridingMethodForTextStub())
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `hidden child method can be added to signature file to resolve compile error`() {
         val sourceFile =
@@ -257,11 +276,13 @@ class PsiMethodItemTest : BaseModelTest() {
             )
 
         runCodebaseTest(sourceFile) {
-            val childMethodItem = codebase.assertClass("ChildClass").assertMethod("bar", "")
+            val childMethodItem =
+                codebase.assertClass("ChildClass").assertMethod("bar", emptyList())
             assertEquals(true, childMethodItem.isRequiredOverridingMethodForTextStub())
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `child method overriding a hidden parent method can be added to signature file`() {
         val sourceFile =
@@ -287,11 +308,18 @@ class PsiMethodItemTest : BaseModelTest() {
             )
 
         runCodebaseTest(sourceFile) {
-            val childMethodItem = codebase.assertClass("ChildClass").assertMethod("bar", "")
+            val childMethodItem =
+                codebase.assertClass("ChildClass").assertMethod("bar", emptyList())
             assertEquals(true, childMethodItem.isRequiredOverridingMethodForTextStub())
+            assertAndRemoveReportedIssues(
+                """
+                    MAIN_SRC/src/SuperParentInterface.java:7: hidden: Attempting to hide method ParentInterface.bar() which overrides method SuperParentInterface.bar() which is already part of the API [HidingApiMethodOverride]
+                """
+            )
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Duplicated method has correct nullability`() {
         runCodebaseTest(
@@ -304,7 +332,6 @@ class PsiMethodItemTest : BaseModelTest() {
                             public String toString() {}
                         }
                     """
-                        .trimIndent()
                 ),
                 java(
                     """
@@ -315,7 +342,7 @@ class PsiMethodItemTest : BaseModelTest() {
             ),
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
-            val toString = fooClass.assertMethod("toString", "")
+            val toString = fooClass.assertMethod("toString", emptyList())
             assertEquals(TypeNullability.NONNULL, toString.returnType().modifiers.nullability)
 
             val barClass = codebase.assertClass("test.pkg.Bar")

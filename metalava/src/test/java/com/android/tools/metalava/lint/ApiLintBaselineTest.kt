@@ -17,13 +17,11 @@
 package com.android.tools.metalava.lint
 
 import com.android.tools.metalava.DriverTest
-import com.android.tools.metalava.androidxNonNullSource
-import com.android.tools.metalava.androidxNullableSource
-import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.restrictToSource
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import kotlin.arrayOf
 import org.junit.Test
@@ -132,7 +130,6 @@ class ApiLintBaselineTest : DriverTest() {
                 """
                 src/android/pkg/MyEnum.java:3: error: Enums are discouraged in Android APIs [Enum]
                 """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -169,11 +166,13 @@ class ApiLintBaselineTest : DriverTest() {
                     """
                     )
                 ),
-            expectedFail = """
-                *** api-lint failed ***
-            """,
-            expectedOutput = """
-                *** api-lint failed ***
+            expectedFail =
+                """
+                    *** api-lint failed ***
+                """,
+            expectedOutput =
+                """
+                    *** api-lint failed ***
                 """
         )
     }
@@ -198,7 +197,6 @@ class ApiLintBaselineTest : DriverTest() {
                     """
                     )
                 ),
-            expectedFail = DefaultLintErrorMessage,
             expectedOutput = DefaultLintErrorMessage
         )
     }
@@ -224,15 +222,11 @@ class ApiLintBaselineTest : DriverTest() {
                     "androidx.annotation.RestrictTo(androidx.annotation.RestrictTo.Scope.LIBRARY)"
                 ),
             extraArguments =
-                arrayOf(
-                    ARG_HIDE,
-                    "HiddenSuperclass",
-                    ARG_HIDE,
-                    "ProtectedMember",
-                    ARG_HIDE,
-                    "GetterOnBuilder",
-                    ARG_HIDE,
-                    Issues.INHERIT_CHANGES_SIGNATURE.name,
+                hiddenIssues(
+                    Issues.HIDDEN_SUPERCLASS,
+                    Issues.PROTECTED_MEMBER,
+                    Issues.GETTER_ON_BUILDER,
+                    Issues.INHERIT_CHANGES_SIGNATURE,
                 ),
             sourceFiles =
                 arrayOf(
@@ -286,9 +280,39 @@ class ApiLintBaselineTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNonNullSource,
-                    androidxNullableSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
                     restrictToSource,
+                ),
+        )
+    }
+
+    @Test
+    fun `Should report multiple type parameter issues for a particular element`() {
+        check(
+            apiLint = "", // enabled
+            baselineApiLintTestInfo =
+                BaselineTestInfo(
+                    inputContents = "",
+                    // This baseline should have errors for both "KeyType" and "ValueType"
+                    // as they both violate Google generic type parameter naming guidelines
+                    expectedOutputContents =
+                        """
+                            // Baseline format: 1.0
+                            TypeParameterName: test.AppSearchBatchResult:
+                                Invalid type parameter names "KeyType", "ValueType". Type parameter names must follow the Google naming guidelines specified here: https://developer.android.com/kotlin/style-guide#type_variable_names
+                        """,
+                ),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                    package test;
+
+                    public final class AppSearchBatchResult<KeyType, ValueType> {
+                    }
+                    """
+                    )
                 ),
         )
     }

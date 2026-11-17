@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.createAndroidModuleDescription
 import com.android.tools.metalava.testing.createCommonModuleDescription
@@ -30,6 +32,7 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 class PsiParameterItemTest : BaseModelTest() {
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `primary constructor parameters have properties`() {
         runCodebaseTest(kotlin("class Foo(val property: Int, parameter: Int)")) {
@@ -43,6 +46,7 @@ class PsiParameterItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `actuals get params from expects`() {
         val commonSource =
@@ -98,20 +102,21 @@ class PsiParameterItemTest : BaseModelTest() {
 
                 val parameter = parameters[1]
                 assertTrue(parameter.hasDefaultValue())
-                assertEquals("\"\"", parameter.defaultValueAsString())
 
                 // continuation
                 assertFalse(parameters[2].hasDefaultValue())
             }
 
             val classItem = codebase.assertClass("Test")
-            assertEquals(actualFile, classItem.sourceFile())
+            assertSame(actualFile, classItem.sourceFile())
 
-            val constructorItem = classItem.constructors().single()
+            // When a default constructor has a single optional parameter the compiler generates a
+            // no-args constructor overload.
+            classItem.assertConstructor(emptyList())
+            val constructorItem = classItem.assertConstructor(listOf("java.lang.String"))
             with(constructorItem) {
                 val parameter = parameters().single()
                 assertTrue(parameter.hasDefaultValue())
-                assertEquals("\"\"", parameter.defaultValueAsString())
             }
 
             val methodItem = classItem.methods().single()
@@ -120,10 +125,8 @@ class PsiParameterItemTest : BaseModelTest() {
                 assertEquals(3, parameters.size)
 
                 assertTrue(parameters[0].hasDefaultValue())
-                assertEquals("\"\"", parameters[0].defaultValueAsString())
 
                 assertTrue(parameters[1].hasDefaultValue())
-                assertEquals("param + \"\"", parameters[1].defaultValueAsString())
 
                 assertFalse(parameters[2].hasDefaultValue())
             }

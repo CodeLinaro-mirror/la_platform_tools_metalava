@@ -18,6 +18,8 @@ package com.android.tools.metalava.model.testsuite.methoditem
 
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
@@ -36,6 +38,7 @@ class SourceMethodItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `test duplicate() for methoditem`() {
         runSourceCodebaseTest(
@@ -45,7 +48,6 @@ class SourceMethodItemTest : BaseModelTest() {
 
                     import java.io.IOException;
 
-                    /** @doconly Some docs here */
                     public class Test<A,B>  {
                         public final void foo(A a, B b) throws IOException {}
 

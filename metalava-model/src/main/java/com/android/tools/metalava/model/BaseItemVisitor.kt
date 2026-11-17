@@ -33,6 +33,28 @@ open class BaseItemVisitor(
      * Defaults to `true` as that is the safest option which avoids inadvertently ignoring them.
      */
     protected val visitParameterItems: Boolean = true,
+
+    /**
+     * Determines whether this will visit [RecordComponentItem]s or not.
+     *
+     * If this is `true` then [RecordComponentItem]s will be visited, and passed to [visitItem],
+     * [visitParameter] and [afterVisitItem] in that order. Otherwise, they will not be visited.
+     *
+     * Defaults to `true` as that is the safest option which avoids inadvertently ignoring them.
+     */
+    private val visitRecordComponentItems: Boolean = false,
+
+    /**
+     * Determines whether classes will be visited in name order or not.
+     *
+     * If this is `true` then classes will be visited in the order defined by
+     * [ClassItem.classNameSorterTypeAliasesLast]. Otherwise, they will be visited in their
+     * declaration order.
+     *
+     * Defaults to `false` as most users do not care about the order in which classes are visited
+     * and so there is no point in spending time sorting them.
+     */
+    val orderClassesByName: Boolean = false,
 ) : ItemVisitor {
     /** Calls [visitItem] before invoking [body] after which it calls [afterVisitItem]. */
     protected inline fun <T : Item> wrapBodyWithCallsToVisitMethodsForItem(
@@ -67,6 +89,12 @@ open class BaseItemVisitor(
         wrapBodyWithCallsToVisitMethodsForSelectableItem(cls) {
             visitClass(cls)
 
+            if (visitRecordComponentItems) {
+                for (component in cls.recordComponents) {
+                    component.accept(this)
+                }
+            }
+
             for (constructor in cls.constructors()) {
                 constructor.accept(this)
             }
@@ -79,32 +107,20 @@ open class BaseItemVisitor(
                 property.accept(this)
             }
 
-            if (cls.isEnum()) {
-                // In enums, visit the enum constants first, then the fields
-                for (field in cls.fields()) {
-                    if (field.isEnumConstant()) {
-                        field.accept(this)
-                    }
-                }
-                for (field in cls.fields()) {
-                    if (!field.isEnumConstant()) {
-                        field.accept(this)
-                    }
-                }
-            } else {
-                for (field in cls.fields()) {
-                    field.accept(this)
-                }
+            for (field in cls.fields()) {
+                field.accept(this)
             }
 
             if (preserveClassNesting) {
-                for (nestedCls in cls.nestedClasses()) {
-                    nestedCls.accept(this)
-                }
+                visitClassList(cls.nestedClasses())
             } // otherwise done in visit(PackageItem)
 
             afterVisitClass(cls)
         }
+    }
+
+    override fun visit(component: RecordComponentItem) {
+        wrapBodyWithCallsToVisitMethodsForItem(component) { visitRecordComponentItem(component) }
     }
 
     override fun visit(field: FieldItem) {
@@ -156,6 +172,29 @@ open class BaseItemVisitor(
     protected fun packageClassesAsSequence(pkg: PackageItem) =
         if (preserveClassNesting) pkg.topLevelClasses().asSequence() else pkg.allClasses()
 
+    /**
+     * Visit a [List] of [ClassItem]s, optionally sorting it into order defined by
+     * [ClassItem.classNameSorterTypeAliasesLast] if [orderClassesByName] is true.
+     */
+    protected fun visitClassList(classes: List<ClassItem>) {
+        val classesToVisit =
+            if (orderClassesByName) classes.sortedWith(ClassItem.classNameSorterTypeAliasesLast())
+            else classes
+        classesToVisit.forEach { it.accept(this) }
+    }
+
+    /**
+     * Visit a [Sequence] of [ClassItem]s, optionally delegating to [visitClassList] for sorting if
+     * [orderClassesByName] is true.
+     */
+    protected fun visitClassSequence(classes: Sequence<ClassItem>) {
+        if (orderClassesByName) {
+            visitClassList(classes.toList())
+        } else {
+            classes.forEach { it.accept(this) }
+        }
+    }
+
     override fun visit(codebase: Codebase) {
         visitCodebase(codebase)
         codebase.getPackages().packages.forEach { it.accept(this) }
@@ -174,13 +213,7 @@ open class BaseItemVisitor(
         wrapBodyWithCallsToVisitMethodsForSelectableItem(pkg) {
             visitPackage(pkg)
 
-            for (cls in packageClassesAsSequence(pkg)) {
-                cls.accept(this)
-            }
-
-            for (typeAlias in pkg.typeAliases()) {
-                typeAlias.accept(this)
-            }
+            visitClassSequence(packageClassesAsSequence(pkg))
 
             afterVisitPackage(pkg)
         }
@@ -193,10 +226,6 @@ open class BaseItemVisitor(
     open fun skipPackage(pkg: PackageItem) = !pkg.emit
 
     override fun visit(parameter: ParameterItem) {
-        if (skip(parameter)) {
-            return
-        }
-
         wrapBodyWithCallsToVisitMethodsForItem(parameter) { visitParameter(parameter) }
     }
 
@@ -205,18 +234,26 @@ open class BaseItemVisitor(
             return
         }
 
-        wrapBodyWithCallsToVisitMethodsForSelectableItem(property) { visitProperty(property) }
-    }
+        wrapBodyWithCallsToVisitMethodsForSelectableItem(property) {
+            visitProperty(property)
 
-    override fun visit(typeAlias: TypeAliasItem) {
-        if (skip(typeAlias)) {
-            return
+            if (visitParameterItems) {
+                for (parameter in property.contextParameters) {
+                    parameter.accept(this)
+                }
+            }
         }
-
-        wrapBodyWithCallsToVisitMethodsForSelectableItem(typeAlias) { visitTypeAlias(typeAlias) }
     }
 
-    open fun skip(item: Item): Boolean = false
+    /**
+     * Override to skip specific [SelectableItem]s.
+     *
+     * This intentionally does not support skipping [ParameterItem]s as they generally are not
+     * conditionally skipped as they are an integral part of [CallableItem]s. If [ParameterItem]s
+     * should not be visited then set [visitParameterItems] to `false`. If [ParameterItem]s are
+     * visited then filter them in their [visitParameter] method.
+     */
+    open fun skip(item: SelectableItem): Boolean = false
 
     /**
      * Visits any [Item].
@@ -239,6 +276,9 @@ open class BaseItemVisitor(
 
     open fun visitClass(cls: ClassItem) {}
 
+    /** Visits a [RecordComponentItem]. */
+    open fun visitRecordComponentItem(component: RecordComponentItem) {}
+
     open fun visitCallable(callable: CallableItem) {}
 
     open fun visitConstructor(constructor: ConstructorItem) {}
@@ -251,8 +291,6 @@ open class BaseItemVisitor(
     open fun visitParameter(parameter: ParameterItem) {}
 
     open fun visitProperty(property: PropertyItem) {}
-
-    open fun visitTypeAlias(typeAlias: TypeAliasItem) {}
 
     /**
      * Visits any [SelectableItem], i.e. everything for which [afterVisitItem] is called except

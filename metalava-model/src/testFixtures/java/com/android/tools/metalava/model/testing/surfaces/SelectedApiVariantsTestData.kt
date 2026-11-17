@@ -18,12 +18,12 @@ package com.android.tools.metalava.model.testing.surfaces
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.api.SelectedApi
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.signature
 
-/** Encapsulates information about a [SelectableItem.selectedApiVariants] related test. */
+/** Encapsulates information about a [SelectedApi.itemApiVariants] related test. */
 data class SelectedApiVariantsTestData(
     /** The name of the test. */
     val name: String,
@@ -42,7 +42,7 @@ data class SelectedApiVariantsTestData(
     val javaSourceFiles: List<TestFile>,
 
     /**
-     * The expected status of the [SelectableItem.selectedApiVariants] in the [Codebase] loaded from
+     * The expected status of the [SelectedApi.itemApiVariants] in the [Codebase] loaded from
      * [signatureFiles].
      */
     val expectedSelectedApiVariants: String,
@@ -57,7 +57,7 @@ data class SelectedApiVariantsTestData(
  *
  * This is provided because the testsuite and main metalava command have slightly different paths in
  * the handling of signature files. The testsuite tests check the behavior of the setting of
- * [SelectableItem.selectedApiVariants] when loading signature files in a test environment, the main
+ * [SelectedApi.itemApiVariants] when loading signature files in a test environment, the main
  * metalava tests will check the behavior when loading signature files for a previously released
  * API. Using the same test data for both simplifies maintenance.
  */
@@ -122,16 +122,27 @@ val selectedApiVariantsTestData =
                 ),
             expectedSelectedApiVariants =
                 """
-                    package test.pkg - ApiVariantSet[main(CR)]
-                      class test.pkg.Test - ApiVariantSet[main(CR)]
-                        constructor test.pkg.Test() - ApiVariantSet[main(C)]
-                        method test.pkg.Test.foo(int) - ApiVariantSet[main(C)]
-                        field test.pkg.Test.field - ApiVariantSet[main(C)]
-                        field test.pkg.Test.removed - ApiVariantSet[main(R)]
-                        class test.pkg.Test.Nested - ApiVariantSet[main(C)]
-                          constructor test.pkg.Test.Nested() - ApiVariantSet[main(C)]
-                        class test.pkg.Test.Removed - ApiVariantSet[main(R)]
-                          constructor test.pkg.Test.Removed() - ApiVariantSet[main(R)]
+                    package test.pkg
+                           self - ApiVariantSet[main(CR)]
+                      class test.pkg.Test
+                             self - ApiVariantSet[main(C)]
+                          content - ApiVariantSet[main(R)]
+                        constructor test.pkg.Test()
+                               self - ApiVariantSet[main(C)]
+                        method test.pkg.Test.foo(int)
+                               self - ApiVariantSet[main(C)]
+                        field test.pkg.Test.field
+                               self - ApiVariantSet[main(C)]
+                        field test.pkg.Test.removed
+                               self - ApiVariantSet[main(R)]
+                        class test.pkg.Test.Nested
+                               self - ApiVariantSet[main(C)]
+                          constructor test.pkg.Test.Nested()
+                                 self - ApiVariantSet[main(C)]
+                        class test.pkg.Test.Removed
+                               self - ApiVariantSet[main(R)]
+                          constructor test.pkg.Test.Removed()
+                                 self - ApiVariantSet[main(R)]
                 """,
         ),
         // A test consisting of a base and extending API.
@@ -192,15 +203,12 @@ val selectedApiVariantsTestData =
                             import android.annotation.SystemApi;
 
                             public class Test {
-                                /** @hide */
                                 @SystemApi
                                 public int field;
 
-                                /** @hide */
                                 @SystemApi
                                 public void method(int p) {}
 
-                                /** @hide */
                                 @SystemApi
                                 public static class Nested {
                                 }
@@ -210,19 +218,33 @@ val selectedApiVariantsTestData =
                 ),
             expectedSelectedApiVariants =
                 """
-                    package test.pkg - ApiVariantSet[base(C),main(C)]
-                      class test.pkg.Base - ApiVariantSet[base(C)]
-                        constructor test.pkg.Base() - ApiVariantSet[base(C)]
-                        method test.pkg.Base.baseMethod(int) - ApiVariantSet[base(C)]
-                        field test.pkg.Base.baseField - ApiVariantSet[base(C)]
-                      class test.pkg.Test - ApiVariantSet[base(C),main(C)]
-                        constructor test.pkg.Test() - ApiVariantSet[base(C)]
-                        method test.pkg.Test.baseMethod(int) - ApiVariantSet[base(C)]
-                        method test.pkg.Test.method(int) - ApiVariantSet[main(C)]
-                        field test.pkg.Test.baseField - ApiVariantSet[base(C)]
-                        field test.pkg.Test.field - ApiVariantSet[main(C)]
-                        class test.pkg.Test.Nested - ApiVariantSet[main(C)]
-                          constructor test.pkg.Test.Nested() - ApiVariantSet[main(C)]
+                    package test.pkg
+                           self - ApiVariantSet[base(C),main(C)]
+                      class test.pkg.Base
+                             self - ApiVariantSet[base(C)]
+                        constructor test.pkg.Base()
+                               self - ApiVariantSet[base(C)]
+                        method test.pkg.Base.baseMethod(int)
+                               self - ApiVariantSet[base(C)]
+                        field test.pkg.Base.baseField
+                               self - ApiVariantSet[base(C)]
+                      class test.pkg.Test
+                             self - ApiVariantSet[base(C)]
+                          content - ApiVariantSet[main(C)]
+                        constructor test.pkg.Test()
+                               self - ApiVariantSet[base(C)]
+                        method test.pkg.Test.baseMethod(int)
+                               self - ApiVariantSet[base(C)]
+                        method test.pkg.Test.method(int)
+                               self - ApiVariantSet[main(C)]
+                        field test.pkg.Test.baseField
+                               self - ApiVariantSet[base(C)]
+                        field test.pkg.Test.field
+                               self - ApiVariantSet[main(C)]
+                        class test.pkg.Test.Nested
+                               self - ApiVariantSet[main(C)]
+                          constructor test.pkg.Test.Nested()
+                                 self - ApiVariantSet[main(C)]
                 """,
         )
     )
