@@ -17,36 +17,28 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.FilterPredicate
-import com.android.tools.metalava.model.Import
 import com.android.tools.metalava.model.JavaImport
-import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.item.AbstractSourceFile
-import com.android.tools.metalava.model.source.filterImports
-import com.intellij.psi.PsiClass
+import com.android.tools.metalava.model.parser.LineMap
+import com.android.tools.metalava.reporter.FileLocation
+import com.intellij.openapi.editor.Document
 import com.intellij.psi.PsiClassOwner
-import com.intellij.psi.PsiField
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiImportStaticStatement
 import com.intellij.psi.PsiJavaFile
-import com.intellij.psi.PsiMethod
-import com.intellij.psi.PsiPackage
-import java.util.TreeSet
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.psiUtil.startOffset
-
-/** Whether we should limit import statements to symbols found in class docs */
-private const val ONLY_IMPORT_CLASSES_REFERENCED_IN_DOCS = true
 
 internal class PsiSourceFile(
     override val codebase: PsiBasedCodebase,
     val file: PsiFile,
 ) : AbstractSourceFile() {
 
-    override val containingPackage: PackageItem = run {
-        val packageName = (file as PsiClassOwner).packageName
-        codebase.resolvePackage(packageName)!!
-    }
+    override val fileLocation: FileLocation = PsiFileLocation.fromPsiElement(file)
+
+    override fun computeLineMap(): LineMap = PsiLineMap(file.viewProvider.document!!)
+
+    override fun computeContainingPackageName() = (file as PsiClassOwner).packageName
 
     override fun getHeaderComments(): String? {
         // https://youtrack.jetbrains.com/issue/KT-22135
@@ -76,77 +68,6 @@ internal class PsiSourceFile(
         }
     }
 
-    override fun getImports(predicate: FilterPredicate): Collection<Import> {
-        val imports = TreeSet<Import>(compareBy { it.pattern })
-
-        if (file is PsiJavaFile) {
-            val importList = file.importList
-            if (importList != null) {
-                for (importStatement in importList.importStatements) {
-                    val resolved = importStatement.resolve() ?: continue
-                    if (resolved is PsiClass) {
-                        val classItem = codebase.findOrCreateClass(resolved)
-                        if (predicate.test(classItem)) {
-                            imports.add(Import(classItem))
-                        }
-                    } else if (resolved is PsiPackage) {
-                        val pkgItem = codebase.findPackage(resolved.qualifiedName) ?: continue
-                        if (
-                            predicate.test(pkgItem) &&
-                                // Also make sure it isn't an empty package (after applying the
-                                // filter)
-                                // since in that case we'd have an invalid import
-                                pkgItem.topLevelClasses().any { it.emit && predicate.test(it) }
-                        ) {
-                            imports.add(Import(pkgItem))
-                        }
-                    } else if (resolved is PsiMethod) {
-                        codebase.findClass(resolved.containingClass ?: continue) ?: continue
-                        val methodItem = codebase.findCallableByPsiMethod(resolved)
-                        if (predicate.test(methodItem)) {
-                            imports.add(Import(methodItem))
-                        }
-                    } else if (resolved is PsiField) {
-                        val classItem =
-                            codebase.findOrCreateClass(resolved.containingClass ?: continue)
-                        val fieldItem =
-                            classItem.findField(
-                                resolved.name,
-                                includeSuperClasses = true,
-                                includeInterfaces = false
-                            ) ?: continue
-                        if (predicate.test(fieldItem)) {
-                            imports.add(Import(fieldItem))
-                        }
-                    }
-                }
-            }
-        } else if (file is KtFile) {
-            for (importDirective in file.importDirectives) {
-                val resolved = importDirective.reference?.resolve() ?: continue
-                if (resolved is PsiClass) {
-                    val classItem = codebase.findOrCreateClass(resolved)
-                    if (predicate.test(classItem)) {
-                        imports.add(Import(classItem))
-                    }
-                }
-            }
-        }
-
-        // Next only keep those that are present in any docs; those are the only ones
-        // we need to import
-        if (imports.isNotEmpty()) {
-            @Suppress("ConstantConditionIf")
-            return if (ONLY_IMPORT_CLASSES_REFERENCED_IN_DOCS) {
-                filterImports(imports, classes(), predicate)
-            } else {
-                imports
-            }
-        }
-
-        return emptyList()
-    }
-
     override fun classes(): Sequence<ClassItem> {
         return (file as? PsiClassOwner)
             ?.classes
@@ -156,4 +77,18 @@ internal class PsiSourceFile(
     }
 
     override fun toString(): String = "file ${file.virtualFile?.path}"
+}
+
+/** A [LineMap] that wraps a PSI [Document]. */
+private class PsiLineMap(private val document: Document) : LineMap {
+    override fun lineNumber(charIndex: Int): Int = lineOffset(charIndex) + 1
+
+    override fun lineOffset(charIndex: Int): Int = document.getLineNumber(charIndex)
+
+    override fun characterPosition(charIndex: Int): Int = characterOffset(charIndex) + 1
+
+    override fun characterOffset(charIndex: Int): Int {
+        val line = document.getLineNumber(charIndex)
+        return charIndex - document.getLineStartOffset(line)
+    }
 }

@@ -17,6 +17,8 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.TypeNullability
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
@@ -27,6 +29,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertSame
 
 class PsiFieldItemTest : BaseModelTest() {
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `backing fields have properties`() {
         runCodebaseTest(kotlin("class Foo(val bar: Int)")) {
@@ -37,6 +40,7 @@ class PsiFieldItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `no error for initializer of arrayOf`() {
         runCodebaseTest(
@@ -55,6 +59,7 @@ class PsiFieldItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Duplicated field has correct nullability`() {
         runCodebaseTest(

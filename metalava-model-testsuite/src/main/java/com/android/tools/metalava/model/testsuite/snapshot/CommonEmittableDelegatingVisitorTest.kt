@@ -26,8 +26,10 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.snapshot.EmittableDelegatingVisitor
 import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.google.common.truth.Truth.assertWithMessage
 import org.junit.Test
@@ -82,6 +84,7 @@ class CommonEmittableDelegatingVisitorTest : BaseModelTest() {
             )
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE)
     @Test
     fun `Test filters correctly`() {
         runCodebaseTest(

@@ -17,12 +17,15 @@
 package com.android.tools.metalava.model.testsuite.methoditem
 
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 
 /** Common tests for implementations of [MethodItem]. */
+@SupportedInputFormats(InputFormat.KOTLIN)
 class CommonSuspendMethodTest : BaseModelTest() {
 
     @Test

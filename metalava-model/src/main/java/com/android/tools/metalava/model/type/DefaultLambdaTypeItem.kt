@@ -16,52 +16,66 @@
 
 package com.android.tools.metalava.model.type
 
-import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.DefaultStandaloneTypeItem
 import com.android.tools.metalava.model.LambdaTypeItem
-import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeModifiers
 
-class DefaultLambdaTypeItem(
-    classResolver: ClassResolver,
-    modifiers: TypeModifiers,
-    qualifiedName: String,
-    arguments: List<TypeArgumentTypeItem>,
-    outerClassType: ClassTypeItem?,
+internal class DefaultLambdaTypeItem(
     override val isSuspend: Boolean,
     override val receiverType: TypeItem?,
     override val parameterTypes: List<TypeItem>,
     override val returnType: TypeItem,
+    private val jvmClassType: ClassTypeItem,
 ) :
-    DefaultClassTypeItem(
-        classResolver = classResolver,
-        modifiers = modifiers,
-        qualifiedName = qualifiedName,
-        arguments = arguments,
-        outerClassType = outerClassType,
+    DefaultStandaloneTypeItem(
+        modifiers = jvmClassType.modifiers,
+        isValueClassType = jvmClassType.isValueClassType,
     ),
     LambdaTypeItem {
 
-    @Deprecated(
-        "implementation detail of this class",
-        replaceWith = ReplaceWith("substitute(modifiers, outerClassType, arguments)"),
-    )
-    override fun duplicate(
+    override fun asJvmClassType(): ClassTypeItem = jvmClassType
+
+    override fun substitute(
         modifiers: TypeModifiers,
-        outerClassType: ClassTypeItem?,
-        arguments: List<TypeArgumentTypeItem>
+        receiverType: TypeItem?,
+        parameterTypes: List<TypeItem>,
+        returnType: TypeItem,
+        jvmClassType: ClassTypeItem,
     ): LambdaTypeItem {
-        return DefaultLambdaTypeItem(
-            classResolver = classResolver,
-            qualifiedName = qualifiedName,
-            arguments = arguments,
-            outerClassType = outerClassType,
-            modifiers = modifiers,
-            isSuspend = isSuspend,
-            receiverType = receiverType,
-            parameterTypes = parameterTypes,
-            returnType = returnType,
-        )
+        val newJvmClassType = jvmClassType.substitute(modifiers = modifiers)
+        return if (
+            receiverType !== this.receiverType ||
+                parameterTypes !== this.parameterTypes ||
+                returnType !== this.returnType ||
+                newJvmClassType !== this.jvmClassType
+        ) {
+            TypeItem.createLambdaType(
+                isSuspend = isSuspend,
+                receiverType = receiverType,
+                parameterTypes = parameterTypes,
+                returnType = returnType,
+                jvmClassType = newJvmClassType,
+            )
+        } else this
+    }
+
+    override fun equalsImpl(other: DefaultStandaloneTypeItem): Boolean {
+        if (other !is LambdaTypeItem) return false
+        return isSuspend == other.isSuspend &&
+            receiverType == other.receiverType &&
+            parameterTypes == other.parameterTypes &&
+            returnType == other.returnType &&
+            jvmClassType == other.asJvmClassType()
+    }
+
+    override fun hashCodeImpl(): Int {
+        var result = isSuspend.hashCode()
+        result = 31 * result + (receiverType?.hashCode() ?: 0)
+        result = 31 * result + parameterTypes.hashCode()
+        result = 31 * result + returnType.hashCode()
+        result = 31 * result + jvmClassType.hashCode()
+        return result
     }
 }

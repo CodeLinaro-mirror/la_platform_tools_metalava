@@ -16,12 +16,11 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.model.scope.ReferencableNameScope
 import java.util.Objects
 
 /** Common to [MethodItem] and [ConstructorItem]. */
 @MetalavaApi
-interface CallableItem : MemberItem, TypeParameterListOwner, ReferencableNameScope {
+interface CallableItem : MemberItem, TypeParameterListOwner, PossiblyRecordComponentRelated {
 
     /** Whether this callable is a constructor or a method. */
     @MetalavaApi fun isConstructor(): Boolean
@@ -52,7 +51,7 @@ interface CallableItem : MemberItem, TypeParameterListOwner, ReferencableNameSco
         }
         append(' ')
         if (includeReturnValue && !isConstructor()) {
-            append(returnType().toSimpleType())
+            append(returnType().toSimpleTypeString())
             append(' ')
         }
         appendCallableSignature(includeParameterNames, includeParameterTypes)
@@ -80,7 +79,7 @@ interface CallableItem : MemberItem, TypeParameterListOwner, ReferencableNameSco
                     }
                 }
                 if (includeParameterTypes) {
-                    append(parameter.type().toSimpleType())
+                    append(parameter.type().toSimpleTypeString())
                     if (includeParameterNames) {
                         append(' ')
                     }
@@ -98,13 +97,10 @@ interface CallableItem : MemberItem, TypeParameterListOwner, ReferencableNameSco
     /** Types of exceptions that this callable can throw */
     fun throwsTypes(): List<ExceptionTypeItem>
 
-    /** The body of this, may not be available. */
-    val body: CallableBody
-
     /** Returns true if this callable throws the given exception */
     fun throws(qualifiedName: String): Boolean {
         for (type in throwsTypes()) {
-            val throwableClass = type.erasedClass ?: continue
+            val throwableClass = type.asErasedClass(codebase) ?: continue
             if (throwableClass.extends(qualifiedName)) {
                 return true
             }
@@ -113,11 +109,12 @@ interface CallableItem : MemberItem, TypeParameterListOwner, ReferencableNameSco
         return false
     }
 
-    fun filteredThrowsTypes(predicate: FilterPredicate): Collection<ExceptionTypeItem> {
+    fun filteredThrowsTypes(predicate: FilterPredicate?): Collection<ExceptionTypeItem> {
         if (throwsTypes().isEmpty()) {
             return emptyList()
         }
-        return filteredThrowsTypes(predicate, LinkedHashSet())
+        return if (predicate == null) throwsTypes()
+        else filteredThrowsTypes(predicate, LinkedHashSet())
     }
 
     private fun filteredThrowsTypes(
@@ -125,19 +122,22 @@ interface CallableItem : MemberItem, TypeParameterListOwner, ReferencableNameSco
         throwsTypes: LinkedHashSet<ExceptionTypeItem>
     ): LinkedHashSet<ExceptionTypeItem> {
         for (exceptionType in throwsTypes()) {
-            if (exceptionType is VariableTypeItem) {
-                throwsTypes.add(exceptionType)
-            } else {
-                val classItem = exceptionType.erasedClass ?: continue
-                if (predicate.test(classItem)) {
+            when (exceptionType) {
+                is VariableTypeItem -> {
                     throwsTypes.add(exceptionType)
-                } else {
-                    // Excluded, but it may have super class throwables that are included; if so,
-                    // include those.
-                    classItem
-                        .allSuperClasses()
-                        .firstOrNull { superClass -> predicate.test(superClass) }
-                        ?.let { superClass -> throwsTypes.add(superClass.type()) }
+                }
+                is ClassTypeItem -> {
+                    val classItem = exceptionType.asErasedClass(codebase) ?: continue
+                    if (predicate.test(classItem)) {
+                        throwsTypes.add(exceptionType)
+                    } else {
+                        // Excluded, but it may have super class throwables that are included; if
+                        // so, include those.
+                        classItem
+                            .allSuperClasses()
+                            .firstOrNull { superClass -> predicate.test(superClass) }
+                            ?.let { superClass -> throwsTypes.add(superClass.type()) }
+                    }
                 }
             }
         }
@@ -152,17 +152,16 @@ interface CallableItem : MemberItem, TypeParameterListOwner, ReferencableNameSco
     ): CallableItem?
 
     override fun baselineElementId() = buildString {
-        append(containingClass().qualifiedName())
+        if (containingClass().simpleName() != ClassItem.TOP_LEVEL_DECLARATION_FACADE_NAME) {
+            append(containingClass().qualifiedName())
+        } else {
+            append(containingPackage().qualifiedName())
+        }
         append("#")
         append(name())
         append("(")
-        parameters().joinTo(this) { it.type().toSimpleType() }
+        parameters().joinTo(this) { it.type().toSimpleTypeString() }
         append(")")
-    }
-
-    override fun toStringForItem(): String {
-        return "${if (isConstructor()) "constructor" else "method"} ${
-            containingClass().qualifiedName()}.${name()}(${parameters().joinToString { it.type().toSimpleType() }})"
     }
 
     override fun equalsToItem(other: Any?): Boolean {
@@ -191,7 +190,7 @@ interface CallableItem : MemberItem, TypeParameterListOwner, ReferencableNameSco
         for (i in parameters1.indices) {
             val parameter1 = parameters1[i]
             val parameter2 = parameters2[i]
-            if (parameter1.type() != parameter2.type()) {
+            if (!equalParameterTypes(parameter1.type(), parameter2.type())) {
                 return false
             }
         }
@@ -250,24 +249,48 @@ interface CallableItem : MemberItem, TypeParameterListOwner, ReferencableNameSco
         for (i in parameters1.indices) {
             val parameter1Type = parameters1[i].type()
             val parameter2Type = parameters2[i].type()
-            if (parameter1Type == parameter2Type) continue
+            if (equalParameterTypes(parameter1Type, parameter2Type)) continue
             // If these have the same erased type, they're considered equal for bytecode. If this
             // is a Kotlin-only callable, don't accept any equivalent-erased types as equal, but
             // allow for the case that one version has wildcards that the other doesn't (common
             // when comparing types generated from PSI vs the Kotlin analysis API).
-            if (parameter1Type.toErasedTypeString() == parameter2Type.toErasedTypeString()) {
+            if (TypeComparator.ERASED.compare(parameter1Type, parameter2Type)) {
                 if (TargetLanguage.BYTECODE in targetLanguages) {
                     continue
-                } else if (equalWithFlattenedWildcards(parameter1Type, parameter2Type)) {
+                } else if (
+                    TypeComparator.FLATTENED_WILDCARDS.compare(parameter1Type, parameter2Type)
+                ) {
                     continue
                 }
             }
 
-            val convertedType =
-                parameter1Type.convertType(other.containingClass(), containingClass())
-            if (convertedType != parameter2Type) return false
+            // Substitute any type variables in this callable's parameter type using the type
+            // arguments provided by `other`'s containing class. If `other` is from a different
+            // codebase (e.g. when searching this codebase for an inherited method matching a
+            // method from another codebase), resolve `other`'s containing class in this codebase
+            // first so that type variable mapping uses the class hierarchy in this codebase.
+            val otherContainingClass =
+                other.containingClass().let { cls ->
+                    if (cls.codebase === codebase) cls
+                    else cls.findCorrespondingItemIn(codebase) ?: return false
+                }
+            val convertedType = parameter1Type.convertType(otherContainingClass, containingClass())
+            if (!equalParameterTypes(convertedType, parameter2Type)) return false
         }
         return true
+    }
+
+    /**
+     * Checks if the parameter types should be considered equal: if this is a Kotlin-only callable,
+     * the nullability of the parameter types matters as it is possible to have signatures in
+     * non-JVM Kotlin code that differ only by nullability.
+     */
+    private fun equalParameterTypes(parameterType1: TypeItem, parameterType2: TypeItem): Boolean {
+        return when (targetLanguages) {
+            TargetLanguageSet.KOTLIN_ONLY ->
+                TypeComparator.NULLABILITY_AWARE.compare(parameterType1, parameterType2)
+            else -> TypeComparator.IGNORE_NULLABILITY.compare(parameterType1, parameterType2)
+        }
     }
 
     /**
@@ -294,7 +317,7 @@ interface CallableItem : MemberItem, TypeParameterListOwner, ReferencableNameSco
             is PrimitiveTypeItem -> false
             is ArrayTypeItem -> componentType.hasHiddenType(filterReference)
             is ClassTypeItem ->
-                asClass()?.let { !filterReference.test(it) } == true ||
+                resolveClass(codebase)?.let { !filterReference.test(it) } == true ||
                     outerClassType?.hasHiddenType(filterReference) == true ||
                     arguments.any { it.hasHiddenType(filterReference) }
             is VariableTypeItem ->
@@ -315,27 +338,27 @@ interface CallableItem : MemberItem, TypeParameterListOwner, ReferencableNameSco
      * the method "void create(int x, int y)" the internal name of the constructor is "create" and
      * the desc is "(II)V"
      */
-    fun internalDesc(voidConstructorTypes: Boolean = false): String {
-        val sb = StringBuilder()
-        sb.append("(")
+    fun internalDesc(voidConstructorTypes: Boolean = false): String = buildString {
+        append("(")
 
         // Inner, i.e. non-static nested, classes get an implicit constructor parameter for the
         // outer type
-        if (
-            isConstructor() &&
-                containingClass().containingClass() != null &&
-                !containingClass().modifiers.isStatic()
-        ) {
-            sb.append(containingClass().containingClass()?.type()?.internalName() ?: "")
+        if (isConstructor() && !containingClass().modifiers.isStatic()) {
+            containingClass().containingClass()?.let { outerClass ->
+                appendInternalName(outerClass.type())
+            }
         }
 
         for (parameter in parameters()) {
-            sb.append(parameter.type().internalName())
+            appendInternalName(parameter.type())
         }
 
-        sb.append(")")
-        sb.append(if (voidConstructorTypes && isConstructor()) "V" else returnType().internalName())
-        return sb.toString()
+        append(")")
+        if (voidConstructorTypes && isConstructor()) {
+            append("V")
+        } else {
+            appendInternalName(returnType())
+        }
     }
 
     companion object {

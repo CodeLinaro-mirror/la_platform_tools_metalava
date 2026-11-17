@@ -16,15 +16,19 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.apilevels.ApiVersion
 import com.android.tools.metalava.cli.common.MetalavaCliException
+import com.android.tools.metalava.cli.common.MetalavaOptionGroup
 import com.android.tools.metalava.cli.common.PreviouslyReleasedApi
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.map
 import com.android.tools.metalava.cli.common.newDir
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.PackageFilter
+import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.stub.StubGenerator
 import com.android.tools.metalava.stub.StubWriterConfig
-import com.github.ajalt.clikt.parameters.groups.OptionGroup
+import com.github.ajalt.clikt.parameters.options.OptionWithValues
 import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.multiple
@@ -45,9 +49,10 @@ const val ARG_ENHANCE_DOCUMENTATION = "--enhance-documentation"
 const val ARG_MIGRATE_NULLNESS = "--migrate-nullness"
 
 const val ARG_APPLY_API_LEVELS = "--apply-api-levels"
+const val ARG_API_VERSION_LABEL = "--api-version-label"
 
 class StubGenerationOptions :
-    OptionGroup(
+    MetalavaOptionGroup(
         name = STUB_GENERATION_GROUP,
         help = "Options controlling the generation of stub files.",
     ) {
@@ -81,7 +86,8 @@ class StubGenerationOptions :
                         example, in the stub files, we'll use special annotations like
                         @RecentlyNonNull instead of @NonNull to indicate that an element is recently
                         marked as non null, whereas in the documentation stubs we'll just list this
-                        as @NonNull. Another difference is that @doconly elements are included in
+                        as @NonNull. Another difference is that items annotated with a
+                        `<api-surfaces>/<doc-only>` configured annotation are included in
                         documentation stubs, but not regular stubs, etc.
 
                         At most one of this and $ARG_STUBS can be provided.
@@ -203,8 +209,64 @@ class StubGenerationOptions :
             // invocation of Metalava will create. Instead, it must be verified when it is used.
             .file(canBeDir = false)
 
-    /** Construct a [StubGenerator.Config] based on these options. */
-    internal fun generatorConfig(): StubGenerator.Config {
+    /** A map from [ApiVersion] to a [String] label. */
+    private val apiVersionToLabel by
+        option(
+                ARG_API_VERSION_LABEL,
+                metavar = "<api-version>:<label>",
+                help =
+                    """
+                        Specifies a label to use in place of the `<api-version>` when augmenting the
+                        Javadoc to include information about the history of an API item, e.g. in
+                        `@apiSince` and `@deprecatedSince` doc tags. This can be specified multiple
+                        times to provide labels for multiple different versions.
+
+                        See $ARG_API_VERSION_FOR_SOURCES for acceptable `<api-version>`s.
+
+                        This only has an effect when generating doc stubs, or enhancing the javadoc
+                        of normal stubs. It has no effect on the generation of the API history.
+                    """
+                        .trimIndent(),
+            )
+            .apiVersionToLabel()
+            .multiple(default = emptyList())
+            .map { it.toMap() }
+
+    /** Convert an option value to a [Pair] of [ApiVersion] and [String]. */
+    private fun OptionWithValues<String?, String, String>.apiVersionToLabel() = convert { text ->
+        // Split the value at the first `:` only.
+        val parts = text.split(':', limit = 2)
+        if (parts.size != 2) {
+            error("Must be of the form <version>:<label> but found '$text'")
+        }
+        val (version, label) = parts
+        ApiVersion.fromString(version) to label
+    }
+
+    /**
+     * Get label for [version].
+     *
+     * Checks the [apiVersionToLabel] map first and if a label was found for [version] then returns
+     * it. Otherwise, use [version]'s [ApiVersion.toString] value.
+     */
+    internal fun getApiVersionLabel(version: ApiVersion): String =
+        apiVersionToLabel[version] ?: version.toString()
+
+    /**
+     * Construct a [StubGenerator.Config] based on these options.
+     *
+     * @param signatureFileLoader Function used to load the [PreviouslyReleasedApi] signature files
+     *   configured via [ARG_MIGRATE_NULLNESS].
+     * @param javaRecordClasses Whether the target language level supports Java `record` classes.
+     * @param javaSealedClasses Whether the target language level supports Java `sealed` classes.
+     */
+    internal fun generatorConfig(
+        signatureFileLoader: (List<SignatureFile>) -> Codebase = {
+            error("unsupported signature file loading")
+        },
+        javaRecordClasses: Boolean = false,
+        javaSealedClasses: Boolean = false,
+    ): StubGenerator.Config {
         // Always include documentations in the doc stubs and include documentation in the normal
         // stubs unless explicitly excluded.
         val includeDocumentationInStubs = !excludeDocumentationFromStubs || docStubsDir != null
@@ -234,6 +296,8 @@ class StubGenerationOptions :
             stubWriterConfig =
                 StubWriterConfig(
                     includeDocumentationInStubs = includeDocumentationInStubs,
+                    javaRecordClasses = javaRecordClasses,
+                    javaSealedClasses = javaSealedClasses,
                 ),
 
             // Enhance the documentation if explicitly requested of generating the doc stubs.
@@ -249,11 +313,17 @@ class StubGenerationOptions :
             generateAnnotations = includeAnnotations,
 
             // Provide config needed to migrate nullability information.
-            nullabilityConversionPreviouslyReleasedApi = nullabilityConversionPreviouslyReleasedApi,
+            nullabilityConversionPreviouslyReleasedCodebase =
+                nullabilityConversionPreviouslyReleasedApi?.let { previouslyReleasedApi ->
+                    { previouslyReleasedApi.load(signatureFileLoader) }
+                },
             nullabilityConversionPackageFilter = forceConvertToWarningNullabilityAnnotations,
 
             // Provide config needed to apply API versions to the documentation.
             apiVersionsXmlFile = apiVersionsXmlFile,
+
+            // Provide access to any custom labels that have been defined.
+            apiVersionLabelProvider = ::getApiVersionLabel,
         )
     }
 }

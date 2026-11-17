@@ -22,6 +22,8 @@ import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.testing.generateBase64gzipFromKotlin
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
@@ -97,6 +99,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.KOTLIN)
     @Test
     fun `Test properties can only be used from Kotlin`() {
         runCodebaseTest(
@@ -124,6 +127,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.KOTLIN)
     @Test
     fun `Test type aliases can only be used from Kotlin`() {
         runCodebaseTest(
@@ -147,6 +151,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test value class constructor and boxing methods`() {
         runCodebaseTest(
@@ -242,6 +247,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test function using value class parameter`() {
         runCodebaseTest(
@@ -324,6 +330,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test function in value class`() {
         runCodebaseTest(
@@ -405,6 +412,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test functions using different value classes with the same inlined value`() {
         runCodebaseTest(
@@ -530,6 +538,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test only one copy of function with type variable`() {
         runCodebaseTest(
@@ -575,6 +584,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test function of nested class using value class type`() {
         runCodebaseTest(
@@ -674,6 +684,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test function returning value class type where bytecode method is not mangled`() {
         // In the case of a top-level extension function, the compiler-generated name for the
@@ -751,6 +762,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test functions returning value class types and visibility`() {
         runCodebaseTest(
@@ -880,21 +892,13 @@ class CommonTargetLanguageTest : BaseModelTest() {
                 assertThat(modifiers.isNonNull).isTrue()
             }
 
-            val internalNonMangledMethod =
-                fooClass.assertMethod("internalValueClassFunction", emptyList())
-            assertThat(internalNonMangledMethod.targetLanguages)
-                .containsExactly(TargetLanguage.KOTLIN)
-            assertThat(internalNonMangledMethod.modifiers.getVisibilityLevel())
-                .isEqualTo(VisibilityLevel.INTERNAL)
-            internalNonMangledMethod.returnType().assertClassTypeItem {
-                assertThat(qualifiedName).isEqualTo("test.pkg.IntValue")
-                assertThat(modifiers.isNonNull).isTrue()
-            }
-
-            assertThat(fooClass.methods()).hasSize(7)
+            // The private method and source version of the internal method are not generated since
+            // they can't be part of the API surface.
+            assertThat(fooClass.methods()).hasSize(5)
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test internal visibility value class constructor`() {
         runCodebaseTest(
@@ -959,6 +963,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test properties of value class types and visibility`() {
         runCodebaseTest(
@@ -1100,6 +1105,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test properties of value class types with JvmName`() {
         runCodebaseTest(
@@ -1194,6 +1200,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
             val jvmNameOnGetGetter = fooClass.assertMethod("getJvmNameOnGet", emptyList())
             assertThat(jvmNameOnGetGetter.targetLanguages)
                 .containsExactlyElementsIn(TargetLanguageSet.NOT_KOTLIN)
+            assertThat(jvmNameOnGetGetter.property).isNotNull()
             val jvmNameOnGetSetter = fooClass.assertMethod("setJvmNameOnGet-Vxmw0xk", listOf("int"))
             assertThat(jvmNameOnGetSetter.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
 
@@ -1202,16 +1209,20 @@ class CommonTargetLanguageTest : BaseModelTest() {
             val jvmNameOnSetSetter = fooClass.assertMethod("setJvmNameOnSet", listOf("int"))
             assertThat(jvmNameOnSetSetter.targetLanguages)
                 .containsExactlyElementsIn(TargetLanguageSet.NOT_KOTLIN)
+            assertThat(jvmNameOnSetSetter.property).isNotNull()
 
             val jvmNameOnBothGetter = fooClass.assertMethod("getJvmNameOnBoth", emptyList())
             assertThat(jvmNameOnBothGetter.targetLanguages)
                 .containsExactlyElementsIn(TargetLanguageSet.NOT_KOTLIN)
+            assertThat(jvmNameOnBothGetter.property).isNotNull()
             val jvmNameOnBothSetter = fooClass.assertMethod("setJvmNameOnBoth", listOf("int"))
             assertThat(jvmNameOnBothSetter.targetLanguages)
                 .containsExactlyElementsIn(TargetLanguageSet.NOT_KOTLIN)
+            assertThat(jvmNameOnBothSetter.property).isNotNull()
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test extension properties of value class types with JvmName`() {
         runCodebaseTest(
@@ -1332,6 +1343,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test multi file class`() {
         runCodebaseTest(
@@ -1453,6 +1465,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test hidden deprecation level with value class type`() {
         runCodebaseTest(
@@ -1535,6 +1548,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test propagating PublishedApi from properties to accessors`() {
         runCodebaseTest(
@@ -1606,9 +1620,8 @@ class CommonTargetLanguageTest : BaseModelTest() {
                 )
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
-            val property = fooClass.assertProperty("foo")
-            assertThat(property.modifiers.getVisibilityLevel()).isEqualTo(VisibilityLevel.INTERNAL)
-            assertThat(property.annotationNames()).contains("kotlin.PublishedApi")
+            // No property is created, because it cannot be used from source
+            assertThat(fooClass.properties()).isEmpty()
 
             val getter = fooClass.assertMethod("getFoo-RVb1_dM", emptyList())
             assertThat(getter.modifiers.getVisibilityLevel()).isEqualTo(VisibilityLevel.INTERNAL)
@@ -1620,6 +1633,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test annotation constructor is kotlin only`() {
         runCodebaseTest(
@@ -1637,6 +1651,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test deprecation level hidden constructor is bytecode only`() {
         runCodebaseTest(
@@ -1681,6 +1696,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test deprecation level hidden property`() {
         runCodebaseTest(
@@ -1732,6 +1748,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test constructors using value class type and visibility`() {
         // Constructors using value class types can only be used from Kotlin. In bytecode they get
@@ -1846,6 +1863,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test constructor using optional value class type`() {
         // Constructors using value class types can only be used from Kotlin. In bytecode they get
@@ -1924,6 +1942,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
 
             val kotlinCtor = fooClass.assertConstructor(listOf("test.pkg.IntValue"))
             assertThat(kotlinCtor.targetLanguages).containsExactly(TargetLanguage.KOTLIN)
+            assertThat(kotlinCtor.parameters().single().hasDefaultValue()).isTrue()
 
             val bytecodeCtor =
                 fooClass.assertConstructor(
@@ -1931,21 +1950,19 @@ class CommonTargetLanguageTest : BaseModelTest() {
                 )
             assertThat(bytecodeCtor.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
 
-            // When a kotlin constructor has a single default parameter, an overload is generated
-            // with no parameters.
-            val defaultCtor = fooClass.assertConstructor(emptyList())
-            assertThat(defaultCtor.targetLanguages).containsExactlyElementsIn(TargetLanguageSet.ALL)
-
             val bytecodeDefaultCtor =
                 fooClass.assertConstructor(
                     listOf("int", "int", "kotlin.jvm.internal.DefaultConstructorMarker")
                 )
             assertThat(bytecodeDefaultCtor.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
 
-            assertThat(fooClass.constructors()).hasSize(4)
+            // Usually, when a kotlin constructor has a single default parameter, an overload is
+            // generated with no parameters, but this is not the case with the value class type.
+            assertThat(fooClass.constructors()).hasSize(3)
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test constructor using nullable value class type`() {
         runCodebaseTest(
@@ -2010,13 +2027,20 @@ class CommonTargetLanguageTest : BaseModelTest() {
                 )
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
-            val fooCtor = fooClass.assertConstructor(listOf("test.pkg.IntValue"))
-            assertThat(fooCtor.targetLanguages)
-                .containsExactlyElementsIn(TargetLanguageSet.NOT_JAVA)
-            assertThat(fooClass.constructors()).hasSize(1)
+            val sourceCtor = fooClass.assertConstructor(listOf("test.pkg.IntValue"))
+            assertThat(sourceCtor.targetLanguages)
+                .containsExactlyElementsIn(TargetLanguageSet.KOTLIN_ONLY)
+            val bytecodeCtor =
+                fooClass.assertConstructor(
+                    listOf("test.pkg.IntValue", "kotlin.jvm.internal.DefaultConstructorMarker")
+                )
+            assertThat(bytecodeCtor.targetLanguages)
+                .containsExactlyElementsIn(TargetLanguageSet.BYTECODE_ONLY)
+            assertThat(fooClass.constructors()).hasSize(2)
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test deprecated hidden constructor using value class type`() {
         // Constructors using value class types can only be used from Kotlin. In bytecode they get
@@ -2105,6 +2129,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test experimental value class property`() {
         runCodebaseTest(
@@ -2198,6 +2223,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test experimental value class property in interface`() {
         runCodebaseTest(
@@ -2294,6 +2320,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test reified inline function is not accessible from Java`() {
         runCodebaseTest(
@@ -2347,6 +2374,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test extension and suspend reified inline functions`() {
         runCodebaseTest(
@@ -2449,6 +2477,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test reified inlined accessors are not present`() {
         runCodebaseTest(
@@ -2493,7 +2522,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
                 ),
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
-            val fooProperty = fooClass.assertProperty("foo")
+            val fooProperty = fooClass.assertProperty("foo", receiverTypeString = "T")
             assertThat(fooProperty.targetLanguages)
                 .containsExactlyElementsIn(TargetLanguageSet.KOTLIN_ONLY)
 
@@ -2502,6 +2531,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test reified inline function using value class type`() {
         runCodebaseTest(
@@ -2581,6 +2611,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test JvmSynthetic function is not accessible from Java`() {
         runCodebaseTest(
@@ -2628,6 +2659,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test JvmSynthetic accessors are not accessible from Java`() {
         runCodebaseTest(
@@ -2681,6 +2713,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test JvmSynthetic function using value class type`() {
         runCodebaseTest(
@@ -2758,6 +2791,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test target languages for data class property accessors`() {
         runCodebaseTest(
@@ -2786,6 +2820,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test target language for composable APIs`() {
         runCodebaseTest(
@@ -2888,8 +2923,8 @@ class CommonTargetLanguageTest : BaseModelTest() {
 
             val sourceFooVal = fooClass.assertProperty("fooVal")
             assertThat(sourceFooVal.targetLanguages).containsExactly(TargetLanguage.KOTLIN)
-            // The annotation is applied to the getter, not the property.
-            assertThat(sourceFooVal.annotationNames()).doesNotContain(ANDROIDX_COMPOSABLE)
+            // Metalava applies getter annotations to the property as well.
+            assertThat(sourceFooVal.annotationNames()).containsExactly(ANDROIDX_COMPOSABLE)
 
             // Signature generated by the compose compiler.
             val bytecodeFooVal =
@@ -2902,6 +2937,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test JvmName on regular methods`() {
         runCodebaseTest(
@@ -2937,6 +2973,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test JvmName on value class type methods`() {
         runCodebaseTest(
@@ -3032,6 +3069,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test JvmName with method with fliped kotlin and bytecode names`() {
         runCodebaseTest(
@@ -3096,6 +3134,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test compiler generated default version of function with optional parameters`() {
         runCodebaseTest(
@@ -3152,6 +3191,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test compiler generated default version of top level function with optional parameters`() {
         runCodebaseTest(
@@ -3206,6 +3246,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test compiler generated default version of internal functions with optional parameters`() {
         runCodebaseTest(
@@ -3270,7 +3311,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
             val sourceFooFunction = fooClass.assertMethod("foo", listOf("int", "java.lang.String"))
-            assertThat(sourceFooFunction.targetLanguages).isEqualTo(TargetLanguageSet.ALL)
+            assertThat(sourceFooFunction.targetLanguages).isEqualTo(TargetLanguageSet.BYTECODE_ONLY)
             assertThat(sourceFooFunction.modifiers.getVisibilityLevel())
                 .isEqualTo(VisibilityLevel.INTERNAL)
 
@@ -3288,7 +3329,8 @@ class CommonTargetLanguageTest : BaseModelTest() {
 
             val sourceFooKtFunction =
                 fooKtClass.assertMethod("foo", listOf("int", "java.lang.String"))
-            assertThat(sourceFooKtFunction.targetLanguages).isEqualTo(TargetLanguageSet.ALL)
+            assertThat(sourceFooKtFunction.targetLanguages)
+                .isEqualTo(TargetLanguageSet.BYTECODE_ONLY)
             assertThat(sourceFooKtFunction.modifiers.getVisibilityLevel())
                 .isEqualTo(VisibilityLevel.INTERNAL)
 
@@ -3304,6 +3346,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test compiler generated default version of annotated function with optional parameters`() {
         runCodebaseTest(
@@ -3373,6 +3416,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test compiler generated default version of deprecated function with optional parameters`() {
         runCodebaseTest(
@@ -3432,6 +3476,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test compiler generated default version of constructor with optional parameters`() {
         runCodebaseTest(
@@ -3490,6 +3535,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test compiler generated default version of internal constructor with optional parameters`() {
         runCodebaseTest(
@@ -3552,6 +3598,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test compiler generated default version of annotated constructor with optional parameters`() {
         runCodebaseTest(
@@ -3621,6 +3668,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test compiler generated default version of deprecated constructor with optional parameters`() {
         runCodebaseTest(
@@ -3681,6 +3729,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test compiler generated default version of reified functions with optional parameters`() {
         runCodebaseTest(
@@ -3744,6 +3793,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test compiler generated default version of top level reified functions with optional parameters`() {
         runCodebaseTest(
@@ -3800,6 +3850,143 @@ class CommonTargetLanguageTest : BaseModelTest() {
                 .isEqualTo(VisibilityLevel.INTERNAL)
 
             assertThat(testKtClass.methods()).hasSize(2)
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.KOTLIN)
+    @Test
+    fun `Test synthetic constructor is not included for private constructor`() {
+        // See https://youtrack.jetbrains.com/issue/KT-51073: a public version of this constructor
+        // is generated by the compiler, and it should not be included.
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    """
+                    package test.pkg
+                    class Foo private constructor(i: Int) {
+                        class Builder {
+                            fun build(): Foo {
+                                return Foo(0)
+                            }
+                        }
+                    }
+                    """
+                )
+            ),
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 21.0.9+10-b1163.91)
+                    "" +
+                        "H4sIAAAAAAAA/wvwZmYRYeDg4GBgYFBkQAYiDCwMvq4hjrqefm76vo5+nm6u" +
+                        "wSF6vm7/TjEwfPY9c9rHW1fvIq+3rta5M+c3BxlcMX7wtEjPy1fH0/di6aot" +
+                        "QR+8dAu1vM6c0Q77cE7/5Mkzj58+esrEEODNzrFeWHO9JdACcyAOwGm9EBCX" +
+                        "pBaX6Bdkp+u75efrJeckFhdPDTyfL+QoUWt8wGl7xLYtYRlXw1xb5XaJ2K4I" +
+                        "Fe7O3MS5tlNKT+YMQ7JsRNnZdzofT9x/VH8hWJi/reJLv1Hd5gXfsjb9/ltx" +
+                        "//u9M/v+/nx9u5yh/2KCRpZk9vfPP+7Ych62kWg2Fgp++EvJovz+F/eiBZ9P" +
+                        "GEScD13wxbst5252iaTRV7ftHTKfzDZpCKyxXzkjcW1x6PuORs0q27awu697" +
+                        "nN+uPiDrq76Oa0sP08Pd65+6T/yxS5ZtY9+kRr7FwYK9qSVbJmzPKZgiYZbV" +
+                        "XC8tr/aS6/DB/55Ga/4rzvHSbXPiPvQjZZai+QxObbWGPBu1P91GsZNXPVQ8" +
+                        "vPjnmpzPXNt3Gs+/+aVgecJnpvVn0nXvpZyPeLcj5EHq6Ye398z8+fHqI79r" +
+                        "AdFnOJ71Cz/lPzvXfL1USPShyjcTj7LI9JhW3uRrn7TwSmCjjbdareRe8dr5" +
+                        "E4rUZTj2ayul/lKN+NLk4JYbf2TjEvuE/dyTMxT8p8wMva/WGCZ8M3Tjoqfh" +
+                        "jgJZC0Utm52NzLL3TTMy97us+z7w+xSj5XNu7z9yytVqXaBJcvD95Tu2RjT0" +
+                        "Xg1RaFda12jZs2rr0jPCtwy/Rf62nl6gFxTOW57f+O9pFHde1NrFczbJBaQL" +
+                        "l7Xvig35aGD7U+/VlHiBfY7Pc75N+Fhw9/C0dukVAZ2r2nPffDmQdOfIWrk1" +
+                        "EqsN845rLJt46+59UNIJTwuX/c3IwPCLCV/SkUJLOipOpZk5KalFkCSUGxgL" +
+                        "TEIitsannXYf3XQlauHX3aGOwtMn2a003DhDLVtDLcuDx5+5x2LDmVl3Ix8p" +
+                        "7z8av8Df18TwiHv9lI/vxJLXvjv816L83MybxfV//nziPcD4ime227Fj1faS" +
+                        "le6JO8pnrEjQWMwk0WwtZvyQ1al/j/jfjTIzmHTa/iQvnVp5KOHqq7tKOU9k" +
+                        "nwQknJhZrpV2I+u//wfB5rv+3pPWXv1v5bT4bplE756NJn89NGSrnV5f4Fjs" +
+                        "tMp64UsVR4flXemRrGuMTbLrqoVmOWTm28yu8pKWzBSsOP8keiLLMtcaYVVm" +
+                        "YbfjSrMuaPvFv7HSWHgm4J+v3TQ3nlbBEs7553Q2tS1NNOVNSBA+ZL9iS3aA" +
+                        "6Z30Hftn7OZbX9C+u3vn4fCKWyFin9XyNzj//n3cpvzn5z3ZuZ/d9JaaRGpt" +
+                        "qft3nNu7+kQYk5wPz80bXKC0FBZVNikz3m29q71CymJZPpcLohO9fqvu+Gx0" +
+                        "0c136fp0rTAW27/JspbPsnUXhyk8igh6vYcLmLT6Q06t0Zt5t77iBvvyqcvk" +
+                        "l7tfbtO8t+ic994FOfetD556nrPH23B+o9g3DTF//gRRvqdG1zgeSv5sULk8" +
+                        "87PoUnMx64PHlhdzfZNkTV9ZUG25d8LdAvXZE+Zv2S+94lHesgJh01P8nPs9" +
+                        "pGbbRtjp/bzxqVBSVCvw68beuXIRPdo7bjXLHu4s1HWzOxbV83o/uBTinDtV" +
+                        "jhmYjPiZ8SUlaSCGF4K5iZl5etn5JTmZefG5+SmlOanJCQkJaUDMkuTHphGQ" +
+                        "dCGJAWz2V6U9e4WBOiXAJRwjkwgDwnTk0g9UxKICXAUuuinIGUEIxYR6rOUm" +
+                        "un5k30uh6N/FhC/zoJuD7FNpFHNYWfGGXIA3KxtIGQsQigM9ksgK4gEABC1I" +
+                        "IY4GAAA="
+                )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val visibleConstructors = fooClass.constructors().filter { !it.isPrivate }
+            assertThat(visibleConstructors).isEmpty()
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.KOTLIN)
+    @Test
+    fun `Test synthetic constructor when there is a version with a final int parameter`() {
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    """
+                    package test.pkg
+                    class Foo(i: Int = 0) {
+                        constructor(i1: Int = 0, i2: Int = 0): this(i1 + i2)
+                    }
+                    """
+                ),
+            ),
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 21.0.9+10-b1163.91)
+                    "" +
+                        "H4sIAAAAAAAA/wvwZmYRYeDg4GBgYFBkQAYiDCwMvq4hjrqefm76vo5+nm6u" +
+                        "wSF6vm7/TjEwfPY9c9rHW1fvIq+3rta5M+c3BxlcMX7wtEjPy1fH0/di6aot" +
+                        "QR+8dAu1vM6c0Q77cE7/5Mkzj58+esrEEODNzrFeWHO9JdACcyAOwGm9EBCX" +
+                        "pBaX6Bdkp+u75efrJeckFhfPnXQ677KDSNt/SevO18tWTnbKz9S8Pomtpfr2" +
+                        "AjGVqJCTQVEqXZtOtnlmnTLpjL05uUv0VfaGp7y7uo4whepUahyZ2emZ2J0y" +
+                        "/+f5mR/L/1l+Oh9/fx/zjWPBbYu4gp/OL/f/22yh12BYkf7I6Yet4Nxf+bfS" +
+                        "E91FEwyflKeqXPVm2y22xlRyza2ozR0yXHo5FiFh8qmnArL+nL2dmDDpXkPi" +
+                        "ajGW3rw1VUafzuv92tcTMsNl0fP9fPYdjv5vjweumuTofvTkQo9diZuMHz2P" +
+                        "LfAxfvKi+u7007yyZpLbVn6KP7HJ7d61VUuuyjj/5H9mEPLIRcPxWOX/Q4sU" +
+                        "DWXVShhil3h/9Q9Kf73E78Spi19Tjz79fOfpva9Lvfm/y0y3/vbn61O1+PTq" +
+                        "0PRtjyzuPO6uuWt06tqr49dtvhdVX142ST6ca5ZX+eK4yln3N69bdPLdcXXF" +
+                        "wyXObg8vLrjPN7l80d3FXksFy13Wawqt/LzGonSNy/JqjXOb79j2sXuq20yw" +
+                        "iqyw7pjypt13ptetWlHXjUJel+ZscJy84atupo7P+bmPtFLPZz7dFSWf9KiL" +
+                        "5XhyV1X0a6mjNy8y7phxhsHVp7FSKviUQbTkvi0p9f+a5myNXs/3sLciW0TX" +
+                        "4HhDLPNjlg29/UVsFguUq9757d31pe7Py17R0xE7ra2Mtz1asGithKlzl3Tw" +
+                        "9mPlmzWYn00zDj5tuXnfAjnnM/d2bD4495D9WZNlExLDekNzz266KfA5/Fn8" +
+                        "xbKuyNcTZft2dfZ/aLlWeyta4VQSd1hDVsNShtM7nIW0GWOfxHHrHK21yTjo" +
+                        "aTjzUWJXV6ex5inNLs1P+xlBibLveFlFKBMDw0lmfIlSGojheSI3MTNPLzu/" +
+                        "JCczLz43P6U0JzU5ISEhDYhZkvzYNAKSLiQxgBP8V6U9e4WBOiXACZ6RSYQB" +
+                        "YTpyZgDlOFSAK/+hm4LseiEUE+qxZiN0/cgulEYtBZjx+jjAm5UNpIwZCM8D" +
+                        "6QJmEA8AaxZ3d1UEAAA="
+                )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            // The compiler generates a no-args version of a primary constructor with all optional
+            // parameters, even without JvmOverloads.
+            val noArgsCtor = fooClass.assertConstructor(emptyList())
+            assertThat(noArgsCtor.targetLanguages).containsExactlyElementsIn(TargetLanguageSet.ALL)
+
+            val sourceOneArg = fooClass.assertConstructor(listOf("int"))
+            assertThat(sourceOneArg.targetLanguages)
+                .containsExactlyElementsIn(TargetLanguageSet.ALL)
+            val bytecodeOneArgGenerated =
+                fooClass.assertConstructor(
+                    listOf("int", "int", "kotlin.jvm.internal.DefaultConstructorMarker")
+                )
+            assertThat(bytecodeOneArgGenerated.targetLanguages)
+                .containsExactlyElementsIn(TargetLanguageSet.BYTECODE_ONLY)
+
+            val sourceTwoArg = fooClass.assertConstructor(listOf("int", "int"))
+            assertThat(sourceTwoArg.targetLanguages)
+                .containsExactlyElementsIn(TargetLanguageSet.ALL)
+            val bytecodeTwoArgGenerated =
+                fooClass.assertConstructor(
+                    listOf("int", "int", "int", "kotlin.jvm.internal.DefaultConstructorMarker")
+                )
+            assertThat(bytecodeTwoArgGenerated.targetLanguages)
+                .containsExactlyElementsIn(TargetLanguageSet.BYTECODE_ONLY)
+
+            assertThat(fooClass.constructors()).hasSize(5)
         }
     }
 }

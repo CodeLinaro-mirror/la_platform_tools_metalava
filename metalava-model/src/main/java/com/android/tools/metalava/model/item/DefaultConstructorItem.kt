@@ -16,11 +16,9 @@
 
 package com.android.tools.metalava.model.item
 
-import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.BaseModifierList
-import com.android.tools.metalava.model.CallableBody
-import com.android.tools.metalava.model.CallableBodyFactory
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
@@ -28,66 +26,67 @@ import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.SourceLanguage
+import com.android.tools.metalava.model.SourcePosition
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
+import com.android.tools.metalava.model.TypeComparator
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.createImmutableModifiers
-import com.android.tools.metalava.reporter.FileLocation
 
-open class DefaultConstructorItem(
+internal class DefaultConstructorItem(
     codebase: Codebase,
-    fileLocation: FileLocation,
+    fileLocationSource: FileLocationSource,
+    sourcePosition: SourcePosition,
     sourceLanguage: SourceLanguage,
     targetLanguages: Set<TargetLanguage>,
     modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
-    variantSelectorsFactory: ApiVariantSelectorsFactory,
     name: String,
     containingClass: ClassItem,
     typeParameterList: TypeParameterList,
     returnType: ClassTypeItem,
     parameterItemsFactory: ParameterItemsFactory,
     throwsTypes: List<ExceptionTypeItem>,
-    callableBodyFactory: CallableBodyFactory,
     private val implicitConstructor: Boolean,
-    override val isPrimary: Boolean = false,
+    isPrimary: Boolean = false,
 ) :
     DefaultCallableItem(
         codebase = codebase,
-        fileLocation = fileLocation,
+        fileLocationSource = fileLocationSource,
+        sourcePosition = sourcePosition,
         sourceLanguage = sourceLanguage,
         targetLanguages = targetLanguages,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
-        variantSelectorsFactory = variantSelectorsFactory,
         name = name,
         containingClass = containingClass,
         typeParameterList = typeParameterList,
         returnType = returnType,
         parameterItemsFactory = parameterItemsFactory,
         throwsTypes = throwsTypes,
-        callableBodyFactory = callableBodyFactory,
     ),
     ConstructorItem {
 
+    // If this is the canonical constructor then set it as the primary constructor.
+    override val isPrimary: Boolean = isPrimary || isCanonicalRecordConstructor()
+
     /** Override to specialize the return type. */
-    final override fun returnType() = super.returnType() as ClassTypeItem
+    override fun returnType() = super.returnType() as ClassTypeItem
 
     /** Override to make sure that [type] is a [ClassTypeItem]. */
-    final override fun setType(type: TypeItem) {
+    override fun setType(type: TypeItem) {
         super.setType(type as ClassTypeItem)
     }
 
-    final override fun isImplicitConstructor() = implicitConstructor
+    override fun isImplicitConstructor() = implicitConstructor
 
     companion object {
-        fun createDefaultConstructor(
+        fun createImplicitDefaultConstructor(
             codebase: Codebase,
             sourceLanguage: SourceLanguage,
-            variantSelectorsFactory: ApiVariantSelectorsFactory,
-            containingClass: ClassItem,
+            containingClass: DefaultClassItem,
             visibility: VisibilityLevel,
         ): ConstructorItem {
             val name = containingClass.simpleName()
@@ -97,23 +96,51 @@ open class DefaultConstructorItem(
                 DefaultConstructorItem(
                     codebase = codebase,
                     // Use the location of the containing class for the default constructor.
-                    fileLocation = containingClass.fileLocation,
+                    fileLocationSource = containingClass.fileLocationSource,
+                    sourcePosition = containingClass.sourcePosition,
                     sourceLanguage = sourceLanguage,
                     targetLanguages = TargetLanguageSet.ALL,
                     modifiers = modifiers,
                     documentationFactory = ItemDocumentation.NONE_FACTORY,
-                    variantSelectorsFactory = variantSelectorsFactory,
                     name = name,
                     containingClass = containingClass,
                     typeParameterList = TypeParameterList.NONE,
                     returnType = containingClass.type(),
                     parameterItemsFactory = { emptyList() },
                     throwsTypes = emptyList(),
-                    callableBodyFactory = CallableBody.UNAVAILABLE_FACTORY,
-                    // This is not an implicit constructor as it was not created by the compiler.
-                    implicitConstructor = false,
+                    // This is an implicit constructor as it was not found in the source.
+                    implicitConstructor = true,
                 )
             return ctorItem
+        }
+
+        /**
+         * Check to see if this [ConstructorItem] is the canonical constructor of a record class.
+         *
+         * This will return `true` iff [ConstructorItem.parameters] has the same number and types as
+         * the record components.
+         */
+        private fun ConstructorItem.isCanonicalRecordConstructor(): Boolean {
+            val containingClass = containingClass()
+            if (containingClass.classKind != ClassKind.RECORD) {
+                return false
+            }
+            val parameters = parameters()
+            val components = containingClass.recordComponents
+            val count = components.size
+            if (count != parameters.size) {
+                return false
+            }
+
+            for (index in 0..<count) {
+                val component = components[index]
+                val parameter = parameters[index]
+                if (!TypeComparator.IGNORE_NULLABILITY.compare(component.type, parameter.type())) {
+                    return false
+                }
+            }
+
+            return true
         }
     }
 }

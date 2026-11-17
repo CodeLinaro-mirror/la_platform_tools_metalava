@@ -22,13 +22,8 @@ filegroup {
     path: "src/main/resources",
 }
 
-// The metalava application. This must be built in this directory because the
-// path to this is hard-coded in Bazel rules that use metalava.
-java_binary_host {
-    name: "metalava",
-    visibility: [
-        "//visibility:private",
-    ],
+java_library_host {
+    name: "metalava-core",
     srcs: [
         "src/main/java/**/*.java",
         "src/main/java/**/*.kt",
@@ -38,20 +33,35 @@ java_binary_host {
         ":metalava-resources",
     ],
     static_libs: [
-        "jsr305",
-        "jsr330",
         "metalava-model",
-        "metalava-model-psi",
         "metalava-model-source",
         "metalava-model-text",
-        "metalava-model-turbine",
         "metalava-reporter",
-        "metalava-tools-common-m2-deps",
-        "metalava-gradle-plugin-deps",
-        "gson-prebuilt-jar-2.9.1",
-        "kotlin_metadata_jvm",
+
+        "prebuilts-metalava-clikt",
+        "prebuilts-metalava-gson",
+        "prebuilts-metalava-tracing",
+        "prebuilts-metalava-tracing-wire",
+    ],
+}
+
+// The metalava application. This must be built in this directory because the
+// path to this is hard-coded in Bazel rules that use metalava.
+// Source model provider libraries (metalava-model-psi, metalava-model-turbine)
+// are not bundled; they are added dynamically to the classpath when invoking
+// the `main` sub-command.
+java_binary_host {
+    name: "metalava",
+    visibility: [
+        "//visibility:public",
+    ],
+    static_libs: [
+        "kotlin-reflect",
+
+        "metalava-core",
     ],
     main_class: "com.android.tools.metalava.Driver",
+    wrapper: "metalava.sh",
     target: {
         host: {
             dist: {

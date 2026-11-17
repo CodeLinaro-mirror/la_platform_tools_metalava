@@ -37,7 +37,7 @@ class ApiFromTextTest : DriverTest() {
                 }
                 """
 
-        check(format = FileFormat.V2, signatureSource = source, api = source)
+        check(format = FileFormat.V2, signatureSource = source, expectedApiSignature = source)
     }
 
     @Test
@@ -56,7 +56,7 @@ class ApiFromTextTest : DriverTest() {
         check(
             format = FileFormat.V4,
             signatureSource = source,
-            api = source,
+            expectedApiSignature = source,
         )
     }
 
@@ -75,7 +75,7 @@ class ApiFromTextTest : DriverTest() {
         check(
             format = FileFormat.V4,
             signatureSource = source,
-            api = source,
+            expectedApiSignature = source,
         )
     }
 
@@ -105,7 +105,7 @@ class ApiFromTextTest : DriverTest() {
             }
             """
 
-        check(format = FileFormat.V4, signatureSource = source, api = source)
+        check(format = FileFormat.V4, signatureSource = source, expectedApiSignature = source)
     }
 
     @Test
@@ -136,7 +136,7 @@ class ApiFromTextTest : DriverTest() {
         check(
             format = FileFormat.V4,
             signatureSource = source,
-            api = source,
+            expectedApiSignature = source,
         )
     }
 
@@ -152,7 +152,7 @@ class ApiFromTextTest : DriverTest() {
                   }
                 }
                 """
-        check(format = FileFormat.V2, signatureSource = source, api = source)
+        check(format = FileFormat.V2, signatureSource = source, expectedApiSignature = source)
     }
 
     @Test
@@ -167,7 +167,7 @@ class ApiFromTextTest : DriverTest() {
                   }
                 }
                 """
-        check(format = FileFormat.V2, signatureSource = source, api = source)
+        check(format = FileFormat.V2, signatureSource = source, expectedApiSignature = source)
     }
 
     @Test
@@ -183,7 +183,7 @@ class ApiFromTextTest : DriverTest() {
                       }
                     }
                     """,
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public class MyTest {
@@ -217,7 +217,7 @@ class ApiFromTextTest : DriverTest() {
                 }
                 """,
             // Type use annotations are removed, method and parameter annotations remain
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class MyTest {
@@ -261,7 +261,7 @@ class ApiFromTextTest : DriverTest() {
                   }
                 }
                 """,
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class MyTest {
@@ -290,7 +290,7 @@ class ApiFromTextTest : DriverTest() {
         check(
             format = FileFormat.V2,
             signatureSource = source,
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   @Deprecated public class MyTest {
@@ -340,7 +340,7 @@ class ApiFromTextTest : DriverTest() {
             }
             """
 
-        check(format = FileFormat.V2, signatureSource = source, api = source)
+        check(format = FileFormat.V2, signatureSource = source, expectedApiSignature = source)
     }
 
     @Test
@@ -368,7 +368,7 @@ class ApiFromTextTest : DriverTest() {
                 }
                 """
 
-        check(signatureSource = source, api = source)
+        check(signatureSource = source, expectedApiSignature = source)
     }
 
     @Test
@@ -395,7 +395,7 @@ class ApiFromTextTest : DriverTest() {
                 }
             """
 
-        check(signatureSource = source, api = source)
+        check(signatureSource = source, expectedApiSignature = source)
     }
 
     @Test
@@ -410,7 +410,7 @@ class ApiFromTextTest : DriverTest() {
                 }
                 """
 
-        check(format = FileFormat.V2, signatureSource = source, api = source)
+        check(format = FileFormat.V2, signatureSource = source, expectedApiSignature = source)
     }
 
     @Test
@@ -429,7 +429,7 @@ class ApiFromTextTest : DriverTest() {
                 }
                 """
 
-        check(format = FileFormat.V4, signatureSource = source, api = source)
+        check(format = FileFormat.V4, signatureSource = source, expectedApiSignature = source)
     }
 
     @Test
@@ -444,7 +444,7 @@ class ApiFromTextTest : DriverTest() {
                 }
                 """
 
-        check(format = FileFormat.V2, signatureSource = source, api = source)
+        check(format = FileFormat.V2, signatureSource = source, expectedApiSignature = source)
     }
 
     @Test
@@ -458,7 +458,7 @@ class ApiFromTextTest : DriverTest() {
                 }
                 """
 
-        check(format = FileFormat.V2, signatureSource = source, api = source)
+        check(format = FileFormat.V2, signatureSource = source, expectedApiSignature = source)
     }
 
     @Test
@@ -472,7 +472,7 @@ class ApiFromTextTest : DriverTest() {
                 }
                 """
 
-        check(format = FileFormat.V2, signatureSource = source, api = source)
+        check(format = FileFormat.V2, signatureSource = source, expectedApiSignature = source)
     }
 
     @Test
@@ -495,7 +495,7 @@ class ApiFromTextTest : DriverTest() {
                       }
                     }
                     """,
-            api =
+            expectedApiSignature =
                 """
                     package android.accounts {
                       public interface AccountManagerFuture<V> {
@@ -532,7 +532,7 @@ class ApiFromTextTest : DriverTest() {
                 }
                 """
 
-        check(format = FileFormat.V4, signatureSource = source, api = source)
+        check(format = FileFormat.V4, signatureSource = source, expectedApiSignature = source)
     }
 
     @Test
@@ -550,7 +550,7 @@ class ApiFromTextTest : DriverTest() {
                 }
                 """
 
-        check(format = FileFormat.V4, signatureSource = source, api = source)
+        check(format = FileFormat.V4, signatureSource = source, expectedApiSignature = source)
     }
 
     @Test
@@ -572,7 +572,7 @@ class ApiFromTextTest : DriverTest() {
             }
         """
 
-        check(format = FileFormat.V2, signatureSource = source, api = source)
+        check(format = FileFormat.V2, signatureSource = source, expectedApiSignature = source)
     }
 
     @Test
@@ -591,7 +591,7 @@ class ApiFromTextTest : DriverTest() {
                 }
                 """
 
-        check(format = FileFormat.V2, signatureSource = source, api = source)
+        check(format = FileFormat.V2, signatureSource = source, expectedApiSignature = source)
     }
 
     @Test
@@ -613,7 +613,7 @@ class ApiFromTextTest : DriverTest() {
                 }
                 """
 
-        check(format = FileFormat.V4, signatureSource = source, api = source)
+        check(format = FileFormat.V4, signatureSource = source, expectedApiSignature = source)
     }
 
     @Test
@@ -654,7 +654,7 @@ class ApiFromTextTest : DriverTest() {
                   }
                 }
                 """
-        check(format = FileFormat.V4, signatureSource = source, api = source)
+        check(format = FileFormat.V4, signatureSource = source, expectedApiSignature = source)
     }
 
     @Test
@@ -672,7 +672,7 @@ class ApiFromTextTest : DriverTest() {
                 }
                 """
 
-        check(format = FileFormat.V2, signatureSource = source, api = source)
+        check(format = FileFormat.V2, signatureSource = source, expectedApiSignature = source)
     }
 
     @Test
@@ -687,7 +687,7 @@ class ApiFromTextTest : DriverTest() {
                 }
                 """
 
-        check(format = FileFormat.V2, signatureSource = source, api = source)
+        check(format = FileFormat.V2, signatureSource = source, expectedApiSignature = source)
     }
 
     @Test
@@ -710,6 +710,6 @@ class ApiFromTextTest : DriverTest() {
                 }
                 """
 
-        check(signatureSource = source, api = expectedApi)
+        check(signatureSource = source, expectedApiSignature = expectedApi)
     }
 }

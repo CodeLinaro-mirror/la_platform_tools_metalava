@@ -52,6 +52,13 @@ class IssueConfiguration {
         overrides[issue] = severity
     }
 
+    fun setSeverityIfNotAlreadyOverridden(issue: Issues.Issue, severity: Severity) {
+        check(severity != Severity.INHERIT)
+        if (issue !in overrides) {
+            overrides[issue] = severity
+        }
+    }
+
     /** Set the severity of the given issue to [Severity.ERROR] */
     fun error(issue: Issues.Issue) {
         setSeverity(issue, Severity.ERROR)

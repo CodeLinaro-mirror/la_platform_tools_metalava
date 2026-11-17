@@ -25,7 +25,10 @@ const val JAVA_LANG_PREFIX = "java.lang."
 const val JAVA_LANG_ANNOTATION = "java.lang.annotation.Annotation"
 const val JAVA_LANG_DEPRECATED = "java.lang.Deprecated"
 const val JAVA_LANG_ENUM = "java.lang.Enum"
+const val JAVA_LANG_ERROR = "java.lang.Error"
 const val JAVA_LANG_OBJECT = "java.lang.Object"
+const val JAVA_LANG_RECORD = "java.lang.Record"
+const val JAVA_LANG_RUNTIME_EXCEPTION = "java.lang.RuntimeException"
 const val JAVA_LANG_STRING = "java.lang.String"
 const val JAVA_LANG_THROWABLE = "java.lang.Throwable"
 
@@ -53,3 +56,8 @@ const val JAVA_PACKAGE_INFO = "package-info.java"
 
 const val KOTLIN_CONTINUATION = "kotlin.coroutines.Continuation"
 const val KOTLIN_DEPRECATED = "kotlin.Deprecated"
+const val KOTLIN_PUBLISHED_API = "kotlin.PublishedApi"
+
+object JavaConstants {
+    const val DOT_CLASS = ".class"
+}

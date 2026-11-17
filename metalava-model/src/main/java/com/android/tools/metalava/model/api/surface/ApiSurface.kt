@@ -21,25 +21,53 @@ package com.android.tools.metalava.model.api.surface
  *
  * Their natural ordering is determined by the order in which they were created in [surfaces].
  */
-sealed interface ApiSurface : Comparable<ApiSurface> {
+sealed class ApiSurface : Comparable<ApiSurface> {
     /** The set of [ApiSurface]s to which this belongs. */
-    val surfaces: ApiSurfaces
+    abstract val surfaces: ApiSurfaces
 
     /** The name of the surface. */
-    val name: String
+    abstract val name: String
 
     /** The optional [ApiSurface] that this extends. */
-    val extends: ApiSurface?
+    abstract val extends: ApiSurface?
 
     /** True if this is the main [ApiSurface] being generated. */
-    val isMain: Boolean
+    abstract val isMain: Boolean
 
     /** The list of [ApiVariant]s, in the same order as [ApiVariantType]s. */
-    val variants: List<ApiVariant>
+    abstract val variants: List<ApiVariant>
 
     /** The set of all [ApiVariant]s in this [ApiSurface]. */
-    val variantSet: ApiVariantSet
+    abstract val variantSet: ApiVariantSet
+
+    /**
+     * The default [ApiVariant]s that will be included in this surface.
+     *
+     * @see ApiVariantType.isDefault
+     */
+    abstract val defaultVariantSet: ApiVariantSet
+
+    /**
+     * The set of all [ApiSurface]s narrower than this one, i.e. the set of all [ApiSurface]s that
+     * this one extends, either directly or indirectly.
+     *
+     * Does not include this [ApiSurface].
+     */
+    abstract val narrowerSurfaces: Set<ApiSurface>
+
+    /**
+     * The set of all [ApiSurface]s included in this one, including this one.
+     *
+     * Is basically [narrowerSurfaces] + this.
+     */
+    abstract val includedSurfaces: Set<ApiSurface>
+
+    /**
+     * The index of the bit within [ApiVariantSet.bits] that contains the first [ApiVariant] in
+     * [variants].
+     */
+    internal abstract val variantStartBitIndex: Int
 
     /** Get the [ApiVariant] for [ApiVariantType] in this [ApiSurface]. */
-    fun variantFor(type: ApiVariantType): ApiVariant
+    abstract fun variantFor(type: ApiVariantType): ApiVariant
 }

@@ -16,7 +16,8 @@
 
 package com.android.tools.metalava.model.provider
 
-import com.android.tools.metalava.model.ApiVariantSelectors
+import com.android.tools.metalava.model.ClassPathResolver
+import com.android.tools.metalava.model.api.SelectedApi
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 
 /** The set of different capabilities that a codebase creator can provide. */
@@ -27,11 +28,14 @@ enum class Capability {
     /** Can parse kotlin files. */
     KOTLIN,
 
-    /** Has access to the method body. */
-    METHOD_BODY,
+    /** Can parse signature files. */
+    SIGNATURE,
 
     /** Has access to documentation. */
     DOCUMENTATION,
+
+    /** Can create a [ClassPathResolver]. */
+    CLASS_PATH_RESOLVER,
 
     /** Can load additional APIs from a jar file when creating an API from source files. */
     JAR_WITH_SOURCES,
@@ -48,9 +52,15 @@ enum class Capability {
     /** Has access to hidden items. */
     HIDDEN_ITEMS,
 
-    /** Has access to [ApiVariantSelectors]. */
-    API_VARIANT_SELECTORS,
+    /** Has access to reverted items. */
+    REVERTED_ITEMS,
+
+    /** Can mutate the [SelectedApi]. */
+    MUTATE_SELECTED_API,
 
     /** Can create [MultiplatformCodebase]s */
     MULTIPLATFORM,
+
+    /** Can parse sources without a source path (i.e. `--source-path ""`). */
+    EMPTY_SOURCE_PATH,
 }

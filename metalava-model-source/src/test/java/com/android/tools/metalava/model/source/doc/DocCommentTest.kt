@@ -22,14 +22,14 @@ import org.junit.Test
 
 class DocCommentTest : BaseDocCommentTest() {
     /** Add a block tag section for [tagTypeName] containing [text]. */
-    private fun DocComment.addBlockTagSection(tagTypeName: String, text: String) {
-        addBlockTagSection(tagTypeName, text.toOptionalJavadocContent())
+    private fun DocComment.addBlockTagSection(tagTypeName: String, text: String): DocComment {
+        return addBlockTagSection(tagTypeName, text.toOptionalJavadocContent())
     }
 
     @Test
     fun `Test removeBlockTagSections`() {
-        val docComment =
-            createTestDocComment(
+        var (docComment, _) =
+            createTestDocCommentAndContext(
                 """
                     /**
                      * Some text.
@@ -62,7 +62,7 @@ class DocCommentTest : BaseDocCommentTest() {
 
         // Try and remove a block tag that is not present. Verify that it does not change the size
         // of block tags.
-        docComment.removeBlockTagSections { it.tagType.name == "unknown" }
+        docComment = docComment.removeBlockTagSections { it.tagType.name == "unknown" }
         assertEquals(
             countBeforeRemoval,
             docComment.blockTagSections.size,
@@ -70,7 +70,7 @@ class DocCommentTest : BaseDocCommentTest() {
         )
 
         // Remove all singleLine block tag sections. Verify that it removes 2 block tags.
-        docComment.removeBlockTagSections { it.tagType.name == "singleLine" }
+        docComment = docComment.removeBlockTagSections { it.tagType.name == "singleLine" }
         assertEquals(
             countBeforeRemoval - 2,
             docComment.blockTagSections.size,
@@ -93,7 +93,7 @@ class DocCommentTest : BaseDocCommentTest() {
         )
 
         // Remove all block tag sections. Verify that there are none left.
-        docComment.removeBlockTagSections { true }
+        docComment = docComment.removeBlockTagSections { true }
         assertEquals(0, docComment.blockTagSections.size, message = "remove all")
 
         // Make sure that the removal is reflected in the printed output.
@@ -109,8 +109,8 @@ class DocCommentTest : BaseDocCommentTest() {
 
     @Test
     fun `Test addBlockTagSection`() {
-        val docComment =
-            createTestDocComment(
+        var (docComment, _) =
+            createTestDocCommentAndContext(
                 """
                     /**
                      * Some text.
@@ -118,7 +118,7 @@ class DocCommentTest : BaseDocCommentTest() {
                 """
             )
 
-        docComment.addBlockTagSection("custom", "a custom block tag")
+        docComment = docComment.addBlockTagSection("custom", "a custom block tag")
 
         checkPrintOutput(
             docComment,
@@ -132,7 +132,7 @@ class DocCommentTest : BaseDocCommentTest() {
             message = "after adding custom tag"
         )
 
-        docComment.addBlockTagSection("custom", "another custom block tag")
+        docComment = docComment.addBlockTagSection("custom", "another custom block tag")
 
         checkPrintOutput(
             docComment,

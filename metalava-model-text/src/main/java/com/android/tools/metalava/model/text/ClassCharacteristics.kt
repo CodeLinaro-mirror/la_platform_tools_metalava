@@ -18,19 +18,26 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
+import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ModifierList
+import com.android.tools.metalava.model.SourcePosition
+import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.item.FileLocationSource
 import com.android.tools.metalava.reporter.FileLocation
 
 /**
  * Characteristics of a class apart from its members.
  *
  * This is basically everything that could appear on the line defining the class in the API
- * signature file.
+ * signature file, plus the [ClassOrigin] of the signature file in which it was declared.
  */
 internal data class ClassCharacteristics(
-    /** The position of the class definition within the API signature file. */
-    val fileLocation: FileLocation,
+    /** The [FileLocationSource] of the API signature file containing the class definition. */
+    val fileLocationSource: FileLocationSource,
+
+    /** The [SourcePosition] of the class definition within the API signature file. */
+    val sourcePosition: SourcePosition,
 
     /** Name including package and full name. */
     val qualifiedName: String,
@@ -51,35 +58,54 @@ internal data class ClassCharacteristics(
 
     /** The super class type . */
     val superClassType: ClassTypeItem?,
-    // TODO(b/323168612): Add interface type strings.
+
+    /** The interface types. */
+    val interfaceTypes: Set<ClassTypeItem>,
+
+    /** The aliased type. Should be non-null only when [classKind] is [ClassKind.TYPEALIAS]. */
+    val optionalAliasedType: TypeItem?,
+
+    /** The [ClassOrigin] of the signature file from which this class definition was loaded. */
+    val classOrigin: ClassOrigin,
 ) {
+    /** The [FileLocation] of the class definition within the API signature file. */
+    val fileLocation: FileLocation
+        get() = fileLocationSource.fileLocation(sourcePosition) ?: FileLocation.UNKNOWN
+
     /**
      * Checks if the [other] from different signature file can be merged with this
      * [ClassCharacteristics]. For instance, `current.txt` and `system-current.txt` may contain
      * equal class definitions with different class methods. This method is used to determine if the
      * two [ClassItem]s can be safely merged in such scenarios.
      *
-     * @param other [ClassCharacteristics] to be checked if it is compatible with [this] and can be
+     * @param other [ClassCharacteristics] to be checked if it is compatible with `this` and can be
      *   merged
-     * @return a Boolean value representing if [cls] is compatible with [this]
+     * @param allowModifierChanges whether to consider classes compatible if they do not have
+     *   equivalent modifiers
+     * @return a Boolean value representing if [other] is compatible with `this`
      */
-    fun isCompatible(other: ClassCharacteristics): Boolean {
+    fun isCompatible(other: ClassCharacteristics, allowModifierChanges: Boolean): Boolean {
         // TODO(b/323168612): Check super interface types and super class type of the two
         // TextClassItem
         return fullName == other.fullName &&
-            classKind == other.classKind &&
-            modifiers.equivalentTo(null, other.modifiers)
+            // Allow class kind changing to typealias, but no other changes.
+            (classKind == other.classKind || other.classKind == ClassKind.TYPEALIAS) &&
+            (allowModifierChanges || modifiers.equivalentTo(null, other.modifiers))
     }
 
     companion object {
         fun of(classItem: ClassItem): ClassCharacteristics =
             ClassCharacteristics(
-                fileLocation = classItem.fileLocation,
+                fileLocationSource = classItem.fileLocationSource,
+                sourcePosition = classItem.sourcePosition,
                 qualifiedName = classItem.qualifiedName(),
                 fullName = classItem.fullName(),
                 classKind = classItem.classKind,
                 modifiers = classItem.modifiers,
                 superClassType = classItem.superClassType(),
+                interfaceTypes = classItem.interfaceTypes().toSet(),
+                optionalAliasedType = classItem.optionalAliasedType,
+                classOrigin = classItem.origin,
             )
     }
 }

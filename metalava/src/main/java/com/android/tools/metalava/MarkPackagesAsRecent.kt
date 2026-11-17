@@ -16,34 +16,39 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PackageFilter
-import com.android.tools.metalava.model.visitors.ApiFilters
-import com.android.tools.metalava.model.visitors.ApiPredicate
-import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.api.surface.ApiSurface
+import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
+import com.android.tools.metalava.model.visitors.ApiSurfaceVisitor
 
 /**
  * Iterates over APIs matching a certain filter, and calls markRecent on each.
  *
  * If you want to compare a previous API and a current API and migrate only the APIs that changed
  * between the two, then see {@link com.android.tools.metalava.NullnessMigration} instead.
+ *
+ * Marks all API elements in the specified packages as recent across the entire API surface, not
+ * just those with specific show annotations. Does not touch removed or doc only items.
  */
-class MarkPackagesAsRecent(val filter: PackageFilter) :
-    ApiVisitor(
-        apiFilters = apiFilters(),
+class MarkPackagesAsRecent(
+    private val filter: PackageFilter,
+    apiSurface: ApiSurface,
+) :
+    ApiSurfaceVisitor(
+        filterEmit = ApiSurfacePredicate.wholeCoreEmittableApi(apiSurface),
     ) {
-    override fun include(cls: ClassItem): Boolean {
-        return filter.matches(cls.containingPackage())
+
+    /** Override to skip packages that do not match [filter]. */
+    override fun skipPackage(pkg: PackageItem): Boolean {
+        // Skip packages that do not match the filter.
+        if (!filter.matches(pkg)) return true
+
+        return super.skipPackage(pkg)
     }
 
     override fun visitItem(item: Item) {
         item.markRecent()
     }
 }
-
-@Suppress("DEPRECATION")
-private fun apiPredicate() =
-    ApiPredicate(config = options.apiPredicateConfig.copy(ignoreShown = true))
-
-private fun apiFilters() = apiPredicate().let { ApiFilters(emit = it, reference = it) }

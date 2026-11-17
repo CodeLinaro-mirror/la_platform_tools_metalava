@@ -106,6 +106,9 @@ interface ModelSuiteRunner : FilterableCodebaseCreator {
         test: (MultiplatformCodebase?) -> Unit
     )
 
+    /** Create a [JarSupport] object and run [test] on it. */
+    fun createJarSupportAndRun(test: (JarSupport) -> Unit)
+
     /** The name of the runner used in parameterized test names. */
     override fun toString(): String
 }

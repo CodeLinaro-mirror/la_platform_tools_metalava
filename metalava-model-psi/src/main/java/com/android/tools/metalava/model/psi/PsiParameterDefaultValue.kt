@@ -16,27 +16,33 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.ParameterKind
+import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiParameter
 import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.symbols.KaFunctionSymbol
-import org.jetbrains.kotlin.analysis.api.symbols.KaNamedFunctionSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaParameterSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaValueParameterSymbol
-import org.jetbrains.kotlin.psi.KtClass
+import org.jetbrains.kotlin.analysis.api.symbols.contextParameters
 import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.KtPrimaryConstructor
 import org.jetbrains.kotlin.psi.psiUtil.containingClass
 import org.jetbrains.kotlin.psi.psiUtil.hasActualModifier
 import org.jetbrains.uast.UMethod
-import org.jetbrains.uast.getUastParentOfType
 
 internal object PsiParameterDefaultValue {
     /** Determines whether a [psiParameter] has a default value. */
     @OptIn(KaExperimentalApi::class)
-    fun compute(psiParameter: PsiParameter, parameterIndex: Int): Boolean {
-        if (psiParameter.isKotlin()) {
-            val containingUMethod = psiParameter.getUastParentOfType<UMethod>()
+    fun compute(
+        psiParameter: PsiParameter,
+        parameterIndex: Int,
+        kind: ParameterKind,
+        psiMethod: PsiMethod
+    ): Boolean {
+        // Only Kotlin value parameters can have a default value defined
+        if (psiParameter.isKotlin() && kind == ParameterKind.VALUE) {
+            val containingUMethod = psiMethod as? UMethod ?: return false
 
             // The compiler-generated data class copy method has all optional parameters.
             if (isDataClassCopyMethod(containingUMethod)) {
@@ -63,37 +69,30 @@ internal object PsiParameterDefaultValue {
     /** Returns whether the [uMethod] is the generated copy function of a data class. */
     private fun isDataClassCopyMethod(uMethod: UMethod?): Boolean {
         if (uMethod?.name != "copy") return false
-        // The source psi for the generated copy function is the constructor for K2, the class for
-        // K1 (for a copy method defined in source, the psi would be the source method).
+        // The source psi for the generated copy function is the constructor (for a copy method
+        // defined in source, the psi would be the source method).
         return when (val sourcePsi = uMethod.sourcePsi) {
-            is KtClass -> sourcePsi.isData()
             is KtPrimaryConstructor -> sourcePsi.containingClass()?.isData() ?: false
             else -> false
         }
     }
 
+    /**
+     * Finds the [KaParameterSymbol] from the [functionSymbol] based on [parameterIndex] and [name].
+     * This is only meant to find value parameters. The provided [parameterIndex] should be based on
+     * the jvm method signature for the function, where the parameter list has context parameters,
+     * the receiver if it exists, value parameters, and the continuation parameter if it exists.
+     */
+    @OptIn(KaExperimentalApi::class) // for context parameters
     private fun getKtParameterSymbol(
         functionSymbol: KaFunctionSymbol,
         parameterIndex: Int,
         name: String,
     ): KaParameterSymbol? {
-        // If a function is an extension, the first parameter is the receiver.
-        if (parameterIndex == 0 && functionSymbol.isExtension) {
-            return functionSymbol.receiverParameter
-        }
-
-        // Perform matching based on parameter names, because indices won't work in the
-        // presence of @JvmOverloads where UAST generates multiple permutations of the
-        // method from the same KtParameters array.
+        // Look for a value parameter, offset the index based on receiver and context parameters
         val parameters = functionSymbol.valueParameters
-
-        val index = if (functionSymbol.isExtension) parameterIndex - 1 else parameterIndex
-        val isSuspend = (functionSymbol as? KaNamedFunctionSymbol)?.isSuspend == true
-        if (isSuspend && index >= parameters.size) {
-            // suspend functions have continuation as a last parameter, which is not
-            // defined in the symbol
-            return null
-        }
+        val receiverParameterCount = if (functionSymbol.isExtension) 1 else 0
+        val index = parameterIndex - receiverParameterCount - functionSymbol.contextParameters.size
 
         // Quick lookup first which usually works
         if (index >= 0) {

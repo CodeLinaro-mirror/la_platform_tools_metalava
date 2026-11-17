@@ -16,8 +16,8 @@
 
 package com.android.tools.metalava.model.testsuite
 
-import com.android.tools.metalava.model.provider.Capability
-import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -28,7 +28,7 @@ import org.junit.Test
  * be slightly different.
  */
 class CommonInvalidSourcesTest : BaseModelTest() {
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test unexpected interface`() {
         runSourceCodebaseTest(

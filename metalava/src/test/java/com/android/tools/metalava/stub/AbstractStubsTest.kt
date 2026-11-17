@@ -17,71 +17,130 @@
 package com.android.tools.metalava.stub
 
 import com.android.tools.lint.checks.infrastructure.TestFile
-import com.android.tools.metalava.ARG_EXCLUDE_ANNOTATION
+import com.android.tools.metalava.DEFAULT_SKIP_EMIT_PACKAGES
 import com.android.tools.metalava.DriverTest
-import com.android.tools.metalava.model.ANDROIDX_NONNULL
+import com.android.tools.metalava.cli.common.TestEnvironment
+import com.android.tools.metalava.model.api.surface.ApiVariantType
+import com.android.tools.metalava.model.text.FORMAT_V5_WITH_JAVA_STYLE
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.java
 import org.intellij.lang.annotations.Language
 
 abstract class AbstractStubsTest : DriverTest() {
     protected fun checkStubs(
-        // source is a wrapper for stubFiles. When passing multiple stub Java files to test,
-        // use stubFiles.
+        /**
+         * A wrapper for [expectedStubFiles]. When passing multiple stub Java files to test, use
+         * [expectedStubFiles].
+         */
         @Language("JAVA") source: String = "",
-        stubFiles: Array<TestFile> = emptyArray(),
+
+        /**
+         * Array of expected stub files.
+         *
+         * Each [TestFile] in here will be compared against the generated stub files.
+         */
+        expectedStubFiles: Array<TestFile> = emptyArray(),
+
+        /** The set of expected issues. */
         warnings: String? = "",
-        api: String? = null,
+
+        /**
+         * The expected API signature that will be produced.
+         *
+         * If non-null this causes the API signature file to be generated (through the `--api`
+         * command line option) and compared against the contents of this.
+         */
+        @Language("TEXT") api: String? = null,
+
+        /** Extract arguments to pass to Metalava main command. */
         extraArguments: Array<String> = emptyArray(),
+
+        /**
+         * Whether the stubs should be written as documentation stubs instead of plain stubs.
+         * Decides whether the stubs include [ApiVariantType.DOC_ONLY] items, uses
+         * rewritten/migration annotations, etc
+         */
         docStubs: Boolean = false,
+
+        /** Show annotations (--show-annotation arguments) */
         showAnnotations: Array<String> = emptyArray(),
+
+        /** See [TestEnvironment.skipEmitPackages], defaults to [DEFAULT_SKIP_EMIT_PACKAGES]. */
         skipEmitPackages: List<String>? = null,
-        format: FileFormat = FileFormat.LATEST,
+
+        /** Signature file format of [api], can also affect the generated stubs. */
+        format: FileFormat = FORMAT_V5_WITH_JAVA_STYLE,
+
+        /** The source files to pass to the analyzer */
         sourceFiles: Array<TestFile> = emptyArray(),
+
+        /** Optional API signature files content to load **instead** of Java/Kotlin source files */
         signatureSources: Array<String> = emptyArray(),
+
+        /**
+         * If `true` then stubs will be generated and then compiled to make sure that they are valid
+         * java.
+         */
         checkCompilation: Boolean = true,
-        checkTextStubEquivalence: Boolean = false,
-        filterBlankLinesFromStubFiles: Boolean = true,
+
+        /** A list of [CompilationCheck]s to perform with the generated stubs. */
+        compilationChecks: List<CompilationCheck>? = null,
+
+        /**
+         * Check whether stubs generated from signature text files matches (ignoring parameter
+         * names) the stubs generated from sources.
+         *
+         * Defaults to `true` unless [docStubs] is `true`, in which case it defaults to `false`.
+         */
+        checkTextStubEquivalence: Boolean? = null,
+
+        /**
+         * Language level of the Java source files. If not specified
+         * [com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL] is used.
+         */
+        javaLanguageLevel: String? = null,
+        /** Any jars to add to the class path */
+        classpath: Array<TestFile>? = null,
     ) {
-        val stubFilesArr = if (source.isNotEmpty()) arrayOf(java(source)) else stubFiles
+        val stubFilesArr = if (source.isNotEmpty()) arrayOf(java(source)) else expectedStubFiles
+        if (stubFilesArr.isEmpty()) {
+            error("must provide at least one expected stub files")
+        }
+
         check(
+            classpath = classpath,
             sourceFiles = sourceFiles,
             signatureSources = signatureSources,
             showAnnotations = showAnnotations,
-            stubFiles = stubFilesArr,
+            expectedStubFiles = stubFilesArr,
             expectedIssues = warnings,
             checkCompilation = checkCompilation,
-            api = api,
+            compilationChecks = compilationChecks,
+            expectedApiSignature = api,
             extraArguments = extraArguments,
             docStubs = docStubs,
             skipEmitPackages = skipEmitPackages,
             format = format,
-            filterBlankLinesFromStubFiles = filterBlankLinesFromStubFiles,
+            javaLanguageLevel = javaLanguageLevel,
         )
-        if (checkTextStubEquivalence) {
-            if (stubFilesArr.isEmpty()) {
-                addError(
-                    "Stub files may not be empty when checkTextStubEquivalence is set to true."
-                )
-                return
-            }
-            if (docStubs) {
-                addError("From-text stub generation is not supported for documentation stub.")
-                return
-            }
-            if (stubFilesArr.any { it !is TestFile.JavaTestFile }) {
-                addError("From-text stub generation is only supported for Java stubs.")
-                return
-            }
+        if (checkTextStubEquivalence == true) {
+            error("checkTextStubEquivalence defaults to true where possible")
+        }
+        if (checkTextStubEquivalence ?: !docStubs) {
             check(
+                classpath = classpath,
                 signatureSources = arrayOf(readFileFilterBlankLines(getApiFile())),
                 showAnnotations = showAnnotations,
-                stubFiles = stubFilesArr,
-                expectedIssues = warnings,
+                expectedStubFiles = stubFilesArr,
+                // Signature files do not contain parameter names so ignore them when comparing stub
+                // files.
+                ignoreParameterNamesInStubFiles = true,
                 checkCompilation = checkCompilation,
-                extraArguments = arrayOf(*extraArguments, ARG_EXCLUDE_ANNOTATION, ANDROIDX_NONNULL),
+                compilationChecks = compilationChecks,
+                extraArguments = arrayOf(*extraArguments),
                 skipEmitPackages = skipEmitPackages,
-                format = format
+                format = format,
+                javaLanguageLevel = javaLanguageLevel,
             )
         }
     }

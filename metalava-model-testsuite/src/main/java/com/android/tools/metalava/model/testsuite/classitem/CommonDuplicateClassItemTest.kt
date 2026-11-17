@@ -19,6 +19,8 @@ package com.android.tools.metalava.model.testsuite.classitem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
@@ -90,6 +92,7 @@ class CommonDuplicateClassItemTest : BaseModelTest() {
         )
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test duplicate classes`() {
         runDuplicateTest { checkCodebase(codebase) }

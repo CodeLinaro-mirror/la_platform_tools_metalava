@@ -23,6 +23,8 @@ interface TypeVisitor {
 
     fun visit(classType: ClassTypeItem) = Unit
 
+    fun visit(lambdaType: LambdaTypeItem) = Unit
+
     fun visit(variableType: VariableTypeItem) = Unit
 
     fun visit(wildcardType: WildcardTypeItem) = Unit
@@ -49,6 +51,19 @@ open class BaseTypeVisitor : TypeVisitor {
         classType.arguments.forEach { it.accept(this) }
     }
 
+    override fun visit(lambdaType: LambdaTypeItem) {
+        visitType(lambdaType)
+        visitLambdaType(lambdaType)
+
+        // Visit the component types of the lambda directly rather than converting to a
+        // ClassTypeItem via asJvmClassType(). Subclasses of BaseTypeVisitor inspect referenced
+        // ClassTypeItems and do not need to visit the synthetic kotlin.jvm.functions.Function*
+        // wrapper class or its wildcard bounds.
+        lambdaType.receiverType?.accept(this)
+        lambdaType.parameterTypes.forEach { it.accept(this) }
+        lambdaType.returnType.accept(this)
+    }
+
     override fun visit(variableType: VariableTypeItem) {
         visitType(variableType)
         visitVariableType(variableType)
@@ -69,6 +84,8 @@ open class BaseTypeVisitor : TypeVisitor {
     open fun visitArrayType(arrayType: ArrayTypeItem) = Unit
 
     open fun visitClassType(classType: ClassTypeItem) = Unit
+
+    open fun visitLambdaType(lambdaType: LambdaTypeItem) = Unit
 
     open fun visitVariableType(variableType: VariableTypeItem) = Unit
 
@@ -103,17 +120,42 @@ open class MultipleTypeVisitor {
         visitType(classType, other)
         visitClassType(classType, other)
 
-        classType.outerClassType?.accept(
-            this,
-            other.mapNotNull { (it as? ClassTypeItem)?.outerClassType }
-        )
+        visitClassComponents(classType, other)
+    }
+
+    fun visit(lambdaType: LambdaTypeItem, other: List<TypeItem>) {
+        // Call visitType and visitLambdaType with lambdaType directly (rather than delegating to
+        // visit(lambdaType.asJvmClassType(), other)) so that callers such as
+        // ApiLint.checkHasNullability that check `type === itemType` see the original
+        // LambdaTypeItem instance.
+        visitType(lambdaType, other)
+        visitLambdaType(lambdaType, other)
+
+        // Traverse the component types using asJvmClassType() so that a LambdaTypeItem (e.g.
+        // from Kotlin source) and a ClassTypeItem for kotlin.jvm.functions.Function* (e.g. from a
+        // signature file or Java/bytecode super method) have the same structure and are visited in
+        // lockstep.
+        visitClassComponents(lambdaType.asJvmClassType(), other)
+    }
+
+    private fun visitClassComponents(classType: ClassTypeItem, other: List<TypeItem>) {
+        val otherClassTypes = other.mapNotNull { it.asClassType() }
+        classType.outerClassType?.accept(this, otherClassTypes.mapNotNull { it.outerClassType })
         classType.arguments.forEachIndexed { index, arg ->
-            arg.accept(
-                this,
-                other.mapNotNull { (it as? ClassTypeItem)?.arguments?.getOrNull(index) }
-            )
+            arg.accept(this, otherClassTypes.mapNotNull { it.arguments.getOrNull(index) })
         }
     }
+
+    /**
+     * Converts a [ClassTypeItem] or [LambdaTypeItem] to a [ClassTypeItem] so that both can be
+     * traversed in lockstep.
+     */
+    private fun TypeItem.asClassType(): ClassTypeItem? =
+        when (this) {
+            is ClassTypeItem -> this
+            is LambdaTypeItem -> asJvmClassType()
+            else -> null
+        }
 
     fun visit(variableType: VariableTypeItem, other: List<TypeItem>) {
         visitType(variableType, other)
@@ -146,6 +188,8 @@ open class MultipleTypeVisitor {
     open fun visitArrayType(arrayType: ArrayTypeItem, other: List<TypeItem>) = Unit
 
     open fun visitClassType(classType: ClassTypeItem, other: List<TypeItem>) = Unit
+
+    open fun visitLambdaType(lambdaType: LambdaTypeItem, other: List<TypeItem>) = Unit
 
     open fun visitVariableType(variableType: VariableTypeItem, other: List<TypeItem>) = Unit
 

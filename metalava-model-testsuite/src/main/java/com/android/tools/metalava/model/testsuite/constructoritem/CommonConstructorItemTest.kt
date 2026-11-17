@@ -17,16 +17,46 @@
 package com.android.tools.metalava.model.testsuite.constructoritem
 
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.testing.TestFileCache
+import com.android.tools.metalava.testing.TestFileCacheRule
+import com.android.tools.metalava.testing.cacheIn
+import com.android.tools.metalava.testing.jarFromSources
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import org.junit.ClassRule
 import org.junit.Test
 
 /** Common tests for implementations of [MethodItem]. */
 class CommonConstructorItemTest : BaseModelTest() {
+    companion object {
+        /** Create a [TestFileCache] whose lifespan encompasses all the tests in this class. */
+        @ClassRule @JvmField val testFileCacheRule = TestFileCacheRule()
+
+        private val outerInnerClassJarFile =
+            jarFromSources(
+                    "outer-inner-class.jar",
+                    java(
+                        """
+                            package test.pkg;
+
+                            public class Outer {
+                                private Outer() {}
+
+                                public class Inner {
+                                    public Inner() {}
+                                }
+                            }
+                        """
+                    ),
+                )
+                .cacheIn(testFileCacheRule)
+    }
 
     @Test
     fun `Test access type parameter of outer class`() {
@@ -89,7 +119,7 @@ class CommonConstructorItemTest : BaseModelTest() {
     }
 
     @Test
-    fun `Test constructor of inner class has no implicit parameter`() {
+    fun `Test constructor of inner class has no implicit parameter - source`() {
         runCodebaseTest(
             signature(
                 """
@@ -133,6 +163,31 @@ class CommonConstructorItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test constructor of inner class has no implicit parameter - jar`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    public class Fake {
+                    }
+                """
+            ),
+            testFixture =
+                TestFixture(
+                    additionalClassPath = listOf(outerInnerClassJarFile.toFile()),
+                ),
+        ) {
+            val testConstructor =
+                codebase.assertResolvedClass("test.pkg.Outer.Inner").constructors().single()
+
+            assertEquals("constructor test.pkg.Outer.Inner()", testConstructor.describe())
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test Kotlin primary constructor`() {
         runCodebaseTest(

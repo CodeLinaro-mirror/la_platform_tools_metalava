@@ -31,10 +31,12 @@ internal class TurbineSourceModelProvider :
         setOf(
             Capability.JAVA,
             Capability.DOCUMENTATION,
+            Capability.CLASS_PATH_RESOLVER,
             Capability.IMPORTS,
             Capability.PACKAGE_HTML_FILES,
             Capability.HIDDEN_ITEMS,
-            Capability.API_VARIANT_SELECTORS,
+            Capability.REVERTED_ITEMS,
+            Capability.EMPTY_SOURCE_PATH,
         )
 
     override fun createEnvironmentManager(

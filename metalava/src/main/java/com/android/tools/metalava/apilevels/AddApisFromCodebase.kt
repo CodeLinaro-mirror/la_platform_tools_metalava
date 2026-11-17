@@ -18,7 +18,7 @@ package com.android.tools.metalava.apilevels
 
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.ClassKind
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DelegatedVisitor
@@ -43,6 +43,8 @@ fun addApisFromCodebase(
 
     val delegatedVisitor =
         object : DelegatedVisitor {
+            override val requiresSortedMembers: Boolean
+                get() = false
 
             var currentClass: ApiClass? = null
 
@@ -60,38 +62,15 @@ fun addApisFromCodebase(
                     )
                 currentClass = newClass
 
-                when (cls.classKind) {
-                    ClassKind.CLASS -> {
-                        val superClass = cls.superClass()
-                        if (superClass != null) {
-                            newClass.updateSuperClass(superClass.nameInApi(), updater)
-                        }
-                    }
-                    ClassKind.INTERFACE -> {
-                        // Implicit super class; match convention from bytecode
-                        newClass.updateSuperClass(objectClass, updater)
-                    }
-                    ClassKind.ENUM -> {
-                        // Implicit super class; match convention from bytecode
-                        if (newClass.name != enumClass) {
-                            newClass.updateSuperClass(enumClass, updater)
-                        }
-                    }
-                    ClassKind.ANNOTATION_TYPE -> {
-                        // Implicit super class; match convention from bytecode
-                        if (newClass.name != annotationClass) {
-                            newClass.updateSuperClass(objectClass, updater)
-                            newClass.updateInterface(annotationClass, updater)
-                        }
-                    }
-                    // Typealiases aren't like regular classes and don't have a super class or
-                    // interfaces.
-                    ClassKind.TYPEALIAS -> {}
+                // Add the super class, if available.
+                val superClassType = cls.superClassType() ?: cls.classKind.binarySuperClassType
+                if (superClassType != null) {
+                    newClass.updateSuperClass(superClassType.nameInApi(), updater)
                 }
 
+                // Add the interfaces, if any.
                 for (interfaceType in cls.interfaceTypes()) {
-                    val interfaceClass = interfaceType.asClass() ?: return
-                    newClass.updateInterface(interfaceClass.nameInApi(), updater)
+                    newClass.updateInterface(interfaceType.nameInApi(), updater)
                 }
             }
 
@@ -153,16 +132,18 @@ fun addApisFromCodebase(
                 }
             }
 
-            // The names of some common classes, based on [useInternalNames]
-            val objectClass = nameForClass("java", "lang", "Object")
-            val annotationClass = nameForClass("java", "lang", "annotation", "Annotation")
-            val enumClass = nameForClass("java", "lang", "Enum")
-
-            /** Generates a class name from the package and class names in [nameParts] */
-            fun nameForClass(vararg nameParts: String): String {
-                val separator = if (useInternalNames) "/" else "."
-                return nameParts.joinToString(separator)
-            }
+            /** The name of this class type in this [Api], based on [Api.useInternalNames]. */
+            fun ClassTypeItem.nameInApi(): String =
+                if (useInternalNames) {
+                    val outer = outerClassType
+                    if (outer != null) {
+                        "${outer.nameInApi()}\$$className"
+                    } else {
+                        qualifiedName.replace('.', '/')
+                    }
+                } else {
+                    qualifiedName
+                }
         }
 
     codebaseFragment.accept(delegatedVisitor)

@@ -32,8 +32,10 @@ import org.junit.runners.Parameterized
 @RunWith(Parameterized::class)
 class ParameterizedAnnotationParserTestCase {
 
+    @Parameterized.Parameter(0) lateinit var parserProvider: ValueParserProvider<TestCase>
+
     /** The [TestCase] currently being tested. */
-    @Parameterized.Parameter(0) lateinit var testCase: TestCase
+    @Parameterized.Parameter(1) lateinit var testCase: TestCase
 
     /**
      * Will try and rewrite the stack trace of any test failures to refer to the location where the
@@ -44,6 +46,7 @@ class ParameterizedAnnotationParserTestCase {
     class TestCase(
         private val label: String,
         val input: String,
+        val unshorten: Boolean = false,
         val expected: AnnotationItem,
     ) {
         /**
@@ -136,15 +139,6 @@ class ParameterizedAnnotationParserTestCase {
                         ),
                 ),
                 TestCase(
-                    "legacy attributes - subtract one",
-                    input = "@test.pkg.Anno(other = 0x40000000 - 1)",
-                    expected =
-                        annotationItem(
-                            "test.pkg.Anno",
-                            "other" to literalValue(0x3fffffff),
-                        ),
-                ),
-                TestCase(
                     "nested annotation - no attributes",
                     input = "@test.pkg.Anno(other = @test.pkg.OtherAnno)",
                     expected =
@@ -200,15 +194,38 @@ class ParameterizedAnnotationParserTestCase {
                                 ),
                         ),
                 ),
+                TestCase(
+                    "do not unshorten Deprecation annotation",
+                    input = "@Deprecated",
+                    expected = annotationItem("Deprecated"),
+                ),
+                TestCase(
+                    "unshorten Deprecation annotation",
+                    input = "@Deprecated",
+                    unshorten = true,
+                    expected = annotationItem("java.lang.Deprecated"),
+                ),
+            )
+
+        private val parserProviders =
+            listOf(
+                ValueParserProvider(
+                    "Default",
+                    ::DefaultValueParser,
+                    testCases,
+                ),
             )
 
         /** Supply the list of test cases as the parameters for this test class. */
-        @JvmStatic @Parameterized.Parameters(name = "{0}") fun params() = testCases
+        @JvmStatic
+        @Parameterized.Parameters(name = "{0} - {1}")
+        fun params() = parserProviders.toTestParameters()
     }
 
     @Test
     fun `Test parse`() {
-        val annotation = ValueParser.DEFAULT.parseAnnotationItem(testCase.input)!!
+        val valueParser = parserProvider.createParser()
+        val annotation = valueParser.parseAnnotationItem(testCase.input, testCase.unshorten)!!
 
         // Wrap in an AnnotationValue before comparing to use its equals(...) method which is
         // defined in terms of the qualified name and the attribute name/Value pairs, ignoring the

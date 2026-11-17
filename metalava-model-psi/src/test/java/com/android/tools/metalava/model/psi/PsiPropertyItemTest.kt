@@ -18,16 +18,18 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.kotlin
 import kotlin.test.Test
-import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
+@SupportedInputFormats(InputFormat.KOTLIN)
 class PsiPropertyItemTest : BaseModelTest() {
     @Test
     fun `primary constructor properties have constructor parameters`() {
@@ -320,11 +322,91 @@ class PsiPropertyItemTest : BaseModelTest() {
             val body = properties.single { it.name() == "body" }
             val accessors = properties.single { it.name() == "accessors" }
 
-            assertContains(parameter.requiredDocumentation.text, "parameter doc")
-            assertContains(body.requiredDocumentation.text, "body doc")
-            assertContains(accessors.requiredDocumentation.text, "accessors property doc")
-            assertContains(accessors.getter?.requiredDocumentation?.text.orEmpty(), "getter doc")
-            assertContains(accessors.setter?.requiredDocumentation?.text.orEmpty(), "setter doc")
+            parameter.assertPrintedDocumentation(expectedOutput = "/** parameter doc */")
+            body.assertPrintedDocumentation(expectedOutput = "/** body doc */")
+            accessors.assertPrintedDocumentation(expectedOutput = "/** accessors property doc */")
+            accessors.getter?.assertPrintedDocumentation(expectedOutput = "/** getter doc */")
+            accessors.setter?.assertPrintedDocumentation(expectedOutput = "/** setter doc */")
+        }
+    }
+
+    @Test
+    fun `classpath or source path annotation class with properties annotated with its own nested annotations`() {
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    """
+                        package test.pkg
+
+                        import other.pkg.OuterAnnotation
+
+                        class Foo(
+                            @OuterAnnotation.NestedAnnotation1 val prop: Int,
+                        )
+                    """
+                ),
+                sourcePathFiles =
+                    listOf(
+                        kotlin(
+                            """
+                                package other.pkg
+
+                                annotation class OuterAnnotation(
+                                    @get:NestedAnnotation1 val prop1: Int = 1,
+                                    @get:NestedAnnotation2 val prop2: Int = 1,
+                                ) {
+                                    annotation class NestedAnnotation1
+                                    annotation class NestedAnnotation2
+                                }
+                            """
+                        ),
+                    ),
+            )
+        ) {
+            val outerAnnotation = codebase.assertResolvedClass("other.pkg.OuterAnnotation")
+            assertEquals(
+                listOf(
+                    "other.pkg.OuterAnnotation.NestedAnnotation1",
+                    "other.pkg.OuterAnnotation.NestedAnnotation2",
+                ),
+                outerAnnotation.nestedClasses().map { it.qualifiedName() }.sorted(),
+            )
+            assertEquals(
+                listOf("prop1", "prop2"),
+                outerAnnotation.properties().map { it.name() }.sorted(),
+            )
+        }
+    }
+
+    @Test
+    fun `KaCodebaseAssembler skips inaccessible classes`() {
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    """
+                        package a.pkg
+
+                        internal class InternalFoo(
+                            @property:b.pkg.PropertyAnno val prop: Int,
+                        )
+                    """
+                ),
+                sourcePathFiles =
+                    listOf(
+                        kotlin(
+                            """
+                                package b.pkg
+
+                                @Target(AnnotationTarget.PROPERTY)
+                                annotation class PropertyAnno
+                            """
+                        ),
+                    ),
+            )
+        ) {
+            // a.pkg.InternalFoo does not have API visibility, so KaCodebaseAssembler should not
+            // process its properties or resolve b.pkg.PropertyAnno.
+            assertEquals(null, codebase.findPackage("b.pkg"))
         }
     }
 }

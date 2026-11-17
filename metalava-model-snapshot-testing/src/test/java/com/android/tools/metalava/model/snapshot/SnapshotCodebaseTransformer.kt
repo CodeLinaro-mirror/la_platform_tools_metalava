@@ -18,21 +18,27 @@ package com.android.tools.metalava.model.snapshot
 
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.CodebaseFragment
+import com.android.tools.metalava.model.testing.surfaces.initializeSelectedApiInstances
 import com.android.tools.metalava.model.testing.transformer.CodebaseTransformer
 
 /** A [CodebaseTransformer] that will return a snapshot of the supplied [Codebase]. */
 // @AutoService(CodebaseTransformer.class)
 class SnapshotCodebaseTransformer : CodebaseTransformer {
     override fun transform(codebase: Codebase): Codebase {
+        // Make sure that the SelectedApi instances are initialized before taking the snapshot.
+        codebase.initializeSelectedApiInstances()
+
         val fragment =
             CodebaseFragment.create(
                     codebase,
                     // Copy every Item from the input.
-                    ::NonFilteringDelegatingVisitor,
+                    factory = ::NonFilteringDelegatingVisitor,
                 )
                 .snapshotIncludingRevertedItems(
                     // Allow references to any Item in the original.
                     ::NonFilteringDelegatingVisitor,
+                    // Include documentation as many tests rely on them.
+                    includeDocumentation = true,
                 )
         return fragment.codebase
     }

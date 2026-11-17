@@ -16,17 +16,23 @@
 
 package com.android.tools.metalava.doc
 
-import com.android.tools.lint.LintCliClient
-import com.android.tools.lint.checks.ApiLookup
-import com.android.tools.lint.detector.api.ApiConstraint
-import com.android.tools.lint.detector.api.editDistance
 import com.android.tools.metalava.PROGRAM_NAME
-import com.android.tools.metalava.SdkExtension
-import com.android.tools.metalava.apilevels.ApiToExtensionsMap.Companion.ANDROID_PLATFORM_SDK_ID
 import com.android.tools.metalava.apilevels.ApiVersion
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.containsNullWord
+import com.android.tools.metalava.doc.annotationhandlers.BaseDevicePolicyAnnotationHandler
+import com.android.tools.metalava.doc.annotationhandlers.DevicePolicyContext
+import com.android.tools.metalava.doc.annotationhandlers.EnumPolicyAnnotationHandler
+import com.android.tools.metalava.doc.annotationhandlers.IntegerPolicyAnnotationHandler
+import com.android.tools.metalava.doc.annotationhandlers.ListOfEnumPolicyAnnotationHandler
+import com.android.tools.metalava.doc.annotationhandlers.ListOfPackagePolicyAnnotationHandler
+import com.android.tools.metalava.doc.annotationhandlers.ListOfStringPolicyAnnotationHandler
+import com.android.tools.metalava.doc.annotationhandlers.LongPolicyAnnotationHandler
+import com.android.tools.metalava.doc.annotationhandlers.PackagePolicyAnnotationHandler
+import com.android.tools.metalava.doc.annotationhandlers.StringPolicyAnnotationHandler
 import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PREFIX
+import com.android.tools.metalava.model.ANDROIDX_FLOAT_RANGE
+import com.android.tools.metalava.model.ANDROIDX_INT_RANGE
 import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.CallableItem
@@ -42,8 +48,11 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.annotation.binding.bindTo
+import com.android.tools.metalava.model.api.surface.ApiSurface
+import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
+import com.android.tools.metalava.model.api.surface.ReferenceKind
 import com.android.tools.metalava.model.doc.DocContentOwner
-import com.android.tools.metalava.model.getCallableParameterDescriptorUsingDots
 import com.android.tools.metalava.model.value.ArrayElementValue
 import com.android.tools.metalava.model.value.FieldReferenceValue
 import com.android.tools.metalava.model.value.FloatingPointValue
@@ -52,16 +61,13 @@ import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.asBoolean
 import com.android.tools.metalava.model.value.asInt
 import com.android.tools.metalava.model.value.asString
-import com.android.tools.metalava.model.visitors.ApiPredicate
-import com.android.tools.metalava.model.visitors.ApiVisitor
-import com.android.tools.metalava.permission.getRequiresPermissionInfo
+import com.android.tools.metalava.model.visitors.ApiFilters
+import com.android.tools.metalava.model.visitors.ApiFiltersVisitor
+import com.android.tools.metalava.model.visitors.ApiSurfaceVisitor
+import com.android.tools.metalava.permission.getRequiresPermissionProxy
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import java.io.File
-import java.nio.file.Files
-import javax.xml.parsers.SAXParserFactory
-import org.xml.sax.Attributes
-import org.xml.sax.helpers.DefaultHandler
 
 private const val DEFAULT_ENFORCEMENT = "android.content.pm.PackageManager#hasSystemFeature"
 
@@ -71,12 +77,6 @@ private const val CARRIER_PRIVILEGES_MARKER = "carrier privileges"
 typealias ApiVersionLabelProvider = (ApiVersion) -> String
 
 /**
- * Lambda that when given an [ApiVersion] will return `true` if it can be referenced from within the
- * documentation and `false` if it cannot.
- */
-typealias ApiVersionFilter = (ApiVersion) -> Boolean
-
-/**
  * Walk over the API and apply tweaks to the documentation, such as
  * - Looking for annotations and converting them to auxiliary tags that will be processed by the
  *   documentation tools later.
@@ -84,7 +84,7 @@ typealias ApiVersionFilter = (ApiVersion) -> Boolean
  *   deprecation versions.
  * - Transferring docs from hidden super methods.
  * - Performing tweaks for common documentation mistakes, such as ending the first sentence with ",
- *   e.g. " where javadoc will sadly see the ". " and think "aha, that's the end of the sentence!"
+ *   e.g. " where Javadoc will sadly see the ". " and think "aha, that's the end of the sentence!"
  *   (It works around this by replacing the space with &nbsp;.)
  */
 class DocAnalyzer(
@@ -96,12 +96,12 @@ class DocAnalyzer(
     /** Provides a string label for each [ApiVersion]. */
     private val apiVersionLabelProvider: ApiVersionLabelProvider,
 
-    /** Filter that determines whether an [ApiVersion] should be mentioned in the documentation. */
-    private val apiVersionFilter: ApiVersionFilter,
-
-    /** Selects [Item]s whose documentation will be analyzed and/or enhanced. */
-    private val apiPredicateConfig: ApiPredicate.Config,
+    /** The [ApiSurface] whose items will be analyzed and/or enhanced. */
+    apiSurface: ApiSurface,
 ) {
+    /** Filters that selects items that will be analyzed and/or enhanced. */
+    private val apiFilters = ApiFilters(reference = ApiSurfacePredicate.wholeCoreApi(apiSurface))
+
     /** Computes the visible part of the API from all the available code in the codebase */
     fun enhance() {
         // Apply options for packages that should be hidden
@@ -112,7 +112,7 @@ class DocAnalyzer(
     }
 
     /** Format this [Value] for use in handling `IntRange` and `FloatRange` annotations. */
-    private fun Value.forRange(): String =
+    private fun Value.forRange(from: Item): String =
         when (this) {
             is IntegralValue<*> -> {
                 // Format as an int if it will fit, otherwise a long.
@@ -127,8 +127,16 @@ class DocAnalyzer(
                 else asDouble.toString()
             }
             is FieldReferenceValue -> {
-                // Format as a link to the field.
-                "{@link ${qualifiedClassName}#$fieldName}"
+                val field = resolve()
+                if (field != null) {
+                    // Format as a link to the field if it can be referenced.
+                    linkToField(from, field) {
+                        // Otherwise, format its literal value if available.
+                        asLiteralValue()?.forRange(from) ?: toValueString()
+                    }
+                } else {
+                    asLiteralValue()?.forRange(from) ?: toValueString()
+                }
             }
             else -> {
                 // Use default source formatting.
@@ -137,11 +145,11 @@ class DocAnalyzer(
         }
 
     private fun documentsFromAnnotations() {
-        // Note: Doclava1 inserts its own javadoc parameters into the documentation,
-        // which is then later processed by javadoc to insert actual descriptions.
+        // Note: Doclava1 inserts its own Javadoc parameters into the documentation,
+        // which is then later processed by Javadoc to insert actual descriptions.
         // This indirection makes the actual descriptions of the annotations more
         // configurable from a separate file -- but since this tool isn't hooked
-        // into javadoc anymore (and is going to be used by for example Dokka too)
+        // into Javadoc anymore (and is going to be used by for example Dokka too)
         // instead metalava will generate the descriptions directly in-line into the
         // docs.
         //
@@ -151,7 +159,10 @@ class DocAnalyzer(
         // like an unreasonable burden.
 
         codebase.accept(
-            object : ApiVisitor(apiPredicateConfig = apiPredicateConfig) {
+            object : ApiFiltersVisitor(apiFilters = apiFilters) {
+                /** Contextual information for [BaseDevicePolicyAnnotationHandler]s. */
+                private val devicePolicyContext = DevicePolicyContext(filterReference)
+
                 override fun visitItem(item: Item) {
                     val annotations = item.modifiers.annotations()
                     if (annotations.isEmpty()) {
@@ -210,6 +221,18 @@ class DocAnalyzer(
                     return permClass?.fields()?.firstOrNull { it.constantValue?.asString() == perm }
                 }
 
+                /**
+                 * Handle the device policy [annotation] by generating some documentation and
+                 * appending it to [item].
+                 */
+                private fun BaseDevicePolicyAnnotationHandler.handlePolicyAnnotation(
+                    annotation: AnnotationItem,
+                    item: Item,
+                ) {
+                    val doc = processPolicyAnnotation(annotation, item)
+                    appendDocumentation(doc, item, returnValue = false)
+                }
+
                 private fun handleAnnotation(
                     annotation: AnnotationItem,
                     item: Item,
@@ -234,10 +257,34 @@ class DocAnalyzer(
                     handleInliningDocs(annotation, item)
 
                     when (name) {
+                        "android.processor.devicepolicy.EnumPolicyDefinition" ->
+                            EnumPolicyAnnotationHandler(devicePolicyContext)
+                                .handlePolicyAnnotation(annotation, item)
+                        "android.processor.devicepolicy.StringPolicyDefinition" ->
+                            StringPolicyAnnotationHandler(devicePolicyContext)
+                                .handlePolicyAnnotation(annotation, item)
+                        "android.processor.devicepolicy.IntegerPolicyDefinition" ->
+                            IntegerPolicyAnnotationHandler(devicePolicyContext)
+                                .handlePolicyAnnotation(annotation, item)
+                        "android.processor.devicepolicy.LongPolicyDefinition" ->
+                            LongPolicyAnnotationHandler(devicePolicyContext)
+                                .handlePolicyAnnotation(annotation, item)
+                        "android.processor.devicepolicy.ListOfStringPolicyDefinition" ->
+                            ListOfStringPolicyAnnotationHandler(devicePolicyContext)
+                                .handlePolicyAnnotation(annotation, item)
+                        "android.processor.devicepolicy.ListOfPackagePolicyDefinition" ->
+                            ListOfPackagePolicyAnnotationHandler(devicePolicyContext)
+                                .handlePolicyAnnotation(annotation, item)
+                        "android.processor.devicepolicy.ListOfEnumPolicyDefinition" ->
+                            ListOfEnumPolicyAnnotationHandler(devicePolicyContext)
+                                .handlePolicyAnnotation(annotation, item)
+                        "android.processor.devicepolicy.PackagePolicyDefinition" ->
+                            PackagePolicyAnnotationHandler(devicePolicyContext)
+                                .handlePolicyAnnotation(annotation, item)
                         "androidx.annotation.RequiresPermission" ->
                             handleRequiresPermission(annotation, item)
-                        "androidx.annotation.IntRange",
-                        "androidx.annotation.FloatRange" -> handleRange(annotation, item)
+                        ANDROIDX_INT_RANGE,
+                        ANDROIDX_FLOAT_RANGE -> handleRange(annotation, item)
                         "androidx.annotation.IntDef",
                         "androidx.annotation.LongDef",
                         "androidx.annotation.StringDef" -> handleTypeDef(annotation, item)
@@ -283,7 +330,7 @@ class DocAnalyzer(
                  */
                 private fun handleKotlinDeprecation(annotation: AnnotationItem, item: Item) {
                     // Ignore Items without documentation.
-                    item as? SelectableItem ?: return
+                    if (item !is SelectableItem) return
                     val documentation = item.documentation ?: return
 
                     // Drop out if it already has a deprecated Javadoc tag.
@@ -357,8 +404,9 @@ class DocAnalyzer(
                         return
                     }
 
-                    val requiresPermissionInfo = annotation.getRequiresPermissionInfo() ?: return
-                    val (values, any, conditional) = requiresPermissionInfo
+                    val requiresPermissionProxy =
+                        annotation.getRequiresPermissionProxy(item) ?: return
+                    val (values, any, conditional) = requiresPermissionProxy
                     if (values.isNotEmpty() && !conditional) {
                         // Look at macros_override.cs for the usage of these
                         // tags. In particular, search for def:dump_permission
@@ -373,53 +421,53 @@ class DocAnalyzer(
                                 else -> sb.append(" and ")
                             }
 
+                            // Check for the carrier privileges marker before resolving a field
+                            // reference as `value.asString()` returns the constant value for both
+                            // string literals and constant fields, and a carrier privileges field
+                            // should link to `TelephonyManager#hasCarrierPrivileges` rather than
+                            // the field itself.
+                            val v = value.asString() ?: value.toValueString()
+                            if (v == CARRIER_PRIVILEGES_MARKER) {
+                                // TODO: Warn if using allOf with carrier
+                                sb.append(
+                                    linkToMethod(
+                                        item,
+                                        qualifiedClassName = "android.telephony.TelephonyManager",
+                                        methodName = "hasCarrierPrivileges",
+                                        label = CARRIER_PRIVILEGES_MARKER,
+                                    ) {
+                                        CARRIER_PRIVILEGES_MARKER
+                                    }
+                                )
+                                continue
+                            }
+
+                            // If the value is a field reference that resolves to a field then use
+                            // that, otherwise try to find a permission field with the constant
+                            // value.
                             val resolvedField = (value as? FieldReferenceValue)?.resolve()
                             val field =
                                 if (resolvedField == null) {
-                                    val v = value.asString() ?: value.toValueString()
-                                    if (v == CARRIER_PRIVILEGES_MARKER) {
-                                        // TODO: Warn if using allOf with carrier
-                                        sb.append(
-                                            "{@link android.telephony.TelephonyManager#hasCarrierPrivileges carrier privileges}"
-                                        )
-                                        continue
-                                    } else {
-                                        findPermissionField(codebase, v)
-                                    }
+                                    findPermissionField(codebase, v)
                                 } else resolvedField
                             if (field == null) {
-                                val v = value.asString()
-                                if (
-                                    v != null && editDistance(CARRIER_PRIVILEGES_MARKER, v, 3) < 3
-                                ) {
-                                    reporter.report(
-                                        Issues.MISSING_PERMISSION,
-                                        item,
-                                        "Unrecognized permission `$v`; did you mean `$CARRIER_PRIVILEGES_MARKER`?"
-                                    )
-                                } else {
-                                    reporter.report(
-                                        Issues.MISSING_PERMISSION,
-                                        item,
-                                        "Cannot find permission field for ${value.toValueString()} required by $item (may be hidden or removed)"
-                                    )
-                                }
+                                reporter.report(
+                                    Issues.MISSING_PERMISSION,
+                                    item,
+                                    "Cannot find permission field for ${value.toValueString()} required by $item (may be hidden or removed)"
+                                )
                                 sb.append(value.toValueString())
                             } else {
-                                if (filterReference.test(field)) {
-                                    sb.append(
-                                        "{@link ${field.containingClass().qualifiedName()}#${field.name()}}"
-                                    )
-                                } else {
-                                    reporter.report(
-                                        Issues.MISSING_PERMISSION,
-                                        item,
-                                        "Permission $value required by $item is hidden or removed"
-                                    )
-                                    sb.append(
+                                sb.append(
+                                    linkToField(item, field) {
+                                        reporter.report(
+                                            Issues.MISSING_PERMISSION,
+                                            item,
+                                            "Permission $value required by $item is hidden or removed"
+                                        )
                                         "${field.containingClass().qualifiedName()}.${field.name()}"
-                                    )
-                                }
+                                    }
+                                )
                             }
                         }
 
@@ -428,8 +476,8 @@ class DocAnalyzer(
                 }
 
                 private fun handleRange(annotation: AnnotationItem, item: Item) {
-                    val from = annotation.findAttribute("from")?.value?.forRange()
-                    val to = annotation.findAttribute("to")?.value?.forRange()
+                    val from = annotation.findAttribute("from")?.value?.forRange(item)
+                    val to = annotation.findAttribute("to")?.value?.forRange(item)
                     // TODO: inclusive/exclusive attributes on FloatRange!
                     if (from != null || to != null) {
                         val doc =
@@ -488,9 +536,7 @@ class DocAnalyzer(
                 ): String? {
                     val field = (value as? FieldReferenceValue)?.resolve()
                     return if (field is FieldItem) {
-                        if (filterReference.test(field)) {
-                            "{@link ${field.containingClass().qualifiedName()}#${field.name()}}"
-                        } else {
+                        linkToField(item, field) {
                             // Typedef annotation references field which isn't part of the API:
                             // don't try to link to it.
                             reporter.report(
@@ -500,7 +546,7 @@ class DocAnalyzer(
                                     "${field.containingClass().qualifiedName()}#${field.name()}"
                             )
                             // Do not include the field in the documentation
-                            null
+                            return null
                         }
                     } else {
                         value.toValueString()
@@ -517,17 +563,17 @@ class DocAnalyzer(
                                 item,
                                 "Cannot find feature field for ${value.toValueString()} required by $item (may be hidden or removed)"
                             )
-                            "{@link ${value.toValueString()}}"
+                            return
                         } else {
-                            if (filterReference.test(field)) {
-                                "{@link ${field.containingClass().qualifiedName()}#${field.name()} ${field.containingClass().simpleName()}#${field.name()}}"
-                            } else {
+                            val displayText =
+                                "${field.containingClass().simpleName()}#${field.name()}"
+                            linkToField(item, field, label = displayText) {
                                 reporter.report(
                                     Issues.MISSING_PERMISSION,
                                     item,
                                     "Feature field ${value.toValueString()} required by $item is hidden or removed"
                                 )
-                                "${field.containingClass().simpleName()}#${field.name()}"
+                                return
                             }
                         }
 
@@ -536,26 +582,38 @@ class DocAnalyzer(
                             ?: DEFAULT_ENFORCEMENT
 
                     // Compute the link uri and text from the enforcement setting.
-                    val regexp = """(?:.*\.)?([^.#]+)#(.*)""".toRegex()
+                    val regexp = """((?:.*\.)?([^.#]+))#(.*)""".toRegex()
                     val match = regexp.matchEntire(enforcement)
-                    val (className, methodName, methodRef) =
+                    val (qualifiedClassName, className, methodName) =
                         if (match == null) {
                             reporter.report(
                                 Issues.INVALID_FEATURE_ENFORCEMENT,
                                 item,
                                 "Invalid 'enforcement' value '$enforcement', must be of the form <qualified-class>#<method-name>, using default"
                             )
-                            Triple("PackageManager", "hasSystemFeature", DEFAULT_ENFORCEMENT)
+                            Triple(
+                                "android.content.pm.PackageManager",
+                                "PackageManager",
+                                "hasSystemFeature"
+                            )
                         } else {
-                            val (className, methodName) = match.destructured
-                            Triple(className, methodName, enforcement)
+                            val (qualifiedClassName, className, methodName) = match.destructured
+                            Triple(qualifiedClassName, className, methodName)
                         }
 
-                    val linkUri = "$methodRef(String)"
-                    val linkText = "$className.$methodName(String)"
+                    val enforcementLink =
+                        linkToMethod(
+                            item,
+                            qualifiedClassName = qualifiedClassName,
+                            methodName = methodName,
+                            parameters = "java.lang.String",
+                            label = "$className.$methodName(String)",
+                        ) {
+                            return
+                        }
 
                     val doc =
-                        "Requires the $featureField feature which can be detected using {@link $linkUri $linkText}."
+                        "Requires the $featureField feature which can be detected using $enforcementLink."
                     appendDocumentation(doc, item, false)
                 }
 
@@ -581,29 +639,15 @@ class DocAnalyzer(
                     annotationItem: AnnotationItem,
                     item: Item
                 ) {
-                    val environmentsValue =
-                        annotationItem
-                            .findAttribute("environments")
-                            ?.value
-                            ?.asFlatList()
-                            ?.firstOrNull()
-                            ?.asString()
-                    val fromValue = annotationItem.findAttribute("from")?.value?.asInt()
+                    val proxy = annotationItem.bindTo<RestrictedForEnvironmentProxy>(item) ?: return
+                    val environmentsValue = proxy.environments.firstOrNull()
+                    val fromValue = proxy.from
 
                     if (environmentsValue == null) {
                         reporter.report(
                             Issues.MISSING_ENVIRONMENTS_VALUE,
                             item,
                             "Missing 'environments' value for @RestrictedForEnvironment annotation"
-                        )
-                        return
-                    }
-
-                    if (fromValue == null) {
-                        reporter.report(
-                            Issues.MISSING_FROM_VALUE,
-                            item,
-                            "Missing 'from' value for @RestrictedForEnvironment annotation"
                         )
                         return
                     }
@@ -621,11 +665,23 @@ class DocAnalyzer(
                     val sb = StringBuilder(100)
                     val field = (value as? FieldReferenceValue)?.resolve()
                     sb.append("This constant represents a column name that can be used with a ")
-                    sb.append("{@link android.content.ContentProvider}")
+                    sb.append(
+                        linkToClass(item, "android.content.ContentProvider") {
+                            return
+                        }
+                    )
                     sb.append(" through a ")
-                    sb.append("{@link android.content.ContentValues}")
+                    sb.append(
+                        linkToClass(item, "android.content.ContentValues") {
+                            return
+                        }
+                    )
                     sb.append(" or ")
-                    sb.append("{@link android.database.Cursor}")
+                    sb.append(
+                        linkToClass(item, "android.database.Cursor") {
+                            return
+                        }
+                    )
                     sb.append(" object. The values stored in this column are ")
                     sb.append("")
                     if (field == null) {
@@ -634,20 +690,20 @@ class DocAnalyzer(
                             item,
                             "Cannot find feature field for ${value.toValueString()} required by $item (may be hidden or removed)"
                         )
-                        sb.append("{@link ${value.toValueString()}}")
+                        return
                     } else {
-                        if (filterReference.test(field)) {
-                            sb.append(
-                                "{@link ${field.containingClass().qualifiedName()}#${field.name()} ${field.containingClass().simpleName()}#${field.name()}} "
-                            )
-                        } else {
-                            reporter.report(
-                                Issues.MISSING_COLUMN,
-                                item,
-                                "Feature field ${value.toValueString()} required by $item is hidden or removed"
-                            )
-                            sb.append("${field.containingClass().simpleName()}#${field.name()} ")
-                        }
+                        val displayText = "${field.containingClass().simpleName()}#${field.name()}"
+                        sb.append(
+                            linkToField(item, field, label = displayText) {
+                                reporter.report(
+                                    Issues.MISSING_COLUMN,
+                                    item,
+                                    "Feature field ${value.toValueString()} required by $item is hidden or removed"
+                                )
+                                return
+                            }
+                        )
+                        sb.append(" ")
                     }
 
                     if (readOnly) {
@@ -705,51 +761,28 @@ class DocAnalyzer(
 
         // Get the text for the supplied tag as that is what needs to be copied into the use site.
         // If there is no such text then return immediately.
-        val tagDescription =
-            annotationDocumentation.blockTagDescription(tag, forAppending = true) ?: return
+        val tagDescription = annotationDocumentation.blockTagDescription(tag) ?: return
 
         descriptionOwner.append(tagDescription)
     }
 
-    private fun stripLeadingAsterisks(s: String): String {
-        if (s.contains("*")) {
-            val sb = StringBuilder(s.length)
-            var strip = true
-            for (c in s) {
-                if (strip) {
-                    if (c.isWhitespace() || c == '*') {
-                        continue
-                    } else {
-                        strip = false
-                    }
-                } else {
-                    if (c == '\n') {
-                        strip = true
-                    }
-                }
-                sb.append(c)
-            }
-            return sb.toString()
-        }
-
-        return s
-    }
-
+    /**
+     * Load API history from [apiVersionsFile] and apply `@apiSince`, `@deprecatedSince`, and
+     * `@sdkExtSince` documentation tags to items in [codebase].
+     */
     fun applyApiVersions(apiVersionsFile: File) {
-        val apiLookup =
-            getApiLookup(
-                xmlFile = apiVersionsFile,
-                underTest = executionEnvironment.isUnderTest(),
-            )
-        val elementToSdkExtSinceMap = createSymbolToSdkExtSinceMap(apiVersionsFile)
+        val loader =
+            executionEnvironment.testEnvironment?.apiHistoryProviderLoader
+                ?: MetalavaApiHistoryProvider.loader
+        val provider = loader.load(apiVersionsFile)
 
         val packageToVersion = HashMap<PackageItem, ApiVersion>(300)
         codebase.accept(
             object :
-                ApiVisitor(
+                ApiSurfaceVisitor(
                     // Only SelectableItems have documentation associated with them.
                     visitParameterItems = false,
-                    apiPredicateConfig = apiPredicateConfig,
+                    filterEmit = apiFilters.emit,
                 ) {
 
                 override fun visitCallable(callable: CallableItem) {
@@ -759,24 +792,14 @@ class DocAnalyzer(
                     if (callable is ConstructorItem && callable.isImplicitConstructor()) {
                         return
                     }
-                    addApiVersionDocumentation(apiLookup.getCallableVersion(callable), callable)
-                    val methodName = callable.name()
-                    val key = "${callable.containingClass().qualifiedName()}#$methodName"
-                    elementToSdkExtSinceMap[key]?.let {
-                        addApiExtensionsDocumentation(it, callable)
-                    }
-                    addDeprecatedDocumentation(
-                        apiLookup.getCallableDeprecatedIn(callable),
-                        callable
-                    )
+                    applyItemApiHistory(provider.getApiHistory(callable), callable)
                 }
 
                 override fun visitClass(cls: ClassItem) {
-                    val qualifiedName = cls.qualifiedName()
-                    val since = apiLookup.getClassVersion(cls)
-                    if (since != null) {
-                        addApiVersionDocumentation(since, cls)
+                    val history = provider.getApiHistory(cls) ?: return
+                    applyItemApiHistory(history, cls)
 
+                    history.since?.let { since ->
                         // Compute since version for the package: it's the min of all the classes in
                         // the package
                         val pkg = cls.containingPackage()
@@ -784,18 +807,10 @@ class DocAnalyzer(
                             packageToVersion[pkg]?.let { existing -> minOf(existing, since) }
                                 ?: since
                     }
-                    elementToSdkExtSinceMap[qualifiedName]?.let {
-                        addApiExtensionsDocumentation(it, cls)
-                    }
-                    addDeprecatedDocumentation(apiLookup.getClassDeprecatedIn(cls), cls)
                 }
 
                 override fun visitField(field: FieldItem) {
-                    addApiVersionDocumentation(apiLookup.getFieldVersion(field), field)
-                    elementToSdkExtSinceMap[
-                            "${field.containingClass().qualifiedName()}#${field.name()}"]
-                        ?.let { addApiExtensionsDocumentation(it, field) }
-                    addDeprecatedDocumentation(apiLookup.getFieldDeprecatedIn(field), field)
+                    applyItemApiHistory(provider.getApiHistory(field), field)
                 }
             }
         )
@@ -806,7 +821,18 @@ class DocAnalyzer(
     }
 
     /**
-     * Add [blockTagType] with [content] to the [item]'s [Item.documentation].
+     * Apply the API version, SDK extension version, and deprecation version from [history] (if
+     * non-null) to [item]'s documentation.
+     */
+    private fun applyItemApiHistory(history: ItemApiHistory?, item: SelectableItem) {
+        if (history == null) return
+        addApiVersionDocumentation(history.since, item)
+        history.sdkExtSince?.let { addApiExtensionsDocumentation(it, item) }
+        addDeprecatedDocumentation(history.deprecatedIn, item)
+    }
+
+    /**
+     * Add [blockTagType] with [content] to the [item]'s [SelectableItem.documentation].
      *
      * If there is an existing [blockTagType] then an [Issues.FORBIDDEN_TAG] error will be reported,
      * and it will be removed. Irrespective of that a new [blockTagType] will be added with some
@@ -840,11 +866,6 @@ class DocAnalyzer(
      */
     private fun addApiVersionDocumentation(apiVersion: ApiVersion?, item: SelectableItem) {
         if (apiVersion != null) {
-            // Check to see whether an API version should not be included in the documentation.
-            if (!apiVersionFilter(apiVersion)) {
-                return
-            }
-
             // Always set @apiSince, overriding any existing value.
             val apiVersionLabel = apiVersionLabelProvider(apiVersion)
             addUniqueVersionBlockTag(item, "apiSince", apiVersionLabel)
@@ -872,12 +893,6 @@ class DocAnalyzer(
      */
     private fun addDeprecatedDocumentation(version: ApiVersion?, item: SelectableItem) {
         if (version != null) {
-            if (item.originallyHidden) {
-                // @SystemApi, @TestApi etc -- don't apply API versions here since we don't have
-                // accurate historical data
-                return
-            }
-
             // Always set @deprecatedSince, overriding any existing value.
             val apiVersionLabel = apiVersionLabelProvider(version)
             addUniqueVersionBlockTag(item, "deprecatedSince", apiVersionLabel)
@@ -906,265 +921,90 @@ class DocAnalyzer(
     }
 }
 
-/** A constraint that will only match for Android Platform SDKs. */
-val androidSdkConstraint = ApiConstraint.get(1)
-
 /**
- * Get the min [ApiVersion], i.e. the lowest version of the Android Platform SDK.
+ * Return a `{@link ...}` to [field] if it is a valid documentation reference from [from], or the
+ * result of calling [alternate] otherwise.
  *
- * TODO(b/282932318): Replace with call to ApiConstraint.min() when bug is fixed.
+ * @param from the [Item] from whose documentation [field] is being referenced.
+ * @param field the [FieldItem] to link to.
+ * @param label optional label to include in the `{@link ...}` tag.
+ * @param alternate lambda invoked to report an issue and/or return alternate content if [field]
+ *   cannot be referenced.
  */
-fun ApiConstraint.minApiVersion(): ApiVersion? {
-    return getConstraints()
-        .filter { it != ApiConstraint.UNKNOWN }
-        // Remove any constraints that are not for the Android Platform SDK.
-        .filter { it.isAtLeast(androidSdkConstraint) }
-        // Get the minimum of all the lowest ApiVersions, or null if there are no ApiVersions in the
-        // constraints.
-        .minOfOrNull {
-            val major = it.fromInclusive()
-            val minor = it.fromInclusiveMinor()
-            ApiVersion.fromMajorMinor(
-                major,
-                if (minor == 0) null else minor,
-            )
-        }
-}
-
-fun ApiLookup.getClassVersion(cls: ClassItem): ApiVersion? {
-    val owner = cls.qualifiedName()
-    return getClassVersions(owner).minApiVersion()
-}
-
-fun ApiLookup.getCallableVersion(method: CallableItem): ApiVersion? {
-    val containingClass = method.containingClass()
-    val owner = containingClass.qualifiedName()
-    val desc = method.getCallableParameterDescriptorUsingDots()
-    // Metalava uses the class name as the name of the constructor but the ApiLookup uses <init>.
-    val name = if (method.isConstructor()) "<init>" else method.name()
-    return getMethodVersions(owner, name, desc).minApiVersion()
-}
-
-fun ApiLookup.getFieldVersion(field: FieldItem): ApiVersion? {
-    val containingClass = field.containingClass()
-    val owner = containingClass.qualifiedName()
-    return getFieldVersions(owner, field.name()).minApiVersion()
-}
-
-fun ApiLookup.getClassDeprecatedIn(cls: ClassItem): ApiVersion? {
-    val owner = cls.qualifiedName()
-    return getClassDeprecatedInVersions(owner).minApiVersion()
-}
-
-fun ApiLookup.getCallableDeprecatedIn(callable: CallableItem): ApiVersion? {
-    val containingClass = callable.containingClass()
-    val owner = containingClass.qualifiedName()
-    val desc = callable.getCallableParameterDescriptorUsingDots() ?: return null
-    return getMethodDeprecatedInVersions(owner, callable.name(), desc).minApiVersion()
-}
-
-fun ApiLookup.getFieldDeprecatedIn(field: FieldItem): ApiVersion? {
-    val containingClass = field.containingClass()
-    val owner = containingClass.qualifiedName()
-    return getFieldDeprecatedInVersions(owner, field.name()).minApiVersion()
-}
-
-fun getApiLookup(
-    xmlFile: File,
-    cacheDir: File? = null,
-    underTest: Boolean = true,
-): ApiLookup {
-    val client =
-        object : LintCliClient(PROGRAM_NAME) {
-            override fun getCacheDir(name: String?, create: Boolean): File? {
-                if (cacheDir != null) {
-                    return cacheDir
-                }
-
-                if (create && underTest) {
-                    // Pick unique directory during unit tests
-                    return Files.createTempDirectory(PROGRAM_NAME).toFile()
-                }
-
-                val sb = StringBuilder(PROGRAM_NAME)
-                if (name != null) {
-                    sb.append(File.separator)
-                    sb.append(name)
-                }
-                val relative = sb.toString()
-
-                val tmp = System.getenv("TMPDIR")
-                if (tmp != null) {
-                    // Android Build environment: Make sure we're really creating a unique
-                    // temp directory each time since builds could be running in
-                    // parallel here.
-                    val dir = File(tmp, relative)
-                    if (!dir.isDirectory) {
-                        dir.mkdirs()
-                    }
-
-                    return Files.createTempDirectory(dir.toPath(), null).toFile()
-                }
-
-                val dir = File(System.getProperty("java.io.tmpdir"), relative)
-                if (create && !dir.isDirectory) {
-                    dir.mkdirs()
-                }
-                return dir
-            }
-        }
-
-    val xmlPathProperty = "LINT_API_DATABASE"
-    val prev = System.getProperty(xmlPathProperty)
-    try {
-        System.setProperty(xmlPathProperty, xmlFile.path)
-        return ApiLookup.get(client, null) ?: error("ApiLookup creation failed")
-    } finally {
-        if (prev != null) {
-            System.setProperty(xmlPathProperty, xmlFile.path)
-        } else {
-            System.clearProperty(xmlPathProperty)
-        }
+internal inline fun linkToField(
+    from: Item,
+    field: FieldItem,
+    label: String? = null,
+    alternate: () -> String,
+): String {
+    val referenceStrategy = from.codebase.apiSurfaces.referenceStrategy
+    return if (referenceStrategy.isValidReference(from, field, ReferenceKind.DOCUMENTATION)) {
+        val labelSuffix = if (label == null) "" else " $label"
+        "{@link ${field.containingClass().qualifiedName()}#${field.name()}$labelSuffix}"
+    } else {
+        alternate()
     }
 }
 
 /**
- * Generate a map of symbol -> (list of SDKs and corresponding versions the symbol first appeared)
- * in by parsing an api-versions.xml file. This will be used when injecting @sdkExtSince
- * annotations, which convey the same information, in a format documentation tools can consume.
+ * Return a `{@link ...}` to the method [methodName] with [parameters] on [qualifiedClassName] if it
+ * can be resolved and is a valid documentation reference from [from], or the result of calling
+ * [alternate] otherwise.
  *
- * A symbol is either of a class, method or field.
- *
- * The symbols are Strings on the format "com.pkg.Foo#MethodOrField", with no method signature.
+ * @param from the [Item] from whose documentation the method is being referenced.
+ * @param qualifiedClassName the qualified name of the [ClassItem] containing the method.
+ * @param methodName the name of the [MethodItem] to link to.
+ * @param parameters comma-separated erased parameter types for [ClassItem.findBytecodeMethod].
+ * @param label optional label to include in the `{@link ...}` tag.
+ * @param alternate lambda invoked to report an issue and/or return alternate content if the method
+ *   cannot be referenced.
  */
-private fun createSymbolToSdkExtSinceMap(xmlFile: File): Map<String, SdkAndVersion> {
-    data class OuterClass(val name: String, val idAndVersion: IdAndVersion?)
-
-    val sdkExtensionsById = mutableMapOf<Int, SdkExtension>()
-    var lastSeenClass: OuterClass? = null
-    val elementToIdAndVersionMap = mutableMapOf<String, IdAndVersion>()
-    val memberTags = listOf("class", "method", "field")
-    val parser = SAXParserFactory.newDefaultInstance().newSAXParser()
-    parser.parse(
-        xmlFile,
-        object : DefaultHandler() {
-            override fun startElement(
-                uri: String,
-                localName: String,
-                qualifiedName: String,
-                attributes: Attributes
-            ) {
-                if (qualifiedName == "sdk") {
-                    val id: Int =
-                        attributes.getValue("id")?.toIntOrNull()
-                            ?: throw IllegalArgumentException(
-                                "<sdk>: missing or non-integer id attribute"
-                            )
-                    val shortname: String =
-                        attributes.getValue("shortname")
-                            ?: throw IllegalArgumentException("<sdk>: missing shortname attribute")
-                    val name: String =
-                        attributes.getValue("name")
-                            ?: throw IllegalArgumentException("<sdk>: missing name attribute")
-                    val reference: String =
-                        attributes.getValue("reference")
-                            ?: throw IllegalArgumentException("<sdk>: missing reference attribute")
-                    sdkExtensionsById[id] =
-                        SdkExtension.fromXmlAttributes(
-                            id,
-                            shortname,
-                            name,
-                            reference,
-                        )
-                } else if (memberTags.contains(qualifiedName)) {
-                    val name: String =
-                        attributes.getValue("name")
-                            ?: throw IllegalArgumentException(
-                                "<$qualifiedName>: missing name attribute"
-                            )
-                    val sdksList = attributes.getValue("sdks")
-                    val idAndVersion =
-                        sdksList
-                            ?.split(",")
-                            // Get the first pair of sdk-id:version where sdk-id is not 0. If no
-                            // such pair exists then use `null`.
-                            ?.firstNotNullOfOrNull {
-                                val (sdk, version) = it.split(":")
-                                val id = sdk.toInt()
-                                // Ignore any references to the Android Platform SDK as they are
-                                // handled by ApiLookup.
-                                if (id == ANDROID_PLATFORM_SDK_ID) null
-                                else IdAndVersion(id, version.toInt())
-                            }
-
-                    // Populate elementToIdAndVersionMap. The keys constructed here are derived from
-                    // api-versions.xml; when used elsewhere in DocAnalyzer, the keys will be
-                    // derived from PsiItems. The two sources use slightly different nomenclature,
-                    // so change "api-versions.xml nomenclature" to "PsiItems nomenclature" before
-                    // inserting items in the map.
-                    //
-                    // Nomenclature differences:
-                    //   - constructors are named "<init>()V" in api-versions.xml, but
-                    //     "ClassName()V" in PsiItems
-                    //   - nested classes are named "Outer#Inner" in api-versions.xml, but
-                    //     "Outer.Inner" in PsiItems
-                    when (qualifiedName) {
-                        "class" -> {
-                            lastSeenClass =
-                                OuterClass(name.replace('/', '.').replace('$', '.'), idAndVersion)
-                            if (idAndVersion != null) {
-                                elementToIdAndVersionMap[lastSeenClass!!.name] = idAndVersion
-                            }
-                        }
-                        "method",
-                        "field" -> {
-                            val shortName =
-                                if (name.startsWith("<init>")) {
-                                    // constructors in api-versions.xml are named '<init>': rename
-                                    // to
-                                    // name of class instead, and strip signature: '<init>()V' ->
-                                    // 'Foo'
-                                    lastSeenClass!!.name.substringAfterLast('.')
-                                } else {
-                                    // strip signature: 'foo()V' -> 'foo'
-                                    name.substringBefore('(')
-                                }
-                            val element = "${lastSeenClass!!.name}#$shortName"
-                            if (idAndVersion != null) {
-                                elementToIdAndVersionMap[element] = idAndVersion
-                            } else if (sdksList == null && lastSeenClass!!.idAndVersion != null) {
-                                // The method/field does not have an `sdks` attribute so fall back
-                                // to the idAndVersion from the containing class.
-                                elementToIdAndVersionMap[element] = lastSeenClass!!.idAndVersion!!
-                            }
-                        }
-                    }
-                }
-            }
-
-            override fun endElement(uri: String, localName: String, qualifiedName: String) {
-                if (qualifiedName == "class") {
-                    lastSeenClass = null
-                }
-            }
-        }
-    )
-
-    val elementToSdkExtSinceMap = mutableMapOf<String, SdkAndVersion>()
-    for (entry in elementToIdAndVersionMap.entries) {
-        elementToSdkExtSinceMap[entry.key] =
-            entry.value.let {
-                val name =
-                    sdkExtensionsById[it.first]?.name
-                        ?: throw IllegalArgumentException(
-                            "SDK reference to unknown <sdk> with id ${it.first}"
-                        )
-                SdkAndVersion(name, it.second)
-            }
+internal inline fun linkToMethod(
+    from: Item,
+    qualifiedClassName: String,
+    methodName: String,
+    parameters: String = "",
+    label: String? = null,
+    alternate: () -> String,
+): String {
+    val codebase = from.codebase
+    val cls = codebase.resolveClass(qualifiedClassName)
+    val method = cls?.findBytecodeMethod(methodName, parameters)
+    val referenceStrategy = codebase.apiSurfaces.referenceStrategy
+    return if (
+        method != null &&
+            referenceStrategy.isValidReference(from, method, ReferenceKind.DOCUMENTATION)
+    ) {
+        val paramSuffix = if (parameters.isEmpty()) "" else "($parameters)"
+        val labelSuffix = if (label == null) "" else " $label"
+        "{@link ${cls.qualifiedName()}#${method.name()}$paramSuffix$labelSuffix}"
+    } else {
+        alternate()
     }
-    return elementToSdkExtSinceMap
 }
 
-private typealias IdAndVersion = Pair<Int, Int>
-
-private data class SdkAndVersion(val name: String, val version: Int)
+/**
+ * Return a `{@link ...}` to the class with [qualifiedClassName] if it can be resolved and is a
+ * valid documentation reference from [from], or the result of calling [alternate] otherwise.
+ *
+ * @param from the [Item] from whose documentation the class is being referenced.
+ * @param qualifiedClassName the qualified name of the [ClassItem] to link to.
+ * @param alternate lambda invoked to report an issue and/or return alternate content if the class
+ *   cannot be referenced.
+ */
+internal inline fun linkToClass(
+    from: Item,
+    qualifiedClassName: String,
+    alternate: () -> String,
+): String {
+    val codebase = from.codebase
+    val cls = codebase.resolveClass(qualifiedClassName)
+    val referenceStrategy = codebase.apiSurfaces.referenceStrategy
+    return if (
+        cls != null && referenceStrategy.isValidReference(from, cls, ReferenceKind.DOCUMENTATION)
+    ) {
+        "{@link ${cls.qualifiedName()}}"
+    } else {
+        alternate()
+    }
+}

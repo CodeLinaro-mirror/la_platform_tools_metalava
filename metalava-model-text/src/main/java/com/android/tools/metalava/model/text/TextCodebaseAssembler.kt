@@ -16,15 +16,16 @@
 
 package com.android.tools.metalava.model.text
 
-import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassPathResolver
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.SourceLanguage
+import com.android.tools.metalava.model.WellKnownTypes.JAVA_LANG_ANNOTATION_NON_NULL_TYPE
+import com.android.tools.metalava.model.api.SelectedApi
 import com.android.tools.metalava.model.bestGuessAtFullName
-import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultCodebaseFactory
@@ -48,9 +49,6 @@ internal class TextCodebaseAssembler(
             // Signature files do not contain information about whether an item was originally
             // created from Java or Kotlin.
             defaultSourceLanguage = SourceLanguage.UNKNOWN,
-            // Signature files have already been separated by API surface variants, so they can use
-            // the same immutable ApiVariantSelectors.
-            defaultVariantSelectorsFactory = ApiVariantSelectors.IMMUTABLE_FACTORY,
         )
 
     override fun createPackageFromUnderlyingModel(qualifiedName: String) =
@@ -77,7 +75,7 @@ internal class TextCodebaseAssembler(
      */
     private val requiredStubKindForClass = mutableMapOf<String, StubKind>()
 
-    override fun newClassRegistered(classItem: DefaultClassItem) {
+    override fun newClassRegistered(classItem: ClassItem) {
         // A real class exists so a stub will not be created so the hint as to the kind of class
         // that the stubs should be is no longer needed.
         requiredStubKindForClass.remove(classItem.qualifiedName())
@@ -152,7 +150,7 @@ internal class TextCodebaseAssembler(
                 // As outerClass and stubClass are from the same codebase the outerClass must be a
                 // DefaultClassItem so cast it to one so that the code below can use
                 // DefaultClassItem methods.
-                outerClass as DefaultClassItem
+                outerClass as SkeletonClassItem
             } else {
                 null
             }
@@ -199,10 +197,17 @@ internal class TextCodebaseAssembler(
                             trustedApi = true,
                             supportsDocumentation = false,
                             assembler = assembler,
+                            // Create a [SelecteApi] instance that will be populated while parsing
+                            // the signature files.
+                            selectedApiFactory = SelectedApi.MUTABLE_FACTORY,
                         )
                     },
                     classPathResolver = classPathResolver,
                 )
+
+            // Make sure that if a stub class needs to be generated for the
+            // `java.lang.annotation.Annotation` class, that it is marked as an interface.
+            assembler.requireStubKindFor(JAVA_LANG_ANNOTATION_NON_NULL_TYPE, StubKind.INTERFACE)
 
             return assembler
         }

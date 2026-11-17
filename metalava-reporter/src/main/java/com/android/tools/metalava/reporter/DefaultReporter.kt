@@ -19,7 +19,6 @@ package com.android.tools.metalava.reporter
 import com.android.tools.metalava.reporter.Severity.ERROR
 import com.android.tools.metalava.reporter.Severity.HIDDEN
 import com.android.tools.metalava.reporter.Severity.WARNING
-import java.io.File
 import java.io.OutputStreamWriter
 import java.io.PrintWriter
 import java.nio.file.Path
@@ -27,7 +26,7 @@ import java.util.function.Predicate
 
 class DefaultReporter(
     private val environment: ReporterEnvironment,
-    private val issueConfiguration: IssueConfiguration,
+    val issueConfiguration: IssueConfiguration,
 
     /** [Baseline] file associated with this [Reporter]. */
     private val baseline: Baseline? = null,
@@ -43,7 +42,7 @@ class DefaultReporter(
 
     /** Additional config properties. */
     private val config: Config = Config(),
-) : Reporter {
+) : BaseReporter() {
 
     /** A list of [Report] objects containing all the reported issues. */
     private val reports = mutableListOf<Report>()
@@ -152,29 +151,7 @@ class DefaultReporter(
             return true
         }
 
-        reportable ?: return false
-
-        // Suppress the issue if requested for the item.
-        return reportable.suppressedIssues().any { suppressMatches(it, id.name, message) }
-    }
-
-    private fun suppressMatches(value: String, id: String?, message: String?): Boolean {
-        id ?: return false
-
-        if (value == id) {
-            return true
-        }
-
-        if (
-            message != null &&
-                value.startsWith(id) &&
-                value.endsWith(message) &&
-                (value == "$id:$message" || value == "$id: $message")
-        ) {
-            return true
-        }
-
-        return false
+        return super.isSuppressed(id, reportable, message)
     }
 
     /**
@@ -187,8 +164,9 @@ class DefaultReporter(
     private fun Path.relativizeLocationPath(): String {
         // b/255575766: Note that `relativize` requires two paths to compare to have same types:
         // either both of them are absolute paths or both of them are not absolute paths.
-        val path = environment.rootFolder.toPath().relativize(this) ?: this
-        return path.toString()
+        val path = environment.rootFolder.relativize(this).toString()
+        if (path.startsWith("../")) return toString()
+        return path
     }
 
     /** Alias to allow method reference to `dispatch` in [report] */
@@ -225,6 +203,18 @@ class DefaultReporter(
         // also sorted in the same order as that is called after this.
         reports.sortWith(reportComparator)
 
+        // Remove duplicates from the sorted list.
+        var previous: Report? = null
+        val reportIterator = reports.iterator()
+        while (reportIterator.hasNext()) {
+            val report = reportIterator.next()
+            if (report == previous) {
+                reportIterator.remove()
+            } else {
+                previous = report
+            }
+        }
+
         // Print out all the save reports.
         for (report in reports) {
             val formattedMessage = config.outputReportFormatter.format(report)
@@ -258,7 +248,7 @@ class DefaultReporter(
 interface ReporterEnvironment {
 
     /** Root folder, against which location paths will be relativized to simplify the output. */
-    val rootFolder: File
+    val rootFolder: Path
 
     /** Print the report. */
     fun printReport(message: String, severity: Severity)
@@ -269,7 +259,7 @@ class DefaultReporterEnvironment(
     val stderr: PrintWriter = PrintWriter(OutputStreamWriter(System.err)),
 ) : ReporterEnvironment {
 
-    override val rootFolder = File("").absoluteFile
+    override val rootFolder: Path = Path.of("").toAbsolutePath()
 
     override fun printReport(message: String, severity: Severity) {
         val output = if (severity == ERROR) stderr else stdout

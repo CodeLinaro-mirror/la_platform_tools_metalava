@@ -19,6 +19,8 @@
       </key-servers>
       <trusted-artifacts>
          <trust group="gradle" name="gradle" reason="Needed for IDE syncing"/>
+         <trust group="org.apache.groovy" reason="Needed for IDE syncing"/>
+         <trust file=".*-sources[.]jar" regex="true" reason="Needed for IDE syncing"/>
       </trusted-artifacts>
    </configuration>
    <components/>

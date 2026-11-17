@@ -15,6 +15,7 @@
  */
 package com.android.tools.metalava.apilevels
 
+import com.android.tools.metalava.reporter.Reporter
 import java.util.Collections
 import java.util.TreeMap
 import java.util.TreeSet
@@ -33,21 +34,51 @@ class Api(val useInternalNames: Boolean) : ParentApiElement {
      */
     override val since: ApiVersion = ApiVersion.LOWEST
 
-    override var lastPresentIn = since
+    /**
+     * The last platform [ApiVersion] added to this [Api]. Any top-level class whose
+     * [ApiElement.lastPresentIn] is less than this version was removed in a subsequent version.
+     */
+    var lastPresentIn = since
         private set
 
     override val sdks: String? = null
 
     override val deprecatedIn: ApiVersion? = null
 
+    override val removedIn: ApiVersion? = null
+
+    /** All [ApiVersion]s that have contributed to this [Api], sorted from lowest to highest. */
+    private val allVersions = TreeSet<ApiVersion>()
+
+    /** The minimum [ApiVersion] in this [Api], or `null` if no versions have been recorded. */
+    val minVersion: ApiVersion?
+        get() = allVersions.firstOrNull()
+
+    /** True if any [ApiVersion] in this [Api] has a non-null [ApiVersion.minor] version. */
+    val hasMinorVersions: Boolean
+        get() = allVersions.any { it.minor != null }
+
+    /** The optional set of [AvailableSdkExtensions] for this [Api]. */
+    var availableSdkExtensions: AvailableSdkExtensions? = null
+
     private val mClasses: MutableMap<String, ApiClass> = HashMap()
 
     /**
-     * Updates this with information for a specific API version.
+     * Records [apiVersion] as a version known to this [Api] without advancing [lastPresentIn].
+     *
+     * @param apiVersion an API version that contributed elements to this [Api].
+     */
+    fun recordVersion(apiVersion: ApiVersion) {
+        allVersions.add(apiVersion)
+    }
+
+    /**
+     * Updates this with information for a specific platform API version.
      *
      * @param apiVersion an API version that this contains.
      */
     fun update(apiVersion: ApiVersion) {
+        recordVersion(apiVersion)
         // Track the last version added to this.
         if (lastPresentIn < apiVersion) {
             lastPresentIn = apiVersion
@@ -78,20 +109,25 @@ class Api(val useInternalNames: Boolean) : ParentApiElement {
         return classElement
     }
 
+    /** Adds a parsed [ApiClass] directly to this [Api]. */
+    internal fun addClass(classElement: ApiClass) {
+        mClasses[classElement.name] = classElement
+    }
+
     fun findClass(name: String?): ApiClass? {
         return if (name == null) null else mClasses[name]
     }
 
     /** Cleans up the API surface for printing after all elements have been added. */
     fun clean() {
-        inlineFromHiddenSuperClasses()
         removeImplicitInterfaces()
         removeOverridingMethods()
-        prunePackagePrivateClasses()
 
         // Add any class dependent members. This is done here, after creating the API, as they need
         // to copy the containing class's state and that changes during creation.
         addClassDependentMembersIfNeeded()
+
+        computeRemovedIn()
     }
 
     val classes: Collection<ApiClass>
@@ -170,25 +206,6 @@ class Api(val useInternalNames: Boolean) : ParentApiElement {
         }
     }
 
-    private fun inlineFromHiddenSuperClasses() {
-        val hidden: MutableMap<String, ApiClass> = HashMap()
-        for (classElement in mClasses.values) {
-            if (classElement.alwaysHidden) {
-                // hidden in the .jar files? (mMax==codebase, -1: jar files)
-                hidden[classElement.name] = classElement
-            }
-        }
-        for (classElement in mClasses.values) {
-            classElement.inlineFromHiddenSuperClasses(hidden)
-        }
-    }
-
-    private fun prunePackagePrivateClasses() {
-        for (cls in mClasses.values) {
-            cls.removeHiddenSuperClasses(mClasses)
-        }
-    }
-
     /**
      * Adds class dependent members, if needed.
      *
@@ -198,6 +215,25 @@ class Api(val useInternalNames: Boolean) : ParentApiElement {
     private fun addClassDependentMembersIfNeeded() {
         for (cls in mClasses.values) {
             cls.addClassDependentMembersIfNeeded()
+        }
+    }
+
+    /**
+     * Computes [ApiElement.removedIn] for all classes and class members that were not present in
+     * their parent's [lastPresentIn] version.
+     */
+    private fun computeRemovedIn() {
+        val versionToNext = allVersions.zipWithNext().toMap()
+        for (cls in mClasses.values) {
+            if (cls.lastPresentIn < lastPresentIn) {
+                val removedFrom =
+                    versionToNext[cls.lastPresentIn]
+                        ?: error(
+                            "could not find next version for ${cls.lastPresentIn} in ${cls.name}"
+                        )
+                cls.updateRemovedIn(removedFrom)
+            }
+            cls.computeRemovedIn(versionToNext)
         }
     }
 
@@ -238,6 +274,22 @@ class Api(val useInternalNames: Boolean) : ParentApiElement {
                     "make metalava remove these references instead of erroring out." +
                     message
             )
+        }
+    }
+
+    /**
+     * Removes any classes or class members that were only present in historical SDK extension
+     * versions and not in the latest SDK extension version or any platform SDK version, reporting
+     * an issue for each one.
+     */
+    fun removeInconsistentExtensionElements(reporter: Reporter) {
+        // If `since` was never initialized then the class was only seen in an older SDK extension
+        // version; report and remove the whole class rather than reporting each of its members
+        // individually.
+        mClasses.removeInconsistentExtensionElements(reporter) { "Class ${it.name}" }
+
+        for (cls in mClasses.values) {
+            cls.removeInconsistentExtensionElements(reporter)
         }
     }
 }

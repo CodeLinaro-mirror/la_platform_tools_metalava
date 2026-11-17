@@ -21,6 +21,8 @@ import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
+import com.android.tools.metalava.model.SourceFile
+import com.android.tools.metalava.model.SourcePosition
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.utils.extractPossiblyEmptyQualifierName
 import com.android.tools.metalava.reporter.FileLocation
@@ -34,12 +36,28 @@ private const val PACKAGE_ESTIMATE = 500
  */
 data class PackageInfo(
     /**
-     * Location of the `package-info.java`, `package-info.class` or `package.html` file from which
-     * this information was obtained.
+     * Source from which the [FileLocation] of the package can be computed.
      *
-     * Is [FileLocation.UNKNOWN] for packages which do not have one of the above package files.
+     * This could be either the `package-info.java`, `package-info.class` or `package.html` file for
+     * packages created directly from source. Or it could be the [LineMap] for packages created from
+     * signature files.
+     *
+     * Is [FileLocationSource.NONE] for packages which do not have one of the above package files.
+     *
+     * This is separate to [sourceFile] because signature files provide a [FileLocation] for
+     * packages but do not have a corresponding [sourceFile].
      */
-    val fileLocation: FileLocation = FileLocation.UNKNOWN,
+    val fileLocationSource: FileLocationSource = FileLocationSource.NONE,
+
+    /** The position within [fileLocationSource] (or [sourceFile]) of the package declaration. */
+    val sourcePosition: SourcePosition = SourcePosition.UNKNOWN,
+
+    /**
+     * The optional [SourceFile] for the `package-info.java` files.
+     *
+     * Is `null` for packages that were not created from a `package-info.java` file.
+     */
+    val sourceFile: SourceFile? = null,
 
     /** The list of annotations, if any, applied to the package. */
     val annotations: List<AnnotationItem> = emptyList(),
@@ -60,6 +78,21 @@ data class PackageInfo(
      */
     val overview: ResourceFile? = null,
 ) {
+    constructor(
+        fileLocation: FileLocation,
+        sourceFile: SourceFile? = null,
+        annotations: List<AnnotationItem> = emptyList(),
+        commentFactory: ItemDocumentationFactory,
+        overview: ResourceFile? = null,
+    ) : this(
+        fileLocationSource = FileLocationSource.fromFileLocation(fileLocation),
+        sourcePosition = SourcePosition.UNKNOWN,
+        sourceFile = sourceFile,
+        annotations = annotations,
+        commentFactory = commentFactory,
+        overview = overview,
+    )
+
     companion object {
         /**
          * A [PackageInfo] that does not provide any comment for the package so any [PackageItem]

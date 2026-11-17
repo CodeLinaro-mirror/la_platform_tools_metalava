@@ -16,256 +16,78 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.cli.common.CommonBaselineOptions
+import com.android.tools.metalava.cli.common.ARG_SOURCE_FILES
 import com.android.tools.metalava.cli.common.CommonOptions
+import com.android.tools.metalava.cli.common.DriverCommand
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
-import com.android.tools.metalava.cli.common.IssueReportingOptions
-import com.android.tools.metalava.cli.common.LegacyHelpFormatter
-import com.android.tools.metalava.cli.common.MetalavaCliException
-import com.android.tools.metalava.cli.common.MetalavaLocalization
 import com.android.tools.metalava.cli.common.SourceOptions
-import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.cli.common.executionEnvironment
-import com.android.tools.metalava.cli.common.progressTracker
-import com.android.tools.metalava.cli.common.registerPostCommandAction
-import com.android.tools.metalava.cli.common.stderr
-import com.android.tools.metalava.cli.common.stdout
-import com.android.tools.metalava.cli.common.terminal
-import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_API_RELEASED
-import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED
-import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
-import com.android.tools.metalava.cli.lint.ApiLintOptions
-import com.android.tools.metalava.cli.signature.SignatureFormatOptions
-import com.android.tools.metalava.model.utils.extractSimpleName
+import com.android.tools.metalava.cli.common.existingFile
+import com.android.tools.metalava.cli.common.tracer
 import com.android.tools.metalava.reporter.DEFAULT_BASELINE_NAME
-import com.android.tools.metalava.reporter.DefaultReporter
-import com.github.ajalt.clikt.core.CliktCommand
-import com.github.ajalt.clikt.core.context
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.multiple
 import com.github.ajalt.clikt.parameters.groups.provideDelegate
 import java.io.File
-import java.io.PrintWriter
-import java.util.Locale
 
 /**
- * A command that is passed to [MetalavaCommand.defaultCommand] when the main metalava functionality
- * needs to be run when no subcommand is provided.
+ * A command that is passed to [com.android.tools.metalava.cli.common.MetalavaCommand] when the main
+ * metalava functionality needs to be run when no subcommand is provided.
  */
 class MainCommand(
     commonOptions: CommonOptions,
     executionEnvironment: ExecutionEnvironment,
 ) :
-    CliktCommand(
+    DriverCommand(
+        commonOptions,
+        executionEnvironment,
         help = "The default sub-command that is run if no sub-command is specified.",
-        treatUnknownOptionsAsArgs = true,
     ) {
 
-    init {
-        // Although, the `helpFormatter` is inherited from the parent context unless overridden the
-        // same is not true for the `localization` so make sure to initialize it for this command.
-        context {
-            localization = MetalavaLocalization()
-
-            // Explicitly specify help options as the parent command disables it.
-            helpOptionNames = setOf("-h", "--help")
-
-            // Override the help formatter to add in documentation for the legacy flags.
-            helpFormatter =
-                LegacyHelpFormatter(
-                    { terminal },
-                    localization,
-                    OptionsHelp::getUsage,
-                )
-        }
-    }
-
     /** Property into which all the arguments (and unknown options) are gathered. */
-    private val flags by
+    private val additionalSourceFiles by
         argument(
-                name = "flags",
-                help = "See below.",
+                name = "source-files",
+                help = "Additional source files to append to $ARG_SOURCE_FILES",
             )
+            .existingFile()
             .multiple()
-
-    private val sourceOptions by SourceOptions()
-
-    /** Issue reporter configuration. */
-    private val issueReportingOptions by IssueReportingOptions(commonOptions)
-
-    private val commonBaselineOptions by
-        CommonBaselineOptions(
-            sourceOptions = sourceOptions,
-            issueReportingOptions = issueReportingOptions,
-        )
-
-    /** General reporter options. */
-    private val generalReportingOptions by
-        GeneralReportingOptions(
-            executionEnvironment = executionEnvironment,
-            commonBaselineOptions = commonBaselineOptions,
-            defaultBaselineFileProvider = { getDefaultBaselineFile() },
-        )
 
     private val configFileOptions by ConfigFileOptions()
 
-    private val apiSelectionOptions: ApiSelectionOptions by
-        ApiSelectionOptions(
-            apiSurfacesConfigProvider = { configFileOptions.config.apiSurfaces },
-            checkSurfaceConsistencyProvider = {
-                val sources = optionGroup.sources
-                // The --show-unannotated and --show*-annotation options affect the ApiSurfaces that
-                // is used. As do the --api-surface and API surfaces defined in a config file. In
-                // the long term the former will be discarded in favor of the latter but during the
-                // transition it is important that they are consistent. Consistency is important
-                // when the --show* options are significant, i.e. affect the output of Metalava.
-                // Unfortunately, they can be significant even if they are not specified, i.e. if
-                // none of them are specified then it behaves as if --show-unannotated was specified
-                // and depending on other options they may be significant or not.
-                //
-                // The --show* options are always significant if sources are provided, and they are
-                // not signature files or jar files. If they are signature files then the --show*
-                // options are not significant because signature files are already pre-filtered. If
-                // they are jar files then they are almost certainly stubs and so the --show*
-                // options are not significant because stub jar files are are also already
-                // pre-filtered.
-                sources.isNotEmpty() &&
-                    sources[0].extension.let { extension ->
-                        extension != "jar" && extension != "txt"
-                    }
-            },
-        )
+    override val configFileOptionsProvider: () -> ConfigFileOptions
+        get() = { configFileOptions }
 
-    /** API lint options. */
-    private val apiLintOptions by
-        ApiLintOptions(
+    internal val sourceOptions: SourceOptions by
+        SourceOptions(
             executionEnvironment = executionEnvironment,
-            commonBaselineOptions = commonBaselineOptions,
+            additionalSourceFilesProvider = { additionalSourceFiles },
         )
 
-    /** Compatibility check options. */
-    private val compatibilityCheckOptions by
-        CompatibilityCheckOptions(
-            executionEnvironment = executionEnvironment,
-            commonBaselineOptions = commonBaselineOptions,
-        )
-
-    /** Signature file options. */
-    private val signatureFileOptions by SignatureFileOptions()
-
-    /** Signature format options. */
-    private val signatureFormatOptions by SignatureFormatOptions()
-
-    /** Stub generation options. */
-    private val stubGenerationOptions by StubGenerationOptions()
-
-    /** Api levels generation options. */
-    private val apiLevelsGenerationOptions by
-        ApiLevelsGenerationOptions(
-            executionEnvironment = executionEnvironment,
-            earlyOptions = commonOptions,
-            apiSurfacesProvider = { apiSelectionOptions.apiSurfaces },
-        )
-
-    /**
-     * Add [Options] (an [OptionGroup]) so that any Clikt defined properties will be processed by
-     * Clikt.
-     */
-    internal val optionGroup by
-        Options(
-            executionEnvironment = executionEnvironment,
-            commonOptions = commonOptions,
-            sourceOptions = sourceOptions,
-            issueReportingOptions = issueReportingOptions,
-            generalReportingOptions = generalReportingOptions,
-            configFileOptions = configFileOptions,
-            apiSelectionOptions = apiSelectionOptions,
-            apiLintOptions = apiLintOptions,
-            compatibilityCheckOptions = compatibilityCheckOptions,
-            signatureFileOptions = signatureFileOptions,
-            signatureFormatOptions = signatureFormatOptions,
-        )
+    override val sourceOptionsProvider: () -> SourceOptions
+        get() = { sourceOptions }
 
     override fun run() {
-        // Make sure to flush out the baseline files, close files and write any final messages.
-        registerPostCommandAction {
-            // Update and close all baseline files.
-            optionGroup.allBaselines.forEach { baseline ->
-                if (optionGroup.verbose) {
-                    baseline.dumpStats(optionGroup.stdout)
-                }
-                if (baseline.close()) {
-                    if (!optionGroup.quiet) {
-                        stdout.println(
-                            "$PROGRAM_NAME wrote updated baseline to ${baseline.updateFile}"
-                        )
-                    }
-                }
-            }
+        // Perform any necessary initialization.
+        tracer.trace("initializeOptionGroups") { initializeOptionGroups() }
 
-            issueReportingOptions.reporterConfig.reportEvenIfSuppressedWriter?.close()
+        val sourceModelProvider = sourceOptions.sourceModelProvider
 
-            // Show failure messages, if any.
-            optionGroup.allReporters.forEach { it.writeErrorMessage(stderr) }
-        }
-
-        // Get any remaining arguments/options that were not handled by Clikt.
-        val remainingArgs = flags.toTypedArray()
-
-        // Parse any remaining arguments
-        optionGroup.parse(remainingArgs)
-
-        // Update the global options.
-        @Suppress("DEPRECATION")
-        options = optionGroup
-
-        checkOptionConsistency()
-
-        val sourceModelProvider =
-            // Use the [SourceModelProvider] specified by the [TestEnvironment], if any.
-            executionEnvironment.testEnvironment?.sourceModelProvider
-                // Otherwise, use the one specified on the command line, or the default.
-                ?: sourceOptions.sourceModelProvider
-
-        try {
-            sourceModelProvider
-                .createEnvironmentManager(executionEnvironment.disableStderrDumping())
-                .use {
-                    processFlags(
-                        executionEnvironment,
-                        it,
-                        progressTracker,
-                        optionGroup,
-                        apiLevelsGenerationOptions,
-                        stubGenerationOptions,
-                    )
-                }
-        } finally {
-            // Write all saved reports. Do this even if the previous code threw an exception.
-            optionGroup.allReporters.forEach { it.writeSavedReports() }
-        }
-
-        val allReporters = optionGroup.allReporters
-        if (allReporters.any { it.hasErrors() } && !commonBaselineOptions.passBaselineUpdates) {
-            // Repeat the errors at the end to make it easy to find the actual problems.
-            if (issueReportingOptions.repeatErrorsMax > 0) {
-                repeatErrors(stderr, allReporters, issueReportingOptions.repeatErrorsMax)
-            }
-
-            // Make sure that the process exits with an error code.
-            throw MetalavaCliException(exitCode = -1)
-        }
-    }
-
-    private fun checkOptionConsistency() {
-        val config = configFileOptions.config
-        if (config.apiFlags != null) {
-            if (compatibilityCheckOptions.previouslyReleasedApi == null) {
-                cliError(
-                    "Inconsistent options: API flags are provided in a $ARG_CONFIG_FILE but no previously released API is provided via $ARG_CHECK_COMPATIBILITY_API_RELEASED or $ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED"
+        tracer
+            .trace("createEnvironmentManager") {
+                sourceModelProvider.createEnvironmentManager(
+                    executionEnvironment.disableStderrDumping()
                 )
             }
-        }
+            .use { environmentManager ->
+                runAndReportIssues { reporter -> createEnvironment(environmentManager, reporter) }
+            }
+    }
+
+    /** Initialize any option groups that require it. */
+    private fun initializeOptionGroups() {
+        // Make sure that any config files are processed.
+        configFileOptions.config
     }
 
     /**
@@ -277,18 +99,19 @@ class MainCommand(
      * would trigger a --strict-input-files violation. To avoid that, always explicitly pass a
      * baseline file.
      */
-    private fun getDefaultBaselineFile(): File? {
+    override fun getDefaultBaselineFile(): File? {
         val sourcePath = sourceOptions.sourcePath
         if (sourcePath.isNotEmpty() && sourcePath[0].path.isNotBlank()) {
-            fun annotationToPrefix(qualifiedName: String): String {
-                val name = qualifiedName.extractSimpleName()
-                return name.lowercase(Locale.US).removeSuffix("api") + "-"
+            // Create the file name.
+            val fileName = buildString {
+                // Prefix with the API surface name, if provided.
+                apiSelectionOptions.apiSurfaceName?.let { apiSurfaceName ->
+                    append(apiSurfaceName)
+                    append("-")
+                }
+                append(DEFAULT_BASELINE_NAME)
             }
-            val sb = StringBuilder()
-            apiSelectionOptions.allShowAnnotations.getIncludedAnnotationNames().forEach {
-                sb.append(annotationToPrefix(it))
-            }
-            sb.append(DEFAULT_BASELINE_NAME)
+
             var base = sourcePath[0]
             // Convention: in AOSP, signature files are often in sourcepath/api: let's place
             // baseline files there too
@@ -296,26 +119,9 @@ class MainCommand(
             if (api.isDirectory) {
                 base = api
             }
-            return File(base, sb.toString())
+            return File(base, fileName)
         } else {
             return null
         }
-    }
-}
-
-private fun repeatErrors(writer: PrintWriter, reporters: List<DefaultReporter>, max: Int) {
-    writer.println("Error: $PROGRAM_NAME detected the following problems:")
-    val totalErrors = reporters.sumOf { it.errorCount }
-    var remainingCap = max
-    var totalShown = 0
-    reporters.forEach {
-        val numShown = it.printErrors(writer, remainingCap)
-        remainingCap -= numShown
-        totalShown += numShown
-    }
-    if (totalShown < totalErrors) {
-        writer.println(
-            "${totalErrors - totalShown} more error(s) omitted. Search the log for 'error:' to find all of them."
-        )
     }
 }

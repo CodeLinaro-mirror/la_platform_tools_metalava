@@ -106,4 +106,54 @@ class TypeAliasCompatibilityTest : DriverTest() {
                 "load-api.txt:3: error: Source breaking change: Attempted to change nullability of java.lang.String (from NONNULL to NULLABLE) in typealias test.pkg.Foo [InvalidNullConversion]"
         )
     }
+
+    @Test
+    fun `Changed type alias to class`() {
+        check(
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public typealias Foo = String;
+                    }
+                """,
+            signatureSource =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Foo {
+                      }
+                    }
+                """,
+            expectedIssues =
+                "load-api.txt:3: error: Source breaking change: test.pkg.Foo changed from typealias to class [ChangedClass]",
+        )
+    }
+
+    @Test
+    fun `Changed class to type alias`() {
+        check(
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Foo {
+                      }
+                    }
+                """,
+            signatureSource =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public typealias Foo = String;
+                    }
+                """,
+            expectedIssues =
+                """
+                    load-api.txt:3: error: Binary breaking change: test.pkg.Foo changed from class to typealias [ChangedClass]
+                    released-api.txt:3: error: Binary breaking change: class test.pkg.Foo has been removed from bytecode [RemovedFromBytecode]
+                    released-api.txt:3: error: Source breaking change: class test.pkg.Foo can no longer be resolved from Java source [RemovedFromJava]
+                """,
+        )
+    }
 }

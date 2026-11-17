@@ -26,6 +26,49 @@ class ExperimentalApiFileTest : DriverTest() {
 
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
+    fun `Mark an annotation as experimental only if direct annotation or immediate meta-annotation is experimental`() {
+        check(
+            format = FileFormat.V4,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        @RequiresOptIn
+                        annotation class SuppressCompatHasRequiresOptIn
+
+                        @SuppressCompatHasRequiresOptIn
+                        annotation class SuppressCompatNoRequiresOptIn
+
+                        @OptIn(SuppressCompatHasRequiresOptIn::class)
+                        @SuppressCompatNoRequiresOptIn
+                        annotation class NotSuppressCompatHasOptIn
+
+                        @NotSuppressCompatHasOptIn
+                        annotation class NotSuppressCompat
+                        """
+                    )
+                ),
+            expectedApiSignature =
+                """
+                package test.pkg {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) @test.pkg.NotSuppressCompatHasOptIn public @interface NotSuppressCompat {
+                  }
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) @test.pkg.SuppressCompatNoRequiresOptIn public @interface NotSuppressCompatHasOptIn {
+                  }
+                  @SuppressCompatibility @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) @kotlin.RequiresOptIn public @interface SuppressCompatHasRequiresOptIn {
+                  }
+                  @SuppressCompatibility @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) @test.pkg.SuppressCompatHasRequiresOptIn public @interface SuppressCompatNoRequiresOptIn {
+                  }
+                }
+                    """,
+            suppressCompatibilityMetaAnnotations = arrayOf("kotlin.RequiresOptIn")
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
     fun `Don't annotate package as suppress compatibility when it contains a non-experimental class and an experimental package`() {
         check(
             format = FileFormat.V4,
@@ -45,10 +88,9 @@ class ExperimentalApiFileTest : DriverTest() {
                         @RequiresOptIn
                         class MyExperimentalClass {}
                         """
-                            .trimIndent()
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public final class MyNonExperimentalClass {
@@ -87,13 +129,12 @@ class ExperimentalApiFileTest : DriverTest() {
                         @RequiresOptIn
                         class MyExperimentalClass {}
                         """
-                            .trimIndent()
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package @SuppressCompatibility test.pkg {
-                  @SuppressCompatibility @kotlin.RequiresOptIn public @interface ExperimentalAnnotation {
+                  @SuppressCompatibility @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) @kotlin.RequiresOptIn public @interface ExperimentalAnnotation {
                   }
                 }
                 package @SuppressCompatibility test.pkg.sub {
@@ -127,13 +168,12 @@ class ExperimentalApiFileTest : DriverTest() {
 
                         class MyNonExperimentalClass {}
                         """
-                            .trimIndent()
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
-                  @SuppressCompatibility @kotlin.RequiresOptIn public @interface ExperimentalAnnotation {
+                  @SuppressCompatibility @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) @kotlin.RequiresOptIn public @interface ExperimentalAnnotation {
                   }
                 }
                 package test.pkg.sub {
@@ -169,7 +209,7 @@ class ExperimentalApiFileTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package @SuppressCompatibility test.pkg {
                   @SuppressCompatibility @kotlin.RequiresOptIn(level=kotlin.RequiresOptIn.Level.ERROR) @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.BINARY) public @interface Experimental {
@@ -206,7 +246,7 @@ class ExperimentalApiFileTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package @SuppressCompatibility test.pkg {
                   @SuppressCompatibility @kotlin.RequiresOptIn(level=kotlin.RequiresOptIn.Level.ERROR) @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.BINARY) public @interface Experimental {
@@ -243,7 +283,7 @@ class ExperimentalApiFileTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package @SuppressCompatibility test.pkg {
                   @SuppressCompatibility @kotlin.RequiresOptIn(level=kotlin.RequiresOptIn.Level.ERROR) @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.BINARY) public @interface Experimental {
@@ -282,7 +322,7 @@ class ExperimentalApiFileTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   @SuppressCompatibility @kotlin.RequiresOptIn(level=kotlin.RequiresOptIn.Level.ERROR) @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.BINARY) public @interface Experimental {
@@ -320,7 +360,7 @@ class ExperimentalApiFileTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface Experimental {
@@ -362,7 +402,7 @@ class ExperimentalApiFileTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface Experimental {
@@ -395,7 +435,7 @@ class ExperimentalApiFileTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface Experimental {
@@ -433,7 +473,7 @@ class ExperimentalApiFileTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface Experimental {
@@ -474,7 +514,7 @@ class ExperimentalApiFileTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface Experimental {
@@ -518,7 +558,7 @@ class ExperimentalApiFileTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface ExperimentalFeature {
@@ -555,7 +595,8 @@ class ExperimentalApiFileTest : DriverTest() {
 
                         class MyOuterClass {
                             @ExperimentalFeature
-                            const val a: Int = 0
+                            @JvmField
+                            val a: Int = 0
 
                             @ExperimentalFeature
                             companion object {
@@ -566,23 +607,23 @@ class ExperimentalApiFileTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface ExperimentalFeature {
                   }
                   public final class MyOuterClass {
                     ctor public MyOuterClass();
-                    property @SuppressCompatibility @test.pkg.ExperimentalFeature public static int a;
+                    property @SuppressCompatibility @test.pkg.ExperimentalFeature public int a;
                     field @SuppressCompatibility @test.pkg.ExperimentalFeature public static final test.pkg.MyOuterClass.Companion Companion;
-                    field @SuppressCompatibility @test.pkg.ExperimentalFeature public final int a = 0; // 0x0
+                    field @SuppressCompatibility @test.pkg.ExperimentalFeature public final int a;
                     field @SuppressCompatibility @test.pkg.ExperimentalFeature public static final int b = 0; // 0x0
                   }
                   @SuppressCompatibility @test.pkg.ExperimentalFeature public static final class MyOuterClass.Companion {
                     property @SuppressCompatibility @test.pkg.ExperimentalFeature public static int b;
                   }
                 }
-                    """,
+                """,
             suppressCompatibilityMetaAnnotations = arrayOf("test.pkg.ExperimentalFeature")
         )
     }
@@ -604,15 +645,18 @@ class ExperimentalApiFileTest : DriverTest() {
 
                         class MyOuterClass {
                             @ExperimentalFeature
-                            const val a: Int = 0
+                            @JvmField
+                            val a: Int = 0
 
                             @ExperimentalFeature
                             class MyInnerClass { }
 
-                            const val c: MyInnerClass = null
+                            @JvmField
+                            val c: MyInnerClass? = null
 
                             @ExperimentalFeature
-                            const val myField: MyClassField = null
+                            @JvmField
+                            val myField: MyClassField? = null
 
                             @ExperimentalFeature
                             companion object MyCompObjectWithNonDefaultName {
@@ -623,7 +667,7 @@ class ExperimentalApiFileTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface ExperimentalFeature {
@@ -633,14 +677,14 @@ class ExperimentalApiFileTest : DriverTest() {
                   }
                   public final class MyOuterClass {
                     ctor public MyOuterClass();
-                    property @SuppressCompatibility @test.pkg.ExperimentalFeature public static int a;
-                    property public static test.pkg.MyOuterClass.MyInnerClass c;
-                    property @SuppressCompatibility @test.pkg.ExperimentalFeature public static test.pkg.MyClassField myField;
+                    property @SuppressCompatibility @test.pkg.ExperimentalFeature public int a;
+                    property public test.pkg.MyOuterClass.MyInnerClass? c;
+                    property @SuppressCompatibility @test.pkg.ExperimentalFeature public test.pkg.MyClassField? myField;
                     field @SuppressCompatibility @test.pkg.ExperimentalFeature public static final test.pkg.MyOuterClass.MyCompObjectWithNonDefaultName MyCompObjectWithNonDefaultName;
-                    field @SuppressCompatibility @test.pkg.ExperimentalFeature public final int a = 0; // 0x0
+                    field @SuppressCompatibility @test.pkg.ExperimentalFeature public final int a;
                     field @SuppressCompatibility @test.pkg.ExperimentalFeature public static final int b = 0; // 0x0
-                    field public final test.pkg.MyOuterClass.MyInnerClass c;
-                    field @SuppressCompatibility @test.pkg.ExperimentalFeature public final test.pkg.MyClassField myField;
+                    field public final test.pkg.MyOuterClass.MyInnerClass? c;
+                    field @SuppressCompatibility @test.pkg.ExperimentalFeature public final test.pkg.MyClassField? myField;
                   }
                   @SuppressCompatibility @test.pkg.ExperimentalFeature public static final class MyOuterClass.MyCompObjectWithNonDefaultName {
                     property @SuppressCompatibility @test.pkg.ExperimentalFeature public static int b;
@@ -649,7 +693,7 @@ class ExperimentalApiFileTest : DriverTest() {
                     ctor public MyOuterClass.MyInnerClass();
                   }
                 }
-                    """,
+                """,
             suppressCompatibilityMetaAnnotations = arrayOf("test.pkg.ExperimentalFeature")
         )
     }
@@ -681,7 +725,7 @@ class ExperimentalApiFileTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface ExperimentalFeature {
@@ -728,7 +772,7 @@ class ExperimentalApiFileTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   @kotlin.RequiresOptIn(level=kotlin.RequiresOptIn.Level.ERROR) @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.BINARY) public @interface ExperimentalFeature {
@@ -776,7 +820,7 @@ class ExperimentalApiFileTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface ExperimentalFeature {
@@ -819,7 +863,7 @@ class ExperimentalApiFileTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface ExperimentalFeature {
@@ -857,7 +901,7 @@ class ExperimentalApiFileTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface ExperimentalFeature {
@@ -902,7 +946,7 @@ class ExperimentalApiFileTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface ExperimentalFeature {
@@ -947,7 +991,7 @@ class ExperimentalApiFileTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface ExperimentalFeature {
@@ -996,7 +1040,7 @@ class ExperimentalApiFileTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   @SuppressCompatibility @test.pkg.ExperimentalFeature public final class ClassA {
@@ -1041,10 +1085,10 @@ class ExperimentalApiFileTest : DriverTest() {
                 ),
             extraArguments =
                 arrayOf(ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION, "kotlin.RequiresOptIn"),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
-                  @SuppressCompatibility @kotlin.RequiresOptIn public @interface ExperimentalFeature {
+                  @SuppressCompatibility @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) @kotlin.RequiresOptIn public @interface ExperimentalFeature {
                   }
                   public final class Foo {
                     method @InaccessibleFromKotlin @SuppressCompatibility @test.pkg.ExperimentalFeature public int getRegularProperty();
@@ -1058,6 +1102,51 @@ class ExperimentalApiFileTest : DriverTest() {
                   }
                 }
                 """
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Annotate package as suppress compatibility when it contains an experimental file facade class and an empty file facade class`() {
+        check(
+            format = FileFormat.V4,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                            package test.pkg
+
+                            @RequiresOptIn(level = RequiresOptIn.Level.ERROR)
+                            @Retention(AnnotationRetention.BINARY)
+                            annotation class Experimental
+
+                            @Experimental
+                            fun myFunA() {}
+
+                            @Experimental
+                            fun myFunB() {}
+                        """
+                    ),
+                    kotlin(
+                        """
+                            package test.pkg
+
+                            internal fun internalFun() {}
+                        """
+                    ),
+                ),
+            expectedApiSignature =
+                """
+                    package @SuppressCompatibility test.pkg {
+                      @SuppressCompatibility @kotlin.RequiresOptIn(level=kotlin.RequiresOptIn.Level.ERROR) @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.BINARY) public @interface Experimental {
+                      }
+                      @SuppressCompatibility public final class ExperimentalKt {
+                        method @SuppressCompatibility @test.pkg.Experimental public static void myFunA();
+                        method @SuppressCompatibility @test.pkg.Experimental public static void myFunB();
+                      }
+                    }
+                """,
+            suppressCompatibilityMetaAnnotations = arrayOf("kotlin.RequiresOptIn")
         )
     }
 }

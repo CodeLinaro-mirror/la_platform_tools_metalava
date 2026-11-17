@@ -64,7 +64,7 @@ class JavadocParserTest : BaseJavadocTest() {
             """,
             expectedStructure =
                 """
-                    inlineTag: link LinkTagData(sourceReference=Class, resolvedReference=null)
+                    inlineTag: link LabeledRefTagData(sourceReference=Class, resolvedReference=ClassReference(qualifiedName=resolved.Class))
                 """,
         )
     }
@@ -80,7 +80,7 @@ class JavadocParserTest : BaseJavadocTest() {
             expectedStructure =
                 """
                     text: 'Text before link '
-                    inlineTag: link LinkTagData(sourceReference=Class, resolvedReference=null)
+                    inlineTag: link LabeledRefTagData(sourceReference=Class, resolvedReference=ClassReference(qualifiedName=resolved.Class))
                     text: ' and some text after.'
                 """,
         )
@@ -99,7 +99,7 @@ class JavadocParserTest : BaseJavadocTest() {
             expectedStructure =
                 """
                     text: 'Text before link\n '
-                    inlineTag: link LinkTagData(sourceReference=Class, resolvedReference=null)
+                    inlineTag: link LabeledRefTagData(sourceReference=Class, resolvedReference=ClassReference(qualifiedName=resolved.Class))
                     text: '\n and some text after.'
                 """,
         )
@@ -139,8 +139,6 @@ class JavadocParserTest : BaseJavadocTest() {
 
     @Test
     fun `Test inline tag nested within code tag`() {
-        // Make sure that the BAR_TAG_TYPE is registered.
-        TestTagTypes.BAR_TAG_TYPE
         checkParse(
             """
                 /**
@@ -158,8 +156,6 @@ class JavadocParserTest : BaseJavadocTest() {
 
     @Test
     fun `Test inline tag nested within literal tag`() {
-        // Make sure that the BAR_TAG_TYPE is registered.
-        TestTagTypes.BAR_TAG_TYPE
         checkParse(
             """
                 /**
@@ -177,8 +173,6 @@ class JavadocParserTest : BaseJavadocTest() {
 
     @Test
     fun `Test inline tag nested within link tag`() {
-        // Make sure that the BAR_TAG_TYPE is registered.
-        TestTagTypes.BAR_TAG_TYPE
         checkParse(
             """
                 /**
@@ -188,7 +182,7 @@ class JavadocParserTest : BaseJavadocTest() {
             """,
             expectedStructure =
                 """
-                    inlineTag: link LinkTagData(sourceReference=String, resolvedReference=null)
+                    inlineTag: link LabeledRefTagData(sourceReference=String, resolvedReference=ClassReference(qualifiedName=resolved.String))
                       text: 'cannot contain inline {@bar\n tag}'
                     text: '.'
                 """,
@@ -197,8 +191,6 @@ class JavadocParserTest : BaseJavadocTest() {
 
     @Test
     fun `Test inline tag nested within linkplain tag`() {
-        // Make sure that the BAR_TAG_TYPE is registered.
-        TestTagTypes.BAR_TAG_TYPE
         checkParse(
             """
                 /**
@@ -207,7 +199,7 @@ class JavadocParserTest : BaseJavadocTest() {
             """,
             expectedStructure =
                 """
-                    inlineTag: linkplain LinkTagData(sourceReference=String, resolvedReference=null)
+                    inlineTag: linkplain LabeledRefTagData(sourceReference=String, resolvedReference=ClassReference(qualifiedName=resolved.String))
                       text: 'cannot contain inline {@bar tag}'
                     text: '.'
                 """,
@@ -216,8 +208,6 @@ class JavadocParserTest : BaseJavadocTest() {
 
     @Test
     fun `Test inline tag nested within tag that supports nested inline tags`() {
-        // Make sure that the BAR_TAG_TYPE is registered.
-        TestTagTypes.BAR_TAG_TYPE
         checkParse(
             """
                 /**
@@ -272,7 +262,7 @@ class JavadocParserTest : BaseJavadocTest() {
                 """,
             expectedJavadocIssues =
                 """
-                    2:6: token recognition error at: ' ' [InvalidJavadoc]
+                    2:6: unexpected ' ' after '{@' [InvalidJavadoc]
                 """,
         )
     }
@@ -354,8 +344,6 @@ class JavadocParserTest : BaseJavadocTest() {
 
     @Test
     fun `Test inline tag data`() {
-        // Make sure that the BAR_TAG_TYPE is registered.
-        TestTagTypes.BAR_TAG_TYPE
         checkParse(
             """
                 /**
@@ -417,8 +405,6 @@ class JavadocParserTest : BaseJavadocTest() {
 
     @Test
     fun `Test inline tag split across lines - tag with data`() {
-        // Make sure that the BAR_TAG_TYPE is registered.
-        TestTagTypes.BAR_TAG_TYPE
         checkParse(
             """
                 /**
@@ -458,6 +444,36 @@ class JavadocParserTest : BaseJavadocTest() {
                     inlineTag: code
                       text: 'text'
                     text: ' { { { {'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test if tag with nested inline tag`() {
+        checkParse(
+            """
+                /**
+                 * Before {@if (flag(Flags.TEST_FLAG)) { text before {@link SomeClass} text after }} after.
+                 */
+            """,
+            expectedStructure =
+                """
+                    text: 'Before  after.'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test if tag with nested inline tag at end of branch`() {
+        checkParse(
+            """
+                /**
+                 * Before {@if (flag(Flags.TEST_FLAG)) { text before {@link SomeClass}}} after.
+                 */
+            """,
+            expectedStructure =
+                """
+                    text: 'Before  after.'
                 """,
         )
     }

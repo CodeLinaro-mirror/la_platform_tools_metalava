@@ -16,7 +16,11 @@
 
 package com.android.tools.metalava.model.source.doc
 
+import com.android.tools.metalava.model.InvalidReferencableItem
 import com.android.tools.metalava.model.source.javadoc.JavadocContent
+import com.android.tools.metalava.model.source.javadoc.JavadocInlineTag
+import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.Issues.Issue
 import com.android.tools.metalava.reporter.LocationSpecificReporter
 
 /**
@@ -34,6 +38,23 @@ internal interface TagData : Comparable<TagData> {
     }
 
     /**
+     * Print [inlineTag] to [contentPrinter].
+     *
+     * By default this prints `{@<tagType><contents>}`, delegating to [printTagContents] for the tag
+     * contents. Implementations may override this to replace the entire inline tag when needed.
+     */
+    fun printInlineTag(
+        inlineTag: JavadocInlineTag,
+        contentPrinter: JavadocContentPrinter,
+    ) {
+        val writer = contentPrinter.writer
+        writer.print("{@")
+        writer.print(inlineTag.tagType)
+        printTagContents(contentPrinter, inlineTag.content)
+        writer.print("}")
+    }
+
+    /**
      * Called after the block or inline tag type has been written to [writer] to print the tag
      * contents to [contentPrinter].
      *
@@ -47,6 +68,21 @@ internal interface TagData : Comparable<TagData> {
     fun textMatches(predicate: (String) -> Boolean): Boolean = false
 }
 
+/** Enumerates the possible forms a [TagType] supports. */
+enum class TagTypeForm(
+    internal val supportsBlockTag: Boolean = false,
+    internal val supportsInlineTag: Boolean = false,
+) {
+    /** Can be used as an inline tag. */
+    INLINE(supportsInlineTag = true),
+
+    /** Can be used as a block tag. */
+    BLOCK(supportsBlockTag = true),
+
+    /** Can be used as a block tag or an inline tag. */
+    BOTH(supportsBlockTag = true, supportsInlineTag = true),
+}
+
 /** Provides tag type specific functionality for block and inline tags. */
 internal abstract class TagType<D : TagData>(
     /**
@@ -54,6 +90,18 @@ internal abstract class TagType<D : TagData>(
      * `link` for `{@link Class}` inline tags.
      */
     val name: String,
+
+    /** The form that this tag type takes. */
+    val form: TagTypeForm,
+
+    /**
+     * Optional [TagTypeErrorProvider] that is called when this tag is found in the documentation.
+     *
+     * Must only be specified for tags that are not allowed in the documentation.
+     *
+     * Returns a [TagTypeError] that is reported at the location of the doc tag.
+     */
+    val errorProvider: TagTypeErrorProvider? = null,
 ) {
     /**
      * The ordinal of this tag type, defining its order within all tag types.
@@ -130,6 +178,24 @@ internal abstract class TagType<D : TagData>(
     }
 }
 
+/**
+ * Provider of a [TagTypeError].
+ *
+ * See [TagType.errorProvider].
+ */
+internal typealias TagTypeErrorProvider = (tagTypeName: String) -> TagTypeError
+
+/**
+ * Encapsulate an error that will be reported on a doc tag.
+ *
+ * @param issue the [Issue] to report.
+ * @param message the message to report.
+ */
+internal data class TagTypeError(
+    val issue: Issue,
+    val message: String,
+)
+
 /** Result of a call to [TagType.extractData]. */
 internal data class ExtractDataResult<D : TagData>(
     /** The [TagData] extracted. */
@@ -145,7 +211,11 @@ internal data class ExtractDataResult<D : TagData>(
 )
 
 /** The default [TagType] used for all tags that do not have special behavior. */
-internal class DefaultTagType(name: String) : TagType<TagData>(name) {
+internal class DefaultTagType(
+    name: String,
+    form: TagTypeForm,
+    errorReporter: TagTypeErrorProvider?
+) : TagType<TagData>(name, form, errorReporter) {
     override fun extractData(
         context: DocCommentContext,
         reporter: LocationSpecificReporter,
@@ -162,7 +232,7 @@ internal class DefaultTagType(name: String) : TagType<TagData>(name) {
  * the set of tag types that could be used in a specific invocation of Metalava is small. It will
  * consist of a fixed number of standard tag types and a small set of custom tags.
  */
-internal open class BaseTagTypes {
+internal object TagTypes {
     /**
      * Cache from [TagType.name] to [TagType].
      *
@@ -183,43 +253,80 @@ internal open class BaseTagTypes {
         return tagType
     }
 
+    /** Register a [DefaultTagType] called [name]. */
+    fun registerDefaultTagType(
+        name: String,
+        form: TagTypeForm,
+        errorReporter: TagTypeErrorProvider? = null
+    ) = register(DefaultTagType(name, form, errorReporter))
+
     /**
      * Get a [TagType] for [name].
      *
      * If no such [TagType] has been registered then creates a [DefaultTagType] and caches that.
      */
-    fun tagTypeOf(name: String): TagType<*> {
-        return tagTypes.computeIfAbsent(name, ::DefaultTagType)
-    }
-}
+    fun tagTypeOf(name: String) =
+        tagTypes.computeIfAbsent(name) { name ->
+            DefaultTagType(
+                name,
+                // Default to supporting both forms.
+                TagTypeForm.BOTH,
+                errorReporter = null,
+            )
+        }
 
-/**
- * Collection of all the block [TagType]s that have been created.
- *
- * Must be in the same order as [BlockTagOrder].
- */
-internal object BlockTagTypes : BaseTagTypes() {
+    // All the block [TagType]s that have specialized behavior.
+    //
+    // Must be in the same order as [BlockTagOrder].
+
     val PARAM = register(ParamTagType("param"))
-    val THROWS = register(ThrowsTagType())
 
     init {
-        // @exception as an alias for @throws
-        register(THROWS, alias = "exception")
+        register(SeeTagType())
+
+        register(ThrowsTagType()).also { throwsTagType ->
+            // @exception as an alias for @throws
+            register(throwsTagType, alias = "exception")
+        }
     }
 
-    val DEPRECATED = tagTypeOf("deprecated")
-    val HIDE = tagTypeOf("hide")
+    val DEPRECATED = registerDefaultTagType("deprecated", TagTypeForm.BLOCK)
+
+    // Inline [TagType]s that have specialized behavior.
+    val INHERIT_DOC = registerDefaultTagType("inheritDoc", TagTypeForm.INLINE)
+
+    val CODE = register(TextOnlyInlineTagType("code"))
+    val LITERAL = register(TextOnlyInlineTagType("literal"))
+
+    init {
+        register(LabeledRefTagType("link", TagTypeForm.INLINE))
+        register(LabeledRefTagType("linkplain", TagTypeForm.INLINE))
+
+        // Special surface doc tags.
+        registerDefaultTagType("hide", TagTypeForm.BLOCK) { tagTypeName ->
+            TagTypeError(
+                Issues.DEPRECATED_SURFACE_DOC_TAG,
+                "Use of '@$tagTypeName' to affect the API surface is deprecated",
+            )
+        }
+
+        registerDefaultTagType("removed", TagTypeForm.BLOCK) { tagTypeName ->
+            TagTypeError(
+                Issues.DEPRECATED_SURFACE_DOC_TAG,
+                "Use of '@$tagTypeName' to affect the API surface is deprecated",
+            )
+        }
+
+        registerDefaultTagType("doconly", TagTypeForm.BLOCK) { tagTypeName ->
+            TagTypeError(
+                Issues.UNSUPPORTED_DOC_TAG,
+                "Use of '@$tagTypeName' is no longer supported, use an <api-surfaces>/<doc-only> configured annotation",
+            )
+        }
+    }
 }
 
-/** Collection of all the inline [TagType]s that have been created. */
-internal object InlineTagTypes : BaseTagTypes() {
-    val INHERIT_DOC = tagTypeOf("inheritDoc")
-
-    init {
-        register(LinkTagType("link"))
-        register(LinkTagType("linkplain"))
-
-        register(TextOnlyInlineTagType("code"))
-        register(TextOnlyInlineTagType("literal"))
-    }
+/** Report the information encapsulated within this [InvalidReferencableItem] to [reporter]. */
+internal fun InvalidReferencableItem.reportIssue(reporter: LocationSpecificReporter) {
+    reporter.report(Issues.UNRESOLVED_LINK, message)
 }

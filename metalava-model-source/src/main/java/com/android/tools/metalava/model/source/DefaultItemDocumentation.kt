@@ -19,34 +19,14 @@ package com.android.tools.metalava.model.source
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.SelectableItem
-import com.android.tools.metalava.reporter.FileLocation
+import com.android.tools.metalava.model.source.doc.DocComment
 
 /** A default [com.android.tools.metalava.model.ItemDocumentation] containing JavaDoc/KDoc. */
 internal class DefaultItemDocumentation(
     item: SelectableItem,
-    text: String,
-    override val fileLocation: FileLocation = FileLocation.UNKNOWN,
-) : AbstractItemDocumentation(item) {
+    override val docCommentSupplier: DocCommentSupplier? = null,
+    docComment: DocComment? = null,
+) : AbstractItemDocumentation(item, docComment)
 
-    init {
-        // Initialize _text from the text constructor parameter.
-        _text = text
-    }
-
-    /** Should never be called as _text has been initialized above. */
-    override fun initializeTextBackingField() {
-        error("Internal Error: _text backing field is uninitialized")
-    }
-}
-
-/** Wrap a [String] in an [ItemDocumentationFactory]. */
-fun String.toItemDocumentationFactory(): ItemDocumentationFactory = ItemDocumentationFactory {
-    toItemDocumentation(it)
-}
-
-/** Wrap a [String] in an [ItemDocumentation] instance. */
-private fun String.toItemDocumentation(item: SelectableItem): ItemDocumentation =
-    DefaultItemDocumentation(item, this)
-
-/** Creates a [DefaultItemDocumentation] for an item without any source comment. */
-val NO_SOURCE_COMMENT_FACTORY = "".toItemDocumentationFactory()
+/** Creates an [ItemDocumentation] for an item without any source comment. */
+val NO_SOURCE_COMMENT_FACTORY = ItemDocumentationFactory { item -> DefaultItemDocumentation(item) }

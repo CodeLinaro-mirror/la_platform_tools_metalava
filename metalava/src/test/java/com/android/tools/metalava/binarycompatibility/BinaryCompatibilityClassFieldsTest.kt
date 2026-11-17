@@ -22,7 +22,7 @@ import org.junit.Test
 class BinaryCompatibilityClassFieldsTest : DriverTest() {
 
     @Test
-    fun `Change type of API field (Incompatible)`() {
+    fun `Change type of API field - Incompatible`() {
         check(
             expectedIssues =
                 """
@@ -48,7 +48,7 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
     }
 
     @Test
-    fun `Change value of API field, compile-time constant (Incompatible)`() {
+    fun `Change value of API field, compile-time constant - Incompatible`() {
         check(
             expectedIssues =
                 """
@@ -74,7 +74,7 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
     }
 
     @Test
-    fun `Decrease access from protected to default or private, or public to protected, default, or private (Incompatible)`() {
+    fun `Decrease access from protected to default or private, or public to protected, default, or private - Incompatible`() {
         check(
             expectedIssues =
                 """
@@ -103,7 +103,7 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
     }
 
     @Test
-    fun `Increase access, eg from protected to public (Compatible)`() {
+    fun `Increase access, eg from protected to public - Compatible`() {
         check(
             signatureSource =
                 """
@@ -127,7 +127,7 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
     }
 
     @Test
-    fun `Change final to non-final, non-static (Compatible)`() {
+    fun `Change final to non-final, non-static - Compatible`() {
         check(
             signatureSource =
                 """
@@ -149,7 +149,7 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
     }
 
     @Test
-    fun `Change final to non-final, static with compile-time constant value (Incompatible)`() {
+    fun `Change final to non-final, static with compile-time constant value - Incompatible`() {
         check(
             // The value change is caused by the removal of `final`. Removing `final` turns the
             // field from one that always has a value of `0` which is inlined by the compiler to a
@@ -180,7 +180,7 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
     }
 
     @Test
-    fun `Change non-final to final (Incompatible)`() {
+    fun `Change non-final to final - Incompatible`() {
         check(
             expectedIssues =
                 """
@@ -206,7 +206,7 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
     }
 
     @Test
-    fun `Change static to non-static (Incompatible)`() {
+    fun `Change static to non-static - Incompatible`() {
         check(
             expectedIssues =
                 """
@@ -232,7 +232,7 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
     }
 
     @Test
-    fun `Change non-static to static (Incompatible)`() {
+    fun `Change non-static to static - Incompatible`() {
         check(
             expectedIssues =
                 """
@@ -258,7 +258,7 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
     }
 
     @Test
-    fun `Change transient to non-transient (Compatible)`() {
+    fun `Change transient to non-transient - Compatible`() {
         check(
             signatureSource =
                 """
@@ -280,7 +280,7 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
     }
 
     @Test
-    fun `Change non-transient to transient (Compatible)`() {
+    fun `Change non-transient to transient - Compatible`() {
         check(
             signatureSource =
                 """

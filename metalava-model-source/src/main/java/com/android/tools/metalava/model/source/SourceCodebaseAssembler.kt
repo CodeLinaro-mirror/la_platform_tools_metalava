@@ -17,10 +17,17 @@
 package com.android.tools.metalava.model.source
 
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.AnnotationUse
+import com.android.tools.metalava.model.BaseItemVisitor
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
+import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.item.CodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
 import com.android.tools.metalava.model.item.PackageInfo
@@ -30,6 +37,7 @@ import com.android.tools.metalava.model.source.utils.OVERVIEW_HTML
 import com.android.tools.metalava.model.source.utils.PACKAGE_HTML
 import com.android.tools.metalava.model.source.utils.findPackage
 import com.android.tools.metalava.model.source.utils.packageHtmlToJavadoc
+import com.android.tools.metalava.model.typeNullability
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
 import java.io.File
@@ -75,7 +83,12 @@ abstract class SourceCodebaseAssembler : DefaultCodebaseAssembler() {
      */
     private fun gatherPackageJavadoc(sourceSet: SourceSet): PackageDocs {
         val packages = mutableMapOf<String, MutablePackageDoc>()
-        val sortedSourceRoots = sourceSet.sourcePath.sortedBy { -it.name.length }
+        val sortedSourceRoots by
+            lazy(LazyThreadSafetyMode.NONE) {
+                sourceSet.sourcePath
+                    .ifEmpty { SourceSet.extractRoots(codebase.reporter, sourceSet.sources) }
+                    .sortedBy { -it.path.length }
+            }
         for (file in sourceSet.sources) {
             val documentationFile =
                 when (file.name) {
@@ -91,17 +104,31 @@ abstract class SourceCodebaseAssembler : DefaultCodebaseAssembler() {
             // Figure out the package: if there is a java file in the same directory, get the
             // package
             // name from the java file. Otherwise, guess from the directory path + source roots.
-            // NOTE: This causes metalava to read files other than the ones explicitly passed to it.
+            // NOTE: When sourceSet.sourcePath is not empty, this causes metalava to read files
+            // other than the ones explicitly passed to it.
+            val parentDir = file.parentFile
+            val dirFiles =
+                if (sourceSet.sourcePath.isEmpty()) {
+                    sourceSet.sources.asSequence().filter { it.parentFile == parentDir }
+                } else {
+                    parentDir?.listFiles()?.asSequence().orEmpty()
+                }
             var pkg =
-                file.parentFile
-                    ?.listFiles()
-                    ?.filter { it.name.endsWith(DOT_JAVA) }
-                    ?.asSequence()
-                    ?.mapNotNull { findPackage(it) }
-                    ?.firstOrNull()
+                dirFiles
+                    .filter { it.name.endsWith(DOT_JAVA) }
+                    .mapNotNull { findPackage(it) }
+                    .firstOrNull()
             if (pkg == null) {
                 // Strip the longest prefix source root.
-                val prefix = sortedSourceRoots.firstOrNull { file.startsWith(it) }?.path ?: ""
+                val prefix = sortedSourceRoots.firstOrNull { file.startsWith(it) }?.path
+                if (prefix == null) {
+                    codebase.reporter.report(
+                        Issues.INVALID_SOURCES,
+                        file,
+                        "Could not find source root for $file",
+                    )
+                    continue
+                }
                 pkg = file.parentFile.path.substring(prefix.length).trim('/').replace("/", ".")
             }
 
@@ -116,13 +143,16 @@ abstract class SourceCodebaseAssembler : DefaultCodebaseAssembler() {
         return PackageDocs(packages)
     }
 
-    /** Create and track [PackageItem]s for every entry in [packageDocs]. */
-    fun createInitialPackages(sourceSet: SourceSet) {
+    /**
+     * Create and track [PackageItem]s for every entry in [packageDocs] that matches [apiPackages].
+     */
+    fun createInitialPackages(sourceSet: SourceSet, apiPackages: PackageFilter?) {
         // Make the packageDocs available when creating the packages below.
         this.packageDocs = gatherPackageJavadoc(sourceSet)
 
-        // Create packages for all the documentation packages.
+        // Create packages for all the documentation packages that match apiPackages.
         for (packageName in packageDocs.packageNames) {
+            if (apiPackages != null && !apiPackages.matches(packageName)) continue
             codebase.findOrCreatePackage(packageName)
         }
 
@@ -206,6 +236,56 @@ abstract class SourceCodebaseAssembler : DefaultCodebaseAssembler() {
      * `package-info.java` or `package-info.class` file.
      */
     protected abstract fun getPackageInfoFromSource(packageName: String): SourcePackageInfo?
+
+    /**
+     * Copy [AnnotationUse.TYPE_ONLY] only nullness annotations from types to [Item]s.
+     *
+     * The Psi model has historically included nullness annotations in the annotations for an item
+     * even when those annotations are [AnnotationUse.TYPE_ONLY]. This replicates that behavior.
+     *
+     * This is not strictly the same as Psi, as Psi only does that for annotations that are used in
+     * a context that means it could apply to either the declaration or the type. This simply always
+     * copies them. That means that in theory the behavior could differ but in practice this does
+     * not as type use only nullness annotations are not heavily used in Android or AndroidX.
+     */
+    fun copyTypeUseOnlyNullnessAnnotationsToItems() {
+        codebase.accept(
+            object :
+                BaseItemVisitor(
+                    preserveClassNesting = true,
+                    // TODO(b/482390286): Remove once record components handles type use annotations
+                    //  correctly.
+                    visitRecordComponentItems = true,
+                ) {
+                // BaseItemVisitor skips packages with emit = false, but visits all classes in an
+                // emitted package regardless of ClassItem.emit. Non-emitted classes (e.g. from the
+                // source path or classpath, including custom nullness annotation classes resolved
+                // while checking isNullnessAnnotation() on earlier items) may be resolved into an
+                // emitted package before that package is visited. Skip non-emitted items and items
+                // without API visibility (e.g. private, package-private, or non-@PublishedApi
+                // internal) so that their nested classes and members are not traversed or modified.
+                override fun skip(item: SelectableItem) =
+                    !item.emit || !item.modifiers.hasApiVisibility()
+
+                override fun visitItem(item: Item) {
+                    if (item is ClassItem || item is PackageItem) return
+                    val type = item.type() ?: return
+
+                    val itemAnnotations = item.modifiers.annotations()
+                    if (itemAnnotations.typeNullability == null) {
+                        val annotationToAdd =
+                            type.modifiers.annotations.find { it.isNullnessAnnotation() }
+                        if (
+                            annotationToAdd != null &&
+                                annotationToAdd.annotationUse == AnnotationUse.TYPE_ONLY
+                        ) {
+                            item.mutateModifiers { mutateAnnotations { add(annotationToAdd) } }
+                        }
+                    }
+                }
+            }
+        )
+    }
 }
 
 /**
@@ -216,8 +296,8 @@ abstract class SourceCodebaseAssembler : DefaultCodebaseAssembler() {
  * underlying model. That can only come from [PackageDoc.overview].
  */
 data class SourcePackageInfo(
-    /** See [PackageInfo.fileLocation] for details. */
-    val fileLocation: FileLocation = FileLocation.UNKNOWN,
+    /** See [PackageInfo.sourceFile] for details. */
+    val sourceFile: SourceFile? = null,
 
     /** See [PackageInfo.annotations] for details. */
     val annotations: List<AnnotationItem> = emptyList(),
@@ -225,6 +305,9 @@ data class SourcePackageInfo(
     /** See [PackageInfo.commentFactory] for details. */
     val commentFactory: ItemDocumentationFactory? = null,
 ) {
+    /** See [PackageInfo.fileLocation] for details. */
+    val fileLocation: FileLocation = sourceFile?.fileLocation ?: FileLocation.UNKNOWN
+
     /**
      * Construct a [PackageInfo] from this.
      *
@@ -234,6 +317,7 @@ data class SourcePackageInfo(
     fun toPackageInfo(defaultCommentFactory: ItemDocumentationFactory) =
         PackageInfo(
             fileLocation,
+            sourceFile,
             annotations,
             // Make sure the returned [PackageInfo] has a non-null [PackageInfo.commentFactory].
             commentFactory ?: defaultCommentFactory,

@@ -16,6 +16,9 @@
 
 package com.android.tools.metalava.model.testsuite.value
 
+import com.android.tools.metalava.model.ANDROID_SDK_EXTENSION_API
+import com.android.tools.metalava.model.AnnotationFormatter
+import com.android.tools.metalava.model.AnnotationPurpose
 import com.android.tools.metalava.model.Assertions.Companion.assertClass
 import com.android.tools.metalava.model.Assertions.Companion.assertMethod
 import com.android.tools.metalava.model.Assertions.Companion.assertResolvedClass
@@ -24,10 +27,10 @@ import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.junit4.ParameterFilter
-import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
-import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.model.testing.SupportedInputFormats
+import com.android.tools.metalava.model.testing.value.annotationItem
 import com.android.tools.metalava.model.testing.value.annotationValue
 import com.android.tools.metalava.model.testing.value.arrayValue
 import com.android.tools.metalava.model.testing.value.fieldReferenceValue
@@ -244,11 +247,18 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
     private fun checkFormatting(body: FormattingContext.() -> Unit) {
         val additionalClassPath =
             when (producerKind) {
-                ProducerKind.JAR -> listOf(jarFile.createFile(temporaryFolder.root))
+                ProducerKind.JAR -> listOf(jarFile.toFile())
                 else -> emptyList()
             }
 
-        val testFixture = TestFixture(additionalClassPath = additionalClassPath)
+        val testFixture =
+            TestFixture(
+                additionalClassPath = additionalClassPath,
+
+                // Disable the supported InputFormat check as this test is already parameterized and
+                // filtered by InputFormat.
+                checkSupportedInputFormats = false,
+            )
 
         val testFiles =
             when (inputFormat) {
@@ -347,7 +357,7 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
         }
     }
 
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test kotlin specific settings`() {
         checkFormatting {
@@ -440,7 +450,7 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
     }
 
     // Does not work with signature files as they do not contain inaccessible fields.
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test field - resolvable but inaccessible with no value - default`() {
         checkFormatting {
@@ -473,7 +483,7 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
     }
 
     // Does not work with signature files as they do not contain inaccessible fields.
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     // Temporarily disable the test as it fails in snapshot because snapshot does not track
     // removed and/or hidden status.
     @Ignore
@@ -516,7 +526,7 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
     }
 
     // Does not work with signature files as they do not contain inaccessible fields.
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test field - resolvable and inaccessible with no value - WHEN_HIDDEN_OR_REMOVED`() {
         checkFormatting {
@@ -547,49 +557,6 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
         }
     }
 
-    // Does not work with signature files as they do not contain inaccessible fields.
-    @RequiresCapabilities(Capability.JAVA)
-    // Temporarily disable the test as it fails in snapshot because snapshot does not track
-    // removed and/or hidden status.
-    @Ignore
-    @Test
-    fun `Test field - resolvable and inaccessible with value - WHEN_HIDDEN_OR_REMOVED`() {
-        checkFormatting {
-            val javaSettings = Settings(inlineFields = InlineFieldValue.WHEN_HIDDEN_OR_REMOVED)
-            val formatter = LegacyValueFormatter(javaSettings = javaSettings)
-
-            val hiddenExpected =
-                when (producerKind) {
-                    // @hide javadoc is not available in jars so they are not treated as hidden.
-                    ProducerKind.JAR -> "test.pkg.Hidden.FIELD"
-                    // Hidden fields with a value should just use that value.
-                    ProducerKind.SOURCE -> "2"
-                }
-            formatter.assertFormattedValue(
-                hiddenExpected,
-                lazyFieldReferenceValue(codebase, "test.pkg.Hidden", "FIELD")
-            )
-
-            val removedExpected =
-                when (producerKind) {
-                    // @removed javadoc is not available in jars so they are not treated as removed.
-                    ProducerKind.JAR -> "test.pkg.Removed.FIELD"
-                    // Removed fields with a value should just use that value.
-                    ProducerKind.SOURCE -> "3"
-                }
-            formatter.assertFormattedValue(
-                removedExpected,
-                lazyFieldReferenceValue(codebase, "test.pkg.Removed", "FIELD")
-            )
-
-            // Non-`public` fields that are not hidden or removed should be kept.
-            formatter.assertFormattedValue(
-                "test.pkg.NotPublic.FIELD",
-                lazyFieldReferenceValue(codebase, "test.pkg.NotPublic", "FIELD")
-            )
-        }
-    }
-
     @Test
     fun `Test field - always inline with no value`() {
         checkFormatting {
@@ -613,6 +580,30 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
                 "99",
                 fieldReferenceValue("test.pkg.AlwaysInline", "FIELD", literalValue(99))
             )
+        }
+    }
+
+    @Test
+    fun `Test annotation - always inline int field as decimal`() {
+        checkFormatting {
+            val annotation =
+                annotationItem(
+                    ANDROID_SDK_EXTENSION_API,
+                    "value" to
+                        fieldReferenceValue(
+                            "test.pkg.AlwaysInline",
+                            "FIELD",
+                            literalValue(30, nonLiteralInSource = true),
+                        ),
+                )
+            val actual =
+                AnnotationFormatter.legacyAnnotationFormatter()
+                    .formatAnnotation(
+                        annotation,
+                        AnnotationPurpose.ITEM,
+                        context = method,
+                    )
+            assertEquals("@SdkExtensionApi(30)", actual)
         }
     }
 }

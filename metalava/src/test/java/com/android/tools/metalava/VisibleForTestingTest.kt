@@ -50,7 +50,7 @@ class VisibleForTestingTest : DriverTest() {
                     testFile,
                     visibleForTestingSource,
                 ),
-            api = api,
+            expectedApiSignature = api,
             extraArguments =
                 if (useShowAndHideOptions) {
                     arrayOf(
@@ -60,8 +60,6 @@ class VisibleForTestingTest : DriverTest() {
                         "androidx.annotation.VisibleForTesting(otherwise=androidx.annotation.VisibleForTesting.PROTECTED)",
                         "--show-annotation",
                         "androidx.annotation.VisibleForTesting(otherwise=4)",
-                        "--hide",
-                        "UnhiddenSystemApi",
                     )
                 } else {
                     emptyArray()

@@ -18,14 +18,21 @@ package com.android.tools.metalava.model.testsuite.documentation
 
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.doc.DocContent
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.snapshot.CodebaseSnapshotTaker
+import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
+import java.io.PrintWriter
+import java.io.StringWriter
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import org.junit.Test
 
+@SupportedInputFormats(InputFormat.JAVA, InputFormat.KOTLIN)
 class CommonItemDocumentationTest : BaseModelTest() {
     @Test
     fun `Test accessing documentation comment`() {
@@ -72,10 +79,10 @@ class CommonItemDocumentationTest : BaseModelTest() {
             ),
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
-            testClass.assertDocumentationText(expectedOutput = "/** Doc */", message = "class")
+            testClass.assertPrintedDocumentation(expectedOutput = "/** Doc */", message = "class")
 
             val testMethod = testClass.methods().last()
-            testMethod.assertDocumentationText(
+            testMethod.assertPrintedDocumentation(
                 expectedOutput = "/** Method Doc */",
                 message = "method"
             )
@@ -90,6 +97,8 @@ class CommonItemDocumentationTest : BaseModelTest() {
                     package test.pkg;
 
                     /// Inline comment
+                    // Line comment
+                    /* Block comment */
                     /**
                      * Doc
                      */
@@ -112,6 +121,8 @@ class CommonItemDocumentationTest : BaseModelTest() {
                     package test.pkg
 
                     /// Inline comment
+                    // Line comment
+                    /* Block comment */
                     /**
                      * Doc
                      */
@@ -131,18 +142,19 @@ class CommonItemDocumentationTest : BaseModelTest() {
             ),
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
-            testClass.assertDocumentationText(expectedOutput = "/** Doc */", message = "class")
+            testClass.assertPrintedDocumentation(expectedOutput = "/** Doc */", message = "class")
 
             val testMethod = testClass.methods().last()
-            testMethod.assertDocumentationText(
+            testMethod.assertPrintedDocumentation(
                 expectedOutput = "/** Method Doc */",
                 message = "method"
             )
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
-    fun `Test accessing documentation comment before inline comment - bug 391104222`() {
+    fun `Test accessing documentation comment before inline comment - bug 391104222 - java`() {
         runCodebaseTest(
             java(
                 """
@@ -151,6 +163,8 @@ class CommonItemDocumentationTest : BaseModelTest() {
                     /**
                      * Doc
                      */
+                    // Line comment
+                    /* Block comment */
                     /// Inline comment
                     public class Test {
                         /**
@@ -166,6 +180,19 @@ class CommonItemDocumentationTest : BaseModelTest() {
                     }
                 """
             ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            testClass.assertPrintedDocumentation(expectedOutput = "", message = "class")
+
+            val testMethod = testClass.methods().last()
+            testMethod.assertPrintedDocumentation(expectedOutput = "", message = "method")
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.KOTLIN)
+    @Test
+    fun `Test accessing documentation comment before inline comment - bug 391104222 - kotlin`() {
+        runCodebaseTest(
             kotlin(
                 """
                     package test.pkg
@@ -173,6 +200,8 @@ class CommonItemDocumentationTest : BaseModelTest() {
                     /**
                      * Doc
                      */
+                    // Line comment
+                    /* Block comment */
                     /// Inline comment
                     class Test {
                         /**
@@ -190,10 +219,10 @@ class CommonItemDocumentationTest : BaseModelTest() {
             ),
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
-            testClass.assertDocumentationText(expectedOutput = "/** Doc */", message = "class")
+            testClass.assertPrintedDocumentation(expectedOutput = "/** Doc */", message = "class")
 
             val testMethod = testClass.methods().last()
-            testMethod.assertDocumentationText(
+            testMethod.assertPrintedDocumentation(
                 expectedOutput = "/** Method Doc */",
                 message = "method"
             )
@@ -237,10 +266,10 @@ class CommonItemDocumentationTest : BaseModelTest() {
             ),
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
-            testClass.assertDocumentationText(expectedOutput = "", message = "class")
+            testClass.assertPrintedDocumentation(expectedOutput = "", message = "class")
 
             val testMethod = testClass.methods().last()
-            testMethod.assertDocumentationText(expectedOutput = "", message = "method")
+            testMethod.assertPrintedDocumentation(expectedOutput = "", message = "method")
         }
     }
 
@@ -253,6 +282,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         assertEquals(expectedLocation, removeTestSpecificDirectories(location.toString()))
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test javadoc locations`() {
         runSourceCodebaseTest(
@@ -294,6 +324,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test kdoc locations`() {
         runSourceCodebaseTest(
@@ -335,6 +366,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test javadoc error locations`() {
         runSourceCodebaseTest(
@@ -410,6 +442,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test ItemDocumentation print`() {
         runSourceCodebaseTest(
@@ -473,6 +506,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test DocContentOwner append String on overriding method`() {
         runSourceCodebaseTest(
@@ -574,6 +608,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test mixture of indentation`() {
         runSourceCodebaseTest(
@@ -639,6 +674,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test addUniqueBlockTagSectionWithSimpleText`() {
         runSourceCodebaseTest(
@@ -688,6 +724,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test leading whitespace in descriptions`() {
         runSourceCodebaseTest(
@@ -722,6 +759,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test sorting @param to match parameter list order`() {
         runSourceCodebaseTest(
@@ -813,6 +851,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test fully qualifying links that wrap on multiple lines`() {
         runSourceCodebaseTest(
@@ -922,6 +961,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test DocContent with main description`() {
         runSourceCodebaseTest(
@@ -945,6 +985,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test DocContentOwner without main description`() {
         runSourceCodebaseTest(
@@ -968,13 +1009,14 @@ class CommonItemDocumentationTest : BaseModelTest() {
             )
             assertDocContentToString(
                 documentation.blockTagDescription("see"),
-                expected = """JavadocText("String block tag documentation.")""",
+                expected = """JavadocText("block tag documentation.")""",
                 message = "@see block tag"
             )
             assertNull(documentation.blockTagDescription("unknown"), message = "@unknown block tag")
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test DocContent for param description`() {
         runSourceCodebaseTest(
@@ -1009,6 +1051,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test append DocContent to main description`() {
         runSourceCodebaseTest(
@@ -1046,10 +1089,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         ) {
             val otherClass = codebase.assertClass("test.other.Other")
             val contentToAppend =
-                otherClass.requiredDocumentation.blockTagDescription(
-                    "memberDoc",
-                    forAppending = true
-                )!!
+                otherClass.requiredDocumentation.blockTagDescription("memberDoc")!!
 
             val testClass = codebase.assertClass("test.pkg.Test")
             val classDocumentation = testClass.requiredDocumentation
@@ -1058,19 +1098,17 @@ class CommonItemDocumentationTest : BaseModelTest() {
 
             classDocumentation.mainDescriptionOwner.append(contentToAppend)
 
-            // TODO(b/450228132): The first '@link' should have been resolved to
-            //  `test.other.Other#method()`.
             val expectedOutputAfterMutation =
                 """
                     /**
-                     * Text to {@code append} see {@link #method()}. This is spread
-                     * across multiple lines with leading whitespace and a link to
-                     * {@link test.another.Another Another} class.
+                     * Text to {@code append} see {@link test.other.Other#method() method()}. This is spread
+                     *        across multiple lines with leading whitespace and a link to
+                     *        {@link test.another.Another Another} class.
                      */
                 """
 
             // Make sure that the text reflects the changes after mutation.
-            testClass.assertDocumentationText(
+            testClass.assertPrintedDocumentation(
                 expectedOutput = expectedOutputAfterMutation,
                 message = "text after mutation"
             )
@@ -1082,6 +1120,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test append String to main description`() {
         runSourceCodebaseTest(
@@ -1109,7 +1148,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
                 """
 
             // Make sure that the text reflects the changes after mutation.
-            testMethod.assertDocumentationText(
+            testMethod.assertPrintedDocumentation(
                 expectedOutput = expectedOutputAfterMutation,
                 message = "text after mutation"
             )
@@ -1121,6 +1160,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test append String to block tag description`() {
         runSourceCodebaseTest(
@@ -1136,7 +1176,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             val documentation = testClass.requiredDocumentation
 
-            testClass.assertDocumentationText(
+            testClass.assertPrintedDocumentation(
                 expectedOutput = "/** @deprecated */",
                 message = "before mutation"
             )
@@ -1149,7 +1189,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
                 """
 
             // Make sure that the text reflects the changes after mutation.
-            testClass.assertDocumentationText(
+            testClass.assertPrintedDocumentation(
                 expectedOutput = expectedOutputAfterMutation,
                 message = "after mutation"
             )
@@ -1160,6 +1200,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test append String to non-existent block tag description`() {
         runSourceCodebaseTest(
@@ -1174,7 +1215,10 @@ class CommonItemDocumentationTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             val documentation = testClass.requiredDocumentation
 
-            testClass.assertDocumentationText(expectedOutput = "", message = "text before mutation")
+            testClass.assertPrintedDocumentation(
+                expectedOutput = "",
+                message = "text before mutation"
+            )
 
             // Get the description owner for the non-existent deprecated block tag.
             val descriptionOwner = documentation.blockTagDescriptionOwner("deprecated")
@@ -1194,7 +1238,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
                 """
 
             // Make sure that the text reflects the changes after mutation.
-            testClass.assertDocumentationText(
+            testClass.assertPrintedDocumentation(
                 expectedOutput = expectedOutputAfterFirstMutation,
                 message = "text after first mutation"
             )
@@ -1219,7 +1263,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
                 """
 
             // Make sure that the text reflects the changes after mutation.
-            testClass.assertDocumentationText(
+            testClass.assertPrintedDocumentation(
                 expectedOutput = expectedOutputAfterSecondMutation,
                 message = "text after second mutation"
             )
@@ -1232,6 +1276,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test append String to param tag description`() {
         runSourceCodebaseTest(
@@ -1250,7 +1295,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
             val testMethod = testClass.methods().single()
             val documentation = testMethod.requiredDocumentation
 
-            testMethod.assertDocumentationText(
+            testMethod.assertPrintedDocumentation(
                 expectedOutput = "/** @param p */",
                 message = "before mutation"
             )
@@ -1263,7 +1308,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
                 """
 
             // Make sure that the text reflects the changes after mutation.
-            testMethod.assertDocumentationText(
+            testMethod.assertPrintedDocumentation(
                 expectedOutput = expectedOutputAfterMutation,
                 message = "after mutation"
             )
@@ -1274,6 +1319,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test append String to non-existent param tag description`() {
         runSourceCodebaseTest(
@@ -1290,7 +1336,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
             val testMethod = testClass.methods().single()
             val documentation = testMethod.requiredDocumentation
 
-            testMethod.assertDocumentationText(
+            testMethod.assertPrintedDocumentation(
                 expectedOutput = "",
                 message = "text before mutation"
             )
@@ -1313,7 +1359,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
                 """
 
             // Make sure that the text reflects the changes after mutation.
-            testMethod.assertDocumentationText(
+            testMethod.assertPrintedDocumentation(
                 expectedOutput = expectedOutputAfterFirstMutation,
                 message = "text after first mutation"
             )
@@ -1338,7 +1384,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
                 """
 
             // Make sure that the text reflects the changes after mutation.
-            testMethod.assertDocumentationText(
+            testMethod.assertPrintedDocumentation(
                 expectedOutput = expectedOutputAfterSecondMutation,
                 message = "text after second mutation"
             )
@@ -1351,6 +1397,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test first sentence handling - pure text`() {
         runSourceCodebaseTest(
@@ -1382,6 +1429,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test first sentence handling - link tag`() {
         runSourceCodebaseTest(
@@ -1407,6 +1455,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test first sentence handling - eg not in summary sentence`() {
         runSourceCodebaseTest(
@@ -1438,6 +1487,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test first sentence handling - eg inside inline tag`() {
         runSourceCodebaseTest(
@@ -1463,6 +1513,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test allow reading comments = false`() {
         runSourceCodebaseTest(
@@ -1508,6 +1559,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test allow reading comments = true`() {
         runSourceCodebaseTest(
@@ -1545,6 +1597,323 @@ class CommonItemDocumentationTest : BaseModelTest() {
             val testAnnotation = codebase.assertClass("test.pkg.PkgAnno")
             testAnnotation.assertPrintedDocumentation(
                 expectedOutput = "/** Annotation comment. */\n",
+            )
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test pathological comments - preceding annotation no other comments`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    import android.annotation.SuppressLint;
+
+                    @SuppressLint("UnflaggedApi")
+                    /** Some comment. */
+                    public class Test {}
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            // Should be empty as the doc comment must come immediately before the declaration but
+            // in this case it is in the middle of the declaration.
+            testClass.assertPrintedDocumentation(
+                expectedOutput = "",
+            )
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test pathological comments - preceding annotation with other comments`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    import android.annotation.SuppressLint;
+
+                    @SuppressLint("UnflaggedApi")
+                    // Inline comment
+                    /** Some comment. */
+                    /* Block comment. */
+                    public class Test {}
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            // Should be empty as the doc comment must come immediately before the declaration but
+            // in this case it is in the middle of the declaration.
+            testClass.assertPrintedDocumentation(
+                expectedOutput = "",
+            )
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test pathological comments - preceding inline comment`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    // Inline comment.
+                    /** Some comment. */
+                    public class Test {}
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            testClass.assertPrintedDocumentation(
+                expectedOutput = "/** Some comment. */\n",
+            )
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test preceding anonymous class with comment - in field initializer`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    public class Test {
+                        @SuppressWarnings("Convert2Lambda")
+                        private static final Runnable RUNNABLE = new Runnable() {
+                            /** Do nothing. */
+                            @Override public void run() {
+                            }
+                        };
+
+                        // This method has no documentation.
+                        public void method() {}
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val testMethod = testClass.methods().single()
+            testMethod.assertPrintedDocumentation(
+                expectedOutput = "",
+            )
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test preceding anonymous class with comment - in method body`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    public class Test {
+                        @SuppressWarnings("Convert2Lambda")
+                        private void hidden() {
+                            final Runnable RUNNABLE = new Runnable() {
+                                /** Do nothing. */
+                                @Override public void run() {
+                                }
+                            };
+                        }
+
+                        // This method has no documentation.
+                        public void method() {}
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val testMethod = testClass.assertMethod("method", emptyList())
+            testMethod.assertPrintedDocumentation(
+                expectedOutput = "",
+            )
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test documenting multiple variable declaration`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    public class Test {
+                        /** Zero-th field. */
+                        public static final int FIELD0 = 0;
+
+                        /** A special field. */
+                        public static final int FIELD1 = 1,
+                            /** This should be ignored as it does not precede the declaration. */
+                            FIELD2 = 2,
+                            // A line comment.
+                            FIELD3 = 3,
+                            /* A block comment. */
+                            FIELD4 = 4;
+
+                        /** Another special field. */
+                        public static final int FIELD5 = 5;
+
+                        public static final int FIELD6 = 6;
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val fields = testClass.fields()
+            val writer = StringWriter()
+            PrintWriter(writer).use { out ->
+                for (field in fields) {
+                    field.documentation?.print(out)
+                    out.println("Field ${field.name()}:")
+                    out.println()
+                }
+            }
+
+            // TODO(b/479907812): FIELD2 should have the same documentation as FIELD1.
+            assertEquals(
+                """
+                    /** Zero-th field. */
+                    Field FIELD0:
+
+                    /** A special field. */
+                    Field FIELD1:
+
+                    /** A special field. */
+                    Field FIELD2:
+
+                    /** A special field. */
+                    Field FIELD3:
+
+                    /** A special field. */
+                    Field FIELD4:
+
+                    /** Another special field. */
+                    Field FIELD5:
+
+                    Field FIELD6:
+                """
+                    .trimIndent(),
+                writer.toString().trim()
+            )
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test mutating duplicated ItemDocumentation`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    public class Base {
+                        /** Summary line. */
+                        public void method() {}
+                    }
+
+                    public class Sub extends Base {}
+                """
+            ),
+        ) {
+            val baseClass = codebase.assertClass("test.pkg.Base")
+            val baseMethod = baseClass.assertMethod("method", emptyList())
+            val subClass = codebase.assertClass("test.pkg.Sub")
+
+            val duplicatedMethod = baseMethod.duplicate(subClass)
+
+            duplicatedMethod.requiredDocumentation.mainDescriptionOwner.append(
+                "Appended to duplicate."
+            )
+            duplicatedMethod.requiredDocumentation.addUniqueBlockTagSectionWithSimpleText(
+                "unique",
+                "1"
+            )
+
+            duplicatedMethod.assertPrintedDocumentation(
+                expectedOutput =
+                    """
+                        /**
+                         * Summary line.
+                         * <br>
+                         * Appended to duplicate.
+                         * @unique 1
+                         */
+                    """,
+                message = "duplicated method",
+            )
+
+            baseMethod.assertPrintedDocumentation(
+                expectedOutput =
+                    """
+                        /** Summary line. */
+                    """,
+                message = "base method",
+            )
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test mutating snapshotted ItemDocumentation`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    public class Test {
+                        /** Summary line. */
+                        public void method() {}
+                    }
+                """
+            ),
+        ) {
+            val originalMethod =
+                codebase.assertClass("test.pkg.Test").assertMethod("method", emptyList())
+
+            val snapshotCodebase =
+                CodebaseSnapshotTaker.takeSnapshot(
+                    codebase,
+                    definitionVisitorFactory = ::NonFilteringDelegatingVisitor,
+                    referenceVisitorFactory = ::NonFilteringDelegatingVisitor,
+                    includeDocumentation = true,
+                )
+            val snapshotMethod =
+                snapshotCodebase.assertClass("test.pkg.Test").assertMethod("method", emptyList())
+
+            snapshotMethod.requiredDocumentation.mainDescriptionOwner.append(
+                "Appended to snapshot."
+            )
+            snapshotMethod.requiredDocumentation.addUniqueBlockTagSectionWithSimpleText(
+                "unique",
+                "1"
+            )
+
+            snapshotMethod.assertPrintedDocumentation(
+                expectedOutput =
+                    """
+                        /**
+                         * Summary line.
+                         * <br>
+                         * Appended to snapshot.
+                         * @unique 1
+                         */
+                    """,
+                message = "snapshot method",
+            )
+
+            originalMethod.assertPrintedDocumentation(
+                expectedOutput =
+                    """
+                        /** Summary line. */
+                    """,
+                message = "original method",
             )
         }
     }

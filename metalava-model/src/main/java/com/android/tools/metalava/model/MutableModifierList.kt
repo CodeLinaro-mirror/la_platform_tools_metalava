@@ -41,6 +41,8 @@ interface MutableModifierList : BaseModifierList {
 
     fun setSealed(sealed: Boolean)
 
+    fun setNonSealed(nonSealed: Boolean)
+
     fun setExhaustive(exhaustive: Boolean)
 
     fun setFunctional(functional: Boolean)
@@ -79,4 +81,14 @@ interface MutableModifierList : BaseModifierList {
      * from outside [mutator].
      */
     fun mutateAnnotations(mutator: MutableList<AnnotationItem>.() -> Unit)
+
+    /**
+     * Updates this modifier list to be [ModifierList.equivalentTo] the [other] list.
+     *
+     * This means that for any modifiers which are significant for equivalence, the value in this
+     * list after calling this function will be the value of that modifier in [other]. For any
+     * modifiers which are not significant for equivalence, the value in this list after calling
+     * this function will be unchanged from before.
+     */
+    fun makeEquivalentTo(other: ModifierList)
 }

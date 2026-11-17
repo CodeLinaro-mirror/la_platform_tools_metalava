@@ -41,35 +41,30 @@ import com.android.tools.metalava.reporter.Issues.Issue
  *     " Single line comment with some {@code text with an unclosed inline tag"
  * ```
  *
- * If an error was reported then it would be reported with a `lineOffset = 0` and `charOffset = 31`
- * but those are not the position of the error in the whole file. So, the parser needs to be passed
- * a [DocumentationIssueReporter] that will apply a correction to them by adding `3` to `lineOffset`
- * and `7` to `charOffset`.
+ * If an error was reported then it would be reported with a `charOffset = 31` but that is not the
+ * position of the error in the whole file. So, the parser needs to be passed a
+ * [DocumentationIssueReporter] that will apply a correction to it by adding the offset of the
+ * fragment in the comment, and the offset of the comment in the source file.
  *
- * [DocumentationIssueReporter]s will be arranged in a chain where anything that selects a subset or
+ * [DocumentationIssueReporter]s will be arranged in a chain where anything that selects a subset of
  * the contents it is given needs to provide a [DocumentationIssueReporter] wrapper around the
- * [DocumentationIssueReporter] it is provided to correct the offsets to be relative to the whole
+ * [DocumentationIssueReporter] it is provided to correct the offset to be relative to the whole
  * contents.
  *
  * The implementation of [DocumentationIssueReporter] at the beginning of the chain must map from
- * the 0-based `lineOffset/charOffset` to the 1-based line and character position used in Metalava
- * messages.
+ * the 0-based `charOffset` to the 1-based line and character position used in Metalava messages.
  */
 internal interface DocumentationIssueReporter {
     /**
-     * Report [issue] with [message] at [lineOffset] from the beginning of the associated comment or
+     * Report [issue] with [message] at [charOffset] from the beginning of the associated comment or
      * comment fragment.
      *
      * @param issue the [Issue] to report.
-     * @param [message] the message to report.
-     * @param lineOffset is the 0-based index of the line within the comment or comment fragment
-     *   where the issue occurred. This is intended to be added to the line number of the comment or
-     *   comment fragment within the source file to give th line number within the source file where
-     *   the issues occurred.
-     * @param charOffset is the 0-based index of the character within the line where the issue
-     *   occurred. If this is `-1` then no character position is reported.
+     * @param message the message to report.
+     * @param charOffset is the 0-based index of the character within the comment or comment
+     *   fragment where the issue occurred.
      */
-    fun report(issue: Issue, message: String, lineOffset: Int = 0, charOffset: Int = 0)
+    fun report(issue: Issue, message: String, charOffset: Int = 0)
 
     companion object {
         /**
@@ -81,10 +76,9 @@ internal interface DocumentationIssueReporter {
                 override fun report(
                     issue: Issue,
                     message: String,
-                    lineOffset: Int,
-                    charOffset: Int
+                    charOffset: Int,
                 ) {
-                    error("${lineOffset + 1}:${charOffset + 1}: $message [${issue.name}]")
+                    error("$charOffset: $message [${issue.name}]")
                 }
             }
 
@@ -94,8 +88,7 @@ internal interface DocumentationIssueReporter {
                 override fun report(
                     issue: Issue,
                     message: String,
-                    lineOffset: Int,
-                    charOffset: Int
+                    charOffset: Int,
                 ) {}
             }
     }

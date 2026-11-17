@@ -19,6 +19,8 @@ package com.android.tools.metalava.model.testsuite
 import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
@@ -30,6 +32,7 @@ import kotlin.test.assertSame
 import org.junit.Test
 
 class CommonModelTest : BaseModelTest() {
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `empty file`() {
         runCodebaseTest(
@@ -44,6 +47,7 @@ class CommonModelTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `test findCorrespondingItemIn check all, no super methods`() {
         runCodebaseTest(
@@ -193,6 +197,7 @@ class CommonModelTest : BaseModelTest() {
             ),
         )
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `test findCorrespondingItemIn does not find super methods`() {
         val pairs = pairsOfBaseAndLatestCodebasesForFindCorrespondingItemTests
@@ -212,6 +217,7 @@ class CommonModelTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `test findCorrespondingItemIn does find super methods`() {
         val pairs = pairsOfBaseAndLatestCodebasesForFindCorrespondingItemTests
@@ -240,6 +246,7 @@ class CommonModelTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `test findCorrespondingItemIn does duplicate super methods`() {
         val pairs = pairsOfBaseAndLatestCodebasesForFindCorrespondingItemTests
@@ -297,6 +304,7 @@ class CommonModelTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test iterate and resolve unknown super classes`() {
         // TODO(b/323516595): Find a better way.
@@ -349,6 +357,7 @@ class CommonModelTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test iterate and resolve unknown interface classes`() {
         // TODO(b/323516595): Find a better way.
@@ -393,7 +402,7 @@ class CommonModelTest : BaseModelTest() {
                 for (interfaceType in classItem.interfaceTypes()) {
                     // Resolve the interface type which might trigger a change in the
                     // packages/classes.
-                    interfaceType.asClass()?.let { items += it }
+                    interfaceType.resolveClass(codebase)?.let { items += it }
                 }
             }
 
@@ -405,6 +414,7 @@ class CommonModelTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA, InputFormat.KOTLIN)
     @Test
     fun `Test unknown inner class`() {
         runCodebaseTest(

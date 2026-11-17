@@ -30,6 +30,12 @@ import java.io.PrintWriter
 class ProguardWriter(
     private val writer: PrintWriter,
 ) : DelegatedVisitor {
+    /**
+     * Proguard keep rules require classes to be visited in deterministic order for reproducible
+     * builds.
+     */
+    override val requiresSortedClasses: Boolean
+        get() = true
 
     override fun visitClass(cls: ClassItem) {
         writer.print("-keep class ")

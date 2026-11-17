@@ -20,13 +20,17 @@ import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
+import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassPathResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TargetLanguageSet
+import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
-import com.android.tools.metalava.model.noOpAnnotationManager
+import com.android.tools.metalava.model.testOrTrue
 import com.android.tools.metalava.model.testing.value.literalValue
+import com.android.tools.metalava.model.visitors.ApiFiltersVisitor
+import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.testing.getAndroidJar
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.assertEquals
@@ -120,7 +124,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
                     .assertMethod("foo", emptyList())
                     .throwsTypes()
                     .first()
-            assertSame(throwable, exception.erasedClass)
+            assertSame(throwable, exception.asErasedClass(codebase))
         }
     }
 
@@ -145,7 +149,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
             val error = codebase.assertClass("java.lang.Error")
 
             // Get the super class to force it to be loaded.
-            val errorSuperClass = error.superClassType()?.asClass()
+            val errorSuperClass = error.superClassType()?.resolveClass(codebase)
 
             // Now get the throwable class.
             val throwable = codebase.assertClass("java.lang.Throwable", expectedEmit = false)
@@ -159,7 +163,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
                     .assertMethod("foo", emptyList())
                     .throwsTypes()
                     .first()
-            assertSame(error, exception.erasedClass)
+            assertSame(error, exception.asErasedClass(codebase))
         }
     }
 
@@ -188,7 +192,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
                     .assertMethod("foo", emptyList())
                     .throwsTypes()
                     .first()
-            assertSame(throwable, exception.erasedClass)
+            assertSame(throwable, exception.asErasedClass(codebase))
         }
     }
 
@@ -213,7 +217,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
 
             // Force the unknown exception class to be resolved, creating a stub in the process. It
             // is checked below.
-            exceptionType.erasedClass
+            exceptionType.asErasedClass(codebase)
 
             val unknownExceptionClass =
                 codebase.assertClass("other.UnknownException", expectedEmit = false)
@@ -227,7 +231,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
                     .assertMethod("foo", emptyList())
                     .throwsTypes()
                     .first()
-            assertSame(unknownExceptionClass, exception.erasedClass)
+            assertSame(unknownExceptionClass, exception.asErasedClass(codebase))
         }
     }
 
@@ -267,7 +271,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 .assertMethod("foo", emptyList())
                 .throwsTypes()
                 .first()
-        assertSame(unknownExceptionClass, exception.erasedClass)
+        assertSame(unknownExceptionClass, exception.asErasedClass(codebase))
     }
 
     @Test
@@ -525,36 +529,6 @@ class ApiFileTest : BaseTextCodebaseTest() {
     }
 
     @Test
-    fun `Test classes split across multiple files`() {
-        runSignatureTest(
-            signature(
-                "current.txt",
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                        public class Foo {
-                        }
-                    }
-                """
-            ),
-            signature(
-                "system.txt",
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                        @test.pkg.Anno(12) public class Foo {
-                        }
-
-                        public @interface Anno {
-                            method public int value();
-                        }
-                    }
-                """
-            ),
-        ) {}
-    }
-
-    @Test
     fun `Test unknown interface should still be marked as such`() {
         runSignatureTest(
             signature(
@@ -570,7 +544,11 @@ class ApiFileTest : BaseTextCodebaseTest() {
             // Resolve the class. Even though it does not exist, the text model will fabricate an
             // instance.
             val unknownInterfaceClass =
-                codebase.assertClass("test.pkg.Foo").interfaceTypes().single().asClass()
+                codebase
+                    .assertClass("test.pkg.Foo")
+                    .interfaceTypes()
+                    .single()
+                    .resolveClass(codebase)
             assertNotNull(unknownInterfaceClass)
 
             // Make sure that the fabricated instance is of the correct structure.
@@ -648,29 +626,6 @@ class ApiFileTest : BaseTextCodebaseTest() {
     }
 
     @Test
-    fun testTypeParameterNames() {
-        assertThat(ApiFile.extractTypeParameterBoundsStringList(null).toString()).isEqualTo("[]")
-        assertThat(ApiFile.extractTypeParameterBoundsStringList("").toString()).isEqualTo("[]")
-        assertThat(ApiFile.extractTypeParameterBoundsStringList("X").toString()).isEqualTo("[]")
-        assertThat(ApiFile.extractTypeParameterBoundsStringList("DEF extends T").toString())
-            .isEqualTo("[T]")
-        assertThat(
-                ApiFile.extractTypeParameterBoundsStringList(
-                        "T extends java.lang.Comparable<? super T>"
-                    )
-                    .toString()
-            )
-            .isEqualTo("[java.lang.Comparable<? super T>]")
-        assertThat(
-                ApiFile.extractTypeParameterBoundsStringList(
-                        "T extends java.util.List<Number> & java.util.RandomAccess"
-                    )
-                    .toString()
-            )
-            .isEqualTo("[java.util.List<Number>, java.util.RandomAccess]")
-    }
-
-    @Test
     fun `Test invalid field initializers`() {
         runSignatureTest(
             signature(
@@ -712,9 +667,11 @@ class ApiFileTest : BaseTextCodebaseTest() {
                         package test.pkg {
                             public class Foo {
                                 ctor public Foo();
+                                ctor public Foo(String notCurrent);
                                 method public void method(int notCurrent);
                                 method public void extensibleMethod(int parameter) throws Throwable;
                                 field public int field;
+                                property public int prop;
                             }
                             public class Outer {
                             }
@@ -732,9 +689,11 @@ class ApiFileTest : BaseTextCodebaseTest() {
                         package test.pkg {
                             public class Foo {
                                 ctor public Foo(int currentCtorParameter);
+                                ctor public Foo(String currentCtorParameter);
                                 method public void extensibleMethod(int parameter) throws Exception;
                                 method public void currentMethod(int currentMethodParameter);
                                 field public int currentField;
+                                property public int prop;
                             }
                             public class Outer.Middle.Inner {
                                 method public void currentInnerMethod();
@@ -744,7 +703,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 )
             )
 
-        val files = testFiles.map { it.createFile(temporaryFolder.newFolder()) }
+        val files = testFiles.map { it.toFile() }
         val signatureFiles =
             SignatureFile.fromFiles(
                 files,
@@ -754,7 +713,6 @@ class ApiFileTest : BaseTextCodebaseTest() {
         val apiSurfaces = ApiSurfaces.create(needsBase = true)
         val codebaseConfig =
             Codebase.Config(
-                annotationManager = noOpAnnotationManager,
                 apiSurfaces = apiSurfaces,
             )
         val classPathResolver = ClassLoaderBasedClassPathResolver(listOf(getAndroidJar()))
@@ -765,11 +723,52 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 classPathResolver = classPathResolver,
             )
 
-        val current = buildList {
+        // Construct filters for accessing the surface items only.
+        val apiSurface = apiSurfaces.main
+        val apiFilters = ApiSurfacePredicate.forSurfaceFilters(ApiType.CORE, apiSurface)
+
+        // Check the parts of the codebase that will be visited during traversal.
+        val currentTraversal = buildList {
             codebase.accept(
-                object : BaseItemVisitor(visitParameterItems = false) {
+                object :
+                    ApiFiltersVisitor(
+                        visitParameterItems = false,
+                        apiFilters = apiFilters,
+                    ) {
                     override fun visitSelectableItem(item: SelectableItem) {
-                        if (item.emit) {
+                        add(item)
+                    }
+                }
+            )
+        }
+        assertEquals(
+            """
+                package test.pkg
+                class test.pkg.Foo
+                constructor test.pkg.Foo(String)
+                constructor test.pkg.Foo(int)
+                method test.pkg.Foo.extensibleMethod(int)
+                method test.pkg.Foo.currentMethod(int)
+                property test.pkg.Foo#prop
+                field test.pkg.Foo.currentField
+                class test.pkg.Outer.Middle.Inner
+                method test.pkg.Outer.Middle.Inner.currentInnerMethod()
+            """
+                .trimIndent(),
+            currentTraversal.joinToString("\n"),
+            "traversal items"
+        )
+
+        // Check the parts of the codebase that will be emitted.
+        val currentEmit = buildList {
+            codebase.accept(
+                object :
+                    ApiFiltersVisitor(
+                        visitParameterItems = false,
+                        apiFilters = apiFilters,
+                    ) {
+                    override fun visitSelectableItem(item: SelectableItem) {
+                        if (filterEmit.testOrTrue(item)) {
                             add(item)
                         }
                     }
@@ -777,19 +776,55 @@ class ApiFileTest : BaseTextCodebaseTest() {
             )
         }
 
+        // Note: This does not include class test.pkg.Foo or class test.pkg.Outer.Middle.Inner as
+        // they do not belong to the main API surface as they were defined in the system API.
+        assertEquals(
+            """
+                package test.pkg
+                constructor test.pkg.Foo(String)
+                constructor test.pkg.Foo(int)
+                method test.pkg.Foo.extensibleMethod(int)
+                method test.pkg.Foo.currentMethod(int)
+                property test.pkg.Foo#prop
+                field test.pkg.Foo.currentField
+                method test.pkg.Outer.Middle.Inner.currentInnerMethod()
+            """
+                .trimIndent(),
+            currentEmit.joinToString("\n"),
+            "emittable items"
+        )
+
+        // Check the entire codebase, to make sure there are no incorrect items.
+        val currentAll = buildList {
+            codebase.accept(
+                object : BaseItemVisitor(visitParameterItems = false) {
+                    override fun visitSelectableItem(item: SelectableItem) {
+                        add(item)
+                    }
+                }
+            )
+        }
         assertEquals(
             """
                 package test.pkg
                 class test.pkg.Foo
-                constructor test.pkg.Foo.Foo(int)
+                constructor test.pkg.Foo()
+                constructor test.pkg.Foo(String)
+                constructor test.pkg.Foo(int)
+                method test.pkg.Foo.method(int)
                 method test.pkg.Foo.extensibleMethod(int)
                 method test.pkg.Foo.currentMethod(int)
-                field Foo.currentField
+                property test.pkg.Foo#prop
+                field test.pkg.Foo.field
+                field test.pkg.Foo.currentField
+                class test.pkg.Outer
+                class test.pkg.Outer.Middle
                 class test.pkg.Outer.Middle.Inner
                 method test.pkg.Outer.Middle.Inner.currentInnerMethod()
             """
                 .trimIndent(),
-            current.joinToString("\n")
+            currentAll.joinToString("\n"),
+            "all items"
         )
     }
 
@@ -939,6 +974,71 @@ class ApiFileTest : BaseTextCodebaseTest() {
             assertThat(kotlinOnlyClassWithOtherAnnotation.annotationNames())
                 .containsExactly("androidx.annotation.OtherAnnotation")
         }
+    }
+
+    @Test
+    fun `Test classOrigin on SignatureFile`() {
+        val classPathFile =
+            SignatureFile.fromText(
+                "classpath.txt",
+                """
+                    // Signature format: 5.0
+                    package classpath.pkg {
+                      public class ClassPathClass {
+                        ctor public ClassPathClass();
+                      }
+                      public typealias ClassPathAlias = String;
+                    }
+                    package shared.pkg {
+                      public class SharedClassPathClass {
+                        ctor public SharedClassPathClass();
+                      }
+                    }
+                """,
+                classOrigin = ClassOrigin.CLASS_PATH,
+            )
+        val commandLineFile =
+            SignatureFile.fromText(
+                "command-line.txt",
+                """
+                    // Signature format: 5.0
+                    package shared.pkg {
+                      public class CommandLineClass {
+                        ctor public CommandLineClass();
+                      }
+                      public typealias CommandLineAlias = String;
+                    }
+                """,
+                classOrigin = ClassOrigin.COMMAND_LINE,
+            )
+
+        val codebase = ApiFile.parseApi(listOf(classPathFile, commandLineFile))
+
+        val classPathPkg = codebase.findPackage("classpath.pkg")!!
+        assertThat(classPathPkg.emit).isFalse()
+
+        val classPathClass =
+            codebase.assertClass("classpath.pkg.ClassPathClass", expectedEmit = false)
+        assertThat(classPathClass.origin).isEqualTo(ClassOrigin.CLASS_PATH)
+
+        val classPathAlias =
+            codebase.assertClass("classpath.pkg.ClassPathAlias", expectedEmit = false)
+        assertThat(classPathAlias.origin).isEqualTo(ClassOrigin.CLASS_PATH)
+
+        val sharedPkg = codebase.findPackage("shared.pkg")!!
+        assertThat(sharedPkg.emit).isTrue()
+
+        val sharedClassPathClass =
+            codebase.assertClass("shared.pkg.SharedClassPathClass", expectedEmit = false)
+        assertThat(sharedClassPathClass.origin).isEqualTo(ClassOrigin.CLASS_PATH)
+
+        val commandLineClass =
+            codebase.assertClass("shared.pkg.CommandLineClass", expectedEmit = true)
+        assertThat(commandLineClass.origin).isEqualTo(ClassOrigin.COMMAND_LINE)
+
+        val commandLineAlias =
+            codebase.assertClass("shared.pkg.CommandLineAlias", expectedEmit = true)
+        assertThat(commandLineAlias.origin).isEqualTo(ClassOrigin.COMMAND_LINE)
     }
 
     class TestClassItem private constructor(delegate: ClassItem) : ClassItem by delegate {

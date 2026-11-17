@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<issues format="6" by="lint 8.13.0-alpha03" type="baseline" client="gradle" dependencies="false" name="AGP (8.13.0-alpha03)" variant="all" version="8.13.0-alpha03">
+<issues format="6" by="lint 9.0.0-beta03" type="baseline" client="gradle" dependencies="false" name="AGP (9.0.0-beta03)" variant="all" version="9.0.0-beta03">
 
     <issue
         id="UElementAsPsi"
@@ -63,7 +63,7 @@
         errorLine2="                                   ~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/android/tools/metalava/model/psi/PsiModifierItem.kt"
-            line="264"
+            line="273"
             column="36"/>
     </issue>
 
@@ -74,7 +74,7 @@
         errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/android/tools/metalava/model/psi/PsiModifierItem.kt"
-            line="265"
+            line="274"
             column="33"/>
     </issue>
 
@@ -84,8 +84,8 @@
         errorLine1="import org.jetbrains.uast.kotlin.KotlinUMethodWithFakeLightDelegateBase"
         errorLine2="~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/com/android/tools/metalava/model/psi/PsiCodebaseAssembler.kt"
-            line="86"
+            file="src/main/java/com/android/tools/metalava/model/psi/PsiClassBuilder.kt"
+            line="57"
             column="1"/>
     </issue>
 
@@ -95,8 +95,8 @@
         errorLine1="import org.jetbrains.uast.kotlin.psi.UastFakeSourceLightMethod"
         errorLine2="~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/com/android/tools/metalava/model/psi/PsiCodebaseAssembler.kt"
-            line="87"
+            file="src/main/java/com/android/tools/metalava/model/psi/PsiClassBuilder.kt"
+            line="58"
             column="1"/>
     </issue>
 
@@ -106,8 +106,8 @@
         errorLine1="                (psiMethod is UastFakeSourceLightMethod ||"
         errorLine2="                              ~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/com/android/tools/metalava/model/psi/PsiCodebaseAssembler.kt"
-            line="292"
+            file="src/main/java/com/android/tools/metalava/model/psi/PsiClassBuilder.kt"
+            line="229"
             column="31"/>
     </issue>
 
@@ -117,8 +117,8 @@
         errorLine1="                    psiMethod is KotlinUMethodWithFakeLightDelegateBase&lt;*>)"
         errorLine2="                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/com/android/tools/metalava/model/psi/PsiCodebaseAssembler.kt"
-            line="293"
+            file="src/main/java/com/android/tools/metalava/model/psi/PsiClassBuilder.kt"
+            line="230"
             column="34"/>
     </issue>
 

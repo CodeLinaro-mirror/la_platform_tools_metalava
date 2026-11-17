@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model.testsuite.typeitem
 
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
@@ -25,6 +27,7 @@ import org.junit.Test
 import org.junit.runners.Parameterized
 import org.junit.runners.Parameterized.Parameter
 
+@SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
 class CommonErasedTypeStringTest : BaseModelTest() {
 
     data class TypeStringParameters(

@@ -63,7 +63,7 @@ class StubsFieldTest : AbstractStubsTest() {
                         """
                     ),
                 ),
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -112,7 +112,7 @@ class StubsFieldTest : AbstractStubsTest() {
                         """
                     ),
                 ),
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -172,7 +172,7 @@ class StubsFieldTest : AbstractStubsTest() {
                         """
                     ),
                 ),
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -231,7 +231,7 @@ class StubsFieldTest : AbstractStubsTest() {
                         """
                     ),
                 ),
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -269,7 +269,7 @@ class StubsFieldTest : AbstractStubsTest() {
                         """
                     ),
                 ),
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -300,7 +300,7 @@ class StubsFieldTest : AbstractStubsTest() {
                         """
                     ),
                 ),
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """

@@ -21,6 +21,8 @@ interface ItemVisitor {
 
     fun visit(cls: ClassItem) {}
 
+    fun visit(component: RecordComponentItem) {}
+
     fun visit(field: FieldItem) {}
 
     fun visit(constructor: ConstructorItem) {}

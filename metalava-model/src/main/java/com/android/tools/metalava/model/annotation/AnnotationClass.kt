@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.annotation
 
 import com.android.tools.metalava.model.AnnotationRetention
+import com.android.tools.metalava.model.AnnotationUse
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 
@@ -33,4 +34,7 @@ interface AnnotationClass {
 
     /** Get the annotation defaults for the associated [ClassItem]. */
     val defaults: AnnotationDefaults
+
+    /** The [AnnotationUse] for annotations of this [AnnotationClass]. */
+    val annotationUse: AnnotationUse
 }

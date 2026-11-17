@@ -57,9 +57,7 @@ object JavacHelper {
             }
 
         if (exitCode != 0) {
-            error(
-                "Executing `$command` failed with the following output:\n${output.toString(Charsets.UTF_8).prependIndent()}"
-            )
+            throw JavacCompilationError(command, output.toString(Charsets.UTF_8))
         }
     }
 
@@ -124,4 +122,18 @@ object JavacHelper {
         // Clean-up the temporary directory.
         tempDir.deleteRecursively()
     }
+}
+
+/**
+ * Error thrown when compiling java.
+ *
+ * @param command the command that failed.
+ * @param output the output of the failed command.
+ */
+class JavacCompilationError(
+    private val command: List<String>,
+    val output: String,
+) : IllegalStateException() {
+    override val message: String
+        get() = "Executing `$command` failed with the following output:\n${output.prependIndent()}"
 }

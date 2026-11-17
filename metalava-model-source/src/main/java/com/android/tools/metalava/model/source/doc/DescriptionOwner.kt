@@ -17,14 +17,11 @@
 package com.android.tools.metalava.model.source.doc
 
 import com.android.tools.metalava.model.doc.DocContent
-import com.android.tools.metalava.model.doc.DocContentOwner
 import com.android.tools.metalava.model.source.javadoc.JavadocContent
 import com.android.tools.metalava.model.source.javadoc.JavadocInlineTag
 import com.android.tools.metalava.model.source.javadoc.JavadocText
 import com.android.tools.metalava.model.source.javadoc.TextEndsWithVisitor
 import com.android.tools.metalava.model.source.javadoc.concatJavadocContent
-import java.io.PrintWriter
-import java.io.StringWriter
 import java.util.Optional
 import kotlin.jvm.optionals.getOrNull
 
@@ -35,17 +32,34 @@ import kotlin.jvm.optionals.getOrNull
  * @param descriptionSupplier Supplies a [JavadocContent] instance when requested. May produce it
  *   lazily.
  * @param noComment `true` if there was no comment in the sources.
+ * @param initializedDescription Optional pre-initialized value for [_description].
  */
-internal open class DescriptionOwner(
+internal abstract class DescriptionOwner<out T : DescriptionOwner<T>>(
     val context: DocCommentContext,
     protected val descriptionSupplier: ContentSupplier,
     protected val noComment: Boolean,
-) : DocContentOwner {
+    initializedDescription: Optional<JavadocContent>? = null,
+) {
     /**
-     * A mutable and optional [JavadocContent] that is initialized lazily from [descriptionSupplier]
-     * in [initializeDescription].
+     * An optional [JavadocContent] that is initialized lazily from [descriptionSupplier] in
+     * [initializeDescription], or from [initializedDescription] if provided.
      */
     private lateinit var _description: Optional<JavadocContent>
+
+    init {
+        if (initializedDescription != null) {
+            _description = initializedDescription
+        }
+    }
+
+    /**
+     * The current value of [_description] if it has been initialized, or `null` otherwise.
+     *
+     * Used by subclasses when creating copies that preserve the lazy initialization state of
+     * [_description] without forcing it to be initialized.
+     */
+    protected val initializedDescription: Optional<JavadocContent>?
+        get() = if (::_description.isInitialized) _description else null
 
     /**
      * Provides access to the [JavadocContent] in [_description].
@@ -82,91 +96,27 @@ internal open class DescriptionOwner(
         _description = Optional.ofNullable(suppliedDescription)
     }
 
-    override val docContent: DocContent?
-        get() = description
+    /** Return a copy of this with [description] set to [newDescription]. */
+    protected abstract fun withDescription(newDescription: JavadocContent?): T
 
     /**
-     * Backing field for [docContentForAppending].
-     *
-     * This is generated on demand from [docContent] so when [docContent] changes this must be
-     * discarded so the next time it is requested it will be regenerated from the updated
-     * [docContent].
+     * Return a copy of this with [description] updated to [new], or `this` if [new] is the same as
+     * [description].
      */
-    private var _docContentForAppending: Optional<DocContent>? = null
-
-    /**
-     * Special form of [docContent] that is specially prepared for appending to documentation on
-     * other classes.
-     */
-    val docContentForAppending: DocContent?
-        get() {
-            if (_docContentForAppending == null) {
-                _docContentForAppending = Optional.ofNullable(prepareForAppending(description))
-            }
-
-            return _docContentForAppending!!.getOrNull()
-        }
-
-    private fun prepareForAppending(content: JavadocContent?): DocContent? {
-        content ?: return null
-        // Insert the content into a Javadoc comment.
-        val stringWriter = StringWriter()
-        PrintWriter(stringWriter).use { writer ->
-            writer.print("/**\n")
-            writer.print(" * ")
-            val printer = JavadocContentPrinter(writer)
-            printer.print(content)
-            writer.print("\n */")
-        }
-        val text = stringWriter.toString()
-
-        // Remove any leading whitespace. This is not strictly safe as it could contain `<pre>` tags
-        // where whitespace is important. However, it is what the preceding implementation did so it
-        // clearly did not cause too many issues.
-        val trimmed = text.replace(Regex("""^ \*  +""", RegexOption.MULTILINE), " * ")
-
-        // Fully qualify the content. This does not fully qualify references that are in the same
-        // class or package but again this is what the preceding implementation did.
-        val qualified = context.fullyQualifyComment(trimmed)
-
-        // Parse the comment, throwing an error if any errors were found.
-        val docComment =
-            DocComment.createDocComment(
-                context,
-                qualified,
-                DocumentationIssueReporter.THROWING,
-            )
-
-        // Return the main description as the comment.
-        return docComment.description
-    }
-
-    /**
-     * Update [description] to [new].
-     *
-     * If [new] is the same as [description] then does nothing. Otherwise, it sets [_description] to
-     * [new] and notifies any listener that the containing [DocComment] has changed.
-     */
-    private fun updateDescription(new: JavadocContent?) {
+    private fun updateDescription(new: JavadocContent?): T =
         if (new !== description) {
-            _description = Optional.ofNullable(new)
-
-            // Discard any content prepared for appending.
-            _docContentForAppending = null
-
-            // Notify any listener.
-            context.mutationListener.docCommentMutated()
+            withDescription(new)
+        } else {
+            @Suppress("UNCHECKED_CAST")
+            this as T
         }
-    }
 
-    override fun append(other: DocContent) {
-        append(other as JavadocContent)
-    }
+    fun append(other: DocContent): T = append(other as JavadocContent)
 
-    override fun append(text: String) {
+    fun append(text: String): T {
         val supplier = LazyContentSupplier(context, DocumentationIssueReporter.THROWING, text)
-        val content = supplier.content ?: return
-        append(content)
+        val content = supplier.content ?: run { @Suppress("UNCHECKED_CAST") return this as T }
+        return append(content)
     }
 
     /** Check whether this needs to insert `{@inheritDoc}` tags when appending to [description]. */
@@ -176,17 +126,19 @@ internal open class DescriptionOwner(
     /**
      * Append `{@inheritDoc}` if needed.
      *
-     * @return `true` if `{@inheritDoc}` was appended which would have also notified the
-     *   [DocComment] owner that it changed.
+     * @return a copy of this with `{@inheritDoc}` set as the description if needed, or `this`
+     *   otherwise.
      */
-    protected fun appendInheritDocIfNeeded(): Boolean {
-        if (!requiresInheritDoc()) return false
-        updateDescription(INHERIT_DOC_CONTENT)
-        return true
-    }
+    protected fun appendInheritDocIfNeeded(): T =
+        if (requiresInheritDoc()) {
+            updateDescription(INHERIT_DOC_CONTENT)
+        } else {
+            @Suppress("UNCHECKED_CAST")
+            this as T
+        }
 
     /** Append [other] to [description]. */
-    private fun append(other: JavadocContent) {
+    private fun append(other: JavadocContent): T {
         val result =
             if (requiresInheritDoc()) {
                 // Prepend `{@inheritDoc}` before the content to add.
@@ -201,7 +153,7 @@ internal open class DescriptionOwner(
             } else {
                 description.append(other)
             }
-        updateDescription(result)
+        return updateDescription(result)
     }
 
     /**
@@ -228,7 +180,7 @@ internal open class DescriptionOwner(
          * `{@inheritDoc}` inline tag to insert when modifying a comment that does not exist in the
          * sources and is attached to an overriding method.
          */
-        private val INHERIT_DOC_CONTENT = JavadocInlineTag(InlineTagTypes.INHERIT_DOC, null, null)
+        private val INHERIT_DOC_CONTENT = JavadocInlineTag(TagTypes.INHERIT_DOC, null, null)
 
         /**
          * Blank line to add between [INHERIT_DOC_CONTENT] and the content being added to maintain

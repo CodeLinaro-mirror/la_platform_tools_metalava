@@ -18,9 +18,10 @@ package com.android.tools.metalava.model.testsuite.typealiasitem
 
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
+import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.PrimitiveTypeItem
-import com.android.tools.metalava.model.testing.FilterAction
-import com.android.tools.metalava.model.testing.FilterByProvider
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.createAndroidModuleDescription
 import com.android.tools.metalava.testing.createCommonModuleDescription
@@ -29,6 +30,7 @@ import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 
+@SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.KOTLIN)
 class CommonTypeAliasItemTest : BaseModelTest() {
     @Test
     fun `accessing type alias from codebase`() {
@@ -134,6 +136,7 @@ class CommonTypeAliasItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `private type alias visibility`() {
         // No signature case: private APIs aren't written to signature files
@@ -231,6 +234,7 @@ class CommonTypeAliasItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `functional type alias type`() {
         // No signature case: functional types are just parsed as class types (b/169798041).
@@ -253,6 +257,7 @@ class CommonTypeAliasItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `type alias referencing other type alias`() {
         // type aliases should be expanded to the underlying type
@@ -341,6 +346,7 @@ class CommonTypeAliasItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `expect actual typealias`() {
         val commonSource =
@@ -398,9 +404,8 @@ class CommonTypeAliasItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
-    // K1 does not have full typealias support.
-    @FilterByProvider("psi", "k1", action = FilterAction.EXCLUDE)
     fun `Origin for typealias`() {
         runCodebaseTest(
             inputSet(
@@ -425,6 +430,37 @@ class CommonTypeAliasItemTest : BaseModelTest() {
             val errorAlias = codebase.assertResolvedClass("kotlin.Error", expectedEmit = false)
             assertThat(errorAlias.classKind).isEqualTo(ClassKind.TYPEALIAS)
             assertThat(errorAlias.origin).isEqualTo(ClassOrigin.CLASS_PATH)
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.KOTLIN)
+    @Test
+    fun `Typealias excluded by package filter`() {
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    """
+                        package test.pkg
+                        typealias Included = test.excluded.pkg.Excluded
+                    """
+                ),
+                kotlin(
+                    """
+                        package test.excluded.pkg
+                        typealias Excluded = String
+                    """
+                ),
+            ),
+            testFixture =
+                TestFixture(
+                    apiPackages = PackageFilter.parse("test.pkg"),
+                ),
+        ) {
+            val included = codebase.assertTypeAlias("test.pkg.Included")
+            assertThat(included.aliasedType.isString()).isTrue()
+
+            assertThat(codebase.findClass("test.excluded.pkg.Excluded")).isNull()
+            assertThat(codebase.findPackage("test.excluded.pkg")).isNull()
         }
     }
 }

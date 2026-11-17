@@ -22,11 +22,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
 
-class TestFileCacheTest : TemporaryFolderOwner {
-    @get:Rule override val temporaryFolder = TemporaryFolder()
-
+class TestFileCacheTest : BaseTemporaryFolderOwner() {
     @get:Rule val testFileCacheRule = TestFileCacheRule()
 
     private val underlyingTestFile = TouchCountingTestFile().apply { to("subdir/cached.txt") }

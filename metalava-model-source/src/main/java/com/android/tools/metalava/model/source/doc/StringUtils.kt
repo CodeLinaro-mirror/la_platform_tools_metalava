@@ -48,3 +48,44 @@ fun String.containsWord(word: String): Boolean {
         start = end
     }
 }
+
+/**
+ * Collapse consecutive runs of whitespace characters (as matched by [Char.isWhitespace]) into a
+ * single `' '` space, returning `this` unchanged if no multi-character or non-space whitespace run
+ * is present.
+ *
+ * This emulates `replace(Regex("""\s+"""), " ")` while avoiding regular expression overhead.
+ */
+fun String.collapseSpaces(): String {
+    var needsCollapse = false
+    var prevWasSpace = false
+    for (i in indices) {
+        val c = this[i]
+        if (c.isWhitespace()) {
+            if (c != ' ' || prevWasSpace) {
+                needsCollapse = true
+                break
+            }
+            prevWasSpace = true
+        } else {
+            prevWasSpace = false
+        }
+    }
+    if (!needsCollapse) return this
+
+    return buildString(length) {
+        var inWhitespace = false
+        for (i in this@collapseSpaces.indices) {
+            val c = this@collapseSpaces[i]
+            if (c.isWhitespace()) {
+                if (!inWhitespace) {
+                    append(' ')
+                    inWhitespace = true
+                }
+            } else {
+                append(c)
+                inWhitespace = false
+            }
+        }
+    }
+}

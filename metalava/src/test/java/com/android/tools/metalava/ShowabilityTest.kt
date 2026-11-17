@@ -16,15 +16,15 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
+import com.android.tools.metalava.testing.xml
 import org.junit.Test
 
-/** Test settings of [Item.showability] */
+/** Test different show annotations. */
 class ShowabilityTest : DriverTest() {
 
     companion object {
@@ -34,29 +34,50 @@ class ShowabilityTest : DriverTest() {
          */
         private val recursiveHide =
             java(
-                    """
-                        package test.annotation;
+                """
+                    package test.annotation;
 
-                        public @interface RecursiveHide {}
-                    """
-                )
-                .indented()
+                    public @interface RecursiveHide {}
+                """
+            )
 
         /** An annotation that will show the annotated item but does not affect its contents. */
         private val nonRecursiveShow =
             java(
-                    """
-                        package test.annotation;
+                """
+                    package test.annotation;
 
-                        public @interface NonRecursiveShow {}
+                    public @interface NonRecursiveShow {}
+                """
+            )
+
+        private val NON_RECURSIVE_SHOW =
+            KnownApiSurface(
+                "non-recursive",
+                xml(
+                    "non-recursive.xml",
                     """
-                )
-                .indented()
+                        <config xmlns="http://www.google.com/tools/metalava/config"
+                            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                            xsi:schemaLocation="http://www.google.com/tools/metalava/config ../../../../../resources/schemas/config.xsd">
+                            <api-surfaces>
+                                <api-surface name="non-recursive">
+                                    <selection-criteria>
+                                        <annotation-rule pattern="test.annotation.RecursiveHide" effect="hide"/>
+                                        <annotation-rule pattern="test.annotation.NonRecursiveShow" recursive="false"/>
+                                    </selection-criteria>
+                                </api-surface>
+                            </api-surfaces>
+                        </config>
+                    """
+                ),
+            )
     }
 
     @Test
-    fun `Recursive hide and non-recursive show (show first)`() {
+    fun `Recursive hide and non-recursive show - show first`() {
         check(
+            apiSurface = NON_RECURSIVE_SHOW,
             sourceFiles =
                 arrayOf(
                     java(
@@ -76,14 +97,8 @@ class ShowabilityTest : DriverTest() {
                     nonRecursiveShow,
                     recursiveHide,
                 ),
-            hideAnnotations = arrayOf("test.annotation.RecursiveHide"),
-            extraArguments =
-                arrayOf(
-                    ARG_SHOW_SINGLE_ANNOTATION,
-                    "test.annotation.NonRecursiveShow",
-                ),
             format = FileFormat.V2,
-            api =
+            expectedApiSignature =
                 """
                     // Signature format: 2.0
                     package test.pkg {
@@ -96,8 +111,9 @@ class ShowabilityTest : DriverTest() {
     }
 
     @Test
-    fun `Recursive hide and non-recursive show (hide first)`() {
+    fun `Recursive hide and non-recursive show - hide first`() {
         check(
+            apiSurface = NON_RECURSIVE_SHOW,
             sourceFiles =
                 arrayOf(
                     java(
@@ -117,14 +133,8 @@ class ShowabilityTest : DriverTest() {
                     nonRecursiveShow,
                     recursiveHide,
                 ),
-            hideAnnotations = arrayOf("test.annotation.RecursiveHide"),
-            extraArguments =
-                arrayOf(
-                    ARG_SHOW_SINGLE_ANNOTATION,
-                    "test.annotation.NonRecursiveShow",
-                ),
             format = FileFormat.V2,
-            api =
+            expectedApiSignature =
                 """
                     // Signature format: 2.0
                     package test.pkg {
@@ -140,6 +150,7 @@ class ShowabilityTest : DriverTest() {
     @RequiresCapabilities(Capability.KOTLIN)
     fun `Type alias with show annotation in hidden package`() {
         check(
+            apiSurface = NON_RECURSIVE_SHOW,
             sourceFiles =
                 arrayOf(
                     java(
@@ -161,13 +172,7 @@ class ShowabilityTest : DriverTest() {
                     nonRecursiveShow,
                     recursiveHide,
                 ),
-            hideAnnotations = arrayOf("test.annotation.RecursiveHide"),
-            extraArguments =
-                arrayOf(
-                    ARG_SHOW_SINGLE_ANNOTATION,
-                    "test.annotation.NonRecursiveShow",
-                ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 5.0
                 package test.pkg {

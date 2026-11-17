@@ -16,16 +16,17 @@
 
 package com.android.tools.metalava.config
 
-import com.android.tools.metalava.config.ApiFlagConfig.Mutability.IMMUTABLE
-import com.android.tools.metalava.config.ApiFlagConfig.Mutability.MUTABLE
-import com.android.tools.metalava.config.ApiFlagConfig.Status.DISABLED
-import com.android.tools.metalava.config.ApiFlagConfig.Status.ENABLED
+import com.android.tools.metalava.config.ApiFlagActionConfig.Mutability.IMMUTABLE
+import com.android.tools.metalava.config.ApiFlagActionConfig.Mutability.MUTABLE
+import com.android.tools.metalava.config.ApiFlagActionConfig.Status.DISABLED
+import com.android.tools.metalava.config.ApiFlagActionConfig.Status.ENABLED
 import com.android.tools.metalava.testing.xml
+import kotlin.test.assertEquals
 import org.junit.Test
 
 class ApiFlagsConfigTest : BaseConfigParserTest() {
     @Test
-    fun `Test simple`() {
+    fun `Test simple without defaults`() {
         roundTrip(
             Config(
                 apiFlags =
@@ -58,6 +59,75 @@ class ApiFlagsConfigTest : BaseConfigParserTest() {
                 </config>
             """
         )
+    }
+
+    @Test
+    fun `Test simple with defaults`() {
+        roundTrip(
+            Config(
+                apiFlags =
+                    ApiFlagsConfig(
+                        unknownFlags =
+                            UnknownApiFlagsConfig(
+                                mutability = MUTABLE,
+                                status = DISABLED,
+                            ),
+                        flags =
+                            listOf(
+                                ApiFlagConfig(
+                                    pkg = "test.pkg",
+                                    name = "flag_name",
+                                    mutability = IMMUTABLE,
+                                    status = ENABLED,
+                                    isExported = true,
+                                ),
+                            )
+                    )
+            ),
+            """
+                <config xmlns="http://www.google.com/tools/metalava/config">
+                  <api-flags>
+                    <unknown-flags mutability="mutable" status="disabled"/>
+                    <api-flag package="test.pkg" name="flag_name" mutability="immutable" status="enabled" is-exported="true"/>
+                  </api-flags>
+                </config>
+            """
+        )
+    }
+
+    @Test
+    fun `Test is-exported omitted defaults to false`() {
+        runTest(
+            xml(
+                "config.xml",
+                """
+                    <config xmlns="http://www.google.com/tools/metalava/config">
+                      <api-flags>
+                        <api-flag package="test.pkg" name="flag_name" mutability="immutable" status="enabled"/>
+                      </api-flags>
+                    </config>
+                """,
+            ),
+        ) {
+            assertEquals(
+                Config(
+                    apiFlags =
+                        ApiFlagsConfig(
+                            flags =
+                                listOf(
+                                    ApiFlagConfig(
+                                        pkg = "test.pkg",
+                                        name = "flag_name",
+                                        mutability = IMMUTABLE,
+                                        status = ENABLED,
+                                        isExported = false,
+                                    ),
+                                ),
+                        ),
+                ),
+                config,
+            )
+        }
     }
 
     @Test

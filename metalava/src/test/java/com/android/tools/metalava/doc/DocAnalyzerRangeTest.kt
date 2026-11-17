@@ -52,7 +52,7 @@ class DocAnalyzerRangeTest : DriverTest() {
                 ),
             docStubs = true,
             checkCompilation = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -94,7 +94,7 @@ class DocAnalyzerRangeTest : DriverTest() {
                 ),
             checkCompilation = true,
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -133,7 +133,7 @@ class DocAnalyzerRangeTest : DriverTest() {
                 ),
             checkCompilation = true,
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -179,7 +179,7 @@ class DocAnalyzerRangeTest : DriverTest() {
                 ),
             checkCompilation = true,
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -228,7 +228,7 @@ class DocAnalyzerRangeTest : DriverTest() {
                 ),
             checkCompilation = true,
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -273,7 +273,7 @@ class DocAnalyzerRangeTest : DriverTest() {
                 ),
             checkCompilation = true,
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -291,7 +291,7 @@ class DocAnalyzerRangeTest : DriverTest() {
     }
 
     @Test
-    fun `Add to existing return value (ensuring it appears last)`() {
+    fun `Add to existing return value - ensuring it appears last`() {
         check(
             sourceFiles =
                 arrayOf(
@@ -313,7 +313,7 @@ class DocAnalyzerRangeTest : DriverTest() {
                 ),
             checkCompilation = true,
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -329,120 +329,6 @@ class DocAnalyzerRangeTest : DriverTest() {
                      * Value is 10 or greater
                      */
                     public int test1(int parameter1, int parameter2, int parameter3) { throw new RuntimeException("Stub!"); }
-                    }
-                    """
-                    )
-                )
-        )
-    }
-
-    @Test
-    fun `Merge API levels`() {
-        check(
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package android.widget;
-
-                    public class Toolbar {
-                        /**
-                        * Existing documentation for {@linkplain #getCurrentContentInsetEnd()} here.
-                        * @return blah blah blah
-                        */
-                        public int getCurrentContentInsetEnd() {
-                            return 0;
-                        }
-                    }
-                    """
-                    ),
-                    intRangeAnnotationSource
-                ),
-            checkCompilation = true,
-            docStubs = true,
-            applyApiLevelsXml =
-                """
-                    <?xml version="1.0" encoding="utf-8"?>
-                    <api version="2">
-                        <class name="android/widget/Toolbar" since="21">
-                            <method name="&lt;init>(Landroid/content/Context;)V"/>
-                            <method name="collapseActionView()V"/>
-                            <method name="getContentInsetStartWithNavigation()I" since="24"/>
-                            <method name="getCurrentContentInsetEnd()I" since="24"/>
-                            <method name="getCurrentContentInsetLeft()I" since="24"/>
-                            <method name="getCurrentContentInsetRight()I" since="24"/>
-                            <method name="getCurrentContentInsetStart()I" since="24"/>
-                        </class>
-                    </api>
-                    """,
-            stubFiles =
-                arrayOf(
-                    java(
-                        """
-                    package android.widget;
-                    /** @apiSince 21 */
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public class Toolbar {
-                    public Toolbar() { throw new RuntimeException("Stub!"); }
-                    /**
-                     * Existing documentation for {@linkplain #getCurrentContentInsetEnd()} here.
-                     *
-                     * @return blah blah blah
-                     * @apiSince 24
-                     */
-                    public int getCurrentContentInsetEnd() { throw new RuntimeException("Stub!"); }
-                    }
-                    """
-                    )
-                )
-        )
-    }
-
-    @Test
-    fun `Trailing comment close`() {
-        check(
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package android.widget;
-
-                    public class Toolbar {
-                        /**
-                        * Existing documentation for {@linkplain #getCurrentContentInsetEnd()} here. */
-                        public int getCurrentContentInsetEnd() {
-                            return 0;
-                        }
-                    }
-                    """
-                    ),
-                    intRangeAnnotationSource
-                ),
-            checkCompilation = true,
-            docStubs = true,
-            applyApiLevelsXml =
-                """
-                    <?xml version="1.0" encoding="utf-8"?>
-                    <api version="2">
-                        <class name="android/widget/Toolbar" since="21">
-                            <method name="getCurrentContentInsetEnd()I" since="24"/>
-                        </class>
-                    </api>
-                    """,
-            stubFiles =
-                arrayOf(
-                    java(
-                        """
-                    package android.widget;
-                    /** @apiSince 21 */
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public class Toolbar {
-                    public Toolbar() { throw new RuntimeException("Stub!"); }
-                    /**
-                     * Existing documentation for {@linkplain #getCurrentContentInsetEnd()} here.
-                     * @apiSince 24
-                     */
-                    public int getCurrentContentInsetEnd() { throw new RuntimeException("Stub!"); }
                     }
                     """
                     )
@@ -478,7 +364,7 @@ class DocAnalyzerRangeTest : DriverTest() {
                 ),
             checkCompilation = true,
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -496,6 +382,46 @@ class DocAnalyzerRangeTest : DriverTest() {
                              * @param f2 Value is 1.0E113 or greater
                              */
                             public int test1(int i1, int i2, int i3, int f1, int f2) { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
+        )
+    }
+
+    @Test
+    fun `Test range with hidden field`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.IntRange;
+                            public class RangeTest {
+                                /** @hide */
+                                public static final int HIDDEN_MIN = 10;
+
+                                public int test1(@IntRange(from = HIDDEN_MIN) int i1) {
+                                    return i1;
+                                }
+                            }
+                        """
+                    ),
+                    intRangeAnnotationSource,
+                ),
+            checkCompilation = true,
+            docStubs = true,
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class RangeTest {
+                            public RangeTest() { throw new RuntimeException("Stub!"); }
+                            /** @param i1 Value is 10 or greater */
+                            public int test1(int i1) { throw new RuntimeException("Stub!"); }
                             }
                         """
                     ),

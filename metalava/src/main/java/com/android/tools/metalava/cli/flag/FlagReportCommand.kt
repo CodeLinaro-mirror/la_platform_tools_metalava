@@ -19,7 +19,6 @@ package com.android.tools.metalava.cli.flag
 import com.android.tools.metalava.ARG_CONFIG_FILE
 import com.android.tools.metalava.ApiFlagsCreator
 import com.android.tools.metalava.ConfigFileOptions
-import com.android.tools.metalava.OptionsDelegate
 import com.android.tools.metalava.cli.common.DefaultSignatureFileLoader
 import com.android.tools.metalava.cli.common.MetalavaSubCommand
 import com.android.tools.metalava.cli.common.cliError
@@ -49,21 +48,14 @@ class FlagReportCommand :
             .multiple(required = true)
 
     override fun run() {
-        // Make sure that none of the code called by this command accesses the global `options`
-        // property.
-        OptionsDelegate.disallowAccess()
-
         val apiFlagsConfig =
             configFileOptions.config.apiFlags
                 ?: cliError(
                     "Must provide a $ARG_CONFIG_FILE option that specifies a config file containing an `<api-flags/>` entry"
                 )
 
-        // Create flags; do not prune away any flags that have the default behavior of reverting so
-        // that this can differentiate between known flags that revert and unknown flags that will
-        // revert by default.
-        val apiFlags =
-            ApiFlagsCreator.createFromConfig(apiFlagsConfig, pruneDisabledFlags = false)!!
+        // Create flags.
+        val apiFlags = ApiFlagsCreator.createFromConfig(apiFlagsConfig)!!
 
         // Load the Codebase from the signature files.
         val codebaseConfig = Codebase.Config.NOOP
@@ -76,16 +68,22 @@ class FlagReportCommand :
         // Output the report file.
         val reportFile = flagReportOptions.flagReportFile
         reportFile.printWriter().use { writer ->
-            for ((qualifiedName, apiFlag) in report.flagStatuses) {
-                val exportedStatus = if (apiFlag?.isExported == true) "exported" else "unexported"
-                val status =
-                    when (apiFlag?.description) {
-                        ApiFlagAction.KEEP -> "known,kept,$exportedStatus"
-                        ApiFlagAction.FINALIZE -> "known,finalized,$exportedStatus"
-                        ApiFlagAction.REVERT -> "known,reverted,$exportedStatus"
-                        else -> "unknown,reverted"
+            for (apiFlag in report.referencedFlags) {
+                val qualifiedName = apiFlag.qualifiedName
+                val knownStatus = if (apiFlag.isKnown) "known" else "unknown"
+                val actionLabel =
+                    when (apiFlag.action) {
+                        ApiFlagAction.KEEP -> "kept"
+                        ApiFlagAction.FINALIZE -> "finalized"
+                        ApiFlagAction.REVERT -> "reverted"
                     }
-                writer.println("$qualifiedName,$status")
+                val exportedStatus =
+                    when {
+                        !apiFlag.isKnown -> ""
+                        apiFlag.isExported -> ",exported"
+                        else -> ",unexported"
+                    }
+                writer.println("$qualifiedName,$knownStatus,$actionLabel$exportedStatus")
             }
         }
     }

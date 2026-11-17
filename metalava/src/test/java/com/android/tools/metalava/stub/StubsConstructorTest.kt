@@ -16,9 +16,11 @@
 
 package com.android.tools.metalava.stub
 
+import com.android.tools.metalava.KnownConfigFiles
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.testing.KnownSourceFiles.flaggedApiSource
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
@@ -27,7 +29,7 @@ import org.junit.Test
 class StubsConstructorTest : AbstractStubsTest() {
 
     @Test
-    fun `Generate stubs for class that should not get default constructor (has other constructors)`() {
+    fun `Generate stubs for class that should not get default constructor - has other constructors`() {
         // Class without explicit constructors (shouldn't insert default constructor)
         checkStubs(
             sourceFiles =
@@ -141,29 +143,23 @@ class StubsConstructorTest : AbstractStubsTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Constructors {
                     public Constructors() { throw new RuntimeException("Stub!"); }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Child extends test.pkg.Constructors.Parent {
                     public Child(java.lang.String arg1, int arg2, long arg3, boolean arg4, short arg5) { super("", 0, 0, false, (short)0); throw new RuntimeException("Stub!"); }
                     }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Child2 extends test.pkg.Constructors.Parent {
                     Child2() { super("", 0, 0, false, (short)0); throw new RuntimeException("Stub!"); }
                     }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Child3 extends test.pkg.Constructors.Child2 {
                     Child3() { throw new RuntimeException("Stub!"); }
                     }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Child4 extends test.pkg.Constructors.Parent {
                     Child4() { super("", 0, 0, false, (short)0); throw new RuntimeException("Stub!"); }
                     }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Parent {
                     public Parent(java.lang.String arg1, int arg2, long arg3, boolean arg4, short arg5) { throw new RuntimeException("Stub!"); }
                     }
                     }
                     """,
-            checkTextStubEquivalence = true
         )
     }
 
@@ -171,7 +167,6 @@ class StubsConstructorTest : AbstractStubsTest() {
     fun `Arguments to super constructors with showAnnotations`() {
         // When overriding constructors we have to supply arguments
         checkStubs(
-            showAnnotations = arrayOf("android.annotation.SystemApi"),
             sourceFiles =
                 arrayOf(
                     java(
@@ -225,23 +220,18 @@ class StubsConstructorTest : AbstractStubsTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Constructors {
                     public Constructors() { throw new RuntimeException("Stub!"); }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Child extends test.pkg.Constructors.Parent {
                     public Child(java.lang.String s, int i, long l, boolean b, short sh) { super("", 0, 0, false, (short)0); throw new RuntimeException("Stub!"); }
                     }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Child2 extends test.pkg.Constructors.Parent {
                     Child2() { super("", 0, 0, false, (short)0); throw new RuntimeException("Stub!"); }
                     }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Child3 extends test.pkg.Constructors.Child2 {
                     Child3() { throw new RuntimeException("Stub!"); }
                     }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Child4 extends test.pkg.Constructors.Parent {
                     Child4() { super("", 0, 0, false, (short)0); throw new RuntimeException("Stub!"); }
                     }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Parent {
                     public Parent(java.lang.String s, int i, long l, boolean b, short sh) { throw new RuntimeException("Stub!"); }
                     }
@@ -301,7 +291,7 @@ class StubsConstructorTest : AbstractStubsTest() {
                     )
                 ),
             expectedIssues = "",
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public class MyClass1 {
@@ -315,7 +305,7 @@ class StubsConstructorTest : AbstractStubsTest() {
                       }
                     }
                     """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -489,47 +479,36 @@ class StubsConstructorTest : AbstractStubsTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class PickConstructors {
                     public PickConstructors() { throw new RuntimeException("Stub!"); }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public abstract static class AutoCloseInputStream extends test.pkg.PickConstructors.FileInputStream {
                     public AutoCloseInputStream(test.pkg.PickConstructors.ParcelFileDescriptor pfd) { super((test.pkg.PickConstructors.FileDescriptor)null); throw new RuntimeException("Stub!"); }
                     }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public abstract static class AutoCloseInputStream2 extends test.pkg.PickConstructors.FileInputStream {
                     public AutoCloseInputStream2(test.pkg.PickConstructors.ParcelFileDescriptor pfd) { super((test.pkg.PickConstructors.FileDescriptor)null); throw new RuntimeException("Stub!"); }
                     }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public static interface AutoCloseable {
                     }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public static interface Closeable extends test.pkg.PickConstructors.AutoCloseable {
                     }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public static class File {
                     public File() { throw new RuntimeException("Stub!"); }
                     }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public static final class FileDescriptor {
                     public FileDescriptor() { throw new RuntimeException("Stub!"); }
                     }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public abstract static class FileInputStream extends test.pkg.PickConstructors.InputStream {
                     public FileInputStream(java.lang.String name) throws test.pkg.PickConstructors.FileNotFoundException { throw new RuntimeException("Stub!"); }
                     public FileInputStream(test.pkg.PickConstructors.File file) throws test.pkg.PickConstructors.FileNotFoundException { throw new RuntimeException("Stub!"); }
                     public FileInputStream(test.pkg.PickConstructors.FileDescriptor fdObj) { throw new RuntimeException("Stub!"); }
                     }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public static class FileNotFoundException extends test.pkg.PickConstructors.IOException {
                     public FileNotFoundException() { throw new RuntimeException("Stub!"); }
                     }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public static class IOException extends java.lang.Exception {
                     public IOException() { throw new RuntimeException("Stub!"); }
                     }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public abstract static class InputStream implements test.pkg.PickConstructors.Closeable {
                     public InputStream() { throw new RuntimeException("Stub!"); }
                     }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public abstract class ParcelFileDescriptor implements test.pkg.PickConstructors.Closeable {
                     public ParcelFileDescriptor() { throw new RuntimeException("Stub!"); }
                     public abstract test.pkg.PickConstructors.FileDescriptor getFileDescriptor();
@@ -631,35 +610,27 @@ class StubsConstructorTest : AbstractStubsTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Constructors2 {
                     public Constructors2() { throw new RuntimeException("Stub!"); }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Child extends test.pkg.Constructors2.Parent {
                     public Child() { super(0); throw new RuntimeException("Stub!"); }
                     public Child(float x) { super(0); throw new RuntimeException("Stub!"); }
                     }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class ClipDrawable extends test.pkg.Constructors2.DrawableWrapper {
                     public ClipDrawable(test.pkg.Constructors2.Drawable drawable, int gravity, int orientation) { super((test.pkg.Constructors2.Drawable)null); throw new RuntimeException("Stub!"); }
                     }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Drawable {
                     public Drawable() { throw new RuntimeException("Stub!"); }
                     }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public abstract class DrawableWrapper {
                     public DrawableWrapper(test.pkg.Constructors2.Drawable dr) { throw new RuntimeException("Stub!"); }
                     }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Parent {
                     public Parent(int x) { throw new RuntimeException("Stub!"); }
                     }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public static interface Test {
                     }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class TestCase {
                     public TestCase() { throw new RuntimeException("Stub!"); }
                     }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class TestSuite implements test.pkg.Constructors2.Test {
                     public TestSuite() { throw new RuntimeException("Stub!"); }
                     public TestSuite(java.lang.Class<? extends test.pkg.Constructors2.TestCase> theClass, java.lang.String name) { throw new RuntimeException("Stub!"); }
@@ -716,17 +687,13 @@ class StubsConstructorTest : AbstractStubsTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class PickConstructors2 {
                     public PickConstructors2() { throw new RuntimeException("Stub!"); }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public static interface EventListener {
                     }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public abstract static class EventListenerProxy<T extends test.pkg.PickConstructors2.EventListener> implements test.pkg.PickConstructors2.EventListener {
                     public EventListenerProxy(T listener) { throw new RuntimeException("Stub!"); }
                     }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public static interface PropertyChangeListener extends test.pkg.PickConstructors2.EventListener {
                     }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public static class PropertyChangeListenerProxy extends test.pkg.PickConstructors2.EventListenerProxy<test.pkg.PickConstructors2.PropertyChangeListener> implements test.pkg.PickConstructors2.PropertyChangeListener {
                     public PropertyChangeListenerProxy(java.lang.String propertyName, test.pkg.PickConstructors2.PropertyChangeListener listener) { super((test.pkg.PickConstructors2.PropertyChangeListener)null); throw new RuntimeException("Stub!"); }
                     }
@@ -775,7 +742,7 @@ class StubsConstructorTest : AbstractStubsTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class BasicPoolEntry {
@@ -790,7 +757,7 @@ class StubsConstructorTest : AbstractStubsTest() {
                   }
                 }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -838,7 +805,7 @@ class StubsConstructorTest : AbstractStubsTest() {
                     """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class Bar<T extends java.lang.Number> {
@@ -850,7 +817,7 @@ class StubsConstructorTest : AbstractStubsTest() {
                   }
                 }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -898,7 +865,7 @@ class StubsConstructorTest : AbstractStubsTest() {
                     """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class Child extends test.pkg.Parent {
@@ -911,7 +878,7 @@ class StubsConstructorTest : AbstractStubsTest() {
                   }
                 }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -943,7 +910,7 @@ class StubsConstructorTest : AbstractStubsTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public final class ConstantsKt {
@@ -953,7 +920,7 @@ class StubsConstructorTest : AbstractStubsTest() {
                     }
                 """,
             stubPaths = arrayOf("test/pkg/ConstantsKt.java"),
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -966,6 +933,61 @@ class StubsConstructorTest : AbstractStubsTest() {
                         """
                     )
                 )
+        )
+    }
+
+    @Test
+    fun `Super constructor call to classpath class when reverting flagged API`() {
+        check(
+            configFiles = arrayOf(KnownConfigFiles.configEmptyApiFlags),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.FlaggedApi;
+                            import java.io.FilterInputStream;
+                            import java.io.InputStream;
+
+                            public class CustomInputStream extends FilterInputStream {
+                                public CustomInputStream(InputStream in) {
+                                    super(in);
+                                }
+
+                                /** @deprecated */
+                                @Deprecated
+                                @FlaggedApi("flag.name")
+                                public void flaggedMethod() {}
+                            }
+                        """
+                    ),
+                    flaggedApiSource,
+                ),
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class CustomInputStream extends java.io.FilterInputStream {
+                        ctor public CustomInputStream(java.io.InputStream);
+                        method public void flaggedMethod();
+                      }
+                    }
+                """,
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class CustomInputStream extends java.io.FilterInputStream {
+                            public CustomInputStream(java.io.InputStream in) { super((java.io.InputStream)null); throw new RuntimeException("Stub!"); }
+                            /** */
+                            public void flaggedMethod() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    )
+                ),
+            checkCompilation = true,
         )
     }
 }

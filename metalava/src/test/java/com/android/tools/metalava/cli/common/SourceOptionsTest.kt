@@ -16,7 +16,11 @@
 
 package com.android.tools.metalava.cli.common
 
+import com.android.tools.metalava.model.source.SourceModelProvider
 import com.google.common.truth.Truth.assertThat
+import java.io.File
+import org.junit.Assert.assertThrows
+import org.junit.Assume.assumeTrue
 import org.junit.Test
 
 val SOURCE_OPTIONS_HELP =
@@ -25,9 +29,19 @@ Sources:
 
   Options that control which source files will be processed.
 
+  --source-model-provider [psi|turbine]      (default: psi)
   --source-path <path>                       A : separated list of directories containing source files (organized in a
                                              standard Java package hierarchy).
-  --stub-packages <package-list>             List of packages (separated by :) which will be used to filter out
+  --source-files <files>                     A comma separated list of source files to be parsed. Can also be @ followed
+                                             by a path to a text file containing paths to the full set of files to
+                                             parse.,
+  --java-source <level>                      Sets the source level for Java source files. (default: 1.8)
+  --kotlin-source <level>                    Sets the source level for Kotlin source files. (default: 1.9)
+  --classpath <paths>                        One or more directories or jars (separated by `:`) containing classes that
+                                             should be on the classpath when parsing the source files.
+  --project <xmlfile>                        Project description written in XML according to Lint's project model.
+  --stub-packages, --package-filter <package-list>
+                                             List of packages (separated by :) which will be used to filter out
                                              irrelevant classes. If specified, only classes in these packages will be
                                              included in signature files, stubs, etc.. This is not limited to just the
                                              stubs; the --stub-packages name is historical.
@@ -36,6 +50,21 @@ Sources:
   --compiled-sources <path>                  Jar file with the compiled version of --source-files, loaded in addition to
                                              the source files. Used to include the bytecode version of Kotlin source
                                              APIs.
+  --jdk-home <dir>                           If set, add the Java APIs from the given JDK to the classpath.
+  --sdk-home <dir>                           If set, locate the `android.jar` file from the given Android SDK.
+  --compile-sdk-version <api>                Use the given API level.
+  --merge-qualifier-annotations <file-or-dir>
+                                             An external annotations file to merge and overlay the sources, or a
+                                             directory of such files. Should be used for annotations intended for
+                                             inclusion in the API to be written out, e.g. nullability. Formats supported
+                                             are: IntelliJ's external annotations database format, .jar or .zip files
+                                             containing those, Android signature files, and Java stub files.
+  --merge-inclusion-annotations <file-or-dir>
+                                             An external annotations file to merge and overlay the sources, or a
+                                             directory of such files. Should be used for annotations which determine
+                                             inclusion in the API to be written out, i.e. show and hide. The only format
+                                             supported is Java stub files.
+  --ignore-comments                          Ignore any comments in source files.
     """
         .trimIndent()
 
@@ -46,6 +75,15 @@ class SourceOptionsTest :
 
     override fun createOptions() = SourceOptions()
 
+    /**
+     * Skip tests that require the `turbine` [SourceModelProvider] when `:metalava-model-turbine` is
+     * not on the test runtime classpath (e.g. in checkouts such as `androidx-main` or `studio-main`
+     * where `external/turbine` is not present).
+     */
+    private fun assumeTurbineAvailable() {
+        assumeTrue(SourceModelProvider.implementations.any { it.providerName == "turbine" })
+    }
+
     @Test
     fun `Test source model provider - psi`() {
         runTest(ARG_SOURCE_MODEL_PROVIDER, "psi") {
@@ -55,8 +93,53 @@ class SourceOptionsTest :
 
     @Test
     fun `Test source model provider - turbine`() {
+        assumeTurbineAvailable()
         runTest(ARG_SOURCE_MODEL_PROVIDER, "turbine") {
             assertThat(options.sourceModelProvider.providerName).isEqualTo("turbine")
+        }
+    }
+
+    @Test
+    fun `Test package filter`() {
+        runTest(ARG_PACKAGE_FILTER, "foo.bar:baz.*") {
+            val filter = options.apiPackageFilter!!
+            assertThat(filter.matches("foo.bar")).isTrue()
+            assertThat(filter.matches("baz.qux")).isTrue()
+            assertThat(filter.matches("other")).isFalse()
+        }
+    }
+
+    @Test
+    fun `Test multiple package filters`() {
+        runTest(
+            ARG_PACKAGE_FILTER,
+            "foo.bar:baz.*",
+            ARG_PACKAGE_FILTER,
+            "-baz.excluded:qux.*",
+        ) {
+            val filter = options.apiPackageFilter!!
+            assertThat(filter.matches("foo.bar")).isTrue()
+            assertThat(filter.matches("baz.qux")).isTrue()
+            assertThat(filter.matches("baz.excluded")).isFalse()
+            assertThat(filter.matches("qux.sub")).isTrue()
+            assertThat(filter.matches("other")).isFalse()
+        }
+    }
+
+    @Test
+    fun `Test empty source path - psi`() {
+        runTest(ARG_SOURCE_MODEL_PROVIDER, "psi", ARG_SOURCE_PATH, "") {
+            val exception = assertThrows(MetalavaCliException::class.java) { options.sourcePath }
+            assertThat(exception.message)
+                .isEqualTo("--source-path \"\" is not supported by the psi source model provider")
+        }
+    }
+
+    @Test
+    fun `Test empty source path - turbine`() {
+        assumeTurbineAvailable()
+        runTest(ARG_SOURCE_MODEL_PROVIDER, "turbine", ARG_SOURCE_PATH, "") {
+            assertThat(options.sourcePath).isEqualTo(listOf(File("")))
         }
     }
 }

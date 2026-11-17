@@ -16,73 +16,54 @@
 
 package com.android.tools.metalava.apilevels
 
-import com.android.tools.metalava.ARG_ANDROID_JAR_PATTERN
-import com.android.tools.metalava.ARG_CURRENT_CODENAME
-import com.android.tools.metalava.ARG_CURRENT_VERSION
-import com.android.tools.metalava.ARG_GENERATE_API_LEVELS
-import com.android.tools.metalava.ARG_SDK_INFO_FILE
+import com.android.tools.metalava.cli.signature.ARG_API_VERSION_FOR_SDK_EXTENSION
+import com.android.tools.metalava.cli.signature.ARG_SDK_INFO_FILE
 import com.android.tools.metalava.doc.getApiLookup
-import com.android.tools.metalava.testing.java
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ExtractPublicApiLevelsTest : ApiGeneratorIntegrationTestBase() {
-    // TODO(b/378479241): Fix this test to make it more realistic by including definitions of the
-    //  current API or stopping it from including the current API.
     @Test
     fun `Extract API levels`() {
-        val currentVersion = 35
+        val extensionSignaturePattern =
+            "${extensionSdkJars.path}/{version:extension}/public/api/{module}.txt"
 
-        check(
-            extraArguments =
-                arrayOf(
-                    ARG_GENERATE_API_LEVELS,
+        commandTest {
+            args +=
+                listOf(
+                    "api-history",
+                    "--output-file",
                     outputPath,
-                    ARG_ANDROID_JAR_PATTERN,
-                    androidPublicJarsPattern,
-                    ARG_ANDROID_JAR_PATTERN,
-                    "${extensionSdkJars.path}/{version:extension}/public/{module}.jar",
+                    "--historical-versions",
+                    "26:34",
+                    "--pattern",
+                    androidPublicSignaturePattern,
+                    "--pattern",
+                    extensionSignaturePattern,
+                    "--historical-files",
+                    findHistoricalFiles(
+                        androidPublicSignaturePattern,
+                        extensionSignaturePattern,
+                    ),
                     ARG_SDK_INFO_FILE,
                     createSdkExtensionInfoFile().path,
-                    ARG_CURRENT_CODENAME,
-                    "Z",
-                    ARG_CURRENT_VERSION,
-                    currentVersion.toString() // not real api level of Z
-                ),
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package android.pkg;
-                    public class MyTest {
-                    }
-                    """
-                    )
+                    ARG_API_VERSION_FOR_SDK_EXTENSION,
+                    "35",
                 )
-        )
+        }
 
         assertTrue(output.isFile)
 
-        val xml =
-            output
-                .readText(Charsets.UTF_8)
-                // As this only provides a single MyTest class in the current codebase which is of
-                // version 10000 (b/450531827), the api-versions.xml generator will assume that all
-                // the other classes
-                // it has seen have been removed. That is not true so remove those attributes.
-                .replace(" removed=\"10000\"", "")
-        // TODO (b/450531827) : Until the next prospective SDK information is provided to Metalava,
-        // use 10,000 as a placeholder for the next sdk version
-        val nextVersion = 10000
-        assertTrue(xml.contains("<class name=\"android/Manifest\$permission\" since=\"1\">"))
+        val xml = output.readText(Charsets.UTF_8)
+
+        assertTrue(xml.contains("<class name=\"android/Manifest\$permission\" since=\"26\">"))
         assertTrue(
             xml.contains(
-                "<field name=\"BIND_CARRIER_MESSAGING_SERVICE\" since=\"22\" deprecated=\"23\"/>"
+                "<field name=\"SMS_FINANCIAL_TRANSACTIONS\" since=\"29\" deprecated=\"31\"/>"
             )
         )
-        assertTrue(xml.contains("<class name=\"android/pkg/MyTest\" since=\"$nextVersion\""))
         assertFalse(xml.contains("<implements name=\"java/lang/annotation/Annotation\" removed=\""))
         assertFalse(xml.contains("<extends name=\"java/lang/Enum\" removed=\""))
         assertFalse(xml.contains("<method name=\"append(C)Ljava/lang/AbstractStringBuilder;\""))
@@ -92,22 +73,17 @@ class ExtractPublicApiLevelsTest : ApiGeneratorIntegrationTestBase() {
 
         val apiLookup = getApiLookup(output, temporaryFolder.newFolder())
 
-        // Make sure we're really using the correct database, not the SDK one. (This placeholder
-        // class is provided as a source file above.)
-        @Suppress("DEPRECATION")
-        assertEquals(nextVersion, apiLookup.getClassVersion("android.pkg.MyTest"))
-
         @Suppress("DEPRECATION") apiLookup.getClassVersion("android.v")
         @Suppress("DEPRECATION")
         assertEquals(
-            5,
-            apiLookup.getFieldVersion("android.Manifest\$permission", "AUTHENTICATE_ACCOUNTS")
+            28,
+            apiLookup.getFieldVersion("android.Manifest\$permission", "FOREGROUND_SERVICE")
         )
 
         @Suppress("DEPRECATION")
         val methodVersion =
             apiLookup.getMethodVersion("android/icu/util/CopticCalendar", "computeTime", "()")
-        assertEquals(24, methodVersion)
+        assertEquals(26, methodVersion)
 
         // Verify historical backfill by checking the section for android/os/ext/SdkExtensions
         xml.checkClass(

@@ -19,6 +19,9 @@ package com.android.tools.metalava.model.source.doc
 /**
  * The order of entries in this defines the order of block tags as specified
  * [here](https://www.oracle.com/uk/technical-resources/articles/java/javadoc-tool.html#tag).
+ *
+ * Used when generating stubs to ensure consistent behavior and insulate the stubs from
+ * insignificant changes in tag order in the sources.
  */
 enum class BlockTagOrder(
     /** The optional custom tag type name if the lower case [name] is not correct. */
@@ -41,7 +44,6 @@ enum class BlockTagOrder(
     SERIAL_DATA("serialData"),
     SERIAL_FIELD("serialField"),
     DEPRECATED,
-    HIDE,
     API_SINCE("apiSince"),
     SDK_EXT_SINCE("sdkExtSince"),
     DEPRECATED_SINCE("deprecatedSince"),

@@ -48,6 +48,8 @@ internal fun BaseModelTest.runNullabilityTest(
     kotlinNullsSignature: TestFile,
     test: NullabilityCodebaseContext.() -> Unit
 ) {
+    val kotlinSourceInputSet = inputSet(kotlinSource)
+    val kotlinNullsSignatureInputSet = inputSet(kotlinNullsSignature)
     runCodebaseTest(
         inputSet(
             javaSource,
@@ -58,14 +60,15 @@ internal fun BaseModelTest.runNullabilityTest(
             KnownSourceFiles.libcoreNullableSource,
             KnownSourceFiles.libcoreNonNullSource,
         ),
-        inputSet(annotatedSignature)
+        inputSet(annotatedSignature),
+        kotlinSourceInputSet,
+        kotlinNullsSignatureInputSet,
     ) {
-        val context = NullabilityCodebaseContext(this, true)
-        context.test()
-    }
-
-    runCodebaseTest(kotlinSource, kotlinNullsSignature) {
-        val context = NullabilityCodebaseContext(this, false)
+        // Nullability information comes from annotations except when processing Kotlin source or
+        // signature files that set kotlin-style-nulls=yes.
+        val nullabilityFromAnnotations =
+            inputSet !== kotlinSourceInputSet && inputSet !== kotlinNullsSignatureInputSet
+        val context = NullabilityCodebaseContext(this, nullabilityFromAnnotations)
         context.test()
     }
 }

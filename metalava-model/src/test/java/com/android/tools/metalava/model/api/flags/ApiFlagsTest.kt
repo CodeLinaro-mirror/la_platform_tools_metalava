@@ -18,24 +18,46 @@ package com.android.tools.metalava.model.api.flags
 
 import com.android.tools.metalava.model.api.flags.ApiFlagAction.*
 import kotlin.test.assertEquals
+import kotlin.test.assertSame
 import org.junit.Test
 
 class ApiFlagsTest {
     @Test
     fun `Test get`() {
+        val apiFlag1 = ApiFlag("test.pkg.flag1", KEEP)
+        val apiFlag2 = ApiFlag("test.pkg.flag2", REVERT)
+        val apiFlag3 = ApiFlag("test.pkg.flag3", FINALIZE)
         val apiFlags =
             ApiFlags(
-                mapOf(
-                    "test.pkg.flag1" to ApiFlag.getFlag(KEEP),
-                    "test.pkg.flag2" to ApiFlag.getFlag(REVERT),
-                    "test.pkg.flag3" to ApiFlag.getFlag(FINALIZE),
+                listOf(
+                    apiFlag1,
+                    apiFlag2,
+                    apiFlag3,
                 )
             )
 
-        assertEquals(ApiFlag.getFlag(KEEP), apiFlags["test.pkg.flag1"])
-        assertEquals(ApiFlag.getFlag(REVERT), apiFlags["test.pkg.flag2"])
-        assertEquals(ApiFlag.getFlag(FINALIZE), apiFlags["test.pkg.flag3"])
+        assertSame(apiFlag1, apiFlags["test.pkg.flag1"])
+        assertSame(apiFlag2, apiFlags["test.pkg.flag2"])
+        assertSame(apiFlag3, apiFlags["test.pkg.flag3"])
         // Unknown flags default to reverting.
-        assertEquals(ApiFlag.getFlag(REVERT), apiFlags["test.pkg.flag4"])
+        val unknownFlag = apiFlags["test.pkg.flag4"]
+        assertEquals(
+            ApiFlag("test.pkg.flag4", REVERT, isExported = true, isKnown = false),
+            unknownFlag
+        )
+
+        // Make sure that getting the unknown flag again returns the same instance.
+        assertSame(unknownFlag, apiFlags["test.pkg.flag4"])
+    }
+
+    @Test
+    fun `Test with unknown action`() {
+        // Treat unknown flags as being kept.
+        val apiFlags = ApiFlags(emptyList(), unknownFlagAction = KEEP)
+        val unknownFlag = apiFlags["test.pkg.unknown"]
+        assertEquals(
+            ApiFlag("test.pkg.unknown", KEEP, isExported = true, isKnown = false),
+            unknownFlag
+        )
     }
 }

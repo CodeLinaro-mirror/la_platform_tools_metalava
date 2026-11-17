@@ -17,7 +17,7 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.source.EnvironmentManager
+import com.android.tools.metalava.model.source.Environment
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Issues.Category
@@ -26,8 +26,8 @@ import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.reporter.Severity
 
 /**
- * A special [Reporter] that is passed to [EnvironmentManager.createSourceParser] which will in turn
- * be passed through and be accessible as [Codebase.reporter].
+ * A special [Reporter] that is passed to [Environment.createSourceParser] which will in turn be
+ * passed through and be accessible as [Codebase.reporter].
  *
  * This will redirect the reports based on the [Category] to an appropriate [Reporter]. This is
  * needed because a [Reporter] will produce a custom error message if any errors were reported

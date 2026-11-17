@@ -41,6 +41,11 @@ import com.google.turbine.tree.Tree
 import com.google.turbine.tree.Tree.ArrayInit
 import com.google.turbine.tree.Tree.ConstVarName
 import com.google.turbine.tree.Tree.Expression
+import com.google.turbine.tree.Tree.Literal
+import com.google.turbine.tree.TurbineOperatorKind
+import com.google.turbine.tree.TurbineOperatorKind.Precedence
+import com.google.turbine.type.Type
+import kotlin.collections.fold
 
 /**
  * Factory for creating [Value]s from [TurbineValue]s.
@@ -103,12 +108,15 @@ internal class TurbineValueFactory(globalContext: TurbineGlobalContext) :
 
     /** Create a [Value] of [optionalTypeItem] from this [TurbineValue]. */
     private fun TurbineValue.toValue(optionalTypeItem: TypeItem?): Value {
+        // Check to see if the value should be an array.
         if (const is ArrayInitValue) {
             val arrayTypeItem = optionalTypeItem as ArrayTypeItem
             val elementTypeItem = arrayTypeItem.componentType
 
+            // Get the list of Consts.
             val constElements = const.elements()
 
+            // Get a corresponding list of Expressions, if available.
             val exprElements =
                 expr?.let { expr ->
                     // If expr is an ArrayInit then get the expressions that make up its contents.
@@ -118,11 +126,13 @@ internal class TurbineValueFactory(globalContext: TurbineGlobalContext) :
                         ?: listOf(expr)
                 }
 
+            // Combine the Const and optional Expressions into a list of TurbineValues.
             val turbineValues =
                 constElements.mapIndexed { index, element ->
                     TurbineValue(element, exprElements?.get(index), fieldResolver)
                 }
 
+            // Map the list of TurbineValues to ArrayElementValue objects.
             val values = turbineValues.map { it.toArrayElementValue(elementTypeItem) }
 
             // If the source was a single non-array expression of an array type then that needs to
@@ -132,7 +142,35 @@ internal class TurbineValueFactory(globalContext: TurbineGlobalContext) :
             // was unwrapped in the sources, otherwise it was not.
             val wasUnwrappedInSource = expr != null && expr !is ArrayInit
 
+            // Create an ArrayValue instance.
             return createArrayValue(values, wasUnwrappedInSource)
+        }
+
+        // If const is null then the expressions could not be resolved. See if the expression was an
+        // ArrayInit expression. If there was then create an ArrayValue from it.
+        if (const == null && expr is ArrayInit) {
+            // Get the array type item. If an optional type item is provided then it must be an
+            // ArrayTypeItem.
+            val elementTypeItem =
+                if (optionalTypeItem == null) null
+                else {
+                    val arrayTypeItem = optionalTypeItem as ArrayTypeItem
+                    arrayTypeItem.componentType
+                }
+
+            // Create a list of TurbineValues from the Expressions, no Consts are available for any
+            // of them.
+            val turbineValues =
+                expr.exprs().map { elementExpr ->
+                    TurbineValue(const = null, elementExpr, fieldResolver)
+                }
+
+            // Map the list of TurbineValues to ArrayElementValue objects.
+            val values = turbineValues.map { it.toArrayElementValue(elementTypeItem) }
+
+            // Create an ArrayValue instance. As it was created from an array of expressions it was
+            // not unwrapped in the sources.
+            return createArrayValue(values, wasUnwrappedInSource = false)
         }
 
         return if (optionalTypeItem is ArrayTypeItem) {
@@ -148,7 +186,7 @@ internal class TurbineValueFactory(globalContext: TurbineGlobalContext) :
 
     /** Create an [ArrayElementValue] of [optionalTypeItem] from this [TurbineValue]. */
     private fun TurbineValue.toArrayElementValue(optionalTypeItem: TypeItem?): ArrayElementValue {
-        when (const.kind()) {
+        when (const?.kind()) {
             Const.Kind.CLASS_LITERAL -> {
                 const as TurbineClassValue
                 // Get the type of the class literal. e.g. if the expression was `X.class` then this
@@ -184,28 +222,53 @@ internal class TurbineValueFactory(globalContext: TurbineGlobalContext) :
             else -> {}
         }
 
-        // Check for a field reference if a field resolver is available.
-        if (expr != null && expr is ConstVarName && fieldResolver != null) {
-            val fieldInfo = fieldResolver.resolveField(expr)
-            val fieldSymbol = fieldInfo?.sym()
+        // Check for a field reference.
+        if (expr is ConstVarName) {
+            // Try and resolve it if a fieldResolver is available.
+            val fieldInfo = fieldResolver?.resolveField(expr)
             // If the field could be resolved then wrap it around the constant value.
-            if (fieldSymbol != null) {
+            if (fieldInfo != null) {
+                val fieldSymbol = fieldInfo.sym()
                 return createFieldReferenceValueWithDeferredConstantValue(
                     codebase,
                     fieldSymbol.owner().qualifiedName,
                     fieldSymbol.name(),
                     optionalTypeItem,
                 )
+            } else {
+                // It could not be resolved so create a fake FieldReferenceValue from the source
+                // name.
+                val identList = expr.name()
+
+                // The last part of the name must be the field.
+                val fieldName = identList.last().value()
+
+                // Everything else is the qualified name.
+                val qualifiedName = identList.subList(0, identList.size - 1).dotSeparatedName
+
+                // Create a FieldReferenceValue with no constant value.
+                return createFieldReferenceValue(
+                    codebase,
+                    qualifiedName,
+                    fieldName,
+                )
             }
         }
 
-        return toConstant(optionalTypeItem)
+        // Const evaluation requires the annotation class is available, if it is not
+        // then just try and use the expression value.
+        val constToConvert = const ?: (expr as? Literal)?.value()
+
+        return toConstant(constToConvert, optionalTypeItem)
     }
 
     /** Create a [ConstantValue] of [optionalTypeItem] from this [TurbineValue]. */
-    private fun TurbineValue.toConstant(optionalTypeItem: TypeItem?): ConstantValue {
-        if (const.kind() == Const.Kind.PRIMITIVE) {
-            val underlyingValue = (const as Const.Value).value
+    private fun TurbineValue.toConstant(
+        constToConvert: Const?,
+        optionalTypeItem: TypeItem?
+    ): ConstantValue {
+        if (constToConvert?.kind() == Const.Kind.PRIMITIVE) {
+            val underlyingValue = (constToConvert as Const.Value).value
 
             // If no expr is provided then this comes from a .class file, otherwise it comes from
             // the source.
@@ -239,42 +302,187 @@ internal class TurbineValueFactory(globalContext: TurbineGlobalContext) :
                         is Float,
                         is Long,
                         is Short -> {
-                            when (expr.getLiteralKind()) {
-                                TurbineConstantTypeKind.INT -> {
-                                    (underlyingValue as Number).toInt()
-                                }
-                                TurbineConstantTypeKind.FLOAT -> {
-                                    (underlyingValue as Number).toFloat()
-                                }
-                                else -> underlyingValue
-                            }
+                            // Determine whether the expression was originally one of the number
+                            // kinds that is formatted specially.
+                            val specialNumericKind = expr.getOriginalNumericKind(fieldResolver)
+
+                            // Convert back to the original number type, if needed.
+                            specialNumericKind.toOriginalNumberTypeIfNeeded(underlyingValue)
                         }
                         else -> underlyingValue
                     }
 
                 // A value is considered non-literal if it was not a literal expression.
-                val nonLiteralInSource = expr !is Tree.Literal
+                val nonLiteralInSource = expr !is Literal
                 return createLiteralValue(optionalTypeItem, transformedValue, nonLiteralInSource)
             }
         }
 
         throw ValueProviderException(
-            "Unknown value '$const' of ${const.javaClass} for type $optionalTypeItem"
+            "Unknown value '$constToConvert' (class ${constToConvert?.javaClass?.name}) of ${optionalTypeItem ?: "unknown"} type from expression '${expr ?: "unknown"}'"
         )
     }
 
     /**
-     * Get the literal kind of this expression.
+     * Enumeration of numeric kinds that may require conversion back to the original type.
      *
-     * If this is itself a [Tree.Literal] then return its [Tree.Literal.tykind]. Otherwise, if this
-     * is a [Tree.Unary], e.g. `-<expr>` of `+<expr>`, then it will call this on its
-     * [Tree.Unary.expr].
+     * This is needed because Turbine automatically converts an expression to a constant value
+     * suitable for the type. However, in some cases, the original type of the expression can affect
+     * the formatting of the value.
+     *
+     * The order matters and is relied upon in [originalNumericKindOfBinaryOp]. They are in order
+     * such that if two expressions have [OriginalNumericKind] of `o1` and o2` then if `o2 > o1`
+     * then the result of combining the two expressions with most binary operators will be `o2`.
+     * e.g. [INT] combined with [FLOAT] will result in [FLOAT], [FLOAT] combined with [OTHER] (say
+     * `double`), will result in `double`, i.e. [OTHER].
      */
-    private fun Expression.getLiteralKind(): TurbineConstantTypeKind? =
+    enum class OriginalNumericKind {
+        /**
+         * The expression was originally of type `int`.
+         *
+         * The underlying const value needs converting back to an `int` to ensure correct
+         * formatting.
+         */
+        INT {
+            /** Convert [underlyingValue] back to an integer. */
+            override fun toOriginalNumberTypeIfNeeded(underlyingValue: Any) =
+                (underlyingValue as Number).toInt()
+        },
+
+        /**
+         * The expression was originally of type `float`.
+         *
+         * The underlying const value needs converting back to a `float` to ensure correct
+         * formatting.
+         */
+        FLOAT {
+            /** Convert [underlyingValue] back to a float. */
+            override fun toOriginalNumberTypeIfNeeded(underlyingValue: Any) =
+                (underlyingValue as Number).toFloat()
+        },
+
+        /**
+         * The expression was originally of some other type which does not affect formatting so
+         * leave it as it is.
+         */
+        OTHER {
+            /** Just return [underlyingValue] unchanged. */
+            override fun toOriginalNumberTypeIfNeeded(underlyingValue: Any) = underlyingValue
+        },
+        ;
+
+        abstract fun toOriginalNumberTypeIfNeeded(underlyingValue: Any): Any
+    }
+
+    /** Compute the [OriginalNumericKind] as a result of applying [binaryOp] to [lhs] and [rhs]. */
+    private fun originalNumericKindOfBinaryOp(
+        binaryOp: TurbineOperatorKind,
+        lhs: OriginalNumericKind?,
+        rhs: OriginalNumericKind
+    ) =
+        when (lhs) {
+            // If the lhs is null (the starting value) then just use the rhs.
+            null -> rhs
+
+            // If the lhs and rhs are equal then use the lhs
+            rhs -> lhs
+
+            // Otherwise, compare based on the operator.
+            else -> {
+                // Compare the precedence as that simplifies the check allowing groups of operators
+                // to be checked in one go.
+                when (val precedence = binaryOp.prec()) {
+                    Precedence.SHIFT -> {
+                        // Shift operators always use the lhs.
+                        lhs
+                    }
+                    Precedence.RELATIONAL,
+                    Precedence.EQUALITY -> {
+                        // Comparison operators always result in boolean which does not need any
+                        // special handling.
+                        OriginalNumericKind.OTHER
+                    }
+                    Precedence.MULTIPLICATIVE,
+                    Precedence.ADDITIVE,
+                    Precedence.BIT_AND,
+                    Precedence.BIT_XOR,
+                    Precedence.BIT_IOR,
+                    Precedence.AND,
+                    Precedence.OR -> {
+                        // Use the maximum of the lhs and rhs.
+                        maxOf(lhs, rhs)
+                    }
+                    else -> error("Unknown binary operator $binaryOp of precedence $precedence")
+                }
+            }
+        }
+
+    /**
+     * Convert this optional [TurbineConstantTypeKind] to its corresponding [OriginalNumericKind].
+     */
+    private fun TurbineConstantTypeKind?.toOriginalNumericKind(): OriginalNumericKind =
         when (this) {
-            is Tree.Literal -> this.tykind()
-            is Tree.Unary -> expr().getLiteralKind()
-            else -> null
+            TurbineConstantTypeKind.INT -> OriginalNumericKind.INT
+            TurbineConstantTypeKind.FLOAT -> OriginalNumericKind.FLOAT
+            else -> OriginalNumericKind.OTHER
+        }
+
+    /**
+     * Get the [OriginalNumericKind] kind of this expression.
+     *
+     * Computes a [OriginalNumericKind] appropriate for the expression kind.
+     */
+    private fun Expression.getOriginalNumericKind(
+        fieldResolver: FieldResolver?
+    ): OriginalNumericKind =
+        when (this) {
+            is Literal -> {
+                // Get the OriginalNumericKind from the literal kind.
+                this.tykind().toOriginalNumericKind()
+            }
+            is Tree.Unary -> {
+                // Get the OriginalNumericKind from the expression the unary operator is being
+                // applied to.
+                expr().getOriginalNumericKind(fieldResolver)
+            }
+            is Tree.Binary -> {
+                // The OriginalNumericKind is determined by combining the OriginalNumericKind of
+                // each expression according to the operator/
+                val operatorKind = op()
+
+                // Although this is binary operator it can actually have more than two children.
+                // e.g. `1 + 2 + 3` is represented as two Binary instances both using the `+`
+                // operator but children will return three expressions, `1`, `2`, `3`.
+                val children = children().toList()
+
+                // Combine the OriginalNumericKind of the first pair of children according to the
+                // operator and then combine the result of that with the next child and so on.
+                children.fold(null) { accumulator, expr ->
+                    val kind = expr.getOriginalNumericKind(fieldResolver)
+                    originalNumericKindOfBinaryOp(operatorKind, accumulator, kind)
+                } ?: OriginalNumericKind.OTHER
+            }
+            is Tree.Paren -> {
+                // The OriginalNumericKind of a parenthesis expression is just the
+                // OriginalNumericKind of the contained expression.
+                expr().getOriginalNumericKind(fieldResolver)
+            }
+            is Tree.TypeCast -> {
+                // The OriginalNumericKind of a type case expression is the OriginalNumericKind of
+                // the type to which it is being cast.
+                (ty() as? Tree.PrimTy)?.tykind().toOriginalNumericKind()
+            }
+            is ConstVarName -> {
+                // The OriginalNumericKind of a field is the OriginalNumericKind of its type. Only
+                // PrimTy's will produce a value that is not OTHER.
+                val fieldInfo = fieldResolver?.resolveField(this)
+                (fieldInfo?.type() as? Type.PrimTy)?.primkind()?.toOriginalNumericKind()
+                    ?: OriginalNumericKind.OTHER
+            }
+            else -> {
+                // The OriginalNumericKind is not known so assume it does not need converting.
+                OriginalNumericKind.OTHER
+            }
         }
 }
 

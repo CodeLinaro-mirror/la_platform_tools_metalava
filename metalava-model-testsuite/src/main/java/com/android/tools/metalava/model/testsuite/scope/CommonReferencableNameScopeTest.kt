@@ -18,11 +18,15 @@ package com.android.tools.metalava.model.testsuite.scope
 
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.ExternalReferencableItem
+import com.android.tools.metalava.model.InvalidReferencableItem
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.scope.ReferencableNameScope
-import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
+import kotlin.test.assertEquals
 import kotlin.test.assertSame
 import org.junit.Test
 
@@ -52,20 +56,26 @@ class CommonReferencableNameScopeTest : BaseModelTest() {
         expectedUnderlyingClass: String?,
         // By default, the resolved class should match the underlying class.
         expectedResolvedClass: String? = expectedUnderlyingClass,
+        expectedErrorMessage: String = "",
     ) {
         val testClass = codebase.assertClass(scopeClass)
 
         // Verify that the type name resolves to the expected class by checking a field of that
         // type name.
         val testField = testClass.fields().single()
-        val fieldClass = (testField.type() as ClassTypeItem).asClass()
+        val fieldClass = (testField.type() as ClassTypeItem).resolveClass(codebase)
         val expectedUnderlyingClass = expectedUnderlyingClass?.let { codebase.resolveClass(it)!! }
         assertSame(expectedUnderlyingClass, fieldClass, message = "field class")
 
         // Verify that the resolution is correct.
-        val resolved = testClass.resolveReferencableItem(simpleName)
-        val expectedResolvedClassItem = expectedResolvedClass?.let { codebase.resolveClass(it)!! }
-        assertSame(expectedResolvedClassItem, resolved, message = "resolved class")
+        val resolved = testClass.resolveReferencableItem(simpleName, NameClassification.AMBIGUOUS)
+        if (expectedResolvedClass == null) {
+            val error = resolved as InvalidReferencableItem
+            assertEquals(expectedErrorMessage, error.message)
+        } else {
+            val expectedResolvedClassItem = codebase.resolveClass(expectedResolvedClass)!!
+            assertSame(expectedResolvedClassItem, resolved, message = "resolved class")
+        }
     }
 
     /**
@@ -117,7 +127,7 @@ class CommonReferencableNameScopeTest : BaseModelTest() {
         }
     }
 
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test import and package collision - explicit java-lang-String import - import should win`() {
         checkImportAndPackageClassCollision(
@@ -127,7 +137,7 @@ class CommonReferencableNameScopeTest : BaseModelTest() {
         )
     }
 
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test import and package collision - explicit java-lang wildcard import - package should win`() {
         checkImportAndPackageClassCollision(
@@ -137,7 +147,7 @@ class CommonReferencableNameScopeTest : BaseModelTest() {
         )
     }
 
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test import and package collision - implicit java-lang wildcard import - package should win`() {
         checkImportAndPackageClassCollision(
@@ -147,7 +157,7 @@ class CommonReferencableNameScopeTest : BaseModelTest() {
         )
     }
 
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test import and package collision - explicit java-util-List import - import should win`() {
         checkImportAndPackageClassCollision(
@@ -157,7 +167,7 @@ class CommonReferencableNameScopeTest : BaseModelTest() {
         )
     }
 
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test import and package collision - explicit java-util wildcard import - package should win`() {
         checkImportAndPackageClassCollision(
@@ -167,7 +177,7 @@ class CommonReferencableNameScopeTest : BaseModelTest() {
         )
     }
 
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test inheritance of nested classes of the base class`() {
         runCodebaseTest(
@@ -200,7 +210,7 @@ class CommonReferencableNameScopeTest : BaseModelTest() {
         }
     }
 
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test inheritance of nested classes of a base interface`() {
         runCodebaseTest(
@@ -233,7 +243,7 @@ class CommonReferencableNameScopeTest : BaseModelTest() {
         }
     }
 
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test non-inheritance of top-level class of base class`() {
         runCodebaseTest(
@@ -268,11 +278,12 @@ class CommonReferencableNameScopeTest : BaseModelTest() {
                 "test.pkg.Derived",
                 "Foo",
                 expectedUnderlyingClass = null,
+                expectedErrorMessage = "Could not resolve 'Foo' in 'class test.pkg.Derived'",
             )
         }
     }
 
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test non-inheritance of outer classes of base class`() {
         runCodebaseTest(
@@ -302,11 +313,12 @@ class CommonReferencableNameScopeTest : BaseModelTest() {
                 "test.pkg.Derived",
                 "Foo",
                 expectedUnderlyingClass = null,
+                expectedErrorMessage = "Could not resolve 'Foo' in 'class test.pkg.Derived'",
             )
         }
     }
 
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test inheritance and class collision - local nested class wins`() {
         runCodebaseTest(
@@ -342,7 +354,7 @@ class CommonReferencableNameScopeTest : BaseModelTest() {
         }
     }
 
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test inheritance and class collision - super nested class wins before enclosing class`() {
         runCodebaseTest(
@@ -378,6 +390,107 @@ class CommonReferencableNameScopeTest : BaseModelTest() {
                 "test.pkg.Derived.Nested",
                 "Foo",
                 expectedUnderlyingClass = "other.pkg.Base.BaseNested.Foo",
+            )
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test externalPackagePrefixes`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        public class Test {
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package androidx.annotation;
+                        public @interface Nullable {
+                        }
+                    """
+                ),
+            ),
+            testFixture = TestFixture(externalPackagePrefixes = setOf("androidx", "ext.pkg")),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val nullableClass = codebase.assertClass("androidx.annotation.Nullable")
+
+            // A reference to an external package not in the codebase at all resolves to
+            // ExternalReferencableItem.
+            assertSame(
+                ExternalReferencableItem,
+                testClass.resolveReferencableItem("ext.pkg.Foo", NameClassification.CLASS),
+            )
+            assertSame(
+                ExternalReferencableItem,
+                testClass.resolveReferencableItem(
+                    "ext.pkg.Foo.bar",
+                    NameClassification.CALLABLE_SET
+                ),
+            )
+            assertSame(
+                ExternalReferencableItem,
+                testClass.resolveReferencableItem("ext.pkg", NameClassification.AMBIGUOUS),
+            )
+
+            // Exact prefix match when packages are not allowed is an error.
+            assertEquals(
+                InvalidReferencableItem(
+                    "Could not resolve a class called 'ext.pkg' as could not find a package or class called 'ext' in 'class test.pkg.Test'"
+                ),
+                testClass.resolveReferencableItem("ext.pkg", NameClassification.CLASS),
+            )
+
+            // A reference to an external subpackage/class when part of the prefix ("androidx" and
+            // "androidx.annotation") exists in the codebase resolves to ExternalReferencableItem.
+            assertSame(
+                ExternalReferencableItem,
+                testClass.resolveReferencableItem(
+                    "androidx.core.app.NotificationCompat",
+                    NameClassification.CLASS,
+                ),
+            )
+            assertSame(
+                ExternalReferencableItem,
+                testClass.resolveReferencableItem(
+                    "androidx.annotation.NonExistent",
+                    NameClassification.CLASS,
+                ),
+            )
+
+            // A class that exists in the codebase under an external package prefix still resolves
+            // to the ClassItem.
+            assertSame(
+                nullableClass,
+                testClass.resolveReferencableItem(
+                    "androidx.annotation.Nullable",
+                    NameClassification.CLASS,
+                ),
+            )
+
+            // A non-existent member on a class that exists in the codebase under an external
+            // package prefix still returns an InvalidReferencableItem.
+            assertEquals(
+                InvalidReferencableItem(
+                    "Could not resolve a class called 'androidx.annotation.Nullable.NonExistent' as could not find a class called 'NonExistent' in 'class androidx.annotation.Nullable'"
+                ),
+                testClass.resolveReferencableItem(
+                    "androidx.annotation.Nullable.NonExistent",
+                    NameClassification.CLASS,
+                ),
+            )
+
+            // A package name that only shares a character prefix (not a dot-separated segment) does
+            // not match.
+            assertEquals(
+                InvalidReferencableItem(
+                    "Could not resolve a class called 'androidx_extra.Foo' as could not find a package or class called 'androidx_extra' in 'class test.pkg.Test'"
+                ),
+                testClass.resolveReferencableItem("androidx_extra.Foo", NameClassification.CLASS),
             )
         }
     }

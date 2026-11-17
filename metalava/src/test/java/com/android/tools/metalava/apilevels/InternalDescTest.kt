@@ -25,7 +25,7 @@ import org.junit.Test
 class InternalDescTest : Assertions {
 
     @Test
-    fun `MethodItem internalDesc (psi)`() {
+    fun `MethodItem internalDesc - psi`() {
         val signatureFile =
             SignatureFile.fromText(
                 "test",

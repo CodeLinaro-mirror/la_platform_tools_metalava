@@ -17,20 +17,43 @@
 package com.android.tools.metalava.model.type
 
 import com.android.tools.metalava.model.ArrayTypeItem
-import com.android.tools.metalava.model.DefaultTypeItem
+import com.android.tools.metalava.model.DefaultStandaloneTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeModifiers
 
-class DefaultArrayTypeItem(
+internal class DefaultArrayTypeItem(
     modifiers: TypeModifiers,
     override val componentType: TypeItem,
     override val isVarargs: Boolean,
-) : ArrayTypeItem, DefaultTypeItem(modifiers) {
-    @Deprecated(
-        "implementation detail of this class",
-        replaceWith = ReplaceWith("substitute(modifiers, componentType)"),
-    )
-    override fun duplicate(modifiers: TypeModifiers, componentType: TypeItem): ArrayTypeItem {
-        return DefaultArrayTypeItem(modifiers, componentType, isVarargs)
+    isValueClassType: Boolean = false,
+) : ArrayTypeItem, DefaultStandaloneTypeItem(modifiers, isValueClassType) {
+
+    override fun substitute(
+        modifiers: TypeModifiers,
+        componentType: TypeItem,
+        isVarargs: Boolean,
+    ) =
+        if (
+            modifiers !== this.modifiers ||
+                componentType !== this.componentType ||
+                isVarargs != this.isVarargs
+        )
+            TypeItem.createArrayType(
+                modifiers,
+                componentType,
+                isVarargs,
+                isValueClassType,
+            )
+        else this
+
+    override fun equalsImpl(other: DefaultStandaloneTypeItem): Boolean {
+        if (other !is ArrayTypeItem) return false
+        return isVarargs == other.isVarargs && componentType == other.componentType
+    }
+
+    override fun hashCodeImpl(): Int {
+        var result = isVarargs.hashCode()
+        result = 31 * result + componentType.hashCode()
+        return result
     }
 }

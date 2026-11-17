@@ -16,66 +16,42 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.config.ApiFlagActionConfig
+import com.android.tools.metalava.config.ApiFlagActionConfig.Mutability
+import com.android.tools.metalava.config.ApiFlagActionConfig.Status
 import com.android.tools.metalava.config.ApiFlagConfig
-import com.android.tools.metalava.config.ApiFlagConfig.Mutability.IMMUTABLE
-import com.android.tools.metalava.config.ApiFlagConfig.Mutability.MUTABLE
-import com.android.tools.metalava.config.ApiFlagConfig.Status.DISABLED
-import com.android.tools.metalava.config.ApiFlagConfig.Status.ENABLED
 import com.android.tools.metalava.config.ApiFlagsConfig
 import com.android.tools.metalava.model.api.flags.ApiFlag
 import com.android.tools.metalava.model.api.flags.ApiFlagAction
 import com.android.tools.metalava.model.api.flags.ApiFlags
-import com.android.utils.associateNotNull
 
 /** Create [ApiFlags] from some source of information about the flags. */
 object ApiFlagsCreator {
-    /**
-     * Create [ApiFlags] from [apiFlagsConfig].
-     *
-     * @param pruneDisabledFlags If flags which are [IMMUTABLE] and [DISABLED] should not be
-     *   included in the [ApiFlags].
-     */
-    fun createFromConfig(
-        apiFlagsConfig: ApiFlagsConfig?,
-        pruneDisabledFlags: Boolean = true
-    ): ApiFlags? {
-        return apiFlagsConfig?.createApiFlags(pruneDisabledFlags)
+    /** Create [ApiFlags] from [apiFlagsConfig]. */
+    fun createFromConfig(apiFlagsConfig: ApiFlagsConfig?) = apiFlagsConfig?.createApiFlags()
+
+    /** Create [ApiFlags] from [ApiFlagsConfig]. */
+    private fun ApiFlagsConfig.createApiFlags(): ApiFlags {
+        val unknownFlagAction = unknownFlags?.toApiFlagAction() ?: ApiFlagAction.REVERT
+        return ApiFlags(flags.map { config -> config.createApiFlag() }, unknownFlagAction)
     }
 
-    /**
-     * Create [ApiFlags] from [ApiFlagsConfig].
-     *
-     * @param pruneDisabledFlags If flags which are [IMMUTABLE] and [DISABLED] should not be
-     *   included in the [ApiFlags].
-     */
-    private fun ApiFlagsConfig.createApiFlags(pruneDisabledFlags: Boolean): ApiFlags {
-        val byQualifiedName =
-            flags.associateNotNull { config -> config.createApiFlag(pruneDisabledFlags) }
-        return ApiFlags(byQualifiedName)
-    }
+    /** Create [Pair] of qualified flag name and [ApiFlag] from [ApiFlagConfig]. */
+    private fun ApiFlagConfig.createApiFlag(): ApiFlag {
+        val action = toApiFlagAction()
 
-    /**
-     * Create [Pair] of qualified flag name and [ApiFlag] from [ApiFlagConfig].
-     *
-     * If [pruneDisabledFlags] is `true` then this will return `null` if [ApiFlagConfig.mutability]
-     * is [IMMUTABLE] and [ApiFlagConfig.status] is [DISABLED] as that is the default [ApiFlags.get]
-     * returns for flags that cannot be found.
-     */
-    private fun ApiFlagConfig.createApiFlag(
-        pruneDisabledFlags: Boolean = true
-    ): Pair<String, ApiFlag>? {
-        val apiFlag =
-            when (mutability) {
-                MUTABLE -> ApiFlag.getFlag(ApiFlagAction.KEEP, isExported)
-                IMMUTABLE ->
-                    when (status) {
-                        ENABLED -> ApiFlag.getFlag(ApiFlagAction.FINALIZE, isExported)
-                        DISABLED ->
-                            if (pruneDisabledFlags) return null
-                            else ApiFlag.getFlag(ApiFlagAction.REVERT, isExported)
-                    }
-            }
         val qualifiedName = "$pkg.$name"
-        return Pair(qualifiedName, apiFlag)
+        return ApiFlag(qualifiedName, action, isExported)
     }
+
+    /** Map from [ApiFlagActionConfig] to [ApiFlagAction]. */
+    private fun ApiFlagActionConfig.toApiFlagAction() =
+        when (mutability) {
+            Mutability.MUTABLE -> ApiFlagAction.KEEP
+            Mutability.IMMUTABLE ->
+                when (status) {
+                    Status.ENABLED -> ApiFlagAction.FINALIZE
+                    Status.DISABLED -> ApiFlagAction.REVERT
+                }
+        }
 }

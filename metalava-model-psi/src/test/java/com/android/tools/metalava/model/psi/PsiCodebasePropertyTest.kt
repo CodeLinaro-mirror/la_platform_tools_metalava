@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.createAndroidModuleDescription
 import com.android.tools.metalava.testing.createCommonModuleDescription
@@ -27,6 +29,7 @@ import com.google.common.truth.Truth.assertThat
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaSourceModule
 import org.junit.Test
 
+@SupportedInputFormats(InputFormat.KOTLIN)
 class PsiCodebasePropertyTest : BaseModelTest() {
     @Test
     fun `Test inlineTypeAliasUsages for non-KMP codebase without project description`() {

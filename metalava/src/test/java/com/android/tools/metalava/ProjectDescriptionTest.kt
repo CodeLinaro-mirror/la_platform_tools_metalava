@@ -96,7 +96,7 @@ class ProjectDescriptionTest : DriverTest() {
                         </project>
                     """
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package some.pkg {
                   public final class Foo {
@@ -155,7 +155,7 @@ class ProjectDescriptionTest : DriverTest() {
                         </project>
                     """
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 5.0
                 package some.pkg {
@@ -203,7 +203,7 @@ class ProjectDescriptionTest : DriverTest() {
                         </project>
                     """
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 5.0
                 package some.pkg {
@@ -242,7 +242,7 @@ class ProjectDescriptionTest : DriverTest() {
                     createAndroidModuleDescription(arrayOf(androidSrc)),
                     createCommonModuleDescription(arrayOf(commonSrc)),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public final class Android {

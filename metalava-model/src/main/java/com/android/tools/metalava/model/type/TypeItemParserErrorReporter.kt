@@ -32,11 +32,25 @@ import com.android.tools.metalava.reporter.Issues
  * specified on the command line.
  */
 interface TypeItemParserErrorReporter {
-    /** Report recoverable errors encountered while parsing. */
-    fun report(issue: Issues.Issue, message: String)
+    /**
+     * Report recoverable errors encountered while parsing.
+     *
+     * @param issue the [Issues.Issue] being reported.
+     * @param message the error message.
+     * @param charOffset the 0-based character offset in the original source where the error
+     *   occurred.
+     */
+    fun report(issue: Issues.Issue, message: String, charOffset: Int)
 
-    /** Report recoverable errors encountered while parsing, using a generic issue. */
-    fun report(message: String) = report(Issues.TYPE_PARSE_ERROR, message)
+    /**
+     * Report recoverable errors encountered while parsing, using a generic issue.
+     *
+     * @param message the error message.
+     * @param charOffset the 0-based character offset in the original source where the error
+     *   occurred.
+     */
+    fun report(message: String, charOffset: Int) =
+        report(Issues.TYPE_PARSE_ERROR, message, charOffset)
 
     companion object {
         /**
@@ -45,7 +59,7 @@ interface TypeItemParserErrorReporter {
          */
         val THROWING =
             object : TypeItemParserErrorReporter {
-                override fun report(issue: Issues.Issue, message: String) {
+                override fun report(issue: Issues.Issue, message: String, charOffset: Int) {
                     error("$message [$issue]")
                 }
             }

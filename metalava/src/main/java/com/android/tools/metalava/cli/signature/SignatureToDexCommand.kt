@@ -16,19 +16,17 @@
 
 package com.android.tools.metalava.cli.signature
 
-import com.android.tools.metalava.OptionsDelegate
 import com.android.tools.metalava.cli.common.DefaultSignatureFileLoader
 import com.android.tools.metalava.cli.common.MetalavaSubCommand
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.newFile
-import com.android.tools.metalava.cli.common.progressTracker
+import com.android.tools.metalava.cli.common.tracer
 import com.android.tools.metalava.createOutputFileFromCodebaseFragment
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.text.SignatureFile
-import com.android.tools.metalava.model.visitors.ApiPredicate
-import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.model.visitors.FilteringApiVisitor
+import com.android.tools.metalava.trace
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.multiple
 import com.github.ajalt.clikt.parameters.options.option
@@ -58,35 +56,26 @@ class SignatureToDexCommand :
             .required()
 
     override fun run() {
-        // Make sure that none of the code called by this command accesses the global `options`
-        // property.
-        OptionsDelegate.disallowAccess()
-
         val codebaseConfig = Codebase.Config.NOOP
         val signatureFileLoader = DefaultSignatureFileLoader(codebaseConfig)
         val signatureApi = signatureFileLoader.load(SignatureFile.fromFiles(apiFiles))
-
-        val apiPredicateConfig = ApiPredicate.Config()
-        val apiType = ApiType.ALL
-        val apiFilters = apiType.getApiFilters(apiPredicateConfig)
 
         val codebaseFragment =
             CodebaseFragment.create(signatureApi) { delegatedVisitor ->
                 FilteringApiVisitor(
                     delegatedVisitor,
-                    inlineInheritedFields = true,
-                    apiFilters = apiFilters,
-                    preFiltered = signatureApi.preFiltered,
+                    // Pre-filtered so does not need any filters.
+                    apiFilters = null,
                 )
             }
 
-        createOutputFileFromCodebaseFragment(
-            progressTracker,
-            codebaseFragment,
-            outFile,
-            "DEX API"
-        ) { printWriter ->
-            DexApiWriter(printWriter)
+        tracer.trace("createOutputFileFromCodebaseFragment DEX API") {
+            createOutputFileFromCodebaseFragment(
+                codebaseFragment,
+                outFile,
+            ) { printWriter ->
+                DexApiWriter(printWriter)
+            }
         }
     }
 }

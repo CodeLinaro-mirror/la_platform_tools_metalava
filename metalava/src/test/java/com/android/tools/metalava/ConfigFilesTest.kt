@@ -39,7 +39,7 @@ class ConfigFilesTest : DriverTest() {
                     ),
                 ),
         ) {
-            assertThat(options.configFileOptions.config).isEqualTo(Config())
+            assertThat(driver.configFileOptions.config).isEqualTo(Config())
         }
     }
 
@@ -58,7 +58,7 @@ class ConfigFilesTest : DriverTest() {
             expectedFail =
                 """
                     Aborting: Errors found while parsing configuration file(s):
-                        file:TESTROOT/project/config.xml:1: cvc-elt.1.a: Cannot find the declaration of element 'invalid'.
+                        file:TESTROOT/config/config.xml:1: cvc-elt.1.a: Cannot find the declaration of element 'invalid'.
                 """,
         )
     }
@@ -82,7 +82,7 @@ class ConfigFilesTest : DriverTest() {
                     ),
                 ),
         ) {
-            assertThat(options.configFileOptions.config).isEqualTo(Config())
+            assertThat(driver.configFileOptions.config).isEqualTo(Config())
         }
     }
 }

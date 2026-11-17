@@ -16,11 +16,16 @@
 
 package com.android.tools.metalava.model.scope
 
+import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.InvalidReferencableItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ReferencableItem
 
 /** Defines the scope of package, class, type parameter, method or field names. */
 interface ReferencableNameScope {
+    /** The [Codebase] to which this [ReferencableNameScope] belongs. */
+    val codebase: Codebase
+
     /**
      * The containing scope.
      *
@@ -56,11 +61,13 @@ interface ReferencableNameScope {
      * purpose of the [isFirstSimpleName] parameter.
      *
      * @param simpleName may be for a package, class, type parameter, method or field.
+     * @param nameClassification specifies the classification of [simpleName].
      * @param isFirstSimpleName `false` if this is called for the first simple name in a type
      *   reference, `true` otherwise.
      */
     fun resolveReferencableItemBySimpleName(
         simpleName: String,
+        nameClassification: NameClassification,
         isFirstSimpleName: Boolean
     ): ReferencableItem?
 
@@ -72,9 +79,10 @@ interface ReferencableNameScope {
      * @param referencableName may be for a package, class, type parameter, method or field. Can be
      *   a name (excluding package name) relative to this scope, or a fully qualified name
      *   (including package name) relative to the root package.
-     * @return the [ReferencableItem] corresponding to [referencableName], or `null` if no such
-     *   [ReferencableItem] could be found.
+     * @param nameClassification specifies the classification of [referencableName].
+     * @return the [ReferencableItem] corresponding to [referencableName], that will be an instance
+     *   of [InvalidReferencableItem] if [referencableName] could not be found.
      */
-    fun resolveReferencableItem(referencableName: String): ReferencableItem? =
-        ReferencableNameResolver.resolveReferencableItem(this, referencableName)
+    fun resolveReferencableItem(referencableName: String, nameClassification: NameClassification) =
+        ReferencableNameResolver.resolveReferencableItem(this, referencableName, nameClassification)
 }
