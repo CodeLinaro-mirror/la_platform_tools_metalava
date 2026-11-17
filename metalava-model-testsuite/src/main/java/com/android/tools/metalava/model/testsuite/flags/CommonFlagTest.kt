@@ -363,4 +363,242 @@ class CommonFlagTest : BaseModelTest() {
             }
         }
     }
+
+    /**
+     * Verify [SelectedApi.flagState] on previously released vs newly added members and nested
+     * classes (including extending API surfaces, `@doconly`, and `@removed` items) inside an
+     * already-released `@FlaggedApi` class.
+     */
+    @RequiresCapabilities(Capability.REVERTED_ITEMS)
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test flagState on members in previously released FlaggedApi class`() {
+        val apiSurfaces = ApiSurfaces.create(needsBase = true)
+        val apiSurfaceRules =
+            ApiSurfaceRules(
+                apiSurfaces = apiSurfaces,
+                byName =
+                    mapOf(
+                        "base" to listOf(SurfaceSelectionRule.unannotated),
+                        "main" to
+                            listOf(
+                                SurfaceSelectionRule.createAnnotationRule("test.pkg.SystemApi"),
+                            ),
+                    ),
+                variantRules =
+                    listOf(
+                        SurfaceSelectionRule.createAnnotationRule(
+                            "test.pkg.DocOnly",
+                            effect = SurfaceSelectionRule.Effect.DOC_ONLY,
+                        ),
+                    ),
+            )
+        val surfaceAnnotations =
+            java(
+                """
+                    package test.pkg;
+                    import java.lang.annotation.Retention;
+                    import java.lang.annotation.RetentionPolicy;
+                    @Retention(RetentionPolicy.SOURCE)
+                    public @interface SystemApi {}
+                    @Retention(RetentionPolicy.SOURCE)
+                    public @interface DocOnly {}
+                """
+            )
+
+        runCodebaseTest(
+            inputSet(
+                surfaceAnnotations,
+                java(
+                    """
+                        package test.pkg;
+                        public class ReleasedOuter {
+                            public void releasedMethod() {}
+                            public static class ReleasedNested {
+                                private ReleasedNested() {}
+                                public void releasedNestedMethod() {}
+                            }
+                        }
+                        /** @removed */
+                        public class ReleasedRemovedOuter {
+                            public void releasedRemovedMethod() {}
+                        }
+                    """
+                ),
+            ),
+            testFixture =
+                TestFixture(
+                    apiSurfaceRules = apiSurfaceRules,
+                    checkSupportedInputFormats = false,
+                ),
+        ) {
+            val previousCodebase = codebase
+            runCodebaseTest(
+                inputSet(
+                    surfaceAnnotations,
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.FlaggedApi;
+                            @FlaggedApi("test.pkg.flags.outer_flag")
+                            public class ReleasedOuter {
+                                public void releasedMethod() {}
+                                public void newUnflaggedMethod() {}
+                                @FlaggedApi("test.pkg.flags.inner_flag")
+                                public void newFlaggedMethod() {}
+                                @SystemApi
+                                public void newSystemMethod() {}
+                                /** @removed */
+                                public void unflaggedRemovedMethod() {}
+                                public static class NewUnflaggedNested {
+                                    public NewUnflaggedNested() {}
+                                    public void method() {}
+                                }
+                                @SystemApi
+                                public static class NewSystemNested {
+                                    public NewSystemNested() {}
+                                    public void method() {}
+                                }
+                                @DocOnly
+                                public static class NewDocOnlyNested {
+                                    public NewDocOnlyNested() {}
+                                    public void method() {}
+                                }
+                                public static class ReleasedNested {
+                                    private ReleasedNested() {}
+                                    public void releasedNestedMethod() {}
+                                    public void newNestedMethod() {}
+                                }
+                            }
+                            /** @removed */
+                            @FlaggedApi("test.pkg.flags.outer_flag")
+                            public class ReleasedRemovedOuter {
+                                public void releasedRemovedMethod() {}
+                                @SystemApi
+                                public void newSystemRemovedMethod() {}
+                            }
+                        """
+                    ),
+                ),
+                testFixture =
+                    TestFixture(
+                        additionalClassPath = listOf(KnownJarFiles.stubAnnotationsJar),
+                        apiSurfaceRules = apiSurfaceRules,
+                        apiFlags =
+                            ApiFlags(
+                                listOf(
+                                    ApiFlag("test.pkg.flags.outer_flag", KEEP),
+                                    ApiFlag("test.pkg.flags.inner_flag", KEEP),
+                                ),
+                            ),
+                        previouslyReleasedCodebase = previousCodebase,
+                    ),
+            ) {
+                val innerFlagged = FlagState.additionFlag("test.pkg.flags.inner_flag", KEEP)
+
+                val outer = codebase.assertClass("test.pkg.ReleasedOuter")
+                outer.assertItemApiVariants("ApiVariantSet[base(C)]")
+                assertSame(FlagState.NONE, outer.selectedApi.flagState)
+                assertSame(
+                    FlagState.NONE,
+                    outer.assertMethod("releasedMethod", emptyList()).selectedApi.flagState,
+                )
+
+                // TODO(b/586831403): New unflagged members and nested classes in a previously
+                //  released @FlaggedApi class are reverted when the class's flag is reverted, so
+                //  they should inherit `outer_flag` instead of having `FlagState.NONE`.
+                assertSame(
+                    FlagState.NONE,
+                    outer.assertMethod("newUnflaggedMethod", emptyList()).selectedApi.flagState,
+                )
+
+                // Explicitly flagged new members in a previously released outer class are governed
+                // solely by their own `@FlaggedApi` annotation (`inner_flag`), not `outer_flag`.
+                assertEquals(
+                    innerFlagged,
+                    outer.assertMethod("newFlaggedMethod", emptyList()).selectedApi.flagState,
+                )
+
+                val newSystemMethod = outer.assertMethod("newSystemMethod", emptyList())
+                newSystemMethod.assertItemApiVariants("ApiVariantSet[main(C)]")
+
+                // TODO(b/586831403): Should inherit `outer_flag` across extending API surfaces.
+                assertSame(FlagState.NONE, newSystemMethod.selectedApi.flagState)
+
+                // An unflagged `@removed` member inside a CORE-only `@FlaggedApi` class does not
+                // inherit the CORE class's addition flag.
+                val unflaggedRemovedMethod =
+                    outer.assertMethod("unflaggedRemovedMethod", emptyList())
+                unflaggedRemovedMethod.assertItemApiVariants("ApiVariantSet[base(R)]")
+                assertSame(FlagState.REMOVED, unflaggedRemovedMethod.selectedApi.flagState)
+
+                val newNested = codebase.assertClass("test.pkg.ReleasedOuter.NewUnflaggedNested")
+
+                // TODO(b/586831403): Should inherit `outer_flag` instead of `FlagState.NONE`.
+                assertSame(FlagState.NONE, newNested.selectedApi.flagState)
+                assertSame(
+                    FlagState.NONE,
+                    newNested.assertMethod("method", emptyList()).selectedApi.flagState,
+                )
+
+                val newSystemNested = codebase.assertClass("test.pkg.ReleasedOuter.NewSystemNested")
+                newSystemNested.assertItemApiVariants("ApiVariantSet[main(C)]")
+
+                // TODO(b/586831403): Should inherit `outer_flag` across extending API surfaces.
+                assertSame(FlagState.NONE, newSystemNested.selectedApi.flagState)
+                assertSame(
+                    FlagState.NONE,
+                    newSystemNested.assertMethod("method", emptyList()).selectedApi.flagState,
+                )
+
+                val newDocOnlyNested =
+                    codebase.assertClass("test.pkg.ReleasedOuter.NewDocOnlyNested")
+                newDocOnlyNested.assertItemApiVariants("ApiVariantSet[base(D)]")
+                val newDocOnlyMethod = newDocOnlyNested.assertMethod("method", emptyList())
+                newDocOnlyMethod.assertItemApiVariants("ApiVariantSet[base(D)]")
+
+                // TODO(b/586831403): Should inherit `outer_flag` onto `@DocOnly` items.
+                assertSame(FlagState.NONE, newDocOnlyNested.selectedApi.flagState)
+                assertSame(FlagState.NONE, newDocOnlyMethod.selectedApi.flagState)
+
+                val releasedNested = codebase.assertClass("test.pkg.ReleasedOuter.ReleasedNested")
+                assertSame(FlagState.NONE, releasedNested.selectedApi.flagState)
+                assertSame(
+                    FlagState.NONE,
+                    releasedNested
+                        .assertMethod("releasedNestedMethod", emptyList())
+                        .selectedApi
+                        .flagState,
+                )
+
+                // TODO(b/586831403): Should inherit `outer_flag` instead of `FlagState.NONE`.
+                assertSame(
+                    FlagState.NONE,
+                    releasedNested
+                        .assertMethod("newNestedMethod", emptyList())
+                        .selectedApi
+                        .flagState,
+                )
+
+                val releasedRemovedOuter = codebase.assertClass("test.pkg.ReleasedRemovedOuter")
+                releasedRemovedOuter.assertItemApiVariants("ApiVariantSet[base(R)]")
+                assertSame(FlagState.REMOVED, releasedRemovedOuter.selectedApi.flagState)
+                assertSame(
+                    FlagState.REMOVED,
+                    releasedRemovedOuter
+                        .assertMethod("releasedRemovedMethod", emptyList())
+                        .selectedApi
+                        .flagState,
+                )
+
+                val newSystemRemoved =
+                    releasedRemovedOuter.assertMethod("newSystemRemovedMethod", emptyList())
+                newSystemRemoved.assertItemApiVariants("ApiVariantSet[main(R)]")
+
+                // TODO(b/586831403): Should inherit `outer_flag` from the previously released
+                //  `@removed` outer class across extending API surfaces.
+                assertSame(FlagState.REMOVED, newSystemRemoved.selectedApi.flagState)
+            }
+        }
+    }
 }

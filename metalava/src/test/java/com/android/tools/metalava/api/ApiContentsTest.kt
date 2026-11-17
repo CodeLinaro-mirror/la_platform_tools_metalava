@@ -822,4 +822,172 @@ class ApiContentsTest : DriverTest() {
                 """,
         )
     }
+
+    /**
+     * Verify that referencing a new `@FlaggedApi` class from a newly added unflagged member of a
+     * previously released `@FlaggedApi` class is allowed because the new member inherits its
+     * enclosing class's `@FlaggedApi`.
+     */
+    @Test
+    fun `Reference to @FlaggedApi class from new member of previously released @FlaggedApi class`() {
+        check(
+            apiSurface = KnownApiSurface.PUBLIC,
+            configFiles =
+                arrayOf(
+                    Config(
+                            apiFlags =
+                                ApiFlagsConfig(
+                                    flags =
+                                        listOf(
+                                            ApiFlagConfig(
+                                                pkg = "test.pkg",
+                                                name = "my_flag",
+                                                mutability = MUTABLE,
+                                                status = ENABLED,
+                                                isExported = true,
+                                            ),
+                                        ),
+                                ),
+                        )
+                        .toTestFile("flags-config.xml"),
+                ),
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class ReleasedClass {
+                        method public void existing();
+                      }
+                    }
+                """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.FlaggedApi;
+                            @FlaggedApi("test.pkg.my_flag")
+                            public class FlaggedType {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.FlaggedApi;
+                            @FlaggedApi("test.pkg.my_flag")
+                            public class ReleasedClass {
+                                private ReleasedClass() {}
+                                public void existing() {}
+                                public FlaggedType getNew() { return null; }
+                            }
+                        """
+                    ),
+                    flaggedApiSource,
+                ),
+            // TODO(b/586831403): `ReleasedClass.getNew()` is a new unflagged member inside a
+            //  previously released `@FlaggedApi("test.pkg.my_flag")` class, so it inherits
+            //  `my_flag` and should not report `ReferencesHidden`.
+            expectedIssues =
+                """
+                    src/test/pkg/ReleasedClass.java:7: error: Class test.pkg.FlaggedType is guarded by @FlaggedApi(test.pkg.my_flag) but was referenced (in return type) from public method test.pkg.ReleasedClass.getNew() [ReferencesHidden]
+                """,
+        )
+    }
+
+    /**
+     * Verify that newly added unflagged `@SystemApi` members and nested classes inside a previously
+     * released `public` `@FlaggedApi` class inherit its `@FlaggedApi` across extending API
+     * surfaces: they may reference `@FlaggedApi` types guarded by the same flag, and unflagged
+     * `@SystemApi` callers referencing the new nested class report `ReferencesHidden`.
+     */
+    @Test
+    fun `Reference to and from new @SystemApi items in previously released public @FlaggedApi class`() {
+        check(
+            apiSurface = KnownApiSurface.SYSTEM,
+            configFiles =
+                arrayOf(
+                    Config(
+                            apiFlags =
+                                ApiFlagsConfig(
+                                    flags =
+                                        listOf(
+                                            ApiFlagConfig(
+                                                pkg = "test.pkg",
+                                                name = "my_flag",
+                                                mutability = MUTABLE,
+                                                status = ENABLED,
+                                                isExported = true,
+                                            ),
+                                        ),
+                                ),
+                        )
+                        .toTestFile("flags-config.xml"),
+                ),
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class ReleasedClass {
+                        method public void existing();
+                      }
+                    }
+                """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.FlaggedApi;
+                            import android.annotation.SystemApi;
+                            @FlaggedApi("test.pkg.my_flag")
+                            @SystemApi
+                            public class FlaggedType {
+                                private FlaggedType() {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.FlaggedApi;
+                            import android.annotation.SystemApi;
+                            @FlaggedApi("test.pkg.my_flag")
+                            public class ReleasedClass {
+                                private ReleasedClass() {}
+                                public void existing() {}
+                                @SystemApi
+                                public FlaggedType getNewSystem() { return null; }
+                                @SystemApi
+                                public static class NewSystemNested {
+                                    private NewSystemNested() {}
+                                    public FlaggedType getFlagged() { return null; }
+                                }
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.SystemApi;
+                            @SystemApi
+                            public class UnflaggedSystemCaller {
+                                private UnflaggedSystemCaller() {}
+                                public ReleasedClass.NewSystemNested getUnguarded() { return null; }
+                            }
+                        """
+                    ),
+                    flaggedApiSource,
+                ),
+
+            // TODO(b/586831403): `getNewSystem()` and `NewSystemNested` are new `@SystemApi` items
+            //  inside a previously released `public` `@FlaggedApi("test.pkg.my_flag")` class, so
+            //  they should inherit `my_flag` (allowing references to `FlaggedType` and reporting
+            //  `ReferencesHidden` from `UnflaggedSystemCaller.getUnguarded()`).
+            expectedIssues =
+                """
+                    src/test/pkg/ReleasedClass.java:9: error: Class test.pkg.FlaggedType is guarded by @FlaggedApi(test.pkg.my_flag) but was referenced (in return type) from public method test.pkg.ReleasedClass.getNewSystem() [ReferencesHidden]
+                    src/test/pkg/ReleasedClass.java:13: error: Class test.pkg.FlaggedType is guarded by @FlaggedApi(test.pkg.my_flag) but was referenced (in return type) from public method test.pkg.ReleasedClass.NewSystemNested.getFlagged() [ReferencesHidden]
+                """,
+        )
+    }
 }
