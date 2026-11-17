@@ -978,4 +978,85 @@ class ApiContentsTest : DriverTest() {
                 """,
         )
     }
+
+    /**
+     * Verify that referencing a `@FlaggedApi` class from an unflagged method override of a
+     * `@FlaggedApi` super method is allowed because the override inherits the overridden method's
+     * `@FlaggedApi`.
+     */
+    @Test
+    fun `Reference to @FlaggedApi class from unflagged override of @FlaggedApi method`() {
+        check(
+            apiSurface = KnownApiSurface.PUBLIC,
+            configFiles =
+                arrayOf(
+                    Config(
+                            apiFlags =
+                                ApiFlagsConfig(
+                                    flags =
+                                        listOf(
+                                            ApiFlagConfig(
+                                                pkg = "test.pkg",
+                                                name = "my_flag",
+                                                mutability = MUTABLE,
+                                                status = ENABLED,
+                                                isExported = true,
+                                            ),
+                                        ),
+                                ),
+                        )
+                        .toTestFile("flags-config.xml"),
+                ),
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Base {
+                        ctor public Base();
+                      }
+                      public class Sub extends test.pkg.Base {
+                        ctor public Sub();
+                      }
+                    }
+                """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.FlaggedApi;
+                            @FlaggedApi("test.pkg.my_flag")
+                            public class FlaggedType {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.FlaggedApi;
+                            public class Base {
+                                @FlaggedApi("test.pkg.my_flag")
+                                public void onProvide(FlaggedType value) {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            public class Sub extends Base {
+                                @Override
+                                public void onProvide(FlaggedType value) {}
+                            }
+                        """
+                    ),
+                    flaggedApiSource,
+                ),
+            // TODO(b/586831403): `Sub.onProvide(FlaggedType)` overrides `@FlaggedApi` method
+            //  `Base.onProvide(FlaggedType)`, so it inherits `my_flag` and should not report
+            //  `ReferencesHidden`.
+            expectedIssues =
+                """
+                    src/test/pkg/Sub.java:4: error: Class test.pkg.FlaggedType is guarded by @FlaggedApi(test.pkg.my_flag) but was referenced (in parameter type) from public parameter value in test.pkg.Sub.onProvide(test.pkg.FlaggedType value) [ReferencesHidden]
+                """,
+        )
+    }
 }

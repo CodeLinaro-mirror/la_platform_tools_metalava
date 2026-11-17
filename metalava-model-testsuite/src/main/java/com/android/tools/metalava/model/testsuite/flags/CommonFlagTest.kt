@@ -594,4 +594,205 @@ class CommonFlagTest : BaseModelTest() {
             }
         }
     }
+
+    /**
+     * Verify [SelectedApi.flagState] on unflagged method overrides of `@FlaggedApi` methods,
+     * including transitive overrides and overrides of multiple super methods.
+     */
+    @Test
+    fun `Test flagState on unflagged method overrides`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        import android.annotation.FlaggedApi;
+                        public class Base {
+                            @FlaggedApi("test.pkg.flags.flag_a")
+                            public void flaggedMethod() {}
+                        }
+                        public class Sub extends Base {
+                            @Override
+                            public void flaggedMethod() {}
+                        }
+                        public class SubSub extends Sub {
+                            @Override
+                            public void flaggedMethod() {}
+                        }
+                        public class UnflaggedBase {
+                            public void mixedMethod() {}
+                        }
+                        @FlaggedApi("test.pkg.flags.flag_a")
+                        public interface FlaggedIfaceA {
+                            void mixedMethod();
+                            void bothFlagged();
+                        }
+                        @FlaggedApi("test.pkg.flags.flag_b")
+                        public interface FlaggedIfaceB {
+                            void bothFlagged();
+                        }
+                        public class MixedSub extends UnflaggedBase implements FlaggedIfaceA {
+                            @Override
+                            public void mixedMethod() {}
+                        }
+                        public class BothFlaggedSub implements FlaggedIfaceA, FlaggedIfaceB {
+                            @Override
+                            public void bothFlagged() {}
+                        }
+                    """
+                ),
+            ),
+            inputSet(
+                signature(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class Base {
+                            ctor public Base();
+                            method @FlaggedApi("test.pkg.flags.flag_a") public void flaggedMethod();
+                          }
+                          public class Sub extends test.pkg.Base {
+                            ctor public Sub();
+                            method public void flaggedMethod();
+                          }
+                          public class SubSub extends test.pkg.Sub {
+                            ctor public SubSub();
+                            method public void flaggedMethod();
+                          }
+                          public class UnflaggedBase {
+                            ctor public UnflaggedBase();
+                            method public void mixedMethod();
+                          }
+                          @FlaggedApi("test.pkg.flags.flag_a") public interface FlaggedIfaceA {
+                            method public void bothFlagged();
+                            method public void mixedMethod();
+                          }
+                          @FlaggedApi("test.pkg.flags.flag_b") public interface FlaggedIfaceB {
+                            method public void bothFlagged();
+                          }
+                          public class MixedSub extends test.pkg.UnflaggedBase implements test.pkg.FlaggedIfaceA {
+                            ctor public MixedSub();
+                            method public void mixedMethod();
+                          }
+                          public class BothFlaggedSub implements test.pkg.FlaggedIfaceA, test.pkg.FlaggedIfaceB {
+                            ctor public BothFlaggedSub();
+                            method public void bothFlagged();
+                          }
+                        }
+                    """
+                ),
+            ),
+            testFixture =
+                TestFixture(
+                    additionalClassPath = listOf(KnownJarFiles.stubAnnotationsJar),
+                    apiFlags =
+                        ApiFlags(
+                            listOf(
+                                ApiFlag("test.pkg.flags.flag_a", KEEP),
+                                ApiFlag("test.pkg.flags.flag_b", KEEP),
+                            ),
+                        ),
+                ),
+        ) {
+            val flagA = FlagState.additionFlag("test.pkg.flags.flag_a", KEEP)
+            assertEquals(
+                flagA,
+                codebase
+                    .assertClass("test.pkg.Base")
+                    .assertMethod("flaggedMethod", emptyList())
+                    .selectedApi
+                    .flagState,
+            )
+
+            // TODO(b/586831403): Unflagged overrides of a `@FlaggedApi` method are reverted when
+            //  the overridden method is reverted, so they should inherit `flag_a` instead of
+            //  having `FlagState.NONE`.
+            assertSame(
+                FlagState.NONE,
+                codebase
+                    .assertClass("test.pkg.Sub")
+                    .assertMethod("flaggedMethod", emptyList())
+                    .selectedApi
+                    .flagState,
+            )
+            assertSame(
+                FlagState.NONE,
+                codebase
+                    .assertClass("test.pkg.SubSub")
+                    .assertMethod("flaggedMethod", emptyList())
+                    .selectedApi
+                    .flagState,
+            )
+
+            // Overriding both an unflagged method (`UnflaggedBase.mixedMethod`) and a flagged
+            // interface method (`FlaggedIfaceA.mixedMethod`) remains finalized because the
+            // unflagged super method keeps the override in the API even if `flag_a` is reverted.
+            assertSame(
+                FlagState.NONE,
+                codebase
+                    .assertClass("test.pkg.MixedSub")
+                    .assertMethod("mixedMethod", emptyList())
+                    .selectedApi
+                    .flagState,
+            )
+
+            // TODO(b/586831403): When all overridden super methods are `@FlaggedApi`, the override
+            //  should inherit the combined flags (`flag_a`, `flag_b`).
+            assertSame(
+                FlagState.NONE,
+                codebase
+                    .assertClass("test.pkg.BothFlaggedSub")
+                    .assertMethod("bothFlagged", emptyList())
+                    .selectedApi
+                    .flagState,
+            )
+        }
+    }
+
+    /**
+     * Verify that an unflagged override in a public subclass inherits `@FlaggedApi` from an
+     * ancestor method even when a package-private intermediate class also overrides it.
+     */
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test flagState on override through package-private intermediate class`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        import android.annotation.FlaggedApi;
+                        public class PublicRoot {
+                            @FlaggedApi("test.pkg.flags.flag_a")
+                            public void foo() {}
+                        }
+                        class PkgPrivateMiddle extends PublicRoot {
+                            @Override
+                            public void foo() {}
+                        }
+                        public class PublicLeaf extends PkgPrivateMiddle {
+                            @Override
+                            public void foo() {}
+                        }
+                    """
+                ),
+            ),
+            testFixture =
+                TestFixture(
+                    additionalClassPath = listOf(KnownJarFiles.stubAnnotationsJar),
+                    apiFlags = ApiFlags(listOf(ApiFlag("test.pkg.flags.flag_a", KEEP))),
+                ),
+        ) {
+            // TODO(b/586831403): Should inherit `flag_a` from `PublicRoot.foo()` across the
+            //  package-private intermediate class `PkgPrivateMiddle`.
+            assertSame(
+                FlagState.NONE,
+                codebase
+                    .assertClass("test.pkg.PublicLeaf")
+                    .assertMethod("foo", emptyList())
+                    .selectedApi
+                    .flagState,
+            )
+        }
+    }
 }
