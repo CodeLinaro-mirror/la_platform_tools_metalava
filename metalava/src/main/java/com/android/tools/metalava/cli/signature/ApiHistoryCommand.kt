@@ -360,7 +360,7 @@ class ApiHistoryCommand :
                             VersionedSignatureApi(
                                 signatureFileLoader,
                                 currentFiles,
-                                ApiHistoryUpdater.forApiVersion(version),
+                                ApiHistoryUpdater.forCurrentApiVersion(version),
                             )
                         },
                 versionedApiFactory = ::createVersionedSignatureApi,

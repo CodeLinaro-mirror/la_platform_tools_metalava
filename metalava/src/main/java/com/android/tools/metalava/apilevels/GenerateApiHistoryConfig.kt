@@ -270,6 +270,27 @@ private fun constructVersionedApisForHistoricalFiles(
 }
 
 /**
+ * Check whether any of the [files] use `@SdkExtensionApi`.
+ *
+ * When a module is migrated from `<symbol>` rules to `@SdkExtensionApi`, `@SdkExtensionApi` is
+ * added to its extension API files for the active SDK extension versions, so this identifies the
+ * modules that are in SDK extensions but have no `<symbol>` rules.
+ */
+private fun usesSdkExtensionApi(files: List<MatchedPatternFile>): Boolean =
+    files.any { matchedFile ->
+        matchedFile.file.useLines { lines ->
+            lines.any { line -> SDK_EXTENSION_API_TEXTS.any { line.contains(it) } }
+        }
+    }
+
+/**
+ * The texts that identify an `@SdkExtensionApi` annotation in an API signature file, which may or
+ * may not be fully qualified.
+ */
+private val SDK_EXTENSION_API_TEXTS =
+    listOf("@SdkExtensionApi(", "@android.annotation.SdkExtensionApi(")
+
+/**
  * Add [VersionedApi] instances to [list] for each of the [extensionApiFiles].
  *
  * Some APIs only exist in extension SDKs and not in the Android SDK, but for backwards
@@ -291,11 +312,12 @@ private fun addVersionedExtensionApis(
     val byModule = extensionApiFiles.groupBy({ it.module!! })
     // Iterate over the mainline modules and their different versions.
     for ((mainlineModule, moduleFiles) in byModule) {
-        // Get the extensions information for the mainline module. If no information exists for
-        // a particular module then the module is ignored.
+        // Only scan the modules that are in SDK extensions, i.e. that have `<symbol>` rules in
+        // sdk-extensions-info.xml or whose extension API files use `@SdkExtensionApi`. Other
+        // modules are ignored, as scanning them would add information, e.g. `mainlineModule`, to
+        // APIs that are not in any SDK extension.
         val moduleMap = sdkExtensionInfo.extensionsMapForJarOrEmpty(mainlineModule)
-        if (moduleMap.isEmpty())
-            continue // TODO(b/259115852): remove this (though it is an optimization too).
+        if (moduleMap.isEmpty() && !usesSdkExtensionApi(moduleFiles)) continue
 
         // Extension modules only have a major version so group by that.
         val byMajorVersion = moduleFiles.groupBy { it.version.major }

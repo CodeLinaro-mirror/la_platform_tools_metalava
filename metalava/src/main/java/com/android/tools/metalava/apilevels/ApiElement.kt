@@ -62,6 +62,9 @@ open class ApiElement(val name: String) : ParentApiElement, Comparable<ApiElemen
         deprecatedIn = containingClass.deprecatedIn
         lastPresentIn = containingClass.lastPresentIn
         removedIn = containingClass.removedIn
+        // Do not copy sdkExtensionApi as that is the floor explicitly declared on an element, and
+        // these members inherit the floor of the containing class, like any other member without
+        // an explicit floor.
     }
 
     /**
@@ -124,6 +127,23 @@ open class ApiElement(val name: String) : ParentApiElement, Comparable<ApiElemen
 
     /** The optional API level this element was removed in. */
     final override var removedIn: ApiVersion? = null
+        private set
+
+    /**
+     * The floor explicitly declared on this element by an `@SdkExtensionApi` annotation, or `null`
+     * if this element does not have its own `@SdkExtensionApi` annotation.
+     *
+     * This is not the effective floor of the element. A member without an explicit floor inherits
+     * the floor of its containing class, but that inheritance is not resolved here; it is resolved
+     * when generating the `sdks` attribute in `api-versions.xml`, i.e. the effective floor of a
+     * member is `member.sdkExtensionApi ?: containingClass.sdkExtensionApi`. Signature files
+     * already include the inherited `@SdkExtensionApi` annotation on nested classes so a nested
+     * class has its own explicit floor.
+     *
+     * If the floor changes over time then this is the floor from the newest version, see
+     * [updateSdkExtensionApi].
+     */
+    var sdkExtensionApi: Int? = null
         private set
 
     override fun toString(): String {
@@ -221,6 +241,48 @@ open class ApiElement(val name: String) : ParentApiElement, Comparable<ApiElemen
 
     fun updateMainlineModule(module: String?) {
         mainlineModule = module
+    }
+
+    /**
+     * Whether [sdkExtensionApi] was set from the current API, see
+     * [updateSdkExtensionApiFromCurrent].
+     */
+    private var sdkExtensionApiFromCurrent = false
+
+    /**
+     * Updates [sdkExtensionApi] with the [floor] of the `@SdkExtensionApi` annotation on this
+     * element in the historical Android SDK version or SDK extension version being loaded.
+     *
+     * Versions are loaded from oldest to newest, i.e. historical Android SDK versions, then the
+     * current API, then SDK extension versions, so a later floor replaces an earlier one and the
+     * floor from the newest version is used. The exception is a floor from the current API, which
+     * is not replaced by a floor from an SDK extension version, see
+     * [updateSdkExtensionApiFromCurrent].
+     *
+     * A `null` [floor] is ignored so that an unannotated declaration, e.g. a delta declaration in a
+     * `system-current.txt` file, does not clear a floor provided by another declaration.
+     */
+    fun updateSdkExtensionApi(floor: Int?) {
+        if (floor != null && !sdkExtensionApiFromCurrent) {
+            sdkExtensionApi = floor
+        }
+    }
+
+    /**
+     * Updates [sdkExtensionApi] with the [floor] of the `@SdkExtensionApi` annotation on this
+     * element in the current API.
+     *
+     * The current API is always the newest version, so its floor takes precedence over the floor
+     * from any other version. When there is no current API, e.g. on a finalized release build, the
+     * floor from the newest historical version is used, see [updateSdkExtensionApi].
+     *
+     * A `null` [floor] is ignored.
+     */
+    fun updateSdkExtensionApiFromCurrent(floor: Int?) {
+        if (floor != null) {
+            sdkExtensionApi = floor
+            sdkExtensionApiFromCurrent = true
+        }
     }
 
     override fun compareTo(other: ApiElement): Int {

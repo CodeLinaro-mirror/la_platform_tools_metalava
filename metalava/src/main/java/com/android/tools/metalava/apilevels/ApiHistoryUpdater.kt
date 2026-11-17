@@ -42,6 +42,17 @@ sealed interface ApiHistoryUpdater {
         deprecated: Boolean = apiElement.deprecatedIn != null,
     )
 
+    /**
+     * Updates the [ApiElement.sdkExtensionApi] of [apiElement] with the [floor] of its
+     * `@SdkExtensionApi` annotation in the version being loaded, if any.
+     *
+     * @param apiElement the [ApiElement] to update.
+     * @param floor the value of the `@SdkExtensionApi` annotation, or `null` if not annotated.
+     */
+    fun updateSdkExtensionApi(apiElement: ApiElement, floor: Int?) {
+        apiElement.updateSdkExtensionApi(floor)
+    }
+
     override fun toString(): String
 
     /** Updates the [ApiElement] by calling [ApiElement.update]. */
@@ -55,6 +66,19 @@ sealed interface ApiHistoryUpdater {
         }
 
         override fun toString() = "ApiVersionUpdater(version=$apiVersion)"
+    }
+
+    /**
+     * Extends [ApiVersionUpdater] to update [ApiElement.sdkExtensionApi] from the current API,
+     * which takes precedence over all other versions, see
+     * [ApiElement.updateSdkExtensionApiFromCurrent].
+     */
+    private class CurrentApiVersionUpdater(apiVersion: ApiVersion) : ApiVersionUpdater(apiVersion) {
+        override fun updateSdkExtensionApi(apiElement: ApiElement, floor: Int?) {
+            apiElement.updateSdkExtensionApiFromCurrent(floor)
+        }
+
+        override fun toString() = "CurrentApiVersionUpdater(version=$apiVersion)"
     }
 
     /**
@@ -97,6 +121,16 @@ sealed interface ApiHistoryUpdater {
         /** Create an [ApiHistoryUpdater] for [apiVersion]. */
         fun forApiVersion(apiVersion: ApiVersion): ApiHistoryUpdater {
             return ApiVersionUpdater(apiVersion)
+        }
+
+        /**
+         * Create an [ApiHistoryUpdater] for the current API whose version is [apiVersion].
+         *
+         * This behaves like [forApiVersion] except that an `@SdkExtensionApi` floor from the
+         * current API takes precedence over floors from all other versions.
+         */
+        fun forCurrentApiVersion(apiVersion: ApiVersion): ApiHistoryUpdater {
+            return CurrentApiVersionUpdater(apiVersion)
         }
 
         /**

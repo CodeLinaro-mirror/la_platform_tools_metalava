@@ -67,6 +67,19 @@ class AvailableSdkExtensions(internal val sdkExtensions: Set<SdkExtension>) {
             ?: throw IllegalStateException("unknown extension SDK \"$shortExtensionName\"")
     }
 
+    /**
+     * Find the [SdkExtension]s in which an API annotated with `@SdkExtensionApi(floor)` is
+     * available, see [SdkExtension.matchesSdkExtensionApiFloor].
+     *
+     * The [floor] is not validated, e.g. a [floor] that does not match the [SdkExtension.id] of any
+     * [SdkExtension] still resolves to the [SdkExtension]s that match it, which may be none.
+     *
+     * @param floor the value of the `@SdkExtensionApi` annotation.
+     * @return the matching [SdkExtension]s, in the same order as [sdkExtensions].
+     */
+    fun findSdkExtensionsForFloor(floor: Int): List<SdkExtension> =
+        sdkExtensions.filter { it.matchesSdkExtensionApiFloor(floor) }
+
     /** Retrieve the [SdkExtension] for [id], throwing an exception if it could not be found. */
     fun retrieveSdkExtensionById(id: Int): SdkExtension {
         return idToSdkExtension[id]

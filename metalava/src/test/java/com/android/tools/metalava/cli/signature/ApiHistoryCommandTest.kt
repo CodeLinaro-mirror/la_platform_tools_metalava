@@ -1315,7 +1315,7 @@ class ApiHistoryCommandTest : BaseCommandTest<ApiHistoryCommand>({ ApiHistoryCom
                         VersionedSignatureApi(files=TESTROOT/1/public/api.txt, updater=ApiVersionUpdater(version=1))
                         VersionedSignatureApi(files=TESTROOT/1.1/{public,system}/api.txt, updater=ApiVersionUpdater(version=1.1))
                         VersionedSignatureApi(files=TESTROOT/2/{public,system}/api.txt, updater=ApiVersionUpdater(version=2))
-                        VersionedSignatureApi(files=TESTROOT/current.txt, updater=ApiVersionUpdater(version=30))
+                        VersionedSignatureApi(files=TESTROOT/current.txt, updater=CurrentApiVersionUpdater(version=30))
                         VersionedSignatureApi(files=TESTROOT/extensions/1/public/bar.txt, updater=ExtensionUpdater(extVersion=1, module=bar, nextSdkVersion=30))
                         VersionedSignatureApi(files=TESTROOT/extensions/2/public/bar.txt, updater=ExtensionUpdater(extVersion=2, module=bar, nextSdkVersion=30))
                         VersionedSignatureApi(files=TESTROOT/extensions/2/public/baz.txt, updater=ExtensionUpdater(extVersion=2, module=baz, nextSdkVersion=30))
@@ -1401,7 +1401,7 @@ class ApiHistoryCommandTest : BaseCommandTest<ApiHistoryCommand>({ ApiHistoryCom
                     """
                         VersionedSignatureApi(files=TESTROOT/1/public/api.txt, updater=ApiVersionUpdater(version=1))
                         VersionedSignatureApi(files=TESTROOT/1.1/public/api.txt, updater=ApiVersionUpdater(version=1.1))
-                        VersionedSignatureApi(files=TESTROOT/current.txt, updater=ApiVersionUpdater(version=30))
+                        VersionedSignatureApi(files=TESTROOT/current.txt, updater=CurrentApiVersionUpdater(version=30))
                     """
                         .trimIndent(),
                     command.config.versionedApis.dump(),
@@ -1459,7 +1459,7 @@ class ApiHistoryCommandTest : BaseCommandTest<ApiHistoryCommand>({ ApiHistoryCom
                     """
                         VersionedSignatureApi(files=TESTROOT/28/public/api.txt, updater=ApiVersionUpdater(version=28))
                         VersionedSignatureApi(files=TESTROOT/29/public/api.txt, updater=ApiVersionUpdater(version=29))
-                        VersionedSignatureApi(files=TESTROOT/current.txt, updater=ApiVersionUpdater(version=30))
+                        VersionedSignatureApi(files=TESTROOT/current.txt, updater=CurrentApiVersionUpdater(version=30))
                         VersionedSignatureApi(files=TESTROOT/extensions/1/public/foo.txt, updater=ExtensionUpdater(extVersion=1, module=foo, nextSdkVersion=30))
                         VersionedSignatureApi(files=TESTROOT/extensions/2/public/foo.txt, updater=ExtensionUpdater(extVersion=2, module=foo, nextSdkVersion=30))
                     """
@@ -1512,8 +1512,8 @@ class ApiHistoryCommandTest : BaseCommandTest<ApiHistoryCommand>({ ApiHistoryCom
                 assertEquals(
                     """
                         VersionedSignatureApi(files=TESTROOT/1/public/api.txt, updater=ApiVersionUpdater(version=1))
-                        VersionedSignatureApi(files=TESTROOT/current.txt, updater=ApiVersionUpdater(version=30))
-                        VersionedSignatureApi(files=TESTROOT/current.txt, updater=ApiVersionUpdater(version=123456789))
+                        VersionedSignatureApi(files=TESTROOT/current.txt, updater=CurrentApiVersionUpdater(version=30))
+                        VersionedSignatureApi(files=TESTROOT/current.txt, updater=CurrentApiVersionUpdater(version=123456789))
                         VersionedSignatureApi(files=TESTROOT/extensions/1/public/foo.txt, updater=ExtensionUpdater(extVersion=1, module=foo, nextSdkVersion=123456789))
                     """
                         .trimIndent(),
