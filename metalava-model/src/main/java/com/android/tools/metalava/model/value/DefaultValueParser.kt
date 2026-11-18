@@ -31,6 +31,8 @@ import com.android.tools.metalava.model.parser.SharedLexer
 import com.android.tools.metalava.model.parser.SharedTokenType
 import com.android.tools.metalava.model.parser.Token
 import com.android.tools.metalava.model.parser.TokenStream
+import com.android.tools.metalava.model.parser.isClosedQuotedLiteral
+import com.android.tools.metalava.model.parser.parseStringLiteralValue
 import com.android.tools.metalava.model.type.ContextNullability
 import com.android.tools.metalava.model.type.TypeItemParser
 import com.android.tools.metalava.reporter.FileLocation
@@ -560,17 +562,14 @@ class DefaultValueParser(
 
     /** Parses a double-quoted [text] token into a String [ConstantValue]. */
     private fun parseStringLiteral(optionalTypeItem: TypeItem?, text: String): ConstantValue {
-        if (text.length < 2 || text.last() != '"') {
-            error("string '$text' starts with \" but does not end with \"")
-        }
-        val string = javaUnescapeString(text.substring(1, text.length - 1))
+        val string = parseStringLiteralValue(text) { throw IllegalArgumentException(it) }!!
         return createLiteralValue(optionalTypeItem, string)
     }
 
     /** Parses a single-quoted [text] token into a Char [ConstantValue]. */
     private fun parseCharLiteral(optionalTypeItem: TypeItem?, text: String): ConstantValue {
-        if (text.length < 2 || text.last() != '\'') {
-            error("character \"$text\" starts with ' but does not end with '")
+        if (!isClosedQuotedLiteral(text, '\'')) {
+            throw IllegalArgumentException("unclosed character literal")
         }
         val string = javaUnescapeString(text.substring(1, text.length - 1))
         if (string.length != 1) {

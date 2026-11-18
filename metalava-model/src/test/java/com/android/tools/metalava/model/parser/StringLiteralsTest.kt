@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.testing.value.literalValue
 import com.android.tools.metalava.model.type.TypeItemParser
 import com.android.tools.metalava.model.value.DefaultValueParser
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Test
 
@@ -59,7 +60,7 @@ class StringLiteralsTest {
                 javaUnescapeString("${'\\'}u00g0")
             }
         assertEquals(
-            "bad escape sequence: 'g' at pos 4 in: \"${'\\'}u00g0\"",
+            "invalid unicode escape sequence '${'\\'}u00g0' in string literal",
             exception.message,
         )
     }
@@ -69,7 +70,7 @@ class StringLiteralsTest {
         val exception =
             assertThrows(IllegalArgumentException::class.java) { javaUnescapeString("${'\\'}u00") }
         assertEquals(
-            "unfinished escape sequence: ${'\\'}u00",
+            "invalid unicode escape sequence '${'\\'}u00' in string literal",
             exception.message,
         )
     }
@@ -86,9 +87,12 @@ class StringLiteralsTest {
 
     @Test
     fun `Test javaUnescapeString - unknown escape sequence`() {
-        // TODO(bug): Throw IllegalArgumentException on unknown escape '\x' instead of silently
-        //  dropping 'x' and treating 'b' as '\b'.
-        assertEquals("a\b", javaUnescapeString("""a\xb"""))
+        val exception =
+            assertThrows(IllegalArgumentException::class.java) { javaUnescapeString("""a\xb""") }
+        assertEquals(
+            """invalid escape sequence '\x' in string literal""",
+            exception.message,
+        )
     }
 
     @Test
@@ -106,38 +110,59 @@ class StringLiteralsTest {
     @Test
     fun `Test DefaultValueParser - unclosed string literal`() {
         val exception =
-            assertThrows(RuntimeException::class.java) { valueParser.parse(null, """"abc""") }
+            assertThrows(IllegalArgumentException::class.java) {
+                valueParser.parse(null, """"abc""")
+            }
         assertEquals(
-            """string '"abc' starts with " but does not end with """",
+            "unclosed string literal",
             exception.message,
         )
     }
 
     @Test
     fun `Test DefaultValueParser - unclosed string literal ending with escaped quote`() {
-        // TODO(bug): Report unclosed string literal instead of unfinished escape sequence when raw
-        //  token ends with an escaped quote.
         val exception =
             assertThrows(IllegalArgumentException::class.java) {
                 valueParser.parse(null, "\"abc\\\"")
             }
         assertEquals(
-            """unfinished escape sequence: abc\""",
+            "unclosed string literal",
             exception.message,
         )
     }
 
     @Test
     fun `Test DefaultValueParser - unclosed char literal ending with escaped quote`() {
-        // TODO(bug): Report unclosed character literal instead of unfinished escape sequence when
-        //  raw token ends with an escaped quote.
         val exception =
             assertThrows(IllegalArgumentException::class.java) {
                 valueParser.parse(null, """'a\'""")
             }
         assertEquals(
-            """unfinished escape sequence: a\""",
+            "unclosed character literal",
             exception.message,
+        )
+    }
+
+    @Test
+    fun `Test parseStringLiteralValue with non-throwing onError`() {
+        val errors = mutableListOf<String>()
+
+        assertEquals(
+            "public",
+            parseStringLiteralValue(""""pub${'\\'}u006cic"""") { errors += it },
+        )
+        assertEquals(emptyList(), errors)
+
+        assertNull(parseStringLiteralValue(""""unclosed""") { errors += it })
+        assertNull(parseStringLiteralValue("\"abc\\\"") { errors += it })
+        assertNull(parseStringLiteralValue(""""a\xb"""") { errors += it })
+        assertEquals(
+            listOf(
+                "unclosed string literal",
+                "unclosed string literal",
+                """invalid escape sequence '\x' in string literal""",
+            ),
+            errors,
         )
     }
 }
