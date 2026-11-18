@@ -83,7 +83,6 @@ class ConditionalJavadocTest : BaseJavadocTest() {
             expectedJavadocIssues =
                 """
                     2:17: unknown function 'blah', expected 'flag' [InvalidJavadocExpr]
-                    2:22: expected field reference, found ')' [InvalidJavadoc]
                 """,
             expectedStructure =
                 """

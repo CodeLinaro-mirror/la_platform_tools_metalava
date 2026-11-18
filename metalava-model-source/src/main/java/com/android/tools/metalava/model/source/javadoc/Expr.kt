@@ -53,11 +53,10 @@ internal interface Expr {
 /**
  * The `flag(...)` function call.
  *
- * @param flagName the optional flag name, if `null` then this always evaluates to `false`
+ * @param flagName the resolved flag name.
  */
-internal class FlagFunctionCall(private val flagName: String?) : Expr {
-    override fun evaluate(context: ExprContext) =
-        if (flagName == null) false else context.isFlagEnabled(flagName)
+internal class FlagFunctionCall(private val flagName: String) : Expr {
+    override fun evaluate(context: ExprContext) = context.isFlagEnabled(flagName)
 }
 
 /** Context that is made available when building [Expr]. */
@@ -106,15 +105,35 @@ internal class ExprBuilder(
      *
      * @param tokens the [TokenStream] to read arguments from.
      * @param functionNameToken the token for the function name (e.g. `flag`).
-     * @return the [Expr] representing the function call.
+     * @return the [Expr] representing the function call, or `null` if invalid.
      */
-    private fun parseFunctionCall(tokens: TokenStream, functionNameToken: Token): Expr {
+    private fun parseFunctionCall(tokens: TokenStream, functionNameToken: Token): Expr? {
         val parenOpen =
             reporter.expect(tokens, SharedTokenType.PAREN_OPEN, "expected '(' after function name")
         if (parenOpen == Token.NONE) {
-            return FlagFunctionCall(null)
+            return null
         }
 
+        return when (val name = functionNameToken.text(text)) {
+            "flag" -> parseFlagFunctionCall(tokens)
+            else -> {
+                reporter.report(
+                    functionNameToken,
+                    Issues.INVALID_JAVADOC_EXPR,
+                    "unknown function '$name', expected 'flag'",
+                )
+                skipUntilParenClose(tokens)
+                null
+            }
+        }
+    }
+
+    /**
+     * Parse the arguments and closing `)` of a `flag(<field-ref>)` function call.
+     *
+     * @return a [FlagFunctionCall] expression, or `null` if invalid.
+     */
+    private fun parseFlagFunctionCall(tokens: TokenStream): Expr? {
         // Parse the qualified field reference argument: (IDENTIFIER DOT)* IDENTIFIER
         val fieldReferenceTokens = mutableListOf<Token>()
         if (tokens.peekType() == SharedTokenType.IDENTIFIER) {
@@ -139,15 +158,46 @@ internal class ExprBuilder(
                 Issues.INVALID_JAVADOC,
                 "expected field reference, found '${token.text(text)}'",
             )
+            skipBeforeParenClose(tokens)
         }
 
-        reporter.expect(tokens, SharedTokenType.PAREN_CLOSE, "expected ')' after field reference")
-        return buildFunctionCall(functionNameToken, fieldReferenceTokens)
+        if (
+            reporter.expect(
+                tokens,
+                SharedTokenType.PAREN_CLOSE,
+                "expected ')' after field reference",
+            ) == Token.NONE
+        ) {
+            skipUntilParenClose(tokens)
+        }
+
+        return buildFlagFunctionCall(fieldReferenceTokens)
+    }
+
+    /**
+     * Error recovery helper: skips argument tokens in [tokens] until a closing parenthesis `)` at
+     * depth 0 is reached (without consuming it), or `{`, `}`, or EOF is reached.
+     */
+    private fun skipBeforeParenClose(tokens: TokenStream) {
+        var parenDepth = 0
+        while (true) {
+            when (tokens.peekType()) {
+                SharedTokenType.PAREN_OPEN -> parenDepth++
+                SharedTokenType.PAREN_CLOSE -> {
+                    if (parenDepth == 0) break
+                    parenDepth--
+                }
+                SharedTokenType.BRACE_OPEN,
+                SharedTokenType.BRACE_CLOSE,
+                SharedTokenType.EOF -> break
+            }
+            tokens.consume()
+        }
     }
 
     /**
      * Error recovery helper: skips tokens in [tokens] until a matching closing parenthesis `)` is
-     * found or an opening brace `{` or EOF is reached.
+     * found or `{`, `}`, or EOF is reached.
      */
     private fun skipUntilParenClose(tokens: TokenStream) {
         var parenDepth = 1
@@ -156,9 +206,10 @@ internal class ExprBuilder(
                 SharedTokenType.PAREN_OPEN -> parenDepth++
                 SharedTokenType.PAREN_CLOSE -> parenDepth--
                 SharedTokenType.BRACE_OPEN,
+                SharedTokenType.BRACE_CLOSE,
                 SharedTokenType.EOF -> {
-                    // Stop before consuming `{` or EOF so the enclosing `@if` parser can still
-                    // parse or recover the branch body when `(` was unclosed.
+                    // Stop before consuming `{`, `}`, or EOF so the enclosing `@if` parser can
+                    // still parse or recover the branch body when `(` was unclosed.
                     break
                 }
             }
@@ -167,35 +218,20 @@ internal class ExprBuilder(
     }
 
     /**
-     * Build an [Expr] from [functionNameToken] and [fieldReferenceTokens].
+     * Build a [FlagFunctionCall] from [fieldReferenceTokens].
      *
-     * Validates that the function name is `flag`, extracts and resolves the field reference to a
-     * [FieldItem], and extracts its constant string value to use as the flag name. Reports an
-     * [Issues.INVALID_JAVADOC_EXPR] issue if the function is unknown or the field reference cannot
-     * be resolved to a constant string value.
+     * Resolves the field reference to a [FieldItem] and extracts its constant string value to use
+     * as the flag name, reporting [Issues.INVALID_JAVADOC_EXPR] if the field reference cannot be
+     * resolved to a constant string value.
      *
-     * @param functionNameToken the token containing the function name (expected to be `flag`).
      * @param fieldReferenceTokens the list of tokens representing the qualified field reference.
      * @return a [FlagFunctionCall] expression with the resolved flag name, or `null` if invalid.
      */
-    private fun buildFunctionCall(
-        functionNameToken: Token,
+    private fun buildFlagFunctionCall(
         fieldReferenceTokens: List<Token>,
-    ): Expr {
-        val name = functionNameToken.text(text)
-        if (name != "flag") {
-            reporter.report(
-                functionNameToken,
-                Issues.INVALID_JAVADOC_EXPR,
-                "unknown function '$name', expected 'flag'"
-            )
-
-            // Return an expr that always evaluates to false.
-            return FlagFunctionCall(null)
-        }
-
+    ): Expr? {
         if (fieldReferenceTokens.isEmpty()) {
-            return FlagFunctionCall(null)
+            return null
         }
 
         // Get the field reference, removing any white space.
@@ -253,10 +289,8 @@ internal class ExprBuilder(
                 // limit the returned types to FieldItem, ExternalReferencableItem, or
                 // InvalidReferencableItem
                 else -> error("type '$fieldReference' was resolved to an unknown type $resolved")
-            }
+            } ?: return null
 
-        // Create the flag function call expression. If `flagName` is `null` then this will always
-        // evaluate to false.
         return FlagFunctionCall(flagName)
     }
 }
