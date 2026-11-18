@@ -175,18 +175,17 @@ internal class DocCommentLexer(
 
     /**
      * Scans forward from [index] until the next line-starting block tag, the closing `}` of an
-     * enclosing `@if` branch (when [ifDepth] > 0 and inline braces are balanced), or
-     * [endExclusive].
+     * enclosing `@if` branch (when [ifDepth] > 0 and braces are balanced), or [endExclusive].
      */
     private fun tokenizeDescription(): Token {
         val descStart = index
-        var inlineBraceDepth = 0
+        var branchBraceDepth = 0
 
         while (index < endExclusive) {
-            // Only recognize a line-starting block tag or closing `}` when `inlineBraceDepth == 0`
+            // Only recognize a line-starting block tag or closing `}` when `branchBraceDepth == 0`
             // so `@Override` or `}` inside a multi-line `{@code ...}` block does not prematurely
             // end an inner block tag's description or close the enclosing `@if` branch.
-            if (atLineStart && inlineBraceDepth == 0) {
+            if (atLineStart && branchBraceDepth == 0) {
                 if (ifDepth > 0) {
                     // End the preceding description at `index` (the start of this line) so the
                     // closing line's leading indentation and `*` are not included in the
@@ -245,11 +244,11 @@ internal class DocCommentLexer(
                 }
                 atLineStart = true
             } else if (ifDepth > 0 && c == '{') {
-                inlineBraceDepth++
+                branchBraceDepth++
                 index++
             } else if (ifDepth > 0 && c == '}') {
-                if (inlineBraceDepth > 0) {
-                    inlineBraceDepth--
+                if (branchBraceDepth > 0) {
+                    branchBraceDepth--
                     index++
                 } else {
                     val trimmedEnd = trimTrailingWhitespace(descStart, index)
