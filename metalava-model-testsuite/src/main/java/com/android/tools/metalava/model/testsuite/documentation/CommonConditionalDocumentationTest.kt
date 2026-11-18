@@ -640,14 +640,18 @@ class CommonConditionalDocumentationTest : BaseModelTest() {
             ),
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
+            val ext = if (inputFormat == InputFormat.JAVA) "java" else "kt"
             testClass.assertPrintedDocumentation(
                 expectedOutput =
                     """
                         /** False. */
                     """,
             )
-            // TODO(bug): Report InvalidJavadocExpr for invalid surface name 'InvalidName'.
-            assertAndRemoveReportedIssues("")
+            assertAndRemoveReportedIssues(
+                """
+                    MAIN_SRC/src/test/pkg/Test.$ext:4:18: error: invalid surface name 'InvalidName', must match '[a-z-]+' [InvalidJavadocExpr]
+                """,
+            )
         }
     }
 }

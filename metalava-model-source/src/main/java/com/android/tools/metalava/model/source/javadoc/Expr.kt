@@ -353,13 +353,29 @@ internal class ExprBuilder(
     /**
      * Build a [SurfaceFunctionCall] from [surfaceNameToken].
      *
-     * Extracts and unescapes the string value, reporting [Issues.INVALID_JAVADOC] if malformed.
+     * Extracts and unescapes the string value (reporting [Issues.INVALID_JAVADOC] if malformed) and
+     * validates that it matches `[a-z-]+`, reporting [Issues.INVALID_JAVADOC_EXPR] if invalid.
      */
     private fun buildSurfaceFunctionCall(surfaceNameToken: Token): Expr? {
         val surfaceName =
             parseStringLiteralValue(surfaceNameToken.text(text)) { message ->
                 reporter.report(surfaceNameToken, Issues.INVALID_JAVADOC, message)
             } ?: return null
+        if (!isValidSurfaceName(surfaceName)) {
+            reporter.report(
+                surfaceNameToken,
+                Issues.INVALID_JAVADOC_EXPR,
+                "invalid surface name '$surfaceName', must match '[a-z-]+'",
+            )
+            return null
+        }
         return SurfaceFunctionCall(surfaceName)
     }
+
+    /**
+     * Returns `true` if [surfaceName] matches `[a-z-]+` (the `ApiSurfaceNameType` pattern in
+     * `config.xsd`).
+     */
+    private fun isValidSurfaceName(surfaceName: String): Boolean =
+        surfaceName.isNotEmpty() && surfaceName.all { it in 'a'..'z' || it == '-' }
 }
