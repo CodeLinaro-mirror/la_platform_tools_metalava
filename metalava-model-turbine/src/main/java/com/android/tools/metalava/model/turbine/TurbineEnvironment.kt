@@ -31,6 +31,8 @@ import com.google.turbine.binder.Binder.BindingResult
 import com.google.turbine.binder.ClassPath
 import com.google.turbine.binder.ClassPathBinder
 import com.google.turbine.binder.JimageClassBinder
+import com.google.turbine.binder.bound.TypeBoundClass
+import com.google.turbine.binder.sym.ClassSymbol
 import com.google.turbine.cache.StringCache
 import com.google.turbine.diag.SourceFile
 import com.google.turbine.diag.TurbineDiagnostic
@@ -239,7 +241,7 @@ internal class TurbineEnvironment(
 
         // Report all the diagnostics, filtering those that relate to missing references.
         tracer.trace("turbine.reportDiagnostics") {
-            log.reportTo(reporter) { diagnostic ->
+            log.reportTo(reporter, bindingResult) { diagnostic ->
                 // Ignore missing references.
                 val errorKind = diagnostic.kind()
                 when (errorKind) {
@@ -282,11 +284,33 @@ internal class TurbineEnvironment(
     /** Report all the diagnostics in this [TurbineLog], if any, to [reporter]. */
     private fun TurbineLog.reportTo(
         reporter: Reporter,
-        predicate: (TurbineDiagnostic) -> Boolean = { true }
+        bindingResult: BindingResult? = null,
+        predicate: (TurbineDiagnostic) -> Boolean = { true },
     ) {
         for (diagnostic in diagnostics()) {
             // Ignore any that do not match the predicate.
             if (!predicate(diagnostic)) continue
+
+            if (
+                diagnostic.kind() == TurbineError.ErrorKind.DUPLICATE_DECLARATION &&
+                    bindingResult != null
+            ) {
+                val sym = diagnostic.args().singleOrNull() as? ClassSymbol
+                val existing = sym?.let { bindingResult.units()[it] }
+                val duplicatePath = diagnostic.path().map(Paths::get).orElse(null)
+                if (existing != null && duplicatePath != null) {
+                    val qualifiedName =
+                        TypeBoundClass.canonicalName(sym, { existing }, bindingResult.units()::get)
+                    val existingPath = Paths.get(existing.source().path())
+                    reporter.report(
+                        Issues.DUPLICATE_SOURCE_CLASS,
+                        null,
+                        "Attempted to register $qualifiedName twice; once from $existingPath and this one from $duplicatePath",
+                        FileLocation.createLocation(duplicatePath, line = diagnostic.line()),
+                    )
+                    continue
+                }
+            }
 
             val location =
                 diagnostic
