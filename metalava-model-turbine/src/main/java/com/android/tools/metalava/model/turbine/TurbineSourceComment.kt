@@ -41,12 +41,11 @@ internal class TurbineSourceComment(
     override fun obtainStartOffset(): Int = turbineJavadoc.startPosition()
 
     override fun obtainText(): String {
+        // Ignore markdown comments as Metalava does not know how to parse them.
+        if (turbineJavadoc.kind() == TurbineJavadoc.Kind.MARKDOWN) return ""
+
         // Reconstruct the original comment.
         val javadoc = turbineJavadoc.value()
-
-        // Ignore markdown comments as Metalava does not know how to parse them.
-        if (javadoc.startsWith("///")) return ""
-
         val originalComment = "/**$javadoc*/"
         return originalComment
     }
