@@ -8,6 +8,3 @@ com.android.tools.metalava.model.testsuite.parameteritem.CommonParameterItemTest
 com.android.tools.metalava.model.testsuite.typeitem.CommonParameterizedInvalidTypeTest
   Test invalid source reference[genericStringInnerNumber - generic defined but inner undefined]
   Test invalid source reference[otherNested - other defined but nested undefined]
-
-com.android.tools.metalava.model.testsuite.value.CommonValueTest
-  Test use field reference in a type annotation

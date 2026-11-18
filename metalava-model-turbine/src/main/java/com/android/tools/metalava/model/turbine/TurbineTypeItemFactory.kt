@@ -36,16 +36,24 @@ internal class TurbineTypeItemFactory(
     private val initializer: TurbineCodebaseInitialiser,
     private val annotationFactory: TurbineAnnotationFactory,
     typeParameterScope: TypeParameterScope,
+    val fieldResolver: FieldResolver? = null,
 ) : DefaultTypeItemFactory<Type, TurbineTypeItemFactory>(typeParameterScope) {
-
-    // TODO(b/479907812): Provide a non-null FieldResolver.
-    val fieldResolver: FieldResolver?
-        get() = null
 
     override fun self() = this
 
     override fun createNestedFactory(scope: TypeParameterScope) =
-        TurbineTypeItemFactory(initializer, annotationFactory, scope)
+        TurbineTypeItemFactory(initializer, annotationFactory, scope, fieldResolver)
+
+    /** Return a [TurbineTypeItemFactory] with the same [typeParameterScope] and [fieldResolver]. */
+    fun withFieldResolver(fieldResolver: FieldResolver?) =
+        if (fieldResolver == this.fieldResolver) this
+        else
+            TurbineTypeItemFactory(
+                initializer,
+                annotationFactory,
+                typeParameterScope,
+                fieldResolver
+            )
 
     override fun getType(
         underlyingType: Type,

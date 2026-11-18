@@ -49,8 +49,7 @@ import com.google.turbine.tree.Tree.Expression
  * * For invalid (i.e. partially resolved, with compilation errors) source values [const] is null
  *   and [expr] os non-null.
  *
- * The [fieldResolver] is generally non-null whenever [expr] is null but that is not yet true for
- * values on type use annotations. See [TurbineTypeItemFactory.fieldResolver].
+ * The [fieldResolver] is generally non-null whenever [expr] is non-null.
  *
  * The model needs information from both so this encapsulates them together to make them easier to
  * use and provide a convenient place for code that manipulate them.

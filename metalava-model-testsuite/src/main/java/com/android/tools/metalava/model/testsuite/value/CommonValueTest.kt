@@ -168,6 +168,45 @@ class CommonValueTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test use field reference in a type annotation on nested class`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        import java.lang.annotation.ElementType;
+                        import java.lang.annotation.Target;
+                        @Target(ElementType.TYPE_USE)
+                        public @interface Anno {
+                            int value();
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class Outer {
+                            public static class Inner {
+                                public static final int INNER_CONSTANT = 42;
+                                public @Anno(INNER_CONSTANT) int field;
+                            }
+                        }
+                    """,
+                ),
+            ),
+        ) {
+            val innerClass = codebase.assertClass("test.pkg.Outer.Inner")
+            val fieldItem = innerClass.assertField("field")
+            val annotationItem = fieldItem.type().modifiers.annotations.single()
+            val annotationAttribute = annotationItem.attributes.single()
+            val value = annotationAttribute.value
+            assertEquals(fieldReferenceValue("test.pkg.Outer.Inner", "INNER_CONSTANT"), value)
+            assertEquals(42, value.asLiteralValue()?.underlyingValue)
+        }
+    }
+
     @SupportedInputFormats(InputFormat.JAVA, InputFormat.SIGNATURE)
     @Test
     fun `Test array class literal nullability`() {

@@ -102,7 +102,7 @@ internal class TurbineClassBuilder(
     private val sourceTypeBoundClass = typeBoundClass as? SourceTypeBoundClass
 
     /** The [FieldResolver] used for resolving [Tree.ConstVarName] to [TypeBoundClass.FieldInfo]. */
-    private var fieldResolver = createFieldResolver(classSymbol, typeBoundClass)
+    private val fieldResolver = createFieldResolver(classSymbol, typeBoundClass)
 
     /**
      * Create a [ClassItem] for the [classSymbol]/[typeBoundClass] pair.
@@ -142,10 +142,12 @@ internal class TurbineClassBuilder(
                 typeBoundClass.access(),
                 typeBoundClass.annotations(),
             )
+        val classEnclosingTypeItemFactory =
+            enclosingClassTypeItemFactory.withFieldResolver(fieldResolver)
         val (typeParameters, classTypeItemFactory) =
             createTypeParameters(
                 typeBoundClass.typeParameterTypes(),
-                enclosingClassTypeItemFactory,
+                classEnclosingTypeItemFactory,
                 "class $qualifiedName",
             )
 

@@ -75,9 +75,6 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldWriteWi
   testLegacySource[text,source,byte - cast]
   testLegacySource[text,source,short - cast]
 
-com.android.tools.metalava.model.testsuite.value.CommonValueTest
-  Test use field reference in a type annotation[turbine]
-
 com.android.tools.metalava.model.testsuite.value.ParameterizedValueParserTest
   Test parse[text,Default,byte - cast,signatureExpression,jar]
   Test parse[text,Default,short - cast,signatureExpression,jar]
