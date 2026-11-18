@@ -177,6 +177,9 @@ internal class TestDocCommentContext(
     /** Implements [ExprContext.isFlagEnabled]. */
     override fun isFlagEnabled(flagName: String) = flagToEnabledStatus[flagName] ?: false
 
+    /** Implements [ExprContext.includesSurface]. */
+    override fun includesSurface(surfaceName: String) = surfaceName in includedSurfaces
+
     override fun ordinalInParamsList(name: String) = 0
 
     override fun isOverridingMethod() = false

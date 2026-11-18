@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.ReferencableItem
 import com.android.tools.metalava.model.parser.SharedTokenType
 import com.android.tools.metalava.model.parser.Token
 import com.android.tools.metalava.model.parser.TokenStream
+import com.android.tools.metalava.model.parser.parseStringLiteralValue
 import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.value.StringValue
 import com.android.tools.metalava.model.value.Value
@@ -36,6 +37,14 @@ internal interface ExprContext {
      * @param flagName is the name of the flag.
      */
     fun isFlagEnabled(flagName: String): Boolean
+
+    /**
+     * Check to see whether [surfaceName] is the current API surface being generated or one of the
+     * API surfaces that it extends.
+     *
+     * @param surfaceName is the name of the API surface.
+     */
+    fun includesSurface(surfaceName: String): Boolean = false
 }
 
 /** An expression that can be used with a Javadoc conditional expression. */
@@ -57,6 +66,15 @@ internal interface Expr {
  */
 internal class FlagFunctionCall(private val flagName: String) : Expr {
     override fun evaluate(context: ExprContext) = context.isFlagEnabled(flagName)
+}
+
+/**
+ * The `surface(...)` function call.
+ *
+ * @param surfaceName the validated API surface name.
+ */
+internal class SurfaceFunctionCall(private val surfaceName: String) : Expr {
+    override fun evaluate(context: ExprContext) = context.includesSurface(surfaceName)
 }
 
 /** Context that is made available when building [Expr]. */
@@ -101,10 +119,10 @@ internal class ExprBuilder(
     }
 
     /**
-     * Parse a function call expression, e.g. `flag(pkg.Flags.FLAG)`.
+     * Parse a function call expression, e.g. `flag(pkg.Flags.FLAG)` or `surface("public")`.
      *
      * @param tokens the [TokenStream] to read arguments from.
-     * @param functionNameToken the token for the function name (e.g. `flag`).
+     * @param functionNameToken the token for the function name (`flag` or `surface`).
      * @return the [Expr] representing the function call, or `null` if invalid.
      */
     private fun parseFunctionCall(tokens: TokenStream, functionNameToken: Token): Expr? {
@@ -116,11 +134,12 @@ internal class ExprBuilder(
 
         return when (val name = functionNameToken.text(text)) {
             "flag" -> parseFlagFunctionCall(tokens)
+            "surface" -> parseSurfaceFunctionCall(tokens)
             else -> {
                 reporter.report(
                     functionNameToken,
                     Issues.INVALID_JAVADOC_EXPR,
-                    "unknown function '$name', expected 'flag'",
+                    "unknown function '$name', expected 'flag' or 'surface'",
                 )
                 skipUntilParenClose(tokens)
                 null
@@ -172,6 +191,43 @@ internal class ExprBuilder(
         }
 
         return buildFlagFunctionCall(fieldReferenceTokens)
+    }
+
+    /**
+     * Parse the arguments and closing `)` of a `surface("<surface-name>")` function call.
+     *
+     * @return a [SurfaceFunctionCall] expression, or `null` if invalid.
+     */
+    private fun parseSurfaceFunctionCall(tokens: TokenStream): Expr? {
+        val surfaceNameToken =
+            if (tokens.peekType() == SharedTokenType.STRING_LITERAL) {
+                tokens.consume()
+            } else {
+                val token = tokens.peek()
+                reporter.report(
+                    token,
+                    Issues.INVALID_JAVADOC,
+                    "expected string literal, found '${token.text(text)}'",
+                )
+                skipBeforeParenClose(tokens)
+                Token.NONE
+            }
+
+        if (
+            reporter.expect(
+                tokens,
+                SharedTokenType.PAREN_CLOSE,
+                "expected ')' after surface name",
+            ) == Token.NONE
+        ) {
+            skipUntilParenClose(tokens)
+        }
+
+        if (surfaceNameToken == Token.NONE) {
+            return null
+        }
+
+        return buildSurfaceFunctionCall(surfaceNameToken)
     }
 
     /**
@@ -292,5 +348,18 @@ internal class ExprBuilder(
             } ?: return null
 
         return FlagFunctionCall(flagName)
+    }
+
+    /**
+     * Build a [SurfaceFunctionCall] from [surfaceNameToken].
+     *
+     * Extracts and unescapes the string value, reporting [Issues.INVALID_JAVADOC] if malformed.
+     */
+    private fun buildSurfaceFunctionCall(surfaceNameToken: Token): Expr? {
+        val surfaceName =
+            parseStringLiteralValue(surfaceNameToken.text(text)) { message ->
+                reporter.report(surfaceNameToken, Issues.INVALID_JAVADOC, message)
+            } ?: return null
+        return SurfaceFunctionCall(surfaceName)
     }
 }

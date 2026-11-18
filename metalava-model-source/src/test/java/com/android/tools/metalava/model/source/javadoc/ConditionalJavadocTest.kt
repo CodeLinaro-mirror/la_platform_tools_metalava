@@ -84,7 +84,7 @@ class ConditionalJavadocTest : BaseJavadocTest() {
             """,
             expectedJavadocIssues =
                 """
-                    2:17: unknown function 'blah', expected 'flag' [InvalidJavadocExpr]
+                    2:17: unknown function 'blah', expected 'flag' or 'surface' [InvalidJavadocExpr]
                 """,
             expectedStructure =
                 """
@@ -399,8 +399,6 @@ class ConditionalJavadocTest : BaseJavadocTest() {
 
     @Test
     fun `Test if surface - matching surface`() {
-        // TODO(bug): Support surface("name") in @if expressions so this evaluates to true with no
-        //  issues.
         checkConditionalParse(
             """
                 /**
@@ -412,21 +410,15 @@ class ConditionalJavadocTest : BaseJavadocTest() {
                  */
             """,
             surfaces = setOf("public", "system", "module-lib"),
-            expectedJavadocIssues =
-                """
-                    2:17: unknown function 'surface', expected 'flag' [InvalidJavadocExpr]
-                """,
             expectedStructure =
                 """
-                    text: 'Before false after.'
+                    text: 'Before true after.'
                 """,
         )
     }
 
     @Test
     fun `Test if surface - non-matching surface`() {
-        // TODO(bug): Support surface("name") in @if expressions so this evaluates to false with no
-        //  issues.
         checkConditionalParse(
             """
                 /**
@@ -438,10 +430,6 @@ class ConditionalJavadocTest : BaseJavadocTest() {
                  */
             """,
             surfaces = setOf("public", "system", "module-lib"),
-            expectedJavadocIssues =
-                """
-                    2:17: unknown function 'surface', expected 'flag' [InvalidJavadocExpr]
-                """,
             expectedStructure =
                 """
                     text: 'Before false after.'
@@ -451,7 +439,6 @@ class ConditionalJavadocTest : BaseJavadocTest() {
 
     @Test
     fun `Test if surface - missing argument`() {
-        // TODO(bug): Report expected string literal instead of unknown function 'surface'.
         checkConditionalParse(
             """
                 /**
@@ -460,7 +447,7 @@ class ConditionalJavadocTest : BaseJavadocTest() {
             """,
             expectedJavadocIssues =
                 """
-                    2:17: unknown function 'surface', expected 'flag' [InvalidJavadocExpr]
+                    2:25: expected string literal, found ')' [InvalidJavadoc]
                 """,
             expectedStructure =
                 """
@@ -471,7 +458,6 @@ class ConditionalJavadocTest : BaseJavadocTest() {
 
     @Test
     fun `Test if surface - non-string argument`() {
-        // TODO(bug): Report expected string literal instead of unknown function 'surface'.
         checkConditionalParse(
             """
                 /**
@@ -480,7 +466,7 @@ class ConditionalJavadocTest : BaseJavadocTest() {
             """,
             expectedJavadocIssues =
                 """
-                    2:17: unknown function 'surface', expected 'flag' [InvalidJavadocExpr]
+                    2:25: expected string literal, found 'public' [InvalidJavadoc]
                 """,
             expectedStructure =
                 """
@@ -491,7 +477,6 @@ class ConditionalJavadocTest : BaseJavadocTest() {
 
     @Test
     fun `Test if surface - unclosed string literal`() {
-        // TODO(bug): Report unclosed string literal instead of unknown function 'surface'.
         checkConditionalParse(
             """
                 /**
@@ -501,7 +486,7 @@ class ConditionalJavadocTest : BaseJavadocTest() {
             """,
             expectedJavadocIssues =
                 """
-                    2:17: unknown function 'surface', expected 'flag' [InvalidJavadocExpr]
+                    2:25: unclosed string literal [InvalidJavadoc]
                 """,
             expectedStructure =
                 """
@@ -512,7 +497,6 @@ class ConditionalJavadocTest : BaseJavadocTest() {
 
     @Test
     fun `Test if surface - unclosed string literal ending with escaped quote`() {
-        // TODO(bug): Report unclosed string literal instead of unknown function 'surface'.
         checkConditionalParse(
             """
                 /**
@@ -522,7 +506,7 @@ class ConditionalJavadocTest : BaseJavadocTest() {
             """,
             expectedJavadocIssues =
                 """
-                    2:17: unknown function 'surface', expected 'flag' [InvalidJavadocExpr]
+                    2:25: unclosed string literal [InvalidJavadoc]
                 """,
             expectedStructure =
                 """
@@ -533,7 +517,6 @@ class ConditionalJavadocTest : BaseJavadocTest() {
 
     @Test
     fun `Test if surface - invalid escape sequence`() {
-        // TODO(bug): Report invalid escape sequence '\x' instead of unknown function 'surface'.
         checkConditionalParse(
             """
                 /**
@@ -542,7 +525,7 @@ class ConditionalJavadocTest : BaseJavadocTest() {
             """,
             expectedJavadocIssues =
                 """
-                    2:17: unknown function 'surface', expected 'flag' [InvalidJavadocExpr]
+                    2:25: invalid escape sequence '\x' in string literal [InvalidJavadoc]
                 """,
             expectedStructure =
                 """
@@ -553,7 +536,6 @@ class ConditionalJavadocTest : BaseJavadocTest() {
 
     @Test
     fun `Test if surface - unicode escape in surface name`() {
-        // TODO(bug): Unescape '\u006c' to 'l' and evaluate surface("public") to true.
         checkConditionalParse(
             """
                 /**
@@ -561,21 +543,15 @@ class ConditionalJavadocTest : BaseJavadocTest() {
                  */
             """,
             surfaces = setOf("public"),
-            expectedJavadocIssues =
-                """
-                    2:17: unknown function 'surface', expected 'flag' [InvalidJavadocExpr]
-                """,
             expectedStructure =
                 """
-                    text: 'Before after.'
+                    text: 'Before true after.'
                 """,
         )
     }
 
     @Test
     fun `Test if surface - extra token before closing paren`() {
-        // TODO(bug): Report expected ')' after surface name and evaluate to true instead of unknown
-        //  function 'surface'.
         checkConditionalParse(
             """
                 /**
@@ -585,11 +561,11 @@ class ConditionalJavadocTest : BaseJavadocTest() {
             surfaces = setOf("public"),
             expectedJavadocIssues =
                 """
-                    2:17: unknown function 'surface', expected 'flag' [InvalidJavadocExpr]
+                    2:34: expected ')' after surface name [InvalidJavadoc]
                 """,
             expectedStructure =
                 """
-                    text: 'Before after.'
+                    text: 'Before true after.'
                 """,
         )
     }

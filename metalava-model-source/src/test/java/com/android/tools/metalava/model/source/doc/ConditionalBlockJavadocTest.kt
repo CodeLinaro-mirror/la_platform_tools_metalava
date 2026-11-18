@@ -690,8 +690,6 @@ class ConditionalBlockJavadocTest : BaseDocCommentTest() {
      */
     @Test
     fun `Test @if surface - matching surface`() {
-        // TODO(bug): Support surface("name") in @if block tags so the true branch is emitted
-        //  without InvalidJavadocExpr.
         checkConditionalDocComment(
             input =
                 """
@@ -711,15 +709,13 @@ class ConditionalBlockJavadocTest : BaseDocCommentTest() {
                 """
                     /**
                      * Summary.
-                     * @see resolved.Second Second
+                     *
+                     * @see resolved.First First
+                     * @deprecated Use {@link resolved.First First} instead.
                      */
                 """,
-            expectedIssues =
-                """
-                    4:9: unknown function 'surface', expected 'flag' [InvalidJavadocExpr]
-                """,
         ) { docComment ->
-            assertFalse(docComment.hasBlockTagOfType("deprecated"))
+            assertTrue(docComment.hasBlockTagOfType("deprecated"))
         }
     }
 
@@ -729,8 +725,6 @@ class ConditionalBlockJavadocTest : BaseDocCommentTest() {
      */
     @Test
     fun `Test @if surface - non-matching surface`() {
-        // TODO(bug): Support surface("name") in @if block tags without reporting
-        //  InvalidJavadocExpr.
         checkConditionalDocComment(
             input =
                 """
@@ -753,10 +747,6 @@ class ConditionalBlockJavadocTest : BaseDocCommentTest() {
                      * @see resolved.Second Second
                      */
                 """,
-            expectedIssues =
-                """
-                    4:9: unknown function 'surface', expected 'flag' [InvalidJavadocExpr]
-                """,
         ) { docComment ->
             assertFalse(docComment.hasBlockTagOfType("deprecated"))
         }
@@ -765,37 +755,59 @@ class ConditionalBlockJavadocTest : BaseDocCommentTest() {
     /** Verify nested `@if` block tags combining `surface("...")` and `flag(...)` conditions. */
     @Test
     fun `Test nested @if combining surface and flag`() {
-        // TODO(bug): Support surface("name") so nested surface + flag conditions evaluate without
-        //  InvalidJavadocExpr.
+        val comment =
+            """
+                /**
+                 * Summary.
+                 *
+                 * @if (surface("system")) {
+                 *     :@if (flag(Flags.TEST_FLAG)) {
+                 *         :@see SystemFlagged
+                 *     } else {
+                 *         :@see SystemUnflagged
+                 *     }
+                 * } else {
+                 *     :@see PublicOnly
+                 * }
+                 */
+            """
+
         checkConditionalDocComment(
-            input =
-                """
-                    /**
-                     * Summary.
-                     *
-                     * @if (surface("system")) {
-                     *     :@if (flag(Flags.TEST_FLAG)) {
-                     *         :@see SystemFlagged
-                     *     } else {
-                     *         :@see SystemUnflagged
-                     *     }
-                     * } else {
-                     *     :@see PublicOnly
-                     * }
-                     */
-                """,
+            input = comment,
             flags = mapOf("Flags.TEST_FLAG" to true),
             surfaces = setOf("public", "system"),
             expectedPrintOutput =
                 """
                     /**
                      * Summary.
-                     * @see resolved.PublicOnly PublicOnly
+                     * @see resolved.SystemFlagged SystemFlagged
                      */
                 """,
-            expectedIssues =
+        )
+
+        checkConditionalDocComment(
+            input = comment,
+            flags = mapOf("Flags.TEST_FLAG" to false),
+            surfaces = setOf("public", "system"),
+            expectedPrintOutput =
                 """
-                    4:9: unknown function 'surface', expected 'flag' [InvalidJavadocExpr]
+                    /**
+                     * Summary.
+                     * @see resolved.SystemUnflagged SystemUnflagged
+                     */
+                """,
+        )
+
+        checkConditionalDocComment(
+            input = comment,
+            flags = mapOf("Flags.TEST_FLAG" to true),
+            surfaces = setOf("public"),
+            expectedPrintOutput =
+                """
+                    /**
+                     * Summary.
+                     * @see resolved.PublicOnly PublicOnly
+                     */
                 """,
         )
     }
