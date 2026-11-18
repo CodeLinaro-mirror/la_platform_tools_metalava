@@ -257,24 +257,6 @@ open class SharedLexer(
         }
     }
 
-    /** Scans a double-quoted string literal starting at [start]. */
-    private fun scanStringLiteral(start: Int): Token {
-        index = start + 1
-        while (index < endExclusive) {
-            val c = text[index++]
-            if (c == '"') {
-                break
-            } else if (c == '\\' && index < endExclusive) {
-                index++
-            }
-        }
-        return createToken(
-            SharedTokenType.STRING_LITERAL,
-            start,
-            index,
-        )
-    }
-
     /** Scans a single-quoted character literal starting at [start]. */
     private fun scanCharLiteral(start: Int): Token {
         index = start + 1

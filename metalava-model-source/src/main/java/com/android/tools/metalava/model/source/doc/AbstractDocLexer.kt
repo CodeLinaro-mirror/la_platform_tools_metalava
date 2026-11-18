@@ -135,8 +135,9 @@ internal abstract class AbstractDocLexer(
     protected abstract fun exitExpr()
 
     /**
-     * Tokenizes identifiers, `.`, `(`, and `)` inside a conditional `@if (<expr>)` expression,
-     * calling [exitExpr] once the matching outer `)` is consumed or `{` / `}` triggers recovery.
+     * Tokenizes identifiers, string literals, `.`, `(`, and `)` inside a conditional `@if (<expr>)`
+     * expression, calling [exitExpr] once the matching outer `)` is consumed or `{` / `}` triggers
+     * recovery.
      */
     protected fun tokenizeExpr(): Token {
         skipWhitespaceAndNewlines()
@@ -174,6 +175,7 @@ internal abstract class AbstractDocLexer(
                     index,
                 )
             }
+            c == '"' -> scanStringLiteral(start)
             c.isJavaIdentifierStart() -> {
                 while (index < endExclusive && text[index].isJavaIdentifierPart()) {
                     index++

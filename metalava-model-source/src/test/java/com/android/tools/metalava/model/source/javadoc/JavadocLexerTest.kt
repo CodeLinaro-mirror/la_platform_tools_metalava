@@ -728,4 +728,92 @@ class JavadocLexerTest : BaseDocCommentTest() {
                 """,
         )
     }
+
+    @Test
+    fun `Test expr mode - string literal`() {
+        checkTokenize(
+            """{@if (surface("module-lib")) { body }}""",
+            expectedTokens =
+                """
+                    INLINE_IF_TAG_START '{@if'
+                    PAREN_OPEN '('
+                    IDENTIFIER 'surface'
+                    PAREN_OPEN '('
+                    STRING_LITERAL '"module-lib"'
+                    PAREN_CLOSE ')'
+                    PAREN_CLOSE ')'
+                    BRACE_OPEN '{'
+                    SPACE ' '
+                    TEXT_CONTENT 'body'
+                    SPACE ' '
+                    BRACE_CLOSE '}'
+                    BRACE_CLOSE '}'
+                    EOF ''
+                """,
+        )
+    }
+
+    @Test
+    fun `Test expr mode - string literal with escapes`() {
+        checkTokenize(
+            """{@if (surface("a\"b\\c")) { body }}""",
+            expectedTokens =
+                """
+                    INLINE_IF_TAG_START '{@if'
+                    PAREN_OPEN '('
+                    IDENTIFIER 'surface'
+                    PAREN_OPEN '('
+                    STRING_LITERAL '"a\"b\\c"'
+                    PAREN_CLOSE ')'
+                    PAREN_CLOSE ')'
+                    BRACE_OPEN '{'
+                    SPACE ' '
+                    TEXT_CONTENT 'body'
+                    SPACE ' '
+                    BRACE_CLOSE '}'
+                    BRACE_CLOSE '}'
+                    EOF ''
+                """,
+        )
+    }
+
+    @Test
+    fun `Test expr mode - unclosed string literal before newline`() {
+        checkTokenize(
+            "{@if (surface(\"public\n * )) { body }}",
+            expectedTokens =
+                """
+                    INLINE_IF_TAG_START '{@if'
+                    PAREN_OPEN '('
+                    IDENTIFIER 'surface'
+                    PAREN_OPEN '('
+                    STRING_LITERAL '"public'
+                    PAREN_CLOSE ')'
+                    PAREN_CLOSE ')'
+                    BRACE_OPEN '{'
+                    SPACE ' '
+                    TEXT_CONTENT 'body'
+                    SPACE ' '
+                    BRACE_CLOSE '}'
+                    BRACE_CLOSE '}'
+                    EOF ''
+                """,
+        )
+    }
+
+    @Test
+    fun `Test expr mode - unclosed string literal at EOF`() {
+        checkTokenize(
+            """{@if (surface("public""",
+            expectedTokens =
+                """
+                    INLINE_IF_TAG_START '{@if'
+                    PAREN_OPEN '('
+                    IDENTIFIER 'surface'
+                    PAREN_OPEN '('
+                    STRING_LITERAL '"public'
+                    EOF ''
+                """,
+        )
+    }
 }

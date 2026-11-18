@@ -59,6 +59,9 @@ internal object DocCommentTokenType {
     /** An identifier in a conditional expression (e.g. function or flag name). */
     val IDENTIFIER = SharedTokenType.IDENTIFIER
 
+    /** A string literal in a conditional expression (e.g. surface name). */
+    val STRING_LITERAL = SharedTokenType.STRING_LITERAL
+
     /** A dot `.` separator in a qualified identifier. */
     val DOT = SharedTokenType.DOT
 

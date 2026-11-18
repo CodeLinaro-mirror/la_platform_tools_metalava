@@ -87,6 +87,15 @@ class SharedLexerTest {
                     EOF ''
                 """,
         )
+        checkTokenize(
+            "\"unclosed\nfoo",
+            expectedTokens =
+                """
+                    STRING_LITERAL '"unclosed'
+                    IDENTIFIER 'foo'
+                    EOF ''
+                """,
+        )
     }
 
     @Test
