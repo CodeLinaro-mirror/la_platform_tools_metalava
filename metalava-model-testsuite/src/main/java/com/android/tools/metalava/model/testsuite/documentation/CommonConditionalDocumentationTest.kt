@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.api.flags.ApiFlagAction
 import com.android.tools.metalava.model.api.flags.ApiFlags
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.SupportedInputFormats
+import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
@@ -651,6 +652,119 @@ class CommonConditionalDocumentationTest : BaseModelTest() {
                 """
                     MAIN_SRC/src/test/pkg/Test.$ext:4:18: error: invalid surface name 'InvalidName', must match '[a-z-]+' [InvalidJavadocExpr]
                 """,
+            )
+        }
+    }
+
+    /**
+     * Verify `surface("name")` evaluation across a multi-level surface hierarchy (`public` <-
+     * `system` <- `module`) in both Java and Kotlin comments.
+     */
+    @SupportedInputFormats(InputFormat.JAVA, InputFormat.KOTLIN)
+    @Test
+    fun `Test conditional doc with surface() on extending hierarchy`() {
+        runSourceCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        /**
+                         * {@if (surface("public")) {Public. } else {NoPublic. }}{@if (surface("system")) {System. } else {NoSystem. }}{@if (surface("module")) {Module. } else {NoModule. }}{@if (surface("other")) {Other.} else {NoOther.}}
+                         *
+                         * @if (surface("system")) {
+                         *     :@see Helper
+                         * }
+                         */
+                        public class Test {
+                        }
+                    """,
+                ),
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Helper {}
+                    """,
+                ),
+            ),
+            inputSet(
+                kotlin(
+                    """
+                        package test.pkg
+
+                        /**
+                         * {@if (surface("public")) {Public. } else {NoPublic. }}{@if (surface("system")) {System. } else {NoSystem. }}{@if (surface("module")) {Module. } else {NoModule. }}{@if (surface("other")) {Other.} else {NoOther.}}
+                         *
+                         * @if (surface("system")) {
+                         *     :@see Helper
+                         * }
+                         */
+                        class Test
+
+                        class Helper
+                    """,
+                ),
+            ),
+            testFixture =
+                TestFixture(
+                    apiSurfaceRules = TestableApiSurfaces.publicSystemModuleRules,
+                ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            // TODO(bug): Implement AbstractItemDocumentation.includesSurface so public, system,
+            //  and module evaluate to true while other evaluates to false.
+            testClass.assertPrintedDocumentation(
+                expectedOutput =
+                    """
+                        /** NoPublic. NoSystem. NoModule. NoOther. */
+                    """,
+            )
+        }
+    }
+
+    /**
+     * Verify `surface("name")` evaluation on a standalone surface that folds in `public` so
+     * `contents` has no effect on behavior.
+     */
+    @SupportedInputFormats(InputFormat.JAVA, InputFormat.KOTLIN)
+    @Test
+    fun `Test conditional doc with surface() on standalone surface`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    /**
+                     * {@if (surface("public")) {Public. } else {NoPublic. }}{@if (surface("standalone")) {Standalone. } else {NoStandalone. }}{@if (surface("other")) {Other.} else {NoOther.}}
+                     */
+                    public class Test {
+                    }
+                """,
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    /**
+                     * {@if (surface("public")) {Public. } else {NoPublic. }}{@if (surface("standalone")) {Standalone. } else {NoStandalone. }}{@if (surface("other")) {Other.} else {NoOther.}}
+                     */
+                    class Test
+                """,
+            ),
+            testFixture =
+                TestFixture(
+                    apiSurfaceRules = TestableApiSurfaces.publicStandaloneRules,
+                ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            // TODO(bug): Implement AbstractItemDocumentation.includesSurface so public and
+            //  standalone evaluate to true while other evaluates to false.
+            testClass.assertPrintedDocumentation(
+                expectedOutput =
+                    """
+                        /** NoPublic. NoStandalone. NoOther. */
+                    """,
             )
         }
     }
