@@ -551,6 +551,41 @@ class ConditionalJavadocTest : BaseJavadocTest() {
     }
 
     @Test
+    fun `Test if surface - empty surface name`() {
+        // TODO(bug): Report InvalidJavadocExpr and evaluate to false when surface name is empty.
+        checkConditionalParse(
+            """
+                /**
+                 * Before {@if (surface("")) {true }}after.
+                 */
+            """,
+            surfaces = setOf(""),
+            expectedStructure =
+                """
+                    text: 'Before true after.'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test if surface - invalid surface name characters`() {
+        // TODO(bug): Report InvalidJavadocExpr and evaluate to false when surface name does not
+        //  match '[a-z-]+'.
+        checkConditionalParse(
+            """
+                /**
+                 * Before {@if (surface("Public_2")) {true }}after.
+                 */
+            """,
+            surfaces = setOf("Public_2"),
+            expectedStructure =
+                """
+                    text: 'Before true after.'
+                """,
+        )
+    }
+
+    @Test
     fun `Test if surface - extra token before closing paren`() {
         checkConditionalParse(
             """

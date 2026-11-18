@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
+import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
 
 class CommonConditionalDocumentationTest : BaseModelTest() {
@@ -605,6 +606,48 @@ class CommonConditionalDocumentationTest : BaseModelTest() {
                     MAIN_SRC/src/test/pkg/Test.java:11:12: warning: block tag '@see' cannot be used inside an inline tag (ErrorWhenNew) [InvalidJavadoc]
                 """,
             )
+        }
+    }
+
+    /**
+     * Verify that an invalid surface name in `surface("...")` reports `InvalidJavadocExpr` and
+     * evaluates to `false`.
+     */
+    @SupportedInputFormats(InputFormat.JAVA, InputFormat.KOTLIN)
+    @Test
+    fun `Test conditional doc with invalid surface() name`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    /**
+                     * {@if (surface("InvalidName")) {True.} else {False.}}
+                     */
+                    public class Test {
+                    }
+                """,
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    /**
+                     * {@if (surface("InvalidName")) {True.} else {False.}}
+                     */
+                    class Test
+                """,
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            testClass.assertPrintedDocumentation(
+                expectedOutput =
+                    """
+                        /** False. */
+                    """,
+            )
+            // TODO(bug): Report InvalidJavadocExpr for invalid surface name 'InvalidName'.
+            assertAndRemoveReportedIssues("")
         }
     }
 }
