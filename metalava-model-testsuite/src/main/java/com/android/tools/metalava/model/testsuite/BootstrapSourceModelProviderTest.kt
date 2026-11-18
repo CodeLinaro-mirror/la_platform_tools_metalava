@@ -615,7 +615,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
                     public class Test {
                         public int field;
 
-                        public void method(String a, List<Outer<String>> [] ... b, List<?extends   String> c){}
+                        public void method(String a, List<?extends   String> b, List<Outer<String>> [] ... c){}
 
                         public <T> Outer<Integer>.Inner<T, Test1<String>> foo() {
                             return (new Outer<Integer>()).new Inner<Boolean, Test1<String>>();
@@ -645,11 +645,11 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             assertEquals("void", returnTypeItem1.toTypeString())
             assertEquals("java.lang.String", parameterTypeItem1.toTypeString())
             assertEquals(
-                "java.util.List<test.pkg.Outer<java.lang.String>>[]...",
+                "java.util.List<? extends java.lang.String>",
                 parameterTypeItem2.toTypeString()
             )
             assertEquals(
-                "java.util.List<? extends java.lang.String>",
+                "java.util.List<test.pkg.Outer<java.lang.String>>[]...",
                 parameterTypeItem3.toTypeString()
             )
             assertEquals(
