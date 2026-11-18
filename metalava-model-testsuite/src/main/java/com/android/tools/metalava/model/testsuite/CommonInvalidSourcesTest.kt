@@ -18,7 +18,9 @@ package com.android.tools.metalava.model.testsuite
 
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.SupportedInputFormats
+import com.android.tools.metalava.testing.jarFromSources
 import com.android.tools.metalava.testing.java
+import kotlin.test.assertEquals
 import org.junit.Test
 
 /**
@@ -54,6 +56,61 @@ class CommonInvalidSourcesTest : BaseModelTest() {
                     else -> ""
                 }
             assertAndRemoveReportedIssues(expectedIssues)
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test missing transitive superclass during inner class canonicalization`() {
+        val missingJar =
+            jarFromSources(
+                "missing.jar",
+                java(
+                    """
+                        package dep;
+                        public class Missing {}
+                    """
+                ),
+            )
+        val subJar =
+            jarFromSources(
+                "sub.jar",
+                java(
+                    """
+                        package dep;
+                        public class Sub extends Missing {}
+                    """
+                ),
+                java(
+                    """
+                        package dep;
+                        public class Holder {
+                            public class Inner {}
+                        }
+                    """
+                ),
+                classPath = listOf(missingJar),
+            )
+        runSourceCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        import dep.Holder.Inner;
+                        import dep.Sub;
+                        public class Test extends Sub {
+                            public Inner field;
+                        }
+                    """
+                ),
+            ),
+            testFixture =
+                TestFixture(
+                    additionalClassPath = listOf(subJar.createFile(temporaryFolder.newFolder())),
+                ),
+        ) {
+            val field = codebase.assertClass("test.pkg.Test").fields().single()
+            assertEquals("dep.Holder.Inner", field.type().toTypeString())
         }
     }
 }

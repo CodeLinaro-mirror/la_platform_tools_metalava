@@ -245,6 +245,7 @@ internal class TurbineEnvironment(
                 when (errorKind) {
                     TurbineError.ErrorKind.CANNOT_RESOLVE,
                     TurbineError.ErrorKind.CANNOT_RESOLVE_FIELD,
+                    TurbineError.ErrorKind.CLASS_FILE_NOT_FOUND,
                     TurbineError.ErrorKind.EXPRESSION_ERROR,
                     TurbineError.ErrorKind.NO_JAVA_LANG,
                     TurbineError.ErrorKind.SYMBOL_NOT_FOUND -> {
