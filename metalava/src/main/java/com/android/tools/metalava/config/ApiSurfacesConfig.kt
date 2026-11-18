@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.config
 
+import com.android.tools.metalava.model.api.surface.ApiSurface
+import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.api.surface.ApiVariantType
 import kotlin.collections.plus
 
@@ -171,6 +173,27 @@ data class ApiSurfacesConfig(
         }
         return result.asReversed().toSet()
     }
+
+    /**
+     * Create [ApiSurfaces] for generating [targetSurface].
+     *
+     * Uses [surfacesFor] to determine the tracked [ApiSurface]s, stopping at any
+     * [ContentsConfig.STANDALONE] surface.
+     */
+    fun createApiSurfaces(targetSurface: ApiSurfaceConfig): ApiSurfaces =
+        ApiSurfaces.build {
+            // Add ApiSurface instances in order so that surfaces referenced by another (i.e.
+            // through `extends`) come before the surfaces that reference them. This ensures
+            // that the `extends` can be resolved to an existing `ApiSurface`.
+            for (surfaceConfig in surfacesFor(targetSurface)) {
+                val isStandalone = surfaceConfig.contents == ContentsConfig.STANDALONE
+                createSurface(
+                    name = surfaceConfig.name,
+                    extends = if (isStandalone) null else surfaceConfig.extends,
+                    isMain = surfaceConfig.name == targetSurface.name,
+                )
+            }
+        }
 
     /**
      * Flatten the [ApiSurfaceConfig.extends] hierarchy of this [ApiSurfaceConfig], if any.

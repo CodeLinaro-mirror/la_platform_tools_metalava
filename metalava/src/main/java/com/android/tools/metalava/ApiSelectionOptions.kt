@@ -24,7 +24,6 @@ import com.android.tools.metalava.cli.common.map
 import com.android.tools.metalava.cli.common.splitMultiple
 import com.android.tools.metalava.config.ApiSurfaceConfig
 import com.android.tools.metalava.config.ApiSurfacesConfig
-import com.android.tools.metalava.config.ContentsConfig
 import com.android.tools.metalava.config.EffectConfig
 import com.android.tools.metalava.model.TypedefMode
 import com.android.tools.metalava.model.api.ApiSurfaceRules
@@ -624,36 +623,7 @@ internal constructor(
                 }
 
             // Create the ApiSurfaces from the configured API surfaces.
-            return apiSurfacesFromConfig(
-                apiSurfacesConfig.surfacesFor(targetApiSurfaceConfig),
-                targetApiSurfaceName
-            )
+            return apiSurfacesConfig.createApiSurfaces(targetApiSurfaceConfig)
         }
     }
 }
-
-/**
- * Create [ApiSurfaces] from a collection of [ApiSurfaceConfig]s.
- *
- * The [ApiSurfaceConfig]s must be in order such that every [ApiSurfaceConfig] comes before any
- * [ApiSurfaceConfig] that extends it. It must also be complete such that the collection must
- * contain every [ApiSurfaceConfig] that is extended by another in the collection.
- */
-internal fun apiSurfacesFromConfig(
-    surfaceConfigs: Collection<ApiSurfaceConfig>,
-    targetApiSurface: String?
-) =
-    ApiSurfaces.build {
-        // Add ApiSurface instances in order so that surfaces referenced by another (i.e.
-        // through `extends`) come before the surfaces that reference them. This ensures
-        // that the `extends` can be resolved to an existing `ApiSurface`.
-        for (surfaceConfig in surfaceConfigs) {
-            createSurface(
-                name = surfaceConfig.name,
-                extends =
-                    if (surfaceConfig.contents == ContentsConfig.STANDALONE) null
-                    else surfaceConfig.extends,
-                isMain = surfaceConfig.name == targetApiSurface,
-            )
-        }
-    }

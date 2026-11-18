@@ -90,9 +90,6 @@ class ConfigFileOptions :
             }
 
         // Create the ApiSurfaces for the target surface and the hierarchy of surfaces it extends.
-        return apiSurfacesFromConfig(
-            apiSurfacesConfig.surfacesFor(targetApiSurfaceConfig),
-            targetApiSurfaceName,
-        )
+        return apiSurfacesConfig.createApiSurfaces(targetApiSurfaceConfig)
     }
 }
