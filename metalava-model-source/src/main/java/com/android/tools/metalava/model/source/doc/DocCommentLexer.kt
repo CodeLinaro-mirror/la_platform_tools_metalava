@@ -182,19 +182,41 @@ internal class DocCommentLexer(
         var branchBraceDepth = 0
 
         while (index < endExclusive) {
-            // Only recognize a line-starting block tag or closing `}` when `branchBraceDepth == 0`
-            // so `@Override` or `}` inside a multi-line `{@code ...}` block does not prematurely
-            // end an inner block tag's description or close the enclosing `@if` branch.
-            if (atLineStart && branchBraceDepth == 0) {
-                if (ifDepth > 0) {
-                    // End the preceding description at `index` (the start of this line) so the
-                    // closing line's leading indentation and `*` are not included in the
-                    // description span.
-                    val braceOffset = findClosingBraceAtLine(index)
-                    if (braceOffset >= 0) {
+            if (atLineStart) {
+                if (branchBraceDepth == 0) {
+                    // Only recognize a line-starting block tag or closing `}` when
+                    // `branchBraceDepth == 0` so `@Override` or `}` inside a multi-line
+                    // `{@code ...}` block does not prematurely end an inner block tag's description
+                    // or close the enclosing `@if` branch.
+                    if (ifDepth > 0) {
+                        // End the preceding description at `index` (the start of this line) so the
+                        // closing line's leading indentation and `*` are not included in the
+                        // description span.
+                        val braceOffset = findClosingBraceAtLine(index)
+                        if (braceOffset >= 0) {
+                            val trimmedEnd = trimTrailingWhitespace(descStart, index)
+                            index = braceOffset
+                            mode = DocCommentLexerMode.IF_BRANCH
+                            return if (trimmedEnd > descStart) {
+                                createToken(
+                                    DocCommentTokenType.DESCRIPTION,
+                                    descStart,
+                                    trimmedEnd,
+                                )
+                            } else {
+                                tokenizeIfBranch()
+                            }
+                        }
+                    }
+
+                    // End the preceding description at `index` (the start of this line) rather than
+                    // `atOffset` so leading indentation and `*` on the block tag's line are
+                    // excluded from the preceding description span.
+                    val atOffset = findBlockTagStartAtLine(index)
+                    if (atOffset >= 0) {
                         val trimmedEnd = trimTrailingWhitespace(descStart, index)
-                        index = braceOffset
-                        mode = DocCommentLexerMode.IF_BRANCH
+                        index = atOffset
+                        mode = DocCommentLexerMode.BLOCK_TAG_START
                         return if (trimmedEnd > descStart) {
                             createToken(
                                 DocCommentTokenType.DESCRIPTION,
@@ -202,30 +224,13 @@ internal class DocCommentLexer(
                                 trimmedEnd,
                             )
                         } else {
-                            tokenizeIfBranch()
+                            tokenizeBlockTagStart()
                         }
                     }
+                    atLineStart = false
+                } else {
+                    atLineStart = false
                 }
-
-                // End the preceding description at `index` (the start of this line) rather than
-                // `atOffset` so leading indentation and `*` on the block tag's line are excluded
-                // from the preceding description span.
-                val atOffset = findBlockTagStartAtLine(index)
-                if (atOffset >= 0) {
-                    val trimmedEnd = trimTrailingWhitespace(descStart, index)
-                    index = atOffset
-                    mode = DocCommentLexerMode.BLOCK_TAG_START
-                    return if (trimmedEnd > descStart) {
-                        createToken(
-                            DocCommentTokenType.DESCRIPTION,
-                            descStart,
-                            trimmedEnd,
-                        )
-                    } else {
-                        tokenizeBlockTagStart()
-                    }
-                }
-                atLineStart = false
             }
 
             // Advance across the current line, tracking balanced braces when inside an `@if`
@@ -243,25 +248,29 @@ internal class DocCommentLexer(
                     index++
                 }
                 atLineStart = true
-            } else if (ifDepth > 0 && c == '{') {
-                branchBraceDepth++
+            } else if (c == '{') {
+                if (ifDepth > 0) branchBraceDepth++
                 index++
-            } else if (ifDepth > 0 && c == '}') {
-                if (branchBraceDepth > 0) {
-                    branchBraceDepth--
-                    index++
-                } else {
-                    val trimmedEnd = trimTrailingWhitespace(descStart, index)
-                    mode = DocCommentLexerMode.IF_BRANCH
-                    return if (trimmedEnd > descStart) {
-                        createToken(
-                            DocCommentTokenType.DESCRIPTION,
-                            descStart,
-                            trimmedEnd,
-                        )
+            } else if (c == '}') {
+                if (ifDepth > 0) {
+                    if (branchBraceDepth > 0) {
+                        branchBraceDepth--
+                        index++
                     } else {
-                        tokenizeIfBranch()
+                        val trimmedEnd = trimTrailingWhitespace(descStart, index)
+                        mode = DocCommentLexerMode.IF_BRANCH
+                        return if (trimmedEnd > descStart) {
+                            createToken(
+                                DocCommentTokenType.DESCRIPTION,
+                                descStart,
+                                trimmedEnd,
+                            )
+                        } else {
+                            tokenizeIfBranch()
+                        }
                     }
+                } else {
+                    index++
                 }
             } else {
                 index++
