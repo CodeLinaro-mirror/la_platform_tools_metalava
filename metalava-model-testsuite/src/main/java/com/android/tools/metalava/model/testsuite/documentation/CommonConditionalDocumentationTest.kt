@@ -542,7 +542,6 @@ class CommonConditionalDocumentationTest : BaseModelTest() {
     @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test block tag inside inline if tag reports InvalidJavadoc`() {
-        // TODO(b/479490213): Report `InvalidJavadoc` issues on `@see` inside `{@if}`.
         runSourceCodebaseTest(
             inputSet(
                 java(
@@ -600,7 +599,12 @@ class CommonConditionalDocumentationTest : BaseModelTest() {
                     """,
             )
 
-            assertAndRemoveReportedIssues("")
+            assertAndRemoveReportedIssues(
+                """
+                    MAIN_SRC/src/test/pkg/Test.java:10:12: warning: block tag '@see' cannot be used inside an inline tag (ErrorWhenNew) [InvalidJavadoc]
+                    MAIN_SRC/src/test/pkg/Test.java:11:12: warning: block tag '@see' cannot be used inside an inline tag (ErrorWhenNew) [InvalidJavadoc]
+                """,
+            )
         }
     }
 }

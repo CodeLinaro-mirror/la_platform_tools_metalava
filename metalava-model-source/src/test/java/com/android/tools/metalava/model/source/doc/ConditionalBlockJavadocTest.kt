@@ -260,7 +260,8 @@ class ConditionalBlockJavadocTest : BaseDocCommentTest() {
 
     /**
      * Verify that multi-line `{@code ...}` blocks containing line-starting `@Override` annotations
-     * and `{ ... }` braces inside an `@if` branch do not prematurely end the tag or close `@if`.
+     * and `{ ... }` braces inside an `@if` branch report `InvalidJavadoc` on `@Override` without
+     * prematurely ending the tag or closing `@if`.
      */
     @Test
     fun `Test nested braces and annotations inside @code within @if block tag`() {
@@ -293,6 +294,10 @@ class ConditionalBlockJavadocTest : BaseDocCommentTest() {
                      *     }
                      *     }</pre>
                      */
+                """,
+            expectedIssues =
+                """
+                    7:8: block tag '@Override' cannot be used inside an inline tag [InvalidJavadoc]
                 """,
         )
     }
@@ -531,7 +536,6 @@ class ConditionalBlockJavadocTest : BaseDocCommentTest() {
      */
     @Test
     fun `Test block tag inside inline {@if} when flag enabled`() {
-        // TODO(b/479490213): Report `InvalidJavadoc` on `@see` inside `{@if}`.
         checkConditionalDocComment(
             input =
                 """
@@ -551,6 +555,11 @@ class ConditionalBlockJavadocTest : BaseDocCommentTest() {
                 """
                     /** Wholly new Javadoc for the method, with no see tags. */
                 """,
+            expectedIssues =
+                """
+                    7:8: block tag '@see' cannot be used inside an inline tag [InvalidJavadoc]
+                    8:8: block tag '@see' cannot be used inside an inline tag [InvalidJavadoc]
+                """,
         ) { docComment ->
             assertTrue(docComment.blockTagSections.isEmpty())
         }
@@ -562,7 +571,6 @@ class ConditionalBlockJavadocTest : BaseDocCommentTest() {
      */
     @Test
     fun `Test block tag inside inline {@if} when flag disabled`() {
-        // TODO(b/479490213): Report `InvalidJavadoc` on `@see` inside `{@if}`.
         checkConditionalDocComment(
             input =
                 """
@@ -589,6 +597,11 @@ class ConditionalBlockJavadocTest : BaseDocCommentTest() {
                      * @return result
                      */
                 """,
+            expectedIssues =
+                """
+                    7:8: block tag '@see' cannot be used inside an inline tag [InvalidJavadoc]
+                    8:8: block tag '@see' cannot be used inside an inline tag [InvalidJavadoc]
+                """,
         ) { docComment ->
             assertEquals(listOf("return"), docComment.blockTagSections.map { it.tagType.name })
         }
@@ -600,7 +613,6 @@ class ConditionalBlockJavadocTest : BaseDocCommentTest() {
      */
     @Test
     fun `Test block tag inside inline {@if} in block tag description`() {
-        // TODO(b/479490213): Report `InvalidJavadoc` for `:@see` inside `{@if}`.
         checkConditionalDocComment(
             input =
                 """
@@ -623,6 +635,10 @@ class ConditionalBlockJavadocTest : BaseDocCommentTest() {
                      *     :@see First
                      */
                 """,
+            expectedIssues =
+                """
+                    6:8: block tag ':@see' cannot be used inside an inline tag [InvalidJavadoc]
+                """,
         )
     }
 
@@ -633,7 +649,6 @@ class ConditionalBlockJavadocTest : BaseDocCommentTest() {
      */
     @Test
     fun `Test block tag inside @code within inline {@if} reports InvalidJavadoc`() {
-        // TODO(b/479490213): Report `InvalidJavadoc` on `@Override` inside `{@code}`.
         checkConditionalDocComment(
             input =
                 """
@@ -659,6 +674,10 @@ class ConditionalBlockJavadocTest : BaseDocCommentTest() {
                      *     }
                      *     }</pre>
                      */
+                """,
+            expectedIssues =
+                """
+                    5:8: block tag '@Override' cannot be used inside an inline tag [InvalidJavadoc]
                 """,
         )
     }

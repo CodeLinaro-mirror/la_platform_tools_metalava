@@ -105,8 +105,9 @@ private enum class DocCommentLexerMode {
  *
  * Within `@if { ... } else { ... }` clauses, inner block tags must be prefixed with `:` (e.g.
  * `:@see`, `:@deprecated`) so external tools such as `javac` and Error Prone do not interpret them
- * as standalone top-level block tags. Unprefixed block tags inside `@if` (or `:`-prefixed block
- * tags outside `@if`) are reported via [reporter] as [Issues.INVALID_JAVADOC] and recovered.
+ * as standalone top-level block tags. Unprefixed block tags inside `@if`, `:`-prefixed block tags
+ * outside `@if`, and block tags placed inside inline `{@...}` tags are reported via [reporter] as
+ * [Issues.INVALID_JAVADOC] and recovered.
  *
  * @param text the full documentation comment text.
  * @param startInclusive the start offset of the comment body (after `/**`, if present).
@@ -205,8 +206,13 @@ internal class DocCommentLexer(
                         }
                         inlineTagBraceDepth = 0
                     } else {
-                        // Inside a closed inline `{@...}` tag, do not split the description on
-                        // line-starting `@<tag>` sequences or closing `}` braces.
+                        // Inside a closed inline `{@...}` tag, line-starting block tags are
+                        // invalid. Report each offending tag and keep scanning until the inline tag
+                        // closes so the tag does not prematurely split the description or leak out
+                        // as an unconditional top-level BlockTagSection.
+                        if (atOffset >= 0) {
+                            reportBlockTagInsideInlineTag(atOffset)
+                        }
                         atLineStart = false
                     }
                 }
@@ -687,6 +693,24 @@ internal class DocCommentLexer(
             i++
         }
         return false
+    }
+
+    /**
+     * Reports [Issues.INVALID_JAVADOC] for a block tag starting at [atOffset] (`@<name>` or
+     * `:@<name>`) inside an inline `{@...}` tag.
+     */
+    private fun reportBlockTagInsideInlineTag(atOffset: Int) {
+        val nameStart = if (text[atOffset] == ':') atOffset + 2 else atOffset + 1
+        var nameEnd = nameStart
+        while (nameEnd < endExclusive && isAsciiLetter(text[nameEnd])) {
+            nameEnd++
+        }
+        val rawTag = text.substring(atOffset, nameEnd)
+        reportIssue(
+            Issues.INVALID_JAVADOC,
+            "block tag '$rawTag' cannot be used inside an inline tag",
+            atOffset,
+        )
     }
 
     /**

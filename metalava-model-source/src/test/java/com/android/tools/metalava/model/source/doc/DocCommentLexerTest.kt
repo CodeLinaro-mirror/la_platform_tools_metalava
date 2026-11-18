@@ -353,7 +353,6 @@ class DocCommentLexerTest : BaseDocCommentTest() {
      */
     @Test
     fun `Test block tag inside inline {@if} reports InvalidJavadoc`() {
-        // TODO(b/479490213): Report `InvalidJavadoc` for block tags inside inline `{@...}` tags.
         checkTokenize(
             """
                 /**
@@ -377,6 +376,12 @@ class DocCommentLexerTest : BaseDocCommentTest() {
                     DESCRIPTION 'result'
                     EOF ''
                 """,
+            expectedIssues =
+                """
+                    4:8: block tag ':@see' cannot be used inside an inline tag [InvalidJavadoc]
+                    8:8: block tag '@see' cannot be used inside an inline tag [InvalidJavadoc]
+                    9:8: block tag '@see' cannot be used inside an inline tag [InvalidJavadoc]
+                """,
         )
     }
 
@@ -387,8 +392,6 @@ class DocCommentLexerTest : BaseDocCommentTest() {
      */
     @Test
     fun `Test block tag inside {@code} or {@literal} reports InvalidJavadoc`() {
-        // TODO(b/479490213): Report `InvalidJavadoc` for block tags inside `{@code}` or
-        //  `{@literal}`.
         checkTokenize(
             """
                 /**
@@ -412,6 +415,12 @@ class DocCommentLexerTest : BaseDocCommentTest() {
                 """
                     DESCRIPTION '\n * {@if (flag(Flags.MY_FLAG)) {\n *     <pre>{@code\n *     @Override\n *     void foo() {}\n *     }</pre>\n * }}\n * <pre>{@literal\n * {@if (flag(Flags.MY_FLAG)) {\n * @Deprecated\n * }}\n * }</pre>\n * <pre>{@code\n * @SuppressWarnings("all")\n * }</pre>'
                     EOF ''
+                """,
+            expectedIssues =
+                """
+                    4:8: block tag '@Override' cannot be used inside an inline tag [InvalidJavadoc]
+                    10:4: block tag '@Deprecated' cannot be used inside an inline tag [InvalidJavadoc]
+                    14:4: block tag '@SuppressWarnings' cannot be used inside an inline tag [InvalidJavadoc]
                 """,
         )
     }
