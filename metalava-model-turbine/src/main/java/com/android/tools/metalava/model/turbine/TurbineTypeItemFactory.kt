@@ -272,49 +272,43 @@ internal class TurbineTypeItemFactory(
         val binaryName = classSymbol.binaryName()
 
         // If it does not contain a $ then it is not a nested class.
-        val firstDollarIndex = binaryName.indexOf('$')
-        if (firstDollarIndex == -1) {
+        if ('$' !in binaryName) {
             return null
         }
 
-        // Construct a list pf SimpleClassTys from the symbol.
-        val simpleClassTys = buildList {
-            val length = binaryName.length
-
-            // Iterate over each $ in the binary name of the symbol creating a SimpleClassTy for
-            // each containing class. e.g. when given pkg/A$B$C it will construct SimpleClassTys for
-            // * pkg/A
-            // * pkg/A$B
-            var startIndex = firstDollarIndex
-            while (startIndex < length) {
-                // Find the next $, if none exists then drop out. That ignores the innermost class
-                // which is created by the caller.
-                val nextDollarIndex = binaryName.indexOf('$', startIndex)
-                if (nextDollarIndex == -1) {
-                    break
+        // Walk the owner hierarchy using TypeBoundClass.owner(), falling back to splitting on '$'
+        // only when a symbol is not in the environment.
+        val outerSymbols = ArrayDeque<ClassSymbol>()
+        var current = classSymbol
+        while (true) {
+            val currentBinaryName = current.binaryName()
+            if ('$' !in currentBinaryName) break
+            val bound = initializer.typeBoundClassForSymbol(current)
+            if (bound != null) {
+                val owner = bound.owner() ?: break
+                outerSymbols.addFirst(owner)
+                current = owner
+            } else {
+                var dollarIndex = currentBinaryName.lastIndexOf('$')
+                while (dollarIndex != -1) {
+                    outerSymbols.addFirst(ClassSymbol(currentBinaryName.substring(0, dollarIndex)))
+                    dollarIndex = currentBinaryName.lastIndexOf('$', dollarIndex - 1)
                 }
-
-                // Create a symbol for the outer class.
-                val outerClassSymbol = ClassSymbol(binaryName.substring(0, nextDollarIndex))
-
-                // Wrap that in a SimpleClassTy
-                val simpleClassTy =
-                    Type.ClassTy.SimpleClassTy.create(
-                        outerClassSymbol,
-                        ImmutableList.of(),
-                        ImmutableList.of(),
-                    )
-
-                // Add it to the list.
-                add(simpleClassTy)
-
-                // Skip past the $.
-                startIndex = nextDollarIndex + 1
+                break
             }
         }
 
-        // Create a ClassTypeItem from the list of SimpleClassTys.
-        return createClassTypeItemFromSimpleTys(simpleClassTys, ContextNullability.forceNonNull)
+        var outerClass: ClassTypeItem? = null
+        for (outerSymbol in outerSymbols) {
+            outerClass =
+                TypeItem.createClassType(
+                    modifiers = TypeModifiers.emptyNonNullModifiers,
+                    qualifiedName = initializer.qualifiedName(outerSymbol),
+                    arguments = emptyList(),
+                    outerClassType = outerClass,
+                )
+        }
+        return outerClass
     }
 
     private fun createNestedClassType(
@@ -326,10 +320,10 @@ internal class TurbineTypeItemFactory(
 
         // If no outer class was provided then try and get an outer class type item from the type
         // symbol.
-        val outerClassItem = outerClass ?: optionalOuterClassType(type.sym())
+        val outerClassItem = outerClass ?: optionalOuterClassType(sym)
 
         val modifiers = createModifiers(type.annos(), contextNullability)
-        val qualifiedName = sym.qualifiedName
+        val qualifiedName = initializer.qualifiedName(sym)
         val parameters = createTypeArguments(type.targs())
         return TypeItem.createClassType(
             modifiers,

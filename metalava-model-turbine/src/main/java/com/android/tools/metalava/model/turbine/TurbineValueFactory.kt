@@ -215,7 +215,7 @@ internal class TurbineValueFactory(globalContext: TurbineGlobalContext) :
                 val fieldSymbol = const.sym()
                 return createFieldReferenceValue(
                     codebase,
-                    fieldSymbol.owner().qualifiedName,
+                    qualifiedName(fieldSymbol.owner()),
                     fieldSymbol.name(),
                 )
             }
@@ -231,7 +231,7 @@ internal class TurbineValueFactory(globalContext: TurbineGlobalContext) :
                 val fieldSymbol = fieldInfo.sym()
                 return createFieldReferenceValueWithDeferredConstantValue(
                     codebase,
-                    fieldSymbol.owner().qualifiedName,
+                    qualifiedName(fieldSymbol.owner()),
                     fieldSymbol.name(),
                     optionalTypeItem,
                 )

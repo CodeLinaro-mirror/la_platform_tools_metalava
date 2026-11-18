@@ -105,37 +105,20 @@ internal fun TurbineGlobalContext.itemDocumentationFactoryForDecl(
 }
 
 /**
- * Get the qualified name, i.e. what would be used in an `import` statement, for this [ClassSymbol].
- */
-internal val ClassSymbol.qualifiedName: String
-    get() = binaryName().replace('/', '.').replace('$', '.')
-
-/**
- * The underlying value of this [Const].
+ * The underlying value of [const].
  *
  * e.g. [Integer] for integers, [String]s for strings and any other values.
  */
-internal val Const.underlyingValue: Any?
-    get() {
-        when (kind()) {
-            Kind.PRIMITIVE -> {
-                val value = this as Value
-                return value.value
-            }
-            // For cases like AnyClass.class, return the qualified name of AnyClass
-            Kind.CLASS_LITERAL -> {
-                val value = this as TurbineClassValue
-                return value.type().toString()
-            }
-            Kind.ENUM_CONSTANT -> {
-                val value = this as EnumConstantValue
-                val temp = "${value.sym().owner().qualifiedName}.$value"
-                return temp
-            }
-            else -> {
-                return toString()
-            }
+internal fun TurbineGlobalContext.underlyingValue(const: Const): Any? =
+    when (const.kind()) {
+        Kind.PRIMITIVE -> (const as Value).value
+        // For cases like AnyClass.class, return the qualified name of AnyClass
+        Kind.CLASS_LITERAL -> (const as TurbineClassValue).type().toString()
+        Kind.ENUM_CONSTANT -> {
+            val value = const as EnumConstantValue
+            "${qualifiedName(value.sym().owner())}.$value"
         }
+        else -> const.toString()
     }
 
 internal val ClassSymbol.dotSeparatedPackageName

@@ -1923,4 +1923,92 @@ class CommonClassItemTest : BaseModelTest() {
             }
         }
     }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test class names containing dollar signs`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        public @interface Anno${'$'}1 {
+                            int value();
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class Outer${'$'}1 {
+                            public static final int CONST${'$'}1 = 1;
+                            public static class Inner${'$'}2 {
+                                public Foo${'$'}Bar foo() { return null; }
+                            }
+                            public Inner${'$'}2 inner() { return null; }
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        @Anno${'$'}1(Outer${'$'}1.CONST${'$'}1)
+                        public class Foo${'$'}Bar {
+                            public Outer${'$'}1.Inner${'$'}2 inner() { return null; }
+                        }
+                    """
+                ),
+            ),
+        ) {
+            val fooBar = codebase.assertClass("test.pkg.Foo\$Bar")
+            assertEquals("Foo\$Bar", fooBar.simpleName())
+            assertEquals("Foo\$Bar", fooBar.fullName())
+            assertEquals("test.pkg.Foo\$Bar", fooBar.qualifiedName())
+            assertEquals("test/pkg/Foo\$Bar", fooBar.internalName())
+            assertNull(fooBar.containingClass())
+
+            val annotation = fooBar.modifiers.annotations().single()
+            assertEquals("test.pkg.Anno\$1", annotation.qualifiedName)
+            assertEquals(
+                "test.pkg.Outer\$1.CONST\$1",
+                annotation.attributes.single().value.toValueString(),
+            )
+
+            val outer = codebase.assertClass("test.pkg.Outer\$1")
+            assertEquals("Outer\$1", outer.simpleName())
+            assertEquals("Outer\$1", outer.fullName())
+            assertEquals("test.pkg.Outer\$1", outer.qualifiedName())
+            assertEquals("test/pkg/Outer\$1", outer.internalName())
+            assertNull(outer.containingClass())
+
+            val inner = codebase.assertClass("test.pkg.Outer\$1.Inner\$2")
+            assertEquals("Inner\$2", inner.simpleName())
+            assertEquals("Outer\$1.Inner\$2", inner.fullName())
+            assertEquals("test.pkg.Outer\$1.Inner\$2", inner.qualifiedName())
+            assertEquals("test/pkg/Outer\$1\$Inner\$2", inner.internalName())
+            assertSame(outer, inner.containingClass())
+
+            // Unqualified reference to nested class Inner$2 inside Outer$1.
+            val unqualifiedInnerType =
+                outer.assertMethod("inner", emptyList()).returnType() as ClassTypeItem
+            assertEquals("test.pkg.Outer\$1.Inner\$2", unqualifiedInnerType.qualifiedName)
+            assertEquals("test.pkg.Outer\$1", unqualifiedInnerType.outerClassType?.qualifiedName)
+            assertNull(unqualifiedInnerType.outerClassType?.outerClassType)
+            assertEquals("Ltest/pkg/Outer\$1\$Inner\$2;", unqualifiedInnerType.internalName())
+
+            // Qualified reference to nested class Outer$1.Inner$2 from Foo$Bar.
+            val qualifiedInnerType =
+                fooBar.assertMethod("inner", emptyList()).returnType() as ClassTypeItem
+            assertEquals("test.pkg.Outer\$1.Inner\$2", qualifiedInnerType.qualifiedName)
+            assertEquals("test.pkg.Outer\$1", qualifiedInnerType.outerClassType?.qualifiedName)
+            assertNull(qualifiedInnerType.outerClassType?.outerClassType)
+            assertEquals("Ltest/pkg/Outer\$1\$Inner\$2;", qualifiedInnerType.internalName())
+
+            // Reference to top-level class Foo$Bar containing a literal '$'.
+            val fooBarType = inner.assertMethod("foo", emptyList()).returnType() as ClassTypeItem
+            assertEquals("test.pkg.Foo\$Bar", fooBarType.qualifiedName)
+            assertNull(fooBarType.outerClassType)
+            assertEquals("Ltest/pkg/Foo\$Bar;", fooBarType.internalName())
+        }
+    }
 }

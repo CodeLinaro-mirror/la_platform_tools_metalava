@@ -265,9 +265,6 @@ internal class TurbineCodebaseInitialiser(
         }
     }
 
-    val ClassSymbol.isTopClass
-        get() = !binaryName().contains('$')
-
     /**
      * Create top level classes, their nested classes and all the other members.
      *
@@ -279,7 +276,7 @@ internal class TurbineCodebaseInitialiser(
         typeBoundClass: TypeBoundClass,
         origin: ClassOrigin,
     ): ClassItem {
-        if (!classSymbol.isTopClass) error("$classSymbol is not a top level class")
+        if (typeBoundClass.owner() != null) error("$classSymbol is not a top level class")
         val classBuilder =
             TurbineClassBuilder(
                 globalContext = this,
@@ -308,7 +305,7 @@ internal class TurbineCodebaseInitialiser(
             // It is possible that the top level class has already been created but just did not
             // contain the requested nested class so check to make sure it exists before
             // creating it.
-            val topClassName = topClassSym.qualifiedName
+            val topClassName = qualifiedName(topClassSym)
             codebase.findClass(topClassName)
                 ?: let {
                     // Get the origin of the class.

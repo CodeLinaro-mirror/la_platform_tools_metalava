@@ -134,7 +134,7 @@ internal class TurbineClassBuilder(
             } else null
 
         // Create class
-        val qualifiedName = classSymbol.qualifiedName
+        val qualifiedName = qualifiedName(classSymbol)
         val classKind = getClassKind(typeBoundClass.kind())
         val modifiers =
             createModifiers(
@@ -820,7 +820,7 @@ internal class TurbineClassBuilder(
                 expr == null -> null
                 else ->
                     when (expr) {
-                        is Literal -> expr.value().underlyingValue
+                        is Literal -> underlyingValue(expr.value())
                         // Class Type
                         is Tree.ClassLiteral -> expr
                         else -> null

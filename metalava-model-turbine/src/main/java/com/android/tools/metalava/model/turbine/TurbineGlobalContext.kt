@@ -59,6 +59,27 @@ internal interface TurbineGlobalContext {
     fun typeBoundClassForSymbol(classSymbol: ClassSymbol): TypeBoundClass?
 
     /**
+     * Get the qualified name, i.e. what would be used in an `import` statement, for [classSymbol].
+     *
+     * Uses [TypeBoundClass.owner] to distinguish nested class separators from literal `$`
+     * characters in class identifiers, falling back to replacing `$` with `.` if a symbol cannot be
+     * resolved in the environment.
+     */
+    fun qualifiedName(classSymbol: ClassSymbol): String {
+        val binaryName = classSymbol.binaryName()
+        if ('$' !in binaryName) {
+            return binaryName.replace('/', '.')
+        }
+        val bound =
+            typeBoundClassForSymbol(classSymbol)
+                ?: return binaryName.replace('/', '.').replace('$', '.')
+        val owner = bound.owner() ?: return binaryName.replace('/', '.')
+        val ownerQualifiedName = qualifiedName(owner)
+        val simpleName = binaryName.substring(owner.binaryName().length + 1)
+        return "$ownerQualifiedName.$simpleName"
+    }
+
+    /**
      * Create a [FieldResolver] for resolving fields from within [classSymbol]/[typeBoundClass].
      *
      * Returns `null` if the [typeBoundClass] is not a [SourceTypeBoundClass]
