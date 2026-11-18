@@ -211,6 +211,7 @@ object TestableApiSurfaces {
             createSurface(
                 "standalone",
                 isMain = true,
+                additionalSurfaceNames = setOf("public"),
             )
         }
 

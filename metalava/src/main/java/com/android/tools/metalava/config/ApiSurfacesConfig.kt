@@ -177,8 +177,10 @@ data class ApiSurfacesConfig(
     /**
      * Create [ApiSurfaces] for generating [targetSurface].
      *
-     * Uses [surfacesFor] to determine the tracked [ApiSurface]s, stopping at any
-     * [ContentsConfig.STANDALONE] surface.
+     * Uses [surfacesFor] to determine the tracked [ApiSurface]s (stopping at any
+     * [ContentsConfig.STANDALONE] surface), while recording all contributing extended surface names
+     * from [contributesTo] on any standalone surface so that [ApiSurface.includedSurfaceNames] is
+     * unaffected by [ApiSurfaceConfig.contents].
      */
     fun createApiSurfaces(targetSurface: ApiSurfaceConfig): ApiSurfaces =
         ApiSurfaces.build {
@@ -187,10 +189,17 @@ data class ApiSurfacesConfig(
             // that the `extends` can be resolved to an existing `ApiSurface`.
             for (surfaceConfig in surfacesFor(targetSurface)) {
                 val isStandalone = surfaceConfig.contents == ContentsConfig.STANDALONE
+                val additionalSurfaceNames =
+                    if (isStandalone) {
+                        contributesTo(surfaceConfig).map { it.name }.toSet()
+                    } else {
+                        emptySet()
+                    }
                 createSurface(
                     name = surfaceConfig.name,
                     extends = if (isStandalone) null else surfaceConfig.extends,
                     isMain = surfaceConfig.name == targetSurface.name,
+                    additionalSurfaceNames = additionalSurfaceNames,
                 )
             }
         }

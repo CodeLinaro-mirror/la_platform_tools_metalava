@@ -63,6 +63,13 @@ sealed class ApiSurface : Comparable<ApiSurface> {
     abstract val includedSurfaces: Set<ApiSurface>
 
     /**
+     * The names of all API surfaces included in this one, including this surface's [name], the
+     * names of all [narrowerSurfaces], and the names of any extended surfaces folded into a
+     * standalone surface.
+     */
+    abstract val includedSurfaceNames: Set<String>
+
+    /**
      * The index of the bit within [ApiVariantSet.bits] that contains the first [ApiVariant] in
      * [variants].
      */
