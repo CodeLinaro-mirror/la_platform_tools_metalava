@@ -104,55 +104,56 @@ class ConditionalSurfaceDocTest : DriverTest() {
 
     @Test
     fun `Test surface() when generating public`() {
-        // TODO(bug): Implement AbstractItemDocumentation.includesSurface so surface("public")
-        //  evaluates to true.
         checkSurfaceDoc(
             apiSurface = KnownApiSurface.PUBLIC,
             expectedFooComment =
                 """
-                    /** NoPublic. NoSystem. NoModuleLib. NoTest. */
+                    /** Public. NoSystem. NoModuleLib. NoTest. */
                 """,
         )
     }
 
     @Test
     fun `Test surface() when generating system`() {
-        // TODO(bug): Implement AbstractItemDocumentation.includesSurface so public and system
-        //  evaluate to true.
         checkSurfaceDoc(
             apiSurface = KnownApiSurface.SYSTEM,
             includeSystemHelperStub = true,
             expectedFooComment =
                 """
-                    /** NoPublic. NoSystem. NoModuleLib. NoTest. */
+                    /**
+                     * Public. System. NoModuleLib. NoTest.
+                     * @see test.pkg.SystemHelper SystemHelper
+                     */
                 """,
         )
     }
 
     @Test
     fun `Test surface() when generating module-lib`() {
-        // TODO(bug): Implement AbstractItemDocumentation.includesSurface so public, system, and
-        //  module-lib evaluate to true.
         checkSurfaceDoc(
             apiSurface = KnownApiSurface.MODULE_LIB,
             includeSystemHelperStub = true,
             expectedFooComment =
                 """
-                    /** NoPublic. NoSystem. NoModuleLib. NoTest. */
+                    /**
+                     * Public. System. ModuleLib. NoTest.
+                     * @see test.pkg.SystemHelper SystemHelper
+                     */
                 """,
         )
     }
 
     @Test
     fun `Test surface() when generating test`() {
-        // TODO(bug): Implement AbstractItemDocumentation.includesSurface so public, system, and
-        //  test evaluate to true.
         checkSurfaceDoc(
             apiSurface = KnownApiSurface.TEST,
             includeSystemHelperStub = true,
             expectedFooComment =
                 """
-                    /** NoPublic. NoSystem. NoModuleLib. NoTest. */
+                    /**
+                     * Public. System. NoModuleLib. Test.
+                     * @see test.pkg.SystemHelper SystemHelper
+                     */
                 """,
         )
     }
@@ -181,8 +182,6 @@ class ConditionalSurfaceDocTest : DriverTest() {
                 ),
             )
 
-        // TODO(bug): Implement AbstractItemDocumentation.includesSurface so both surface("public")
-        //  and surface("restricted") evaluate to true when generating standalone 'restricted'.
         check(
             apiSurface = standaloneSurface,
             sourceFiles =
@@ -205,7 +204,7 @@ class ConditionalSurfaceDocTest : DriverTest() {
                     java(
                         """
                             package test.pkg;
-                            /** NoPublic. NoRestricted. NoOther. */
+                            /** Public. Restricted. NoOther. */
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public class Foo {
                             public Foo() { throw new RuntimeException("Stub!"); }

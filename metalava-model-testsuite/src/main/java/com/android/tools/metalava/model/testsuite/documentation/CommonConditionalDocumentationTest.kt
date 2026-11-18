@@ -712,12 +712,13 @@ class CommonConditionalDocumentationTest : BaseModelTest() {
                 ),
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
-            // TODO(bug): Implement AbstractItemDocumentation.includesSurface so public, system,
-            //  and module evaluate to true while other evaluates to false.
             testClass.assertPrintedDocumentation(
                 expectedOutput =
                     """
-                        /** NoPublic. NoSystem. NoModule. NoOther. */
+                        /**
+                         * Public. System. Module. NoOther.
+                         * @see test.pkg.Helper Helper
+                         */
                     """,
             )
         }
@@ -758,12 +759,10 @@ class CommonConditionalDocumentationTest : BaseModelTest() {
                 ),
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
-            // TODO(bug): Implement AbstractItemDocumentation.includesSurface so public and
-            //  standalone evaluate to true while other evaluates to false.
             testClass.assertPrintedDocumentation(
                 expectedOutput =
                     """
-                        /** NoPublic. NoStandalone. NoOther. */
+                        /** Public. Standalone. NoOther. */
                     """,
             )
         }

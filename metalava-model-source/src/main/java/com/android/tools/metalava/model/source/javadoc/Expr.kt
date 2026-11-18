@@ -44,7 +44,7 @@ internal interface ExprContext {
      *
      * @param surfaceName is the name of the API surface.
      */
-    fun includesSurface(surfaceName: String): Boolean = false
+    fun includesSurface(surfaceName: String): Boolean
 }
 
 /** An expression that can be used with a Javadoc conditional expression. */
