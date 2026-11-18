@@ -531,8 +531,7 @@ class ConditionalBlockJavadocTest : BaseDocCommentTest() {
      */
     @Test
     fun `Test block tag inside inline {@if} when flag enabled`() {
-        // TODO(b/479490213): Report `InvalidJavadoc` on `@see` inside `{@if}` and do not emit
-        //  inactive `@see` tags or trailing `}}` braces.
+        // TODO(b/479490213): Report `InvalidJavadoc` on `@see` inside `{@if}`.
         checkConditionalDocComment(
             input =
                 """
@@ -550,19 +549,10 @@ class ConditionalBlockJavadocTest : BaseDocCommentTest() {
             flags = mapOf("Flags.TEST_FLAG" to true),
             expectedPrintOutput =
                 """
-                    /**
-                     * Wholly new Javadoc for the method, with no see tags.
-                     *
-                     * @see #someOtherMethod()
-                     * @see #anotherMethod() }}
-                     */
-                """,
-            expectedIssues =
-                """
-                    6:3: expected '}' to close '@if' tag [InvalidJavadoc]
+                    /** Wholly new Javadoc for the method, with no see tags. */
                 """,
         ) { docComment ->
-            assertEquals(listOf("see", "see"), docComment.blockTagSections.map { it.tagType.name })
+            assertTrue(docComment.blockTagSections.isEmpty())
         }
     }
 
@@ -572,8 +562,7 @@ class ConditionalBlockJavadocTest : BaseDocCommentTest() {
      */
     @Test
     fun `Test block tag inside inline {@if} when flag disabled`() {
-        // TODO(b/479490213): Report `InvalidJavadoc` on `@see` inside `{@if}` instead of splitting
-        //  the comment mid-`{@if}`.
+        // TODO(b/479490213): Report `InvalidJavadoc` on `@see` inside `{@if}`.
         checkConditionalDocComment(
             input =
                 """
@@ -595,21 +584,13 @@ class ConditionalBlockJavadocTest : BaseDocCommentTest() {
                     /**
                      * The old Javadoc for the method.
                      *
+                     *     @see #someOtherMethod()
+                     *     @see #anotherMethod()
                      * @return result
-                     * @see #someOtherMethod()
-                     * @see #anotherMethod() }}
                      */
                 """,
-            expectedIssues =
-                """
-                    6:3: expected '}' to close '@if' tag [InvalidJavadoc]
-                    6:3: expected '}' to close else branch [InvalidJavadoc]
-                """,
         ) { docComment ->
-            assertEquals(
-                listOf("see", "see", "return"),
-                docComment.blockTagSections.map { it.tagType.name },
-            )
+            assertEquals(listOf("return"), docComment.blockTagSections.map { it.tagType.name })
         }
     }
 
@@ -619,8 +600,7 @@ class ConditionalBlockJavadocTest : BaseDocCommentTest() {
      */
     @Test
     fun `Test block tag inside inline {@if} in block tag description`() {
-        // TODO(b/479490213): Report `InvalidJavadoc` for `:@see` inside `{@if}` rather than
-        //  splitting `@deprecated`'s description mid-`{@if}`.
+        // TODO(b/479490213): Report `InvalidJavadoc` for `:@see` inside `{@if}`.
         checkConditionalDocComment(
             input =
                 """
@@ -639,15 +619,9 @@ class ConditionalBlockJavadocTest : BaseDocCommentTest() {
                     /**
                      * Summary.
                      *
-                     * @see resolved.First }}
                      * @deprecated Use {@link resolved.First First} instead.
+                     *     :@see First
                      */
-                """,
-            expectedIssues =
-                """
-                    5:34: expected '}' to close '@if' tag [InvalidJavadoc]
-                    5:34: expected '}' to close true branch [InvalidJavadoc]
-                    6:8: block tag '@see' outside '@if' must not be prefixed with ':' [InvalidJavadoc]
                 """,
         )
     }
@@ -659,8 +633,7 @@ class ConditionalBlockJavadocTest : BaseDocCommentTest() {
      */
     @Test
     fun `Test block tag inside @code within inline {@if} reports InvalidJavadoc`() {
-        // TODO(b/479490213): Track `{@code}` and `{@if}` braces and report `InvalidJavadoc` on
-        //  `@Override` instead of splitting `{@code}` into a separate `@Override` block tag.
+        // TODO(b/479490213): Report `InvalidJavadoc` on `@Override` inside `{@code}`.
         checkConditionalDocComment(
             input =
                 """
@@ -680,19 +653,12 @@ class ConditionalBlockJavadocTest : BaseDocCommentTest() {
                 """
                     /**
                      * Example:
-                     *     <pre>{@code}
-                     *
-                     * @Override void foo() {
+                     *     <pre>{@code
+                     *     @Override
+                     *     void foo() {
                      *     }
                      *     }</pre>
-                     * }}
                      */
-                """,
-            expectedIssues =
-                """
-                    4:13: unclosed inline '@code' tag [UnclosedInlineTag]
-                    4:19: expected '}' to close '@if' tag [InvalidJavadoc]
-                    4:19: expected '}' to close true branch [InvalidJavadoc]
                 """,
         )
     }

@@ -353,8 +353,7 @@ class DocCommentLexerTest : BaseDocCommentTest() {
      */
     @Test
     fun `Test block tag inside inline {@if} reports InvalidJavadoc`() {
-        // TODO(b/479490213): Report `InvalidJavadoc` for block tags inside inline `{@if ...}` tags
-        //  and keep scanning until `{@if}` closes instead of splitting into `BlockTagSection`s.
+        // TODO(b/479490213): Report `InvalidJavadoc` for block tags inside inline `{@...}` tags.
         checkTokenize(
             """
                 /**
@@ -372,24 +371,11 @@ class DocCommentLexerTest : BaseDocCommentTest() {
             """,
             expectedTokens =
                 """
-                    DESCRIPTION '\n * {@if (flag(Flags.MY_FLAG)) {\n *     New Javadoc.'
-                    BLOCK_TAG_START ':@'
-                    BLOCK_TAG_NAME 'see'
-                    DESCRIPTION 'Ignored\n * } else {\n *     Old Javadoc.\n *'
-                    BLOCK_TAG_START '@'
-                    BLOCK_TAG_NAME 'see'
-                    DESCRIPTION 'First'
-                    BLOCK_TAG_START '@'
-                    BLOCK_TAG_NAME 'see'
-                    DESCRIPTION 'Second\n * }}'
+                    DESCRIPTION '\n * {@if (flag(Flags.MY_FLAG)) {\n *     New Javadoc.\n *     :@see Ignored\n * } else {\n *     Old Javadoc.\n *\n *     @see First\n *     @see Second\n * }}'
                     BLOCK_TAG_START '@'
                     BLOCK_TAG_NAME 'return'
                     DESCRIPTION 'result'
                     EOF ''
-                """,
-            expectedIssues =
-                """
-                    4:8: block tag '@see' outside '@if' must not be prefixed with ':' [InvalidJavadoc]
                 """,
         )
     }
@@ -401,8 +387,8 @@ class DocCommentLexerTest : BaseDocCommentTest() {
      */
     @Test
     fun `Test block tag inside {@code} or {@literal} reports InvalidJavadoc`() {
-        // TODO(b/479490213): Track inline tag braces and report `InvalidJavadoc` for block tags
-        //  inside `{@code}` or `{@literal}` instead of splitting the description.
+        // TODO(b/479490213): Report `InvalidJavadoc` for block tags inside `{@code}` or
+        //  `{@literal}`.
         checkTokenize(
             """
                 /**
@@ -424,16 +410,7 @@ class DocCommentLexerTest : BaseDocCommentTest() {
             """,
             expectedTokens =
                 """
-                    DESCRIPTION '\n * {@if (flag(Flags.MY_FLAG)) {\n *     <pre>{@code'
-                    BLOCK_TAG_START '@'
-                    BLOCK_TAG_NAME 'Override'
-                    DESCRIPTION '\n *     void foo() {}\n *     }</pre>\n * }}\n * <pre>{@literal\n * {@if (flag(Flags.MY_FLAG)) {'
-                    BLOCK_TAG_START '@'
-                    BLOCK_TAG_NAME 'Deprecated'
-                    DESCRIPTION '\n * }}\n * }</pre>\n * <pre>{@code'
-                    BLOCK_TAG_START '@'
-                    BLOCK_TAG_NAME 'SuppressWarnings'
-                    DESCRIPTION '("all")\n * }</pre>'
+                    DESCRIPTION '\n * {@if (flag(Flags.MY_FLAG)) {\n *     <pre>{@code\n *     @Override\n *     void foo() {}\n *     }</pre>\n * }}\n * <pre>{@literal\n * {@if (flag(Flags.MY_FLAG)) {\n * @Deprecated\n * }}\n * }</pre>\n * <pre>{@code\n * @SuppressWarnings("all")\n * }</pre>'
                     EOF ''
                 """,
         )

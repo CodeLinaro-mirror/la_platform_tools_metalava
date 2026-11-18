@@ -180,23 +180,70 @@ internal class DocCommentLexer(
     private fun tokenizeDescription(): Token {
         val descStart = index
         var branchBraceDepth = 0
+        var inlineTagBraceDepth = 0
 
         while (index < endExclusive) {
             if (atLineStart) {
-                if (branchBraceDepth == 0) {
-                    // Only recognize a line-starting block tag or closing `}` when
-                    // `branchBraceDepth == 0` so `@Override` or `}` inside a multi-line
-                    // `{@code ...}` block does not prematurely end an inner block tag's description
-                    // or close the enclosing `@if` branch.
-                    if (ifDepth > 0) {
-                        // End the preceding description at `index` (the start of this line) so the
-                        // closing line's leading indentation and `*` are not included in the
-                        // description span.
-                        val braceOffset = findClosingBraceAtLine(index)
-                        if (braceOffset >= 0) {
+                if (inlineTagBraceDepth > 0) {
+                    val atOffset = findBlockTagStartAtLine(index)
+                    val atIfClosingBrace =
+                        atOffset < 0 &&
+                            ifDepth > 0 &&
+                            branchBraceDepth == inlineTagBraceDepth &&
+                            findClosingBraceAtLine(index) >= 0
+                    if (
+                        (atOffset >= 0 || atIfClosingBrace) &&
+                            !hasClosingInlineBrace(index, inlineTagBraceDepth, branchBraceDepth)
+                    ) {
+                        // The preceding `{@...` inline tag was never closed before a subsequent
+                        // real block tag or enclosing `@if` branch `}`; reset inline tag depth so
+                        // subsequent block tags (such as `@param` or `@hide`) and `@if` branch
+                        // delimiters are still recognized, leaving `JavadocParser` to report
+                        // `UnclosedInlineTag` on the truncated description.
+                        if (ifDepth > 0) {
+                            branchBraceDepth -= inlineTagBraceDepth
+                        }
+                        inlineTagBraceDepth = 0
+                    } else {
+                        // Inside a closed inline `{@...}` tag, do not split the description on
+                        // line-starting `@<tag>` sequences or closing `}` braces.
+                        atLineStart = false
+                    }
+                }
+                if (atLineStart) {
+                    if (branchBraceDepth == 0) {
+                        // Only recognize a line-starting block tag or closing `}` when
+                        // `branchBraceDepth == 0` so `}` inside a multi-line `{ ... }` block does
+                        // not prematurely close the enclosing `@if` branch.
+                        if (ifDepth > 0) {
+                            // End the preceding description at `index` (the start of this line) so
+                            // the closing line's leading indentation and `*` are not included in
+                            // the description span.
+                            val braceOffset = findClosingBraceAtLine(index)
+                            if (braceOffset >= 0) {
+                                val trimmedEnd = trimTrailingWhitespace(descStart, index)
+                                index = braceOffset
+                                mode = DocCommentLexerMode.IF_BRANCH
+                                return if (trimmedEnd > descStart) {
+                                    createToken(
+                                        DocCommentTokenType.DESCRIPTION,
+                                        descStart,
+                                        trimmedEnd,
+                                    )
+                                } else {
+                                    tokenizeIfBranch()
+                                }
+                            }
+                        }
+
+                        // End the preceding description at `index` (the start of this line) rather
+                        // than `atOffset` so leading indentation and `*` on the block tag's line
+                        // are excluded from the preceding description span.
+                        val atOffset = findBlockTagStartAtLine(index)
+                        if (atOffset >= 0) {
                             val trimmedEnd = trimTrailingWhitespace(descStart, index)
-                            index = braceOffset
-                            mode = DocCommentLexerMode.IF_BRANCH
+                            index = atOffset
+                            mode = DocCommentLexerMode.BLOCK_TAG_START
                             return if (trimmedEnd > descStart) {
                                 createToken(
                                     DocCommentTokenType.DESCRIPTION,
@@ -204,39 +251,19 @@ internal class DocCommentLexer(
                                     trimmedEnd,
                                 )
                             } else {
-                                tokenizeIfBranch()
+                                tokenizeBlockTagStart()
                             }
                         }
+                        atLineStart = false
+                    } else {
+                        atLineStart = false
                     }
-
-                    // End the preceding description at `index` (the start of this line) rather than
-                    // `atOffset` so leading indentation and `*` on the block tag's line are
-                    // excluded from the preceding description span.
-                    val atOffset = findBlockTagStartAtLine(index)
-                    if (atOffset >= 0) {
-                        val trimmedEnd = trimTrailingWhitespace(descStart, index)
-                        index = atOffset
-                        mode = DocCommentLexerMode.BLOCK_TAG_START
-                        return if (trimmedEnd > descStart) {
-                            createToken(
-                                DocCommentTokenType.DESCRIPTION,
-                                descStart,
-                                trimmedEnd,
-                            )
-                        } else {
-                            tokenizeBlockTagStart()
-                        }
-                    }
-                    atLineStart = false
-                } else {
-                    atLineStart = false
                 }
             }
 
-            // Advance across the current line, tracking balanced braces when inside an `@if`
-            // branch so inline tags (such as `{@link ...}`) do not close the branch, while an
-            // unmatched `}` on the same line (such as `@if (...) { :@see First }`) ends the inner
-            // block tag's description before `IF_BRANCH` consumes `}`.
+            // Advance across the current line, tracking balanced braces for inline `{@...}` tags
+            // and enclosing `@if` branches (when `ifDepth > 0`), while keeping bare `{` and `}` in
+            // top-level prose unbalanced.
             val c = text[index]
             if (c == '\n') {
                 index++
@@ -250,8 +277,17 @@ internal class DocCommentLexer(
                 atLineStart = true
             } else if (c == '{') {
                 if (ifDepth > 0) branchBraceDepth++
-                index++
+                if (inlineTagBraceDepth > 0) {
+                    inlineTagBraceDepth++
+                    index++
+                } else if (isInlineTagStartAt(index)) {
+                    inlineTagBraceDepth = 1
+                    index += 2
+                } else {
+                    index++
+                }
             } else if (c == '}') {
+                if (inlineTagBraceDepth > 0) inlineTagBraceDepth--
                 if (ifDepth > 0) {
                     if (branchBraceDepth > 0) {
                         branchBraceDepth--
@@ -613,6 +649,45 @@ internal class DocCommentLexer(
                 text[offset] == ':' &&
                 text[offset + 1] == '@' &&
                 isAsciiLetter(text[offset + 2]))
+
+    /**
+     * Returns `true` if [offset] starts an inline `{@...}` tag (`{@` followed by optional
+     * horizontal whitespace and an ASCII letter).
+     */
+    private fun isInlineTagStartAt(offset: Int): Boolean {
+        if (offset + 2 >= endExclusive || text[offset] != '{' || text[offset + 1] != '@') {
+            return false
+        }
+        var p = offset + 2
+        while (p < endExclusive && isHorizontalWhitespace(text[p])) {
+            p++
+        }
+        return p < endExclusive && isAsciiLetter(text[p])
+    }
+
+    /**
+     * Returns `true` if the currently open inline tag(s) at [fromIndex] have matching closing `}`
+     * brace(s) before any enclosing `@if` branches close and before [endExclusive].
+     */
+    private fun hasClosingInlineBrace(
+        fromIndex: Int,
+        currentInlineDepth: Int,
+        currentBranchDepth: Int,
+    ): Boolean {
+        var depth = if (ifDepth > 0) currentBranchDepth + ifDepth else currentInlineDepth
+        var i = fromIndex
+        while (i < endExclusive) {
+            when (text[i]) {
+                '{' -> depth++
+                '}' -> {
+                    depth--
+                    if (depth == 0) return true
+                }
+            }
+            i++
+        }
+        return false
+    }
 
     /**
      * Returns the exclusive end index of `[startInclusive, endExclusive)` after stripping trailing

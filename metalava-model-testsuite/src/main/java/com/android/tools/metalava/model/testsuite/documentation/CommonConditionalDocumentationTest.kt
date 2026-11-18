@@ -542,8 +542,7 @@ class CommonConditionalDocumentationTest : BaseModelTest() {
     @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test block tag inside inline if tag reports InvalidJavadoc`() {
-        // TODO(b/479490213): Report `InvalidJavadoc` issues on `@see` inside `{@if}` and do not
-        //  leak inactive `@see` tags or trailing `}}` into printed documentation.
+        // TODO(b/479490213): Report `InvalidJavadoc` issues on `@see` inside `{@if}`.
         runSourceCodebaseTest(
             inputSet(
                 java(
@@ -597,20 +596,11 @@ class CommonConditionalDocumentationTest : BaseModelTest() {
             fooMethod.assertPrintedDocumentation(
                 expectedOutput =
                     """
-                        /**
-                         * Wholly new Javadoc for the method, with no see tags.
-                         *
-                         * @see #someOtherMethod()
-                         * @see #anotherMethod() }}
-                         */
+                        /** Wholly new Javadoc for the method, with no see tags. */
                     """,
             )
 
-            assertAndRemoveReportedIssues(
-                """
-                    MAIN_SRC/src/test/pkg/Test.java:9:7: warning: expected '}' to close '@if' tag (ErrorWhenNew) [InvalidJavadoc]
-                """,
-            )
+            assertAndRemoveReportedIssues("")
         }
     }
 }
