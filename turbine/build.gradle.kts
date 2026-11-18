@@ -18,16 +18,16 @@ plugins {
     `java-library`
 }
 
-// Turbine requires Java 21 (matching external/turbine/pom.xml).
+// Turbine requires Java 25 (matching external/turbine/pom.xml).
 java {
-    sourceCompatibility = JavaVersion.VERSION_21
-    targetCompatibility = JavaVersion.VERSION_21
+    sourceCompatibility = JavaVersion.VERSION_25
+    targetCompatibility = JavaVersion.VERSION_25
 }
 
 // Metalava subprojects target JVM 17 (via MetalavaBuildPlugin), so their compileClasspath and
 // testRuntimeClasspath request org.gradle.jvm.version = 17. Override that attribute on
 // :turbine's outgoing variants so JVM 17 projects (like :metalava-model-turbine, :metalava, and
-// :metalava-model-snapshot-testing) can resolve :turbine when running on a Java 21+ JVM.
+// :metalava-model-snapshot-testing) can resolve :turbine when running on a Java 25+ JVM.
 for (configName in listOf("apiElements", "runtimeElements")) {
     configurations.named(configName) {
         attributes.attribute(TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, 17)
