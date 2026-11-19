@@ -316,6 +316,12 @@ sealed class SelectedApi {
     open fun wasPreviouslyReleased(): Boolean = false
 
     /**
+     * Checks to see whether the associated [SelectableItem] was effectively deprecated in the
+     * previously released API.
+     */
+    open fun wasPreviouslyDeprecated(): Boolean = false
+
+    /**
      * Initialize this instance.
      *
      * This is called after this has been created and assigned to

@@ -30,6 +30,8 @@ import com.android.tools.metalava.model.api.flags.RemovalFlagState
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.snapshot.CodebaseSnapshotTaker
+import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
@@ -879,6 +881,193 @@ class CommonFlagTest : BaseModelTest() {
                 val unreleasedProp = holder.assertProperty("UNRELEASED_CONST")
                 assertFalse(unreleasedProp.selectedApi.wasPreviouslyReleased())
                 assertEquals(keptFlagged, unreleasedProp.selectedApi.flagState)
+            }
+        }
+    }
+
+    /**
+     * Verify [SelectedApi.wasPreviouslyDeprecated] across unreleased items, previously released
+     * non-deprecated items, and previously released explicitly or implicitly deprecated items
+     * (including across `CodebaseSnapshotTaker` snapshots).
+     */
+    @RequiresCapabilities(Capability.REVERTED_ITEMS)
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test wasPreviouslyDeprecated`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        public class ReleasedUndeprecated {
+                            public void undeprecatedMethod() {}
+                        }
+                        @Deprecated
+                        public class ReleasedDeprecatedOuter {
+                            @Deprecated
+                            public void explicitlyDeprecatedMethod() {}
+                            public void implicitlyDeprecatedMethod() {}
+                        }
+                    """
+                ),
+            ),
+            testFixture = TestFixture(checkSupportedInputFormats = false),
+        ) {
+            val previousCodebase = codebase
+            runCodebaseTest(
+                inputSet(
+                    java(
+                        """
+                            package test.pkg;
+                            @Deprecated
+                            public class ReleasedUndeprecated {
+                                @Deprecated
+                                public void undeprecatedMethod() {}
+                            }
+                            @Deprecated
+                            public class ReleasedDeprecatedOuter {
+                                @Deprecated
+                                public void explicitlyDeprecatedMethod() {}
+                                public void implicitlyDeprecatedMethod() {}
+                            }
+                            @Deprecated
+                            public class UnreleasedDeprecated {}
+                        """
+                    ),
+                ),
+                testFixture = TestFixture(previouslyReleasedCodebase = previousCodebase),
+            ) {
+                val snapshot =
+                    CodebaseSnapshotTaker.takeSnapshot(
+                        codebase,
+                        definitionVisitorFactory = ::NonFilteringDelegatingVisitor,
+                        referenceVisitorFactory = ::NonFilteringDelegatingVisitor,
+                        includeDocumentation = false,
+                    )
+                for (target in listOf(codebase, snapshot)) {
+                    val undeprecated = target.assertClass("test.pkg.ReleasedUndeprecated")
+                    assertTrue(undeprecated.selectedApi.wasPreviouslyReleased())
+                    assertFalse(undeprecated.selectedApi.wasPreviouslyDeprecated())
+                    assertFalse(
+                        undeprecated
+                            .assertMethod("undeprecatedMethod", emptyList())
+                            .selectedApi
+                            .wasPreviouslyDeprecated(),
+                    )
+
+                    val deprecatedOuter = target.assertClass("test.pkg.ReleasedDeprecatedOuter")
+                    assertTrue(deprecatedOuter.selectedApi.wasPreviouslyReleased())
+                    assertTrue(deprecatedOuter.selectedApi.wasPreviouslyDeprecated())
+                    assertTrue(
+                        deprecatedOuter
+                            .assertMethod("explicitlyDeprecatedMethod", emptyList())
+                            .selectedApi
+                            .wasPreviouslyDeprecated(),
+                    )
+                    assertTrue(
+                        deprecatedOuter
+                            .assertMethod("implicitlyDeprecatedMethod", emptyList())
+                            .selectedApi
+                            .wasPreviouslyDeprecated(),
+                    )
+
+                    val unreleased = target.assertClass("test.pkg.UnreleasedDeprecated")
+                    assertFalse(unreleased.selectedApi.wasPreviouslyReleased())
+                    assertFalse(unreleased.selectedApi.wasPreviouslyDeprecated())
+                }
+            }
+        }
+    }
+
+    /**
+     * Verify that Kotlin properties with exposed backing fields (`const val` and `@JvmField`)
+     * delegate [SelectedApi.wasPreviouslyReleased] and [SelectedApi.wasPreviouslyDeprecated] to
+     * their backing field even when `previouslyReleasedCodebase` only contains `FieldItem`s (such
+     * as Format 2.0 signature files), independent of whether the property or field is queried
+     * first.
+     */
+    @RequiresCapabilities(Capability.KOTLIN, Capability.REVERTED_ITEMS)
+    @SupportedInputFormats(InputFormat.KOTLIN)
+    @Test
+    fun `Test wasPreviouslyDeprecated on Kotlin exposed backing field properties`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        public class Holder {
+                            public static final int CONST_UNDEPRECATED = 1;
+                            @Deprecated
+                            public static final int CONST_DEPRECATED = 2;
+                            public static final int JVM_FIELD_UNDEPRECATED = 3;
+                            @Deprecated
+                            public static final int JVM_FIELD_DEPRECATED = 4;
+                        }
+                    """
+                ),
+                com.android.tools.metalava.testing.kotlin(
+                    """
+                        package test.pkg
+                        class Unused
+                    """
+                ),
+            ),
+            testFixture = TestFixture(checkSupportedInputFormats = false),
+        ) {
+            val previousCodebase = codebase
+            runCodebaseTest(
+                inputSet(
+                    com.android.tools.metalava.testing.kotlin(
+                        """
+                            package test.pkg
+                            object Holder {
+                                @Deprecated("newly deprecated")
+                                const val CONST_UNDEPRECATED: Int = 1
+                                @Deprecated("already deprecated")
+                                const val CONST_DEPRECATED: Int = 2
+                                @JvmField
+                                @Deprecated("newly deprecated")
+                                val JVM_FIELD_UNDEPRECATED: Int = 3
+                                @JvmField
+                                @Deprecated("already deprecated")
+                                val JVM_FIELD_DEPRECATED: Int = 4
+                                @Deprecated("unreleased")
+                                const val CONST_UNRELEASED: Int = 5
+                            }
+                        """
+                    ),
+                ),
+                testFixture = TestFixture(previouslyReleasedCodebase = previousCodebase),
+            ) {
+                val holder = codebase.assertClass("test.pkg.Holder")
+
+                // Query property.selectedApi BEFORE backingField.selectedApi.
+                val constUndepProp = holder.assertProperty("CONST_UNDEPRECATED")
+                assertTrue(constUndepProp.selectedApi.wasPreviouslyReleased())
+                assertFalse(constUndepProp.selectedApi.wasPreviouslyDeprecated())
+
+                val constDepProp = holder.assertProperty("CONST_DEPRECATED")
+                assertTrue(constDepProp.selectedApi.wasPreviouslyReleased())
+                assertTrue(constDepProp.selectedApi.wasPreviouslyDeprecated())
+
+                // Query backingField.selectedApi BEFORE property.selectedApi.
+                val jvmUndepField = holder.assertField("JVM_FIELD_UNDEPRECATED")
+                assertTrue(jvmUndepField.selectedApi.wasPreviouslyReleased())
+                assertFalse(jvmUndepField.selectedApi.wasPreviouslyDeprecated())
+                val jvmUndepProp = holder.assertProperty("JVM_FIELD_UNDEPRECATED")
+                assertTrue(jvmUndepProp.selectedApi.wasPreviouslyReleased())
+                assertFalse(jvmUndepProp.selectedApi.wasPreviouslyDeprecated())
+
+                val jvmDepField = holder.assertField("JVM_FIELD_DEPRECATED")
+                assertTrue(jvmDepField.selectedApi.wasPreviouslyReleased())
+                assertTrue(jvmDepField.selectedApi.wasPreviouslyDeprecated())
+                val jvmDepProp = holder.assertProperty("JVM_FIELD_DEPRECATED")
+                assertTrue(jvmDepProp.selectedApi.wasPreviouslyReleased())
+                assertTrue(jvmDepProp.selectedApi.wasPreviouslyDeprecated())
+
+                val unreleasedProp = holder.assertProperty("CONST_UNRELEASED")
+                assertFalse(unreleasedProp.selectedApi.wasPreviouslyReleased())
+                assertFalse(unreleasedProp.selectedApi.wasPreviouslyDeprecated())
             }
         }
     }

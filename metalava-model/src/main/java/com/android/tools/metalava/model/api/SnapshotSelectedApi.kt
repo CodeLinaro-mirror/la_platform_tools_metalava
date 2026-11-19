@@ -56,6 +56,11 @@ internal class SnapshotSelectedApi : SelectedApi() {
 
     override fun wasPreviouslyReleased(): Boolean = wasPreviouslyReleased
 
+    /** Whether the snapshotted item was deprecated in the previously released API. */
+    private var wasPreviouslyDeprecated: Boolean = false
+
+    override fun wasPreviouslyDeprecated(): Boolean = wasPreviouslyDeprecated
+
     override fun initialize() {}
 
     override fun addItemApiVariant(value: ApiVariant) {
@@ -70,5 +75,6 @@ internal class SnapshotSelectedApi : SelectedApi() {
         flagState = original.flagState
         hasRemovedAnnotation = original.hasRemovedAnnotation()
         wasPreviouslyReleased = original.wasPreviouslyReleased()
+        wasPreviouslyDeprecated = original.wasPreviouslyDeprecated()
     }
 }

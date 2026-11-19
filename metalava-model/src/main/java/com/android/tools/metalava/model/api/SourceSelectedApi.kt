@@ -227,12 +227,35 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
     /** Cached result of [wasPreviouslyReleased], or `null` if it has not yet been computed. */
     private var wasPreviouslyReleased: Boolean? = null
 
+    /** Cached result of [wasPreviouslyDeprecated] (valid once [wasPreviouslyReleased] != null). */
+    private var wasPreviouslyDeprecated: Boolean = false
+
     override fun wasPreviouslyReleased(): Boolean =
         adoptedSelectedApi?.wasPreviouslyReleased()
             ?: wasPreviouslyReleased
-            ?: (selectedApiUpdater.findPreviouslyReleasedItem(item) != null).also {
-                wasPreviouslyReleased = it
-            }
+            ?: computePreviousReleaseState()
+
+    override fun wasPreviouslyDeprecated(): Boolean {
+        adoptedSelectedApi?.let {
+            return it.wasPreviouslyDeprecated()
+        }
+        if (wasPreviouslyReleased == null) {
+            computePreviousReleaseState()
+        }
+        return wasPreviouslyDeprecated
+    }
+
+    /**
+     * Look up [item] once in `previouslyReleasedCodebase` and cache both [wasPreviouslyReleased]
+     * and [wasPreviouslyDeprecated].
+     */
+    private fun computePreviousReleaseState(): Boolean {
+        val previousItem = selectedApiUpdater.findPreviouslyReleasedItem(item)
+        val released = previousItem != null
+        wasPreviouslyReleased = released
+        wasPreviouslyDeprecated = previousItem?.effectivelyDeprecated == true
+        return released
+    }
 
     final override fun initialize() {
         // Initialize the parent first.
