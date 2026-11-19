@@ -239,6 +239,12 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                     // TODO(b/447588621): Report an issue if no label is provided.
                     expectedLinkLabel = null,
                 ),
+                TestParams(
+                    name = "##uri-fragment label",
+                    reference = "##uri-fragment",
+                    linkLabel = "label",
+                    expectedResolvedReference = "##uri-fragment",
+                ),
 
                 // The # is optional when referencing members of the current class. The following
                 // tests verify the behavior. Note, the result must have a leading # as that will
@@ -374,6 +380,14 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                     name = "Other##uri-fragment",
                     expectedResolvedReference = "test.pkg.Other##uri-fragment",
                     expectedLinkLabel = null,
+
+                    // TODO(b/568477816): Report an issue if no label is provided.
+                ),
+                TestParams(
+                    name = "Other##uri-fragment label",
+                    reference = "Other##uri-fragment",
+                    linkLabel = "label",
+                    expectedResolvedReference = "test.pkg.Other##uri-fragment",
                 ),
 
                 // Reference a member of an imported class.
@@ -430,6 +444,14 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                     name = "Imported##uri-fragment",
                     expectedResolvedReference = "another.pkg.Imported##uri-fragment",
                     expectedLinkLabel = null,
+
+                    // TODO(b/568477816): Report an issue if no label is provided.
+                ),
+                TestParams(
+                    name = "Imported##uri-fragment label",
+                    reference = "Imported##uri-fragment",
+                    linkLabel = "label",
+                    expectedResolvedReference = "another.pkg.Imported##uri-fragment",
                 ),
 
                 // Reference a member of a fully qualified class.
@@ -495,6 +517,14 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                     name = "other.pkg.Another##uri-fragment",
                     expectedResolvedReference = "other.pkg.Another##uri-fragment",
                     expectedLinkLabel = null,
+
+                    // TODO(b/568477816): Report an issue if no label is provided.
+                ),
+                TestParams(
+                    name = "other.pkg.Another##uri-fragment label",
+                    reference = "other.pkg.Another##uri-fragment",
+                    linkLabel = "label",
+                    expectedResolvedReference = "other.pkg.Another##uri-fragment",
                 ),
             )
 

@@ -1129,4 +1129,61 @@ class CommonDocReferenceTest : BaseModelTest() {
             )
         }
     }
+
+    /**
+     * Verify how URI fragment references (`##<fragment>` and `<Class>##<fragment>`) with and
+     * without labels (including trailing whitespace, mapped annotations, and `@see` inline-tag
+     * labels) are formatted and checked.
+     */
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test URI fragment references with and without labels`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package android.annotation;
+                        /** @hide */
+                        public @interface Nullable {}
+                    """,
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        /**
+                         * {@link ##sec   }
+                         * {@link ##sec Section}
+                         * {@link android.annotation.Nullable##sec}
+                         *
+                         * @see Test##sec
+                         * @see Test##sec {@code codeLabel}
+                         */
+                        public class Test {}
+                    """,
+                ),
+            ),
+        ) {
+            codebase
+                .assertClass("test.pkg.Test")
+                .assertPrintedDocumentation(
+                    expectedOutput =
+                        """
+                            /**
+                             * {@link ##sec}
+                             * {@link ##sec Section}
+                             * {@link androidx.annotation.Nullable##sec}
+                             *
+                             * @see ##sec
+                             * @see ##sec {@code codeLabel}
+                             */
+                        """,
+                )
+
+            assertAndRemoveReportedIssues(
+                // TODO(b/568477816): Report MalformedDocReference for unlabeled `##sec`,
+                //  `android.annotation.Nullable##sec`, and `Test##sec`.
+                "",
+            )
+        }
+    }
 }
