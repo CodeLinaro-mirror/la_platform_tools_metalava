@@ -906,6 +906,22 @@ internal data class LabeledRefTagData(
     private val rawSourceReference: String = sourceReference,
 ) : TagData {
     /**
+     * Report [Issues.MALFORMED_DOC_REFERENCE] if this references a [UriFragmentReference] without a
+     * label ([remainder] is `null`).
+     */
+    override fun checkExtractedContent(
+        reporter: LocationSpecificReporter,
+        remainder: JavadocContent?,
+    ) {
+        if (resolvedReference is UriFragmentReference && remainder == null) {
+            reporter.report(
+                Issues.MALFORMED_DOC_REFERENCE,
+                "Malformed reference `$rawSourceReference`, URI fragment reference requires a label",
+            )
+        }
+    }
+
+    /**
      * Print [inlineTag] to [contentPrinter], replacing the tag with `ERROR[<reason>: <link>]` or
      * `ERROR[<reason>: <link> <label>]` when [resolvedReference] failed
      * [DocCommentContext.checkReference] ([ReferenceCheckResult.Invalid]).

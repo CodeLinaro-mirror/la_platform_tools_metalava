@@ -1180,9 +1180,11 @@ class CommonDocReferenceTest : BaseModelTest() {
                 )
 
             assertAndRemoveReportedIssues(
-                // TODO(b/568477816): Report MalformedDocReference for unlabeled `##sec`,
-                //  `android.annotation.Nullable##sec`, and `Test##sec`.
-                "",
+                """
+                    MAIN_SRC/src/test/pkg/Test.java:3:11: warning: Malformed reference `##sec`, URI fragment reference requires a label (ErrorWhenNew) [MalformedDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:5:11: warning: Malformed reference `android.annotation.Nullable##sec`, URI fragment reference requires a label (ErrorWhenNew) [MalformedDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:7:9: warning: Malformed reference `Test##sec`, URI fragment reference requires a label (ErrorWhenNew) [MalformedDocReference]
+                """,
             )
         }
     }

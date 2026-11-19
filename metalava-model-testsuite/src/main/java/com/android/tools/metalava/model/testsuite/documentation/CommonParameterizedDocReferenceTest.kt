@@ -236,8 +236,9 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                 TestParams(
                     name = "##uri-fragment",
                     expectedResolvedReference = "##uri-fragment",
-                    // TODO(b/447588621): Report an issue if no label is provided.
                     expectedLinkLabel = null,
+                    expectedIssues =
+                        "warning: Malformed reference `##uri-fragment`, URI fragment reference requires a label (ErrorWhenNew) [MalformedDocReference]",
                 ),
                 TestParams(
                     name = "##uri-fragment label",
@@ -380,8 +381,8 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                     name = "Other##uri-fragment",
                     expectedResolvedReference = "test.pkg.Other##uri-fragment",
                     expectedLinkLabel = null,
-
-                    // TODO(b/568477816): Report an issue if no label is provided.
+                    expectedIssues =
+                        "warning: Malformed reference `Other##uri-fragment`, URI fragment reference requires a label (ErrorWhenNew) [MalformedDocReference]",
                 ),
                 TestParams(
                     name = "Other##uri-fragment label",
@@ -444,8 +445,8 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                     name = "Imported##uri-fragment",
                     expectedResolvedReference = "another.pkg.Imported##uri-fragment",
                     expectedLinkLabel = null,
-
-                    // TODO(b/568477816): Report an issue if no label is provided.
+                    expectedIssues =
+                        "warning: Malformed reference `Imported##uri-fragment`, URI fragment reference requires a label (ErrorWhenNew) [MalformedDocReference]",
                 ),
                 TestParams(
                     name = "Imported##uri-fragment label",
@@ -517,8 +518,8 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                     name = "other.pkg.Another##uri-fragment",
                     expectedResolvedReference = "other.pkg.Another##uri-fragment",
                     expectedLinkLabel = null,
-
-                    // TODO(b/568477816): Report an issue if no label is provided.
+                    expectedIssues =
+                        "warning: Malformed reference `other.pkg.Another##uri-fragment`, URI fragment reference requires a label (ErrorWhenNew) [MalformedDocReference]",
                 ),
                 TestParams(
                     name = "other.pkg.Another##uri-fragment label",
