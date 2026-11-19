@@ -43,6 +43,7 @@ class CommonParameterizedDocumentationTest : BaseModelTest() {
         val comment: String,
         val expectedText: String = comment,
         val expectedFullyQualified: String = expectedText,
+        val expectedIssues: String = "",
     ) {
         fun skipForInputFormat(inputFormat: InputFormat?) = inputFormat !in inputFormats
 
@@ -95,6 +96,29 @@ class CommonParameterizedDocumentationTest : BaseModelTest() {
                     comment = "/** {@link Random} */",
                     // Doc comments in Kotlin are not fully qualified as that is only needed for
                     // java stubs due to an issue with doclava. Kotlin stubs are not supported.
+                ),
+                TestParams(
+                    name = "doc comment with java.lang link - kotlin",
+                    inputFormats = kotlinOnly,
+                    comment = "/** {@link String} */",
+                    // TODO(b/447588621): Skip Javadoc reference resolution on Kotlin declarations.
+                    expectedText = "/** {@link java.lang.String String} */",
+                ),
+                TestParams(
+                    name = "doc comment with java.lang throws - kotlin",
+                    inputFormats = kotlinOnly,
+                    comment = "/** @throws IllegalArgumentException if invalid */",
+                    // TODO(b/447588621): Skip Javadoc reference resolution on Kotlin declarations.
+                    expectedText = "/** @throws java.lang.IllegalArgumentException if invalid */",
+                ),
+                TestParams(
+                    name = "doc comment with kdoc bracketed throws - kotlin",
+                    inputFormats = kotlinOnly,
+                    imports = listOf("java.io.IOException"),
+                    comment = "/** @throws [IOException] if failed */",
+                    // TODO(b/447588621): Skip Javadoc reference resolution on Kotlin declarations.
+                    expectedIssues =
+                        "MAIN_SRC/src/test/pkg/Test.kt:5:13: warning: Could not resolve a class or type parameter called '[IOException]' in 'class test.pkg.Test' (ErrorWhenNew) [UnresolvedLink]",
                 ),
             )
 
@@ -149,6 +173,7 @@ class CommonParameterizedDocumentationTest : BaseModelTest() {
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
             testClass.assertPrintedDocumentation(expectedOutput = params.expectedText)
+            assertAndRemoveReportedIssues(params.expectedIssues)
         }
     }
 
@@ -178,6 +203,7 @@ class CommonParameterizedDocumentationTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
 
             testClass.assertPrintedDocumentation(params.expectedFullyQualified + "\n")
+            assertAndRemoveReportedIssues(params.expectedIssues)
         }
     }
 }
