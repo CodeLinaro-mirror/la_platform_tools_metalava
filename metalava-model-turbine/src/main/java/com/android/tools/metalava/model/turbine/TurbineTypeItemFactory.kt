@@ -173,21 +173,32 @@ internal class TurbineTypeItemFactory(
         val iterator = simpleErrorTys.iterator()
         var simpleErrorTy = iterator.next()
 
-        // Group leading lowercase segments that have no type arguments or annotations into the
-        // package prefix, stopping before the last segment so at least one segment is treated as a
-        // class.
-        val qualifiedNameBuilder = StringBuilder(simpleErrorTy.name())
-        while (
-            iterator.hasNext() &&
-                simpleErrorTy.targs().isEmpty() &&
-                simpleErrorTy.annos().isEmpty() &&
-                simpleErrorTy.name().none { it.isUpperCase() }
-        ) {
-            simpleErrorTy = iterator.next()
-            qualifiedNameBuilder.append('.').append(simpleErrorTy.name())
+        val firstSym = simpleErrorTy.sym()
+        val qualifiedNameBuilder: StringBuilder
+        var outerClass: ClassTypeItem?
+        if (firstSym != null) {
+            // The leading segment resolved to a ClassSymbol; obtain any enclosing outer class
+            // types (e.g. when a nested class was imported directly) and start from its full
+            // qualified name.
+            outerClass = optionalOuterClassType(firstSym)
+            qualifiedNameBuilder = StringBuilder(initializer.qualifiedName(firstSym))
+        } else {
+            outerClass = null
+            // Group leading lowercase segments that have no type arguments or annotations into the
+            // package prefix, stopping before the last segment so at least one segment is treated
+            // as a class.
+            qualifiedNameBuilder = StringBuilder(simpleErrorTy.name())
+            while (
+                iterator.hasNext() &&
+                    simpleErrorTy.targs().isEmpty() &&
+                    simpleErrorTy.annos().isEmpty() &&
+                    simpleErrorTy.name().none { it.isUpperCase() }
+            ) {
+                simpleErrorTy = iterator.next()
+                qualifiedNameBuilder.append('.').append(simpleErrorTy.name())
+            }
         }
 
-        var outerClass: ClassTypeItem? = null
         while (true) {
             val hasNext = iterator.hasNext()
             val actualContextNullability =
@@ -207,7 +218,12 @@ internal class TurbineTypeItemFactory(
                 )
             if (!hasNext) break
             simpleErrorTy = iterator.next()
-            qualifiedNameBuilder.append('.').append(simpleErrorTy.name())
+            val sym = simpleErrorTy.sym()
+            if (sym != null) {
+                qualifiedNameBuilder.clear().append(initializer.qualifiedName(sym))
+            } else {
+                qualifiedNameBuilder.append('.').append(simpleErrorTy.name())
+            }
         }
         return outerClass!!
     }
