@@ -7,6 +7,3 @@ com.android.tools.metalava.compatibility.CompatibilityCheckTest
 com.android.tools.metalava.doc.DocApiHistoryTest
   Method replaced by overload with earlier return type descriptor[psi,lint]
   Method replaced by overload with earlier return type descriptor[turbine,lint]
-
-com.android.tools.metalava.stub.StubsTest
-  Generate stubs for various modifier scenarios[turbine]

@@ -571,6 +571,15 @@ internal class TurbineClassBuilder(
                 methodmodifiers.setFinal(false)
             }
 
+            // Interface methods cannot be protected or package-private; promote to public to match
+            // PSI.
+            if (
+                (classItem.isInterface() || classItem.isAnnotationType()) &&
+                    !methodmodifiers.isPrivate()
+            ) {
+                methodmodifiers.setVisibilityLevel(VisibilityLevel.PUBLIC)
+            }
+
             val name = method.name()
             val (typeParams, methodTypeItemFactory) =
                 createTypeParameters(
