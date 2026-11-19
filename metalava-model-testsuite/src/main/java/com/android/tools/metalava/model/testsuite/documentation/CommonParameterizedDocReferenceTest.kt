@@ -270,14 +270,12 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                 ),
                 TestParams(
                     name = "noParamsMethod",
-                    // TODO(b/447588621): Resolve to `#noParamsMethod`.
-                    expectedResolvedReference = "noParamsMethod",
+                    expectedResolvedReference = "#noParamsMethod",
                     expectedLinkLabel = null,
                 ),
                 TestParams(
                     name = "intMethod",
-                    // TODO(b/447588621): Resolve to `#intMethod`.
-                    expectedResolvedReference = "intMethod",
+                    expectedResolvedReference = "#intMethod",
                     expectedLinkLabel = null,
                 ),
                 TestParams(
@@ -296,10 +294,8 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                 ),
                 TestParams(
                     name = "staticallyImportedCollectionMethod",
-                    // TODO(b/447588621): Resolve to
-                    //  `another.pkg.Imported#staticallyImportedCollectionMethod`.
-                    expectedResolvedReference = "staticallyImportedCollectionMethod",
-                    expectedLinkLabel = null,
+                    expectedResolvedReference =
+                        "another.pkg.Imported#staticallyImportedCollectionMethod",
                 ),
                 TestParams(
                     name = "staticallyImportedCollectionMethod(Collection)",
@@ -316,9 +312,7 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                 ),
                 TestParams(
                     name = "Other.noParamsMethod",
-                    // TODO(b/447588621): Resolve to `test.pkg.Other#noParamsMethod`.
-                    expectedResolvedReference = "Other.noParamsMethod",
-                    expectedLinkLabel = null,
+                    expectedResolvedReference = "test.pkg.Other#noParamsMethod",
                 ),
                 TestParams(
                     name = "Other.intMethod(int)",

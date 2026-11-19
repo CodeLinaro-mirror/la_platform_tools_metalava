@@ -453,6 +453,45 @@ internal data class AmbiguousSourceReference(val name: String) : ParsedReference
             is TypeParameterItem -> ResolvedSourceReference(name, resolved.toResolvedReference())
             is FieldItem ->
                 ResolvedSourceReference(name, resolved.toResolvedReference(context, reporter))
+            is ReferencableMethodSet -> {
+                val declaringClass = resolved.containingClass
+                // When `name` is dot-qualified (`<Qualifier>.<method>`), preserve and validate the
+                // explicit qualifying class rather than the supertype that declared the method.
+                val qualifierClass =
+                    name
+                        .lastIndexOf('.')
+                        .takeIf { it != -1 }
+                        ?.let { lastDot ->
+                            context.resolveItemReference(
+                                name.substring(0, lastDot),
+                                NameClassification.CLASS,
+                            ) as? ClassItem
+                        }
+                val targetClass = qualifierClass ?: declaringClass
+                val qualifierCheck = context.checkReference(targetClass, reporter)
+                val checkResult =
+                    if (qualifierCheck.isValid && targetClass != declaringClass) {
+                        context.checkReference(declaringClass, reporter)
+                    } else {
+                        qualifierCheck
+                    }
+                val resolvedClassName = context.resolveClassReferenceName(targetClass)
+                val sourceCallableName =
+                    rewriteMappedSourceCallableName(
+                        name,
+                        targetClass,
+                        resolved.name,
+                        resolvedClassName,
+                    )
+                ResolvedSourceReference(
+                    sourceCallableName,
+                    CallableReference(
+                        resolvedClassName,
+                        resolved.name,
+                        checkResult = checkResult,
+                    ),
+                )
+            }
             else -> null
         }
 }

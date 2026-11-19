@@ -1720,31 +1720,27 @@ class CommonDocReferenceTest : BaseModelTest() {
             codebase
                 .assertClass("test.pkg.MyInterface")
                 .assertPrintedDocumentation(
-                    // TODO(b/447588621): Resolve `toString` to `java.lang.Object#toString`.
-                    expectedOutput = "/** {@link toString} */",
+                    expectedOutput = "/** {@link java.lang.Object#toString toString} */",
                 )
 
             codebase
                 .assertClass("test.pkg.Test")
                 .assertMethod("test", emptyList())
                 .assertPrintedDocumentation(
-                    // TODO(b/447588621): Resolve dot-qualified method references, preserving and
-                    //  checking the qualifying class.
                     expectedOutput =
                         """
                             /**
-                             * {@link IntDef.flag}
-                             * {@link android.annotation.IntDef.flag}
-                             * {@link android.annotation.IntDef.getClass}
-                             * {@link Child.superMethod}
-                             * {@link HiddenChild.superMethod}
+                             * {@link androidx.annotation.IntDef#flag IntDef.flag}
+                             * {@link androidx.annotation.IntDef#flag}
+                             * {@link androidx.annotation.IntDef#getClass}
+                             * {@link test.pkg.Child#superMethod Child.superMethod}
+                             * ERROR[hidden: HiddenChild.superMethod]
                              */
                         """,
                 )
 
             assertAndRemoveReportedIssues(
-                // TODO(b/447588621): Report HiddenDocReference for `HiddenChild.superMethod`.
-                ""
+                "MAIN_SRC/src/test/pkg/Test.java:9:15: warning: Class test.pkg.HiddenChild is hidden (ErrorWhenNew) [HiddenDocReference]"
             )
         }
     }
