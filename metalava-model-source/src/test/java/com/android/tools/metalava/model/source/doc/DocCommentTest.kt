@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model.source.doc
 
+import com.android.tools.metalava.model.api.flags.ApiFlagAction
+import com.android.tools.metalava.model.api.flags.FlagState
 import com.android.tools.metalava.model.source.javadoc.toOptionalJavadocContent
 import kotlin.test.assertEquals
 import org.junit.Test
@@ -146,6 +148,46 @@ class DocCommentTest : BaseDocCommentTest() {
                      */
                 """,
             message = "after adding another custom tag"
+        )
+    }
+
+    @Test
+    fun `Test @deprecated section mutations use deprecatedSectionFlagState`() {
+        val depFlag = FlagState.additionFlag("Flags.DEP_FLAG", ApiFlagAction.KEEP)
+
+        // Case 1: `appendBlockTagDescription("deprecated", ...)` when no `@deprecated` exists yet.
+        var (docComment1, context1) = createTestDocCommentAndContext("/** Some text. */")
+        context1.deprecatedFlagState = depFlag
+        docComment1 =
+            docComment1
+                .appendBlockTagDescription("deprecated", "Use {@link AppendedDepRef}.")
+                .appendBlockTagDescription("custom", "See {@link AppendedCustomRef}.")
+        docComment1.blockTagSections.forEach { it.description }
+
+        // TODO(b/568477816): Scope `@deprecated` sections created in `DocComment` with
+        //  `forDeprecatedSection()` so `AppendedDepRef` receives `depFlag`.
+        assertEquals(
+            listOf(
+                "resolved.AppendedDepRef" to FlagState.NONE,
+                "resolved.AppendedCustomRef" to FlagState.NONE,
+            ),
+            context1.checkedReferences,
+        )
+
+        // Case 2: `addBlockTagSection("deprecated", ...)` followed by `appendBlockTagDescription`.
+        var (docComment2, context2) = createTestDocCommentAndContext("/** Some text. */")
+        context2.deprecatedFlagState = depFlag
+        docComment2 =
+            docComment2
+                .addBlockTagSection("deprecated", "Deprecated.")
+                .appendBlockTagDescription("deprecated", "Use {@link AddedThenAppendedDepRef}.")
+        docComment2.blockTagSections.forEach { it.description }
+
+        assertEquals(
+            listOf(
+                "resolved.AddedThenAppendedDepRef" to FlagState.NONE,
+            ),
+            context2.checkedReferences,
         )
     }
 }

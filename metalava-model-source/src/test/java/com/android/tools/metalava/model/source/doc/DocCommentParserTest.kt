@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model.source.doc
 
+import com.android.tools.metalava.model.api.flags.ApiFlagAction
+import com.android.tools.metalava.model.api.flags.FlagState
 import com.android.tools.metalava.model.source.javadoc.BarTagData
 import com.android.tools.metalava.model.source.javadoc.JavadocText
 import com.android.tools.metalava.model.source.javadoc.TextContainsAnyVisitor
@@ -1025,5 +1027,52 @@ class DocCommentParserTest : BaseDocCommentTest() {
                 """
             )
         }
+    }
+
+    @Test
+    fun `Test @deprecated section lazily combines deprecatedSectionFlagState`() {
+        val text =
+            """
+                /**
+                 * Main {@link MainRef}.
+                 * @deprecated Use {@link DepRef}.
+                 * @if (flag(Flags.IF_FLAG)) {
+                 *     :@deprecated Also {@link IfDepRef}.
+                 * }
+                 * @see SeeRef
+                 */
+            """
+                .trimIndent()
+        val context =
+            createDocContext(
+                text = text,
+                flagActions = mapOf("Flags.IF_FLAG" to ApiFlagAction.KEEP),
+            )
+
+        // Parse the outer comment structure BEFORE setting `deprecatedFlagState`, matching how
+        // `SourceSelectedApi.initialize()` checks `hasBlockTagOfType("deprecated")` before marking
+        // the item deprecated.
+        val docComment = DocCommentParser.parseText(context, text, context.reporter)
+        assertTrue(docComment.hasBlockTagOfType("deprecated"))
+
+        val depFlag = FlagState.additionFlag("Flags.DEP_FLAG", ApiFlagAction.KEEP)
+        val ifFlag = FlagState.additionFlag("Flags.IF_FLAG", ApiFlagAction.KEEP)
+        context.deprecatedFlagState = depFlag
+
+        docComment.description
+        docComment.blockTagSections.forEach { it.description }
+        assertJavadocParserIssues("")
+
+        // TODO(b/568477816): Scope `@deprecated` sections with `forDeprecatedSection()` so `DepRef`
+        //  receives `depFlag` and `IfDepRef` receives `ifFlag combineWith depFlag`.
+        assertEquals(
+            listOf(
+                "resolved.MainRef" to FlagState.NONE,
+                "resolved.DepRef" to FlagState.NONE,
+                "resolved.IfDepRef" to ifFlag,
+                "resolved.SeeRef" to FlagState.NONE,
+            ),
+            context.checkedReferences,
+        )
     }
 }

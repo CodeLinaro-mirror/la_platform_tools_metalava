@@ -156,6 +156,9 @@ internal class TestDocCommentContext(
      */
     val checkedReferences = mutableListOf<Pair<String, FlagState>>()
 
+    /** Mutable `@deprecated` section [FlagState] for testing lazy evaluation. */
+    var deprecatedFlagState: FlagState = FlagState.NONE
+
     /** Qualify [sourceReference], if needed. */
     private fun qualifySourceReference(sourceReference: String): String =
         if (sourceReference.contains(".") || sourceReference.startsWith("#")) sourceReference
