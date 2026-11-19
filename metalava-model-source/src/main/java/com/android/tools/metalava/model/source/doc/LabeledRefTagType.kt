@@ -17,11 +17,15 @@
 package com.android.tools.metalava.model.source.doc
 
 import com.android.tools.metalava.model.BaseTypeTransformer
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ExternalReferencableItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.InvalidReferencableItem
+import com.android.tools.metalava.model.JAVA_LANG_OBJECT
+import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ReferencableMethodSet
 import com.android.tools.metalava.model.TypeComparator
@@ -429,6 +433,116 @@ private fun rewriteMappedSourceCallableName(
     }
 }
 
+/**
+ * A no-op [LocationSpecificReporter] used to probe candidate callable overloads via
+ * [DocCommentContext.checkReference] without emitting duplicate diagnostics.
+ */
+private val NOOP_LOCATION_REPORTER =
+    object : LocationSpecificReporter {
+        override fun report(issue: Issues.Issue, message: String) {}
+    }
+
+/**
+ * Collect implicit `java.lang.Object` methods named [methodName] for types whose
+ * [ClassItem.superClass] is `null` (such as interfaces and annotation types), excluding
+ * [ClassItem.isJavaLangObject], [ClassKind.TYPEALIAS], and [ClassItem.isFileFacade].
+ *
+ * Per JLS 9.2, interfaces and annotation types only implicitly declare `public` non-`static`
+ * methods of `java.lang.Object`.
+ */
+private fun ClassItem.findImplicitObjectMethodsByName(methodName: String): List<MethodItem> {
+    if (
+        superClass() != null ||
+            isJavaLangObject() ||
+            classKind == ClassKind.TYPEALIAS ||
+            isFileFacade
+    ) {
+        return emptyList()
+    }
+    val publicInstanceOnly = isInterface() || isAnnotationType()
+    val objectClass = codebase.resolveClass(JAVA_LANG_OBJECT) ?: return emptyList()
+    return objectClass.methods().filter { method ->
+        method.name() == methodName &&
+            (!publicInstanceOnly || (method.modifiers.isPublic() && !method.modifiers.isStatic()))
+    }
+}
+
+/**
+ * Collect all methods named [methodName] declared on this [ClassItem] or inherited from its
+ * superclasses, superinterfaces (excluding `static` methods on strict superinterfaces per JLS 8.4.8
+ * / 9.4.1), or `java.lang.Object` (for interfaces and annotation types, whose
+ * [ClassItem.superClass] is `null`).
+ */
+private fun ClassItem.findAllMethodsByName(methodName: String): List<MethodItem> = buildList {
+    val visited = HashSet<ClassItem>()
+    fun collectFrom(cls: ClassItem, includeStatic: Boolean = true) {
+        if (!visited.add(cls)) return
+        for (method in cls.methods()) {
+            if (method.name() == methodName && (includeStatic || !method.modifiers.isStatic())) {
+                add(method)
+            }
+        }
+    }
+
+    collectFrom(this@findAllMethodsByName)
+    for (superClass in allSuperClasses()) {
+        collectFrom(superClass)
+    }
+    for (superInterface in allInterfaces()) {
+        collectFrom(superInterface, includeStatic = false)
+    }
+    addAll(findImplicitObjectMethodsByName(methodName))
+}
+
+/**
+ * Validate an unparameterized callable reference against [containingClass] and [candidates].
+ *
+ * First checks that [containingClass] itself is accessible (so references to members of a hidden
+ * class report the hidden class rather than an arbitrary member). When [candidates] is non-empty,
+ * the reference is valid if at least one candidate overload is accessible via
+ * [DocCommentContext.checkReference]; otherwise, the most informative invalid candidate is
+ * re-checked with [reporter] to emit a single diagnostic.
+ */
+private fun checkCallableCandidates(
+    context: DocCommentContext,
+    reporter: LocationSpecificReporter,
+    containingClass: ClassItem,
+    candidates: List<CallableItem>,
+): ReferenceCheckResult {
+    val classCheck = context.checkReference(containingClass, reporter)
+    if (!classCheck.isValid || candidates.isEmpty()) return classCheck
+
+    var bestCandidate: CallableItem? = null
+    var bestRank = Int.MAX_VALUE
+    for (candidate in candidates) {
+        val result = context.checkReference(candidate, NOOP_LOCATION_REPORTER)
+        if (result.isValid) {
+            return ReferenceCheckResult.Valid
+        }
+        val rank = invalidResultRank(result as ReferenceCheckResult.Invalid)
+        if (rank < bestRank) {
+            bestRank = rank
+            bestCandidate = candidate
+        }
+    }
+
+    return context.checkReference(bestCandidate!!, reporter)
+}
+
+/**
+ * Rank [ReferenceCheckResult.Invalid] reasons from most informative (lowest number) to least
+ * informative when all candidate overloads of an unparameterized callable reference are invalid.
+ */
+private fun invalidResultRank(result: ReferenceCheckResult.Invalid): Int =
+    when (result) {
+        is ReferenceCheckResult.WiderSurface -> 1
+        is ReferenceCheckResult.UnguardedFlaggedApi -> 2
+        is ReferenceCheckResult.FlaggedForRemoval -> 3
+        is ReferenceCheckResult.DocOnly -> 4
+        is ReferenceCheckResult.Removed -> 5
+        is ReferenceCheckResult.Hidden -> if (result.isPublicOrProtected) 6 else 7
+    }
+
 /** An ambiguous reference to something by [name]. */
 internal data class AmbiguousSourceReference(val name: String) : ParsedReference {
     override val normalizedForm: String
@@ -454,9 +568,13 @@ internal data class AmbiguousSourceReference(val name: String) : ParsedReference
             is FieldItem ->
                 ResolvedSourceReference(name, resolved.toResolvedReference(context, reporter))
             is ReferencableMethodSet -> {
-                val declaringClass = resolved.containingClass
                 // When `name` is dot-qualified (`<Qualifier>.<method>`), preserve and validate the
-                // explicit qualifying class rather than the supertype that declared the method.
+                // explicit qualifying class. When `name` is unqualified and inherited, target the
+                // innermost enclosing class inheriting `resolved.containingClass` so overloads
+                // across all supertypes participate and hidden intermediate supertypes do not
+                // shadow public inherited overloads, while leaving static imports and implicit
+                // `java.lang.Object` methods on interfaces/annotations on
+                // `resolved.containingClass`.
                 val qualifierClass =
                     name
                         .lastIndexOf('.')
@@ -467,14 +585,18 @@ internal data class AmbiguousSourceReference(val name: String) : ParsedReference
                                 NameClassification.CLASS,
                             ) as? ClassItem
                         }
-                val targetClass = qualifierClass ?: declaringClass
-                val qualifierCheck = context.checkReference(targetClass, reporter)
+                val targetClass =
+                    qualifierClass
+                        ?: generateSequence(context.containingClassItem) { it.containingClass() }
+                            .firstOrNull { scopeClass ->
+                                scopeClass == resolved.containingClass ||
+                                    resolved.containingClass in scopeClass.allSuperClasses() ||
+                                    resolved.containingClass in scopeClass.allInterfaces()
+                            }
+                        ?: resolved.containingClass
+                val candidates = targetClass.findAllMethodsByName(resolved.name)
                 val checkResult =
-                    if (qualifierCheck.isValid && targetClass != declaringClass) {
-                        context.checkReference(declaringClass, reporter)
-                    } else {
-                        qualifierCheck
-                    }
+                    checkCallableCandidates(context, reporter, targetClass, candidates)
                 val resolvedClassName = context.resolveClassReferenceName(targetClass)
                 val sourceCallableName =
                     rewriteMappedSourceCallableName(

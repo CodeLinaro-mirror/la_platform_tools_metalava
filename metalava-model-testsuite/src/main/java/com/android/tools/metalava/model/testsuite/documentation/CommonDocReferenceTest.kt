@@ -1878,55 +1878,50 @@ class CommonDocReferenceTest : BaseModelTest() {
                 .assertClass("test.pkg.ImplWithHiddenHelper")
                 .assertMethod("test", emptyList())
                 .assertPrintedDocumentation(
-                    // TODO(b/447588621): Rewrite hidden method reference to `ERROR[hidden: helper]`
-                    //  without treating StaticHelperInterface.helper() as an inherited overload.
-                    expectedOutput = "/** {@link #helper} */",
+                    expectedOutput = "/** ERROR[hidden: helper] */",
                 )
 
             codebase
                 .assertClass("test.pkg.SplitOverloads")
                 .assertMethod("test", emptyList())
                 .assertPrintedDocumentation(
-                    // TODO(b/447588621): Resolve unqualified inherited method against
-                    //  SplitOverloads (`{@link #compute}`) so overloads across all supertypes are
-                    //  considered.
-                    expectedOutput = "/** {@link test.pkg.HiddenOverload#compute compute} */",
+                    expectedOutput = "/** {@link #compute} */",
                 )
 
             codebase
                 .assertClass("test.pkg.PublicSub")
                 .assertMethod("test", emptyList())
                 .assertPrintedDocumentation(
-                    // TODO(b/447588621): Resolve unqualified inherited method against PublicSub
-                    //  (`{@link #inheritedViaHidden}`) instead of hidden intermediate HiddenMid.
-                    expectedOutput = "/** ERROR[hidden: inheritedViaHidden] */",
+                    expectedOutput = "/** {@link #inheritedViaHidden} */",
                 )
 
             codebase
                 .assertClass("test.pkg.Test")
                 .assertMethod("test", emptyList())
                 .assertPrintedDocumentation(
-                    // TODO(b/447588621): Rewrite hidden method references to `ERROR[...]`.
                     expectedOutput =
                         """
                             /**
-                             * {@link #hiddenMethod}
+                             * ERROR[hidden: hiddenMethod]
                              * {@link #overloadedMethod}
-                             * {@link #allHiddenOverloads}
-                             * {@link test.pkg.Other#hiddenMethod Other.hiddenMethod}
-                             * {@link test.pkg.SubOther#hiddenMethod SubOther.hiddenMethod}
+                             * ERROR[hidden: allHiddenOverloads]
+                             * ERROR[hidden: Other.hiddenMethod]
+                             * ERROR[hidden: SubOther.hiddenMethod]
                              * {@link test.pkg.StaticHelperInterface#helper StaticHelperInterface.helper}
-                             * {@link test.pkg.ImplWithHiddenHelper#helper ImplWithHiddenHelper.helper}
+                             * ERROR[hidden: ImplWithHiddenHelper.helper]
                              */
                         """,
                 )
 
             assertAndRemoveReportedIssues(
-                // TODO(b/447588621): Report HiddenDocReference for `hiddenMethod`,
-                //  `allHiddenOverloads`, `Other.hiddenMethod`, `SubOther.hiddenMethod`,
-                //  `ImplWithHiddenHelper` `helper`, and `ImplWithHiddenHelper.helper`, and stop
-                //  reporting HiddenDocReference on `PublicSub` `inheritedViaHidden`.
-                "MAIN_SRC/src/test/pkg/PublicSub.java:3:16: warning: Class test.pkg.HiddenMid is hidden (ErrorWhenNew) [HiddenDocReference]"
+                """
+                    MAIN_SRC/src/test/pkg/ImplWithHiddenHelper.java:3:16: warning: Method test.pkg.ImplWithHiddenHelper.helper() is hidden (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:4:15: warning: Method test.pkg.Test.hiddenMethod() is hidden (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:6:15: warning: Method test.pkg.Test.allHiddenOverloads(int) is hidden (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:7:15: warning: Method test.pkg.Other.hiddenMethod() is hidden (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:8:15: warning: Method test.pkg.Other.hiddenMethod() is hidden (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:10:15: warning: Method test.pkg.ImplWithHiddenHelper.helper() is hidden (ErrorWhenNew) [HiddenDocReference]
+                """
             )
         }
     }
