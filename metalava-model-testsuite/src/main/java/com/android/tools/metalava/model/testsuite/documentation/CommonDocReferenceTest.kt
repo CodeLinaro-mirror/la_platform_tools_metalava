@@ -2072,16 +2072,13 @@ class CommonDocReferenceTest : BaseModelTest() {
             codebase
                 .assertClass("test.pkg.Outer.Nested")
                 .assertPrintedDocumentation(
-                    // TODO(b/447588621): Resolve enclosing-class fields to `test.pkg.Outer` and
-                    //  rewrite `#HIDDEN_OUTER_FIELD` and `Nested#HIDDEN_OUTER_FIELD` to
-                    //  `ERROR[...]`.
                     expectedOutput =
                         """
                             /**
-                             * {@link #OUTER_FIELD}
-                             * {@link #HIDDEN_OUTER_FIELD}
-                             * {@link #OUTER_FIELD Nested.OUTER_FIELD}
-                             * {@link #HIDDEN_OUTER_FIELD Nested.HIDDEN_OUTER_FIELD}
+                             * {@link test.pkg.Outer#OUTER_FIELD OUTER_FIELD}
+                             * ERROR[hidden: #HIDDEN_OUTER_FIELD]
+                             * {@link test.pkg.Outer#OUTER_FIELD Nested.OUTER_FIELD}
+                             * ERROR[hidden: Nested#HIDDEN_OUTER_FIELD]
                              */
                         """,
                 )
@@ -2089,23 +2086,23 @@ class CommonDocReferenceTest : BaseModelTest() {
             codebase
                 .assertClass("test.pkg.Test")
                 .assertPrintedDocumentation(
-                    // TODO(b/447588621): Resolve `Outer.Nested#OUTER_FIELD` to
-                    //  `test.pkg.Outer#OUTER_FIELD` and rewrite `Outer.Nested#HIDDEN_OUTER_FIELD`
-                    //  to `ERROR[...]`.
                     expectedOutput =
                         """
                             /**
-                             * {@link test.pkg.Outer.Nested#OUTER_FIELD Outer.Nested.OUTER_FIELD}
-                             * {@link test.pkg.Outer.Nested#HIDDEN_OUTER_FIELD Outer.Nested.HIDDEN_OUTER_FIELD}
+                             * {@link test.pkg.Outer#OUTER_FIELD Outer.Nested.OUTER_FIELD}
+                             * ERROR[hidden: Outer.Nested#HIDDEN_OUTER_FIELD]
                              * ERROR[hidden: Outer.HiddenNested#OUTER_FIELD]
                              */
                         """,
                 )
 
             assertAndRemoveReportedIssues(
-                // TODO(b/447588621): Report HiddenDocReference for `HIDDEN_OUTER_FIELD` on
-                //  `Outer.Nested` and `Test`.
-                "MAIN_SRC/src/test/pkg/Test.java:5:11: warning: Class test.pkg.Outer.HiddenNested is hidden (ErrorWhenNew) [HiddenDocReference]"
+                """
+                    MAIN_SRC/src/test/pkg/Outer.java:9:15: warning: Field test.pkg.Outer.HIDDEN_OUTER_FIELD is hidden (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Outer.java:11:15: warning: Field test.pkg.Outer.HIDDEN_OUTER_FIELD is hidden (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:4:11: warning: Field test.pkg.Outer.HIDDEN_OUTER_FIELD is hidden (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:5:11: warning: Class test.pkg.Outer.HiddenNested is hidden (ErrorWhenNew) [HiddenDocReference]
+                """
             )
         }
     }

@@ -740,29 +740,40 @@ internal data class AmbiguousMemberSourceReference(val name: String) : ClassMemb
             return FieldReference(className, name, checkResult = ReferenceCheckResult.Valid)
         }
 
-        // Keep `className` on the returned reference so `SubClass#SUPER_FIELD` preserves its source
-        // qualification in generated stubs while validating both `classItem` and `field`.
+        // Walk `classItem` and its enclosing classes (matching `javadoc` and Doclava member
+        // lookup). Keep `className` when resolved on `classItem` (so `SubClass#SUPER_FIELD`
+        // preserves its source qualification), and rewrite to `scopeClass` when resolved on an
+        // enclosing class so generated stubs target the enclosing class rather than a non-existent
+        // member on the nested class.
         // TODO(b/447588621): Check for methods and constructors not just fields.
-        val field =
-            classItem.findField(
-                name,
-                includeSuperClasses = true,
-                includeInterfaces = true,
-            )
-        if (field != null) {
-            val classCheck =
-                if (field.containingClass() != classItem) {
-                    context.checkReference(classItem, reporter)
-                } else {
-                    ReferenceCheckResult.Valid
-                }
-            val checkResult =
-                if (classCheck.isValid) {
-                    context.checkReference(field, reporter)
-                } else {
-                    classCheck
-                }
-            return FieldReference(className, field.name(), checkResult = checkResult)
+        for (scopeClass in generateSequence(classItem) { it.containingClass() }) {
+            val field =
+                scopeClass.findField(
+                    name,
+                    includeSuperClasses = true,
+                    includeInterfaces = true,
+                )
+            if (field != null) {
+                val classCheck =
+                    if (field.containingClass() != classItem) {
+                        context.checkReference(classItem, reporter)
+                    } else {
+                        ReferenceCheckResult.Valid
+                    }
+                val checkResult =
+                    if (classCheck.isValid) {
+                        context.checkReference(field, reporter)
+                    } else {
+                        classCheck
+                    }
+                val targetClassName =
+                    if (scopeClass == classItem) {
+                        className
+                    } else {
+                        context.resolveClassReferenceName(scopeClass)
+                    }
+                return FieldReference(targetClassName, field.name(), checkResult = checkResult)
+            }
         }
 
         // When no matching field is found (e.g. a method reference without `()`), still validate
