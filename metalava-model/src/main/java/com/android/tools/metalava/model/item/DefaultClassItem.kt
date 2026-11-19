@@ -32,6 +32,7 @@ import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.RecordComponentItemsFactory
 import com.android.tools.metalava.model.RecordComponents
 import com.android.tools.metalava.model.ReferencableCallableItem
+import com.android.tools.metalava.model.ReferencableItem
 import com.android.tools.metalava.model.ReferencableMethodSet
 import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.SourceFile
@@ -506,7 +507,7 @@ internal class DefaultClassItem(
         simpleName: String,
         nameClassification: NameClassification,
         isFirstSimpleName: Boolean
-    ) =
+    ): ReferencableItem? =
         // Implements https://docs.oracle.com/javase/specs/jls/se21/html/jls-6.html#jls-6.5.2
         // First, check to see if it matches this class and if it does then return it. Only do that
         // for the first simple name in a qualified name, otherwise it would treat something like
@@ -532,22 +533,8 @@ internal class DefaultClassItem(
             ?: nameClassification.findClass {
                 mutableNestedClasses.find { it.simpleName() == simpleName }
             }
-            // Then, check to see if it matches a class defined in a super class.
-            ?: superClass()
-                ?.resolveReferencableItemBySimpleName(
-                    simpleName,
-                    nameClassification,
-                    isFirstSimpleName
-                )
-            // Then, check to see if it matches a class defined in a super interface.
-            ?: interfaceTypes().firstNotNullOfOrNull {
-                it.resolveClass(codebase)
-                    ?.resolveReferencableItemBySimpleName(
-                        simpleName,
-                        nameClassification,
-                        isFirstSimpleName
-                    )
-            }
+            // Finally, search inherited members in super classes and super interfaces.
+            ?: resolveInheritedMemberBySimpleName(simpleName, nameClassification)
 
     /** Cache value of [annotationClass]. */
     private lateinit var cachedAnnotationClass: AnnotationClass
@@ -575,6 +562,41 @@ internal class DefaultClassItem(
             return optionalAliasedType!!
         }
 }
+
+/**
+ * Search supertypes of this [ClassItem] for an inherited field, method, or nested class matching
+ * [simpleName] and [nameClassification].
+ *
+ * Unlike [DefaultClassItem.resolveReferencableItemBySimpleName], this excludes supertypes' own
+ * simple class names, type parameters, and constructors as those are not inherited.
+ */
+private fun ClassItem.resolveInheritedMemberBySimpleName(
+    simpleName: String,
+    nameClassification: NameClassification,
+): ReferencableItem? {
+    superClass()?.resolveDirectOrInheritedMember(simpleName, nameClassification)?.let {
+        return it
+    }
+
+    return interfaceTypes().firstNotNullOfOrNull {
+        it.resolveClass(codebase)?.resolveDirectOrInheritedMember(simpleName, nameClassification)
+    }
+}
+
+/**
+ * Check [this] supertype's inheritable declarations (fields, non-constructor methods, and nested
+ * classes), recursing into its supertypes via [resolveInheritedMemberBySimpleName] if not found.
+ */
+private fun ClassItem.resolveDirectOrInheritedMember(
+    simpleName: String,
+    nameClassification: NameClassification,
+): ReferencableItem? =
+    nameClassification.findField { findField(simpleName) }
+        ?: nameClassification.findCallableSet {
+            findCallableSet(simpleName, includeConstructors = false)
+        }
+        ?: nameClassification.findClass { nestedClasses().find { it.simpleName() == simpleName } }
+        ?: resolveInheritedMemberBySimpleName(simpleName, nameClassification)
 
 /**
  * Check to see if [name] refers to a method or (when [includeConstructors] is `true`) a constructor

@@ -537,18 +537,19 @@ class CommonReferencableNameScopeTest : BaseModelTest() {
                 derivedClass.resolveReferencableItem("baseMethod", NameClassification.AMBIGUOUS),
             )
 
-            // TODO(b/447588621): Supertypes' own simple names, type parameters, and constructors
-            //  are not inherited and should not resolve on Derived.
-            assertSame(
-                baseClass,
+            // Supertypes' own simple names, type parameters, and constructors are not inherited.
+            assertEquals(
+                InvalidReferencableItem("Could not resolve 'Base' in 'class test.pkg.Derived'"),
                 derivedClass.resolveReferencableItem("Base", NameClassification.AMBIGUOUS),
             )
-            assertSame(
-                baseClass,
+            assertEquals(
+                InvalidReferencableItem(
+                    "Could not resolve a method/constructor called 'Base' in 'class test.pkg.Derived'"
+                ),
                 derivedClass.resolveReferencableItem("Base", NameClassification.CALLABLE_SET),
             )
-            assertSame(
-                baseClass.assertTypeParameter("B"),
+            assertEquals(
+                InvalidReferencableItem("Could not resolve 'B' in 'class test.pkg.Derived'"),
                 derivedClass.resolveReferencableItem("B", NameClassification.AMBIGUOUS),
             )
         }
