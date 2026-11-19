@@ -1078,4 +1078,57 @@ class CommonDocReferenceTest : BaseModelTest() {
             )
         }
     }
+
+    /**
+     * Verify that URLs used inside `{@link}`, `{@linkplain}`, and `@see` tags report
+     * `MalformedDocReference`, while `@see <a href="...">...</a>` HTML links are accepted without
+     * warning.
+     */
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test URL references in link and see tags`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    /**
+                     * {@link https://example.com}
+                     * {@link https://example.com Example}
+                     * {@linkplain http://example.com/docs}
+                     *
+                     * @see https://example.com
+                     * @see <a href="https://example.com">Example</a>
+                     */
+                    public class Test {}
+                """,
+            ),
+        ) {
+            codebase
+                .assertClass("test.pkg.Test")
+                .assertPrintedDocumentation(
+                    expectedOutput =
+                        """
+                            /**
+                             * {@link https://example.com}
+                             * {@link https://example.com Example}
+                             * {@linkplain http://example.com/docs}
+                             *
+                             * @see https://example.com
+                             * @see <a href="https://example.com">Example</a>
+                             */
+                        """,
+                )
+
+            assertAndRemoveReportedIssues(
+                // TODO(b/568477816): Explain that URLs are not valid in `@link`, `@linkplain`, or
+                //  `@see` and suggest `<a href="...">...</a>`.
+                """
+                    MAIN_SRC/src/test/pkg/Test.java:3:11: warning: Malformed reference `https://example.com` (ErrorWhenNew) [MalformedDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:4:11: warning: Malformed reference `https://example.com` (ErrorWhenNew) [MalformedDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:5:16: warning: Malformed reference `http://example.com/docs` (ErrorWhenNew) [MalformedDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:7:9: warning: Malformed reference `https://example.com` (ErrorWhenNew) [MalformedDocReference]
+                """,
+            )
+        }
+    }
 }
