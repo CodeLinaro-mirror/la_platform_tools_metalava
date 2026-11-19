@@ -202,6 +202,21 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                     },
                 ),
                 TestParams(
+                    name = "SourceFile - resolve static imported method with same name as class",
+                    imports =
+                        """
+                            import static other.pkg.StaticHost.StaticHost;
+                        """,
+                    scopeGetter = { codebase.assertClass("test.pkg.Test").sourceFile()!! },
+                    referencableName = "StaticHost",
+                    expectedItemGetter = {
+                        // TODO(b/447588621): Static imports cannot import constructors, so this
+                        //  should resolve to ReferencableMethodSet(StaticHost, "StaticHost") rather
+                        //  than matching StaticHost's constructor.
+                        codebase.assertClass("other.pkg.StaticHost")
+                    },
+                ),
+                TestParams(
                     name = "SourceFile - resolve class in same file",
                     scopeGetter = { codebase.assertClass("test.pkg.Test").sourceFile()!! },
                     referencableName = "Hidden",
@@ -412,6 +427,17 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                     expectedItemGetter = { codebase.assertClass("test.pkg.Test") },
                 ),
                 TestParams(
+                    name = "ClassItem - resolve invalid constructor reference - ambiguous",
+                    scopeGetter = { codebase.assertClass("test.pkg.Test") },
+                    referencableName = "Test.Test",
+                    nameClassification = NameClassification.AMBIGUOUS,
+                    expectedItemGetter = {
+                        // TODO(b/447588621): Should not match constructors when NameClassification
+                        //  is AMBIGUOUS.
+                        codebase.assertClass("test.pkg.Test")
+                    },
+                ),
+                TestParams(
                     name = "ClassItem - resolve imported constructor reference - callable",
                     // It is impossible to import a constructor, instead the class is imported in
                     // lieu of its constructors.
@@ -576,6 +602,15 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                     """
                         package test.pkg;
                         public class Other {}
+                    """
+                ),
+                java(
+                    """
+                        package other.pkg;
+                        public class StaticHost {
+                            public StaticHost() {}
+                            public static void StaticHost() {}
+                        }
                     """
                 ),
             ),
