@@ -854,12 +854,85 @@ internal data class AmbiguousMemberSourceReference(val name: String) : ClassMemb
         // accessible.
         val checkResult = context.checkReference(classItem, reporter)
 
-        reporter.report(Issues.UNRESOLVED_LINK, "Could not resolve '$name' in '$classItem'")
+        val nestedClassOwner = findAccessibleNestedClassOwner(context, classItem)
+        val hint =
+            if (nestedClassOwner != null) {
+                val ownerName =
+                    if (
+                        nestedClassOwner.containingPackage() ==
+                            context.containingClassItem?.containingPackage()
+                    ) {
+                        nestedClassOwner.fullName()
+                    } else {
+                        context.resolveClassReferenceName(nestedClassOwner)
+                    }
+                "; did you mean nested class '$ownerName.$name'?"
+            } else {
+                ""
+            }
+        reporter.report(Issues.UNRESOLVED_LINK, "Could not resolve '$name' in '$classItem'$hint")
 
         // If the member could not be found then fallback to a field reference so that at least
         // the resolved class will be fully qualified.
         return FieldReference(className, name, checkResult = checkResult)
     }
+
+    /**
+     * Find the innermost enclosing class of [classItem] that directly declares or inherits an
+     * accessible nested class named [name], or `null` if none exists.
+     *
+     * Restricts supertype nested classes to inheritable declarations (per JLS 8.2 / 8.5: `public`,
+     * `protected`, or package-private when every class from `scope` up to the declaring superclass
+     * is in the same package) and requires both the owner scope and matched nested class to pass
+     * [DocCommentContext.checkReference] so inaccessible or hidden nested classes never produce
+     * unusable hints or shadow valid enclosing-class matches.
+     */
+    private fun findAccessibleNestedClassOwner(
+        context: DocCommentContext,
+        classItem: ClassItem,
+    ): ClassItem? =
+        generateSequence(classItem) { it.containingClass() }
+            .firstOrNull { scope ->
+                if (!context.checkReference(scope, NOOP_LOCATION_REPORTER).isValid) {
+                    return@firstOrNull false
+                }
+                if (
+                    scope.nestedClasses().any { nested ->
+                        nested.simpleName() == name &&
+                            context.checkReference(nested, NOOP_LOCATION_REPORTER).isValid
+                    }
+                ) {
+                    return@firstOrNull true
+                }
+
+                // Walk superclasses while tracking whether every class in the chain stays in
+                // `scope`'s package (required for inheriting package-private nested classes).
+                var samePackageChain = true
+                for (superClass in scope.allSuperClasses()) {
+                    samePackageChain =
+                        samePackageChain &&
+                            superClass.containingPackage() == scope.containingPackage()
+                    if (
+                        superClass.nestedClasses().any { nested ->
+                            nested.simpleName() == name &&
+                                (nested.modifiers.isPublic() ||
+                                    nested.modifiers.isProtected() ||
+                                    (samePackageChain && nested.modifiers.isPackagePrivate())) &&
+                                context.checkReference(nested, NOOP_LOCATION_REPORTER).isValid
+                        }
+                    ) {
+                        return@firstOrNull true
+                    }
+                }
+
+                scope.allInterfaces().any { superInterface ->
+                    superInterface.nestedClasses().any { nested ->
+                        nested.simpleName() == name &&
+                            nested.modifiers.isPublic() &&
+                            context.checkReference(nested, NOOP_LOCATION_REPORTER).isValid
+                    }
+                }
+            }
 }
 
 /**

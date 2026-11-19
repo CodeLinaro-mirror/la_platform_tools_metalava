@@ -2637,18 +2637,14 @@ class CommonDocReferenceTest : BaseModelTest() {
                 )
 
             assertAndRemoveReportedIssues(
-                // TODO(b/447588621): Suggest `Child.InheritedNested`, `Child.InterfaceNested`,
-                //  `Outer.SiblingNested`, `Outer.PrivateHelper`, and `Outer.Nested.DeepNested` in
-                //  UnresolvedLink warnings, while keeping `Child#PrivateHelper` and
-                //  `Child#HiddenHelper` without a suggestion.
                 """
-                    MAIN_SRC/src/test/pkg/Child.java:3:11: warning: Could not resolve 'InheritedNested' in 'class test.pkg.Child' (ErrorWhenNew) [UnresolvedLink]
-                    MAIN_SRC/src/test/pkg/Child.java:4:11: warning: Could not resolve 'InterfaceNested' in 'class test.pkg.Child' (ErrorWhenNew) [UnresolvedLink]
-                    MAIN_SRC/src/test/pkg/Outer.java:7:15: warning: Could not resolve 'SiblingNested' in 'class test.pkg.Outer.Nested' (ErrorWhenNew) [UnresolvedLink]
-                    MAIN_SRC/src/test/pkg/Outer.java:8:15: warning: Could not resolve 'PrivateHelper' in 'class test.pkg.Outer.Nested' (ErrorWhenNew) [UnresolvedLink]
-                    MAIN_SRC/src/test/pkg/Test.java:3:11: warning: Could not resolve 'InheritedNested' in 'class test.pkg.Child' (ErrorWhenNew) [UnresolvedLink]
-                    MAIN_SRC/src/test/pkg/Test.java:4:11: warning: Could not resolve 'InterfaceNested' in 'class test.pkg.Child' (ErrorWhenNew) [UnresolvedLink]
-                    MAIN_SRC/src/test/pkg/Test.java:5:11: warning: Could not resolve 'DeepNested' in 'class test.pkg.Outer.Nested' (ErrorWhenNew) [UnresolvedLink]
+                    MAIN_SRC/src/test/pkg/Child.java:3:11: warning: Could not resolve 'InheritedNested' in 'class test.pkg.Child'; did you mean nested class 'Child.InheritedNested'? (ErrorWhenNew) [UnresolvedLink]
+                    MAIN_SRC/src/test/pkg/Child.java:4:11: warning: Could not resolve 'InterfaceNested' in 'class test.pkg.Child'; did you mean nested class 'Child.InterfaceNested'? (ErrorWhenNew) [UnresolvedLink]
+                    MAIN_SRC/src/test/pkg/Outer.java:7:15: warning: Could not resolve 'SiblingNested' in 'class test.pkg.Outer.Nested'; did you mean nested class 'Outer.SiblingNested'? (ErrorWhenNew) [UnresolvedLink]
+                    MAIN_SRC/src/test/pkg/Outer.java:8:15: warning: Could not resolve 'PrivateHelper' in 'class test.pkg.Outer.Nested'; did you mean nested class 'Outer.PrivateHelper'? (ErrorWhenNew) [UnresolvedLink]
+                    MAIN_SRC/src/test/pkg/Test.java:3:11: warning: Could not resolve 'InheritedNested' in 'class test.pkg.Child'; did you mean nested class 'Child.InheritedNested'? (ErrorWhenNew) [UnresolvedLink]
+                    MAIN_SRC/src/test/pkg/Test.java:4:11: warning: Could not resolve 'InterfaceNested' in 'class test.pkg.Child'; did you mean nested class 'Child.InterfaceNested'? (ErrorWhenNew) [UnresolvedLink]
+                    MAIN_SRC/src/test/pkg/Test.java:5:11: warning: Could not resolve 'DeepNested' in 'class test.pkg.Outer.Nested'; did you mean nested class 'Outer.Nested.DeepNested'? (ErrorWhenNew) [UnresolvedLink]
                     MAIN_SRC/src/test/pkg/Test.java:6:11: warning: Could not resolve 'PrivateHelper' in 'class test.pkg.Child' (ErrorWhenNew) [UnresolvedLink]
                     MAIN_SRC/src/test/pkg/Test.java:7:11: warning: Could not resolve 'HiddenHelper' in 'class test.pkg.Child' (ErrorWhenNew) [UnresolvedLink]
                 """
