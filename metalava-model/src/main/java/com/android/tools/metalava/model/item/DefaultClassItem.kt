@@ -31,6 +31,7 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.RecordComponentItemsFactory
 import com.android.tools.metalava.model.RecordComponents
+import com.android.tools.metalava.model.ReferencableCallableItem
 import com.android.tools.metalava.model.ReferencableMethodSet
 import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.SourceFile
@@ -519,9 +520,14 @@ internal class DefaultClassItem(
             }
             // Then, check to see if it is a field of this class.
             ?: nameClassification.findField { findField(simpleName) }
-            // Then, check to see if this contains any method with the same name, if it does
-            // then return a ReferencableMethodSet.
-            ?: nameClassification.findCallableSet { findCallableSet(simpleName) }
+            // Then, check to see if this contains any callable with the same name. Constructors are
+            // only matched when explicitly resolving a CALLABLE_SET (with parentheses).
+            ?: nameClassification.findCallableSet {
+                findCallableSet(
+                    simpleName,
+                    includeConstructors = nameClassification == NameClassification.CALLABLE_SET,
+                )
+            }
             // Then, check to see if it matches a nested class and if it does then return that.
             ?: nameClassification.findClass {
                 mutableNestedClasses.find { it.simpleName() == simpleName }
@@ -571,13 +577,15 @@ internal class DefaultClassItem(
 }
 
 /**
- * Check to see if [name] refers to a method or constructor in this [ClassItem].
+ * Check to see if [name] refers to a method or (when [includeConstructors] is `true`) a constructor
+ * in this [ClassItem].
  *
- * If [name] matches [ClassItem.simpleName] then it is assumed to be a constructor. In that case if
- * this [ClassItem] has any constructors then this [ClassItem] is returned to represent the set of
- * constructors, otherwise `null` is returned. [ClassItem] is used to represent the constructors
- * because that matches the specification. Constructors cannot usually be referenced by name and
- * instead the class is referenced which gives access to its constructor.
+ * If [includeConstructors] is `true` and [name] matches [ClassItem.simpleName] then it is assumed
+ * to be a constructor. In that case if this [ClassItem] has any constructors then this [ClassItem]
+ * is returned to represent the set of constructors, otherwise `null` is returned. [ClassItem] is
+ * used to represent the constructors because that matches the specification. Constructors cannot
+ * usually be referenced by name and instead the class is referenced which gives access to its
+ * constructor.
  *
  * Else, [ClassItem.methods] is searched for a [MethodItem] that matches [name]. If at least one
  * could be found then returns a [ReferencableMethodSet] to represent the set of all [MethodItem]s
@@ -585,8 +593,11 @@ internal class DefaultClassItem(
  *
  * Otherwise, `null` is returned.
  */
-internal fun ClassItem.findCallableSet(name: String) =
-    if (name == simpleName()) {
+internal fun ClassItem.findCallableSet(
+    name: String,
+    includeConstructors: Boolean,
+): ReferencableCallableItem? =
+    if (includeConstructors && name == simpleName()) {
         if (constructors().isEmpty()) {
             null
         } else {

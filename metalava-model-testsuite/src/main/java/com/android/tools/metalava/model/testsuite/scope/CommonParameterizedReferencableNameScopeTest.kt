@@ -210,10 +210,10 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                     scopeGetter = { codebase.assertClass("test.pkg.Test").sourceFile()!! },
                     referencableName = "StaticHost",
                     expectedItemGetter = {
-                        // TODO(b/447588621): Static imports cannot import constructors, so this
-                        //  should resolve to ReferencableMethodSet(StaticHost, "StaticHost") rather
-                        //  than matching StaticHost's constructor.
-                        codebase.assertClass("other.pkg.StaticHost")
+                        ReferencableMethodSet(
+                            codebase.assertClass("other.pkg.StaticHost"),
+                            "StaticHost",
+                        )
                     },
                 ),
                 TestParams(
@@ -431,11 +431,9 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                     scopeGetter = { codebase.assertClass("test.pkg.Test") },
                     referencableName = "Test.Test",
                     nameClassification = NameClassification.AMBIGUOUS,
-                    expectedItemGetter = {
-                        // TODO(b/447588621): Should not match constructors when NameClassification
-                        //  is AMBIGUOUS.
-                        codebase.assertClass("test.pkg.Test")
-                    },
+                    expectedItemGetter = { null },
+                    expectedErrorMessage =
+                        "Could not resolve 'Test.Test' as could not find 'Test' in 'class test.pkg.Test'",
                 ),
                 TestParams(
                     name = "ClassItem - resolve imported constructor reference - callable",
