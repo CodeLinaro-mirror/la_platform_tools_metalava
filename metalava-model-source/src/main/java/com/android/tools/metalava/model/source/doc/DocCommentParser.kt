@@ -149,10 +149,16 @@ private constructor(
         // active; skipping inactive branches prevents their references from being checked and
         // prevents inactive `:@deprecated` tags from marking the item as deprecated.
         if (active) {
-            val blockTagDescription = consumeDescriptionSupplier(currentContext)
+            val sectionContext =
+                if (blockTagType == TagTypes.DEPRECATED) {
+                    currentContext.forDeprecatedSection()
+                } else {
+                    currentContext
+                }
+            val blockTagDescription = consumeDescriptionSupplier(sectionContext)
             addBlockTagSection(
                 blockTagSections,
-                currentContext,
+                sectionContext,
                 blockTagType,
                 blockTagDescription,
             )

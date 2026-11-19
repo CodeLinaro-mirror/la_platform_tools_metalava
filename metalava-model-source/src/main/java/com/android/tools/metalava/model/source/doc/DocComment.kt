@@ -210,9 +210,11 @@ internal class DefaultDocComment(
 
     override fun addBlockTagSection(tagTypeName: String, description: JavadocContent?): DocComment {
         val tagType = blockTagTypeFor(tagTypeName)
+        val sectionContext =
+            if (tagType == TagTypes.DEPRECATED) context.forDeprecatedSection() else context
         val blockTagSection =
             DefaultBlockTagSection(
-                context,
+                sectionContext,
                 tagType,
                 description.toSupplier(),
             )
@@ -257,7 +259,10 @@ internal class DefaultDocComment(
             }
         } else {
             val tagType = blockTagTypeFor(tagTypeName)
-            val new = DefaultBlockTagSection(context, tagType, initialDescription.toSupplier())
+            val sectionContext =
+                if (tagType == TagTypes.DEPRECATED) context.forDeprecatedSection() else context
+            val new =
+                DefaultBlockTagSection(sectionContext, tagType, initialDescription.toSupplier())
             val updated = updater(new)
             addBlockTagSection(updated)
         }

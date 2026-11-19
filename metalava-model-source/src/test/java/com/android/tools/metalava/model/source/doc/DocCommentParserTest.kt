@@ -1063,13 +1063,11 @@ class DocCommentParserTest : BaseDocCommentTest() {
         docComment.blockTagSections.forEach { it.description }
         assertJavadocParserIssues("")
 
-        // TODO(b/568477816): Scope `@deprecated` sections with `forDeprecatedSection()` so `DepRef`
-        //  receives `depFlag` and `IfDepRef` receives `ifFlag combineWith depFlag`.
         assertEquals(
             listOf(
                 "resolved.MainRef" to FlagState.NONE,
-                "resolved.DepRef" to FlagState.NONE,
-                "resolved.IfDepRef" to ifFlag,
+                "resolved.DepRef" to depFlag,
+                "resolved.IfDepRef" to (ifFlag combineWith depFlag),
                 "resolved.SeeRef" to FlagState.NONE,
             ),
             context.checkedReferences,

@@ -164,11 +164,9 @@ class DocCommentTest : BaseDocCommentTest() {
                 .appendBlockTagDescription("custom", "See {@link AppendedCustomRef}.")
         docComment1.blockTagSections.forEach { it.description }
 
-        // TODO(b/568477816): Scope `@deprecated` sections created in `DocComment` with
-        //  `forDeprecatedSection()` so `AppendedDepRef` receives `depFlag`.
         assertEquals(
             listOf(
-                "resolved.AppendedDepRef" to FlagState.NONE,
+                "resolved.AppendedDepRef" to depFlag,
                 "resolved.AppendedCustomRef" to FlagState.NONE,
             ),
             context1.checkedReferences,
@@ -185,7 +183,7 @@ class DocCommentTest : BaseDocCommentTest() {
 
         assertEquals(
             listOf(
-                "resolved.AddedThenAppendedDepRef" to FlagState.NONE,
+                "resolved.AddedThenAppendedDepRef" to depFlag,
             ),
             context2.checkedReferences,
         )

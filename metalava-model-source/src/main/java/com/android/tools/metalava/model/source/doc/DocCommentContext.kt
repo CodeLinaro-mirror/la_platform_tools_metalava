@@ -43,7 +43,8 @@ internal interface DocCommentContext : ExprBuilderContext, ExprContext {
      * @param referencedItem The resolved target [SelectableItem] referenced by the doc tag.
      * @param reporter Location-specific reporter for the reference tag in the doc comment.
      * @param conditionFlagState Any conditional [FlagState] enclosing the reference (for example,
-     *   from `{@if (flag(...))}` or `@if (flag(...))`).
+     *   from `{@if (flag(...))}`, `@if (flag(...))`, or `@deprecated` on a newly deprecated
+     *   `@FlaggedApi` item).
      * @return The [ReferenceCheckResult] indicating whether the reference is valid or why it is
      *   invalid.
      */
@@ -54,12 +55,26 @@ internal interface DocCommentContext : ExprBuilderContext, ExprContext {
     ): ReferenceCheckResult
 
     /**
+     * Additional [FlagState] guarding `@deprecated` block tag sections on the documented item
+     * (evaluated lazily when checking references inside `@deprecated` sections).
+     */
+    val deprecatedSectionFlagState: FlagState
+        get() = FlagState.NONE
+
+    /**
      * Return a [DocCommentContext] that includes [flagState] in the active conditional [FlagState]
      * passed to [checkReference] (or `this` if [flagState] is [FlagState.NONE]).
      */
     fun withConditionFlagState(flagState: FlagState): DocCommentContext =
         if (flagState === FlagState.NONE) this
         else ScopedDocCommentContext(this, conditionFlagState = flagState)
+
+    /**
+     * Return a [DocCommentContext] for a `@deprecated` block tag section that lazily combines
+     * [deprecatedSectionFlagState] when [checkReference] is invoked.
+     */
+    fun forDeprecatedSection(): DocCommentContext =
+        ScopedDocCommentContext(this, inDeprecatedSection = true)
 
     /**
      * Resolve the qualified class name to emit in documentation references for [classItem].
@@ -110,18 +125,23 @@ internal interface DocCommentContext : ExprBuilderContext, ExprContext {
 
 /**
  * Flat delegating [DocCommentContext] that combines any active `@if` / `{@if}` [conditionFlagState]
- * when [checkReference] is invoked.
+ * and (when [inDeprecatedSection] is `true`, evaluated lazily at [checkReference] time)
+ * [DocCommentContext.deprecatedSectionFlagState].
  */
 private class ScopedDocCommentContext(
     private val delegate: DocCommentContext,
     private val conditionFlagState: FlagState = FlagState.NONE,
+    private val inDeprecatedSection: Boolean = false,
 ) : DocCommentContext by delegate {
     override fun checkReference(
         referencedItem: SelectableItem,
         reporter: LocationSpecificReporter,
         conditionFlagState: FlagState,
     ): ReferenceCheckResult {
-        val effectiveState = this.conditionFlagState combineWith conditionFlagState
+        var effectiveState = this.conditionFlagState combineWith conditionFlagState
+        if (inDeprecatedSection) {
+            effectiveState = effectiveState combineWith delegate.deprecatedSectionFlagState
+        }
         return delegate.checkReference(referencedItem, reporter, effectiveState)
     }
 
@@ -129,6 +149,10 @@ private class ScopedDocCommentContext(
         if (flagState === FlagState.NONE) return this
         val combined = this.conditionFlagState combineWith flagState
         if (combined == this.conditionFlagState) return this
-        return ScopedDocCommentContext(delegate, combined)
+        return ScopedDocCommentContext(delegate, combined, inDeprecatedSection)
     }
+
+    override fun forDeprecatedSection(): DocCommentContext =
+        if (inDeprecatedSection) this
+        else ScopedDocCommentContext(delegate, conditionFlagState, inDeprecatedSection = true)
 }
