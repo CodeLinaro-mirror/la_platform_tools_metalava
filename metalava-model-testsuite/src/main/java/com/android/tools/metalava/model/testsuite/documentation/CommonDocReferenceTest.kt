@@ -296,6 +296,77 @@ class CommonDocReferenceTest : BaseModelTest() {
 
     @SupportedInputFormats(InputFormat.JAVA)
     @Test
+    fun `Test current-class member and uri-fragment links in package docs`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg1;
+                        public class Test {}
+                    """
+                ),
+                java(
+                    "test/pkg1/package-info.java",
+                    """
+                        /**
+                         * {@link #field}
+                         * {@link ##pkg-heading pkg heading}
+                         */
+                        package test.pkg1;
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg2;
+                        public class Test {}
+                    """
+                ),
+                html(
+                    "src/test/pkg2/package.html",
+                    """
+                        <HTML>
+                        <BODY>
+                        {@link #method()}
+                        {@link ##html-heading html heading}
+                        </BODY>
+                        </HTML>
+                    """
+                ),
+            ),
+        ) {
+            codebase
+                .assertPackage("test.pkg1")
+                .assertPrintedDocumentation(
+                    expectedOutput =
+                        """
+                            /**
+                             * {@link #field}
+                             * {@link ##pkg-heading pkg heading}
+                             */
+                        """,
+                )
+            codebase
+                .assertPackage("test.pkg2")
+                .assertPrintedDocumentation(
+                    expectedOutput =
+                        """
+                            /**
+                             * {@link #method()}
+                             * {@link ##html-heading html heading}
+                             */
+                        """,
+                )
+
+            assertAndRemoveReportedIssues(
+                // TODO(b/447588621): Report UnresolvedLink for `#field` and `#method()`, while
+                //  allowing `##pkg-heading` and `##html-heading`.
+                ""
+            )
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
     fun `Test external package references`() {
         runCodebaseTest(
             inputSet(
