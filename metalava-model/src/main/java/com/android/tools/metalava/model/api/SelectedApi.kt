@@ -139,40 +139,51 @@ sealed class SelectedApi {
             }
         }
 
-        // An addition `@FlaggedApi` only applies if `item` was not previously released. If `item`
-        // has no direct addition `@FlaggedApi` (either unannotated, invalidated, or paired with a
-        // removed annotation), inherit the nearest compatible enclosing class's non-removal
-        // `@FlaggedApi` annotation so newly added unflagged items inside an already-released
-        // `@FlaggedApi` class inherit that class's flag (matching `SelectedApiUpdater` and
-        // `JavaStubWriter`).
+        // An addition `@FlaggedApi` only applies if `item` was not previously released.
         if (!wasPreviouslyReleased()) {
-            val additionAnnotation =
-                if (!hasRemovedAnnotation() && directAnnotation != null) {
-                    directAnnotation
-                } else {
-                    findInheritedEnclosingFlaggedApi(item, isRemoved)
-                }
-            if (additionAnnotation != null) {
-                val flagName = additionAnnotation.optionalFlagName
-                if (!flagName.isNullOrEmpty()) {
-                    state =
-                        state combineWith
-                            FlagState.additionFlag(flagName, additionAnnotation.apiFlag?.action)
-                }
-            }
+            state = state combineWith computeAdditionFlagState(item, directAnnotation, isRemoved)
+        }
 
-            // Combine with any addition flags required by overridden super methods so both
-            // unflagged overrides of `@FlaggedApi` methods and overrides annotated with an
-            // additional `@FlaggedApi` require the overridden super methods' flags as well.
-            if (item is MethodItem) {
-                val superAddition = computeSuperMethodsAdditionFlagState(item)
-                if (superAddition !== AdditionFlagState.Finalized) {
-                    state =
-                        state combineWith
-                            FlagState(
-                                addition = superAddition,
-                            )
-                }
+        return state
+    }
+
+    /**
+     * Computes the addition [FlagState] from [item]'s [directAnnotation] (if non-removal), or else
+     * from any compatible enclosing class's `@FlaggedApi` annotation, combined with any addition
+     * flags required by overridden [MethodItem.superMethods].
+     */
+    private fun computeAdditionFlagState(
+        item: SelectableItem,
+        directAnnotation: AnnotationItem?,
+        isRemoved: Boolean,
+    ): FlagState {
+        var state = FlagState.NONE
+        val additionAnnotation =
+            if (!hasRemovedAnnotation() && directAnnotation != null) {
+                directAnnotation
+            } else {
+                findInheritedEnclosingFlaggedApi(item, isRemoved)
+            }
+        if (additionAnnotation != null) {
+            val flagName = additionAnnotation.optionalFlagName
+            if (!flagName.isNullOrEmpty()) {
+                state =
+                    state combineWith
+                        FlagState.additionFlag(flagName, additionAnnotation.apiFlag?.action)
+            }
+        }
+
+        // Combine with any addition flags required by overridden super methods so both unflagged
+        // overrides of `@FlaggedApi` methods and overrides annotated with an additional
+        // `@FlaggedApi` require the overridden super methods' flags as well.
+        if (item is MethodItem) {
+            val superAddition = computeSuperMethodsAdditionFlagState(item)
+            if (superAddition !== AdditionFlagState.Finalized) {
+                state =
+                    state combineWith
+                        FlagState(
+                            addition = superAddition,
+                        )
             }
         }
 
