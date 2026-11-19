@@ -217,7 +217,9 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
 
     override fun wasPreviouslyReleased(): Boolean =
         wasPreviouslyReleased
-            ?: selectedApiUpdater.wasPreviouslyReleased(item).also { wasPreviouslyReleased = it }
+            ?: (selectedApiUpdater.findPreviouslyReleasedItem(item) != null).also {
+                wasPreviouslyReleased = it
+            }
 
     final override fun initialize() {
         // Initialize the parent first.

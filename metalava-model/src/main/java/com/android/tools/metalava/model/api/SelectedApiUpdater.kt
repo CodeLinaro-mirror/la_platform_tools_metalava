@@ -660,9 +660,9 @@ class SelectedApiUpdater(
         return sourceSelectedApi.revert
     }
 
-    /** Checks to see whether [item] has a corresponding item in the previously released API. */
-    internal fun wasPreviouslyReleased(item: SelectableItem): Boolean {
-        return previouslyReleasedCodebase?.let { item.findCorrespondingItemIn(it) } != null
+    /** Find the corresponding [SelectableItem] in [previouslyReleasedCodebase], if any. */
+    internal fun findPreviouslyReleasedItem(item: SelectableItem): SelectableItem? {
+        return previouslyReleasedCodebase?.let { item.findCorrespondingItemIn(it) }
     }
 
     companion object {
