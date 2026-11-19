@@ -613,19 +613,14 @@ class CommonReferencableNameScopeTest : BaseModelTest() {
             val subInterface = codebase.assertClass("test.pkg.SubInterface")
             val myAnnotation = codebase.assertClass("test.pkg.MyAnnotation")
             val annotationClass = codebase.assertResolvedClass("java.lang.annotation.Annotation")
+            val objectClass = codebase.assertResolvedClass("java.lang.Object")
 
-            // TODO(b/447588621): Interfaces implicitly declare public instance methods of
-            //  java.lang.Object even though ClassItem.superClass() is null.
             assertEquals(
-                InvalidReferencableItem(
-                    "Could not resolve 'toString' in 'class test.pkg.MyInterface'"
-                ),
+                ReferencableMethodSet(objectClass, "toString"),
                 myInterface.resolveReferencableItem("toString", NameClassification.AMBIGUOUS),
             )
             assertEquals(
-                InvalidReferencableItem(
-                    "Could not resolve a method/constructor called 'MyInterface.toString' as could not find a method/constructor called 'toString' in 'class test.pkg.MyInterface'"
-                ),
+                ReferencableMethodSet(objectClass, "toString"),
                 myInterface.resolveReferencableItem(
                     "MyInterface.toString",
                     NameClassification.CALLABLE_SET,
@@ -661,12 +656,8 @@ class CommonReferencableNameScopeTest : BaseModelTest() {
                 myAnnotation.resolveReferencableItem("toString", NameClassification.AMBIGUOUS),
             )
 
-            // TODO(b/447588621): Public instance methods of java.lang.Object not redeclared on
-            //  java.lang.annotation.Annotation should fall back to java.lang.Object.
             assertEquals(
-                InvalidReferencableItem(
-                    "Could not resolve 'getClass' in 'class test.pkg.MyAnnotation'"
-                ),
+                ReferencableMethodSet(objectClass, "getClass"),
                 myAnnotation.resolveReferencableItem("getClass", NameClassification.AMBIGUOUS),
             )
             assertEquals(

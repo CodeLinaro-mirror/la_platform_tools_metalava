@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentationFactory
+import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageItem
@@ -533,8 +534,40 @@ internal class DefaultClassItem(
             ?: nameClassification.findClass {
                 mutableNestedClasses.find { it.simpleName() == simpleName }
             }
-            // Finally, search inherited members in super classes and super interfaces.
+            // Finally, search inherited members in super classes and super interfaces, falling back
+            // to implicit public instance methods of java.lang.Object when superClass() is null.
             ?: resolveInheritedMemberBySimpleName(simpleName, nameClassification)
+            ?: nameClassification.findCallableSet { resolveImplicitObjectMethod(simpleName) }
+
+    /**
+     * Fall back to `java.lang.Object` methods when [superClass] is `null` (such as on interfaces
+     * and annotation types, which have no superclass in the model).
+     *
+     * Excludes [isJavaLangObject] (whose own methods were already checked above),
+     * [ClassKind.TYPEALIAS], and [isFileFacade] classes (which also have `superClass() == null` but
+     * do not inherit from `java.lang.Object`). Per JLS 9.2, interfaces and annotation types only
+     * implicitly declare `public` instance methods of `java.lang.Object`, not `protected` methods
+     * like `clone()` or `finalize()` or `static` methods.
+     */
+    private fun resolveImplicitObjectMethod(simpleName: String): ReferencableMethodSet? {
+        if (
+            superClass() != null ||
+                isJavaLangObject() ||
+                classKind == ClassKind.TYPEALIAS ||
+                isFileFacade
+        ) {
+            return null
+        }
+        val publicInstanceOnly = isInterface() || isAnnotationType()
+        val objectClass = codebase.resolveClass(JAVA_LANG_OBJECT) ?: return null
+        val matches =
+            objectClass.methods().any { method ->
+                method.name() == simpleName &&
+                    (!publicInstanceOnly ||
+                        (method.modifiers.isPublic() && !method.modifiers.isStatic()))
+            }
+        return if (matches) ReferencableMethodSet(objectClass, simpleName) else null
+    }
 
     /** Cache value of [annotationClass]. */
     private lateinit var cachedAnnotationClass: AnnotationClass
