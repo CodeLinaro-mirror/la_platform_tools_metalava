@@ -39,6 +39,19 @@ object PolicyDefinitionAnnotationTestFiles {
             """
         )
 
+    /** Minimal `DevicePolicyManager` stub exposing `setPolicy` and `getPolicy` for doc links. */
+    val DEVICE_POLICY_MANAGER_SOURCE =
+        java(
+            """
+                package android.app.admin;
+
+                public class DevicePolicyManager {
+                    public void setPolicy() {}
+                    public Object getPolicy() { return null; }
+                }
+            """
+        )
+
     val ENUM_POLICY_DEFINITION_SOURCE =
         java(
             """

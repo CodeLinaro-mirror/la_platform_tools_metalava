@@ -18,6 +18,7 @@ package com.android.tools.metalava.doc.annotationhandlers
 
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.doc.annotationhandlers.PolicyDefinitionAnnotationTestFiles.ANDROID_MANIFEST_SOURCE
+import com.android.tools.metalava.doc.annotationhandlers.PolicyDefinitionAnnotationTestFiles.DEVICE_POLICY_MANAGER_SOURCE
 import com.android.tools.metalava.doc.annotationhandlers.PolicyDefinitionAnnotationTestFiles.POLICY_DEFINITION_SOURCE
 import com.android.tools.metalava.testing.java
 import org.junit.Test
@@ -31,6 +32,7 @@ class IntegerPolicyAnnotationHandlerTest : DriverTest() {
                 arrayOf(
                     POLICY_DEFINITION_SOURCE,
                     ANDROID_MANIFEST_SOURCE,
+                    DEVICE_POLICY_MANAGER_SOURCE,
                     java(
                         """
                         package test.pkg;
@@ -140,6 +142,7 @@ class IntegerPolicyAnnotationHandlerTest : DriverTest() {
                 arrayOf(
                     POLICY_DEFINITION_SOURCE,
                     ANDROID_MANIFEST_SOURCE,
+                    DEVICE_POLICY_MANAGER_SOURCE,
                     java(
                         """
                         package test.pkg;
@@ -254,6 +257,7 @@ class IntegerPolicyAnnotationHandlerTest : DriverTest() {
                 arrayOf(
                     POLICY_DEFINITION_SOURCE,
                     ANDROID_MANIFEST_SOURCE,
+                    DEVICE_POLICY_MANAGER_SOURCE,
                     java(
                         """
                         package test.pkg;

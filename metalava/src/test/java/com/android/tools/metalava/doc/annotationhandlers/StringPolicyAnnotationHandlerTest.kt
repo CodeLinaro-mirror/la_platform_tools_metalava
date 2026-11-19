@@ -18,6 +18,7 @@ package com.android.tools.metalava.doc.annotationhandlers
 
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.doc.annotationhandlers.PolicyDefinitionAnnotationTestFiles.ANDROID_MANIFEST_SOURCE
+import com.android.tools.metalava.doc.annotationhandlers.PolicyDefinitionAnnotationTestFiles.DEVICE_POLICY_MANAGER_SOURCE
 import com.android.tools.metalava.doc.annotationhandlers.PolicyDefinitionAnnotationTestFiles.POLICY_DEFINITION_SOURCE
 import com.android.tools.metalava.testing.java
 import org.junit.Test
@@ -29,6 +30,7 @@ class StringPolicyAnnotationHandlerTest : DriverTest() {
             sourceFiles =
                 arrayOf(
                     ANDROID_MANIFEST_SOURCE,
+                    DEVICE_POLICY_MANAGER_SOURCE,
                     POLICY_DEFINITION_SOURCE,
                     java(
                         """
@@ -128,6 +130,7 @@ class StringPolicyAnnotationHandlerTest : DriverTest() {
             sourceFiles =
                 arrayOf(
                     ANDROID_MANIFEST_SOURCE,
+                    DEVICE_POLICY_MANAGER_SOURCE,
                     POLICY_DEFINITION_SOURCE,
                     java(
                         """
@@ -225,6 +228,7 @@ class StringPolicyAnnotationHandlerTest : DriverTest() {
             sourceFiles =
                 arrayOf(
                     ANDROID_MANIFEST_SOURCE,
+                    DEVICE_POLICY_MANAGER_SOURCE,
                     POLICY_DEFINITION_SOURCE,
                     java(
                         """
@@ -321,6 +325,7 @@ class StringPolicyAnnotationHandlerTest : DriverTest() {
             sourceFiles =
                 arrayOf(
                     ANDROID_MANIFEST_SOURCE,
+                    DEVICE_POLICY_MANAGER_SOURCE,
                     POLICY_DEFINITION_SOURCE,
                     java(
                         """
@@ -415,6 +420,7 @@ class StringPolicyAnnotationHandlerTest : DriverTest() {
             sourceFiles =
                 arrayOf(
                     ANDROID_MANIFEST_SOURCE,
+                    DEVICE_POLICY_MANAGER_SOURCE,
                     POLICY_DEFINITION_SOURCE,
                     java(
                         """
@@ -517,6 +523,7 @@ class StringPolicyAnnotationHandlerTest : DriverTest() {
             sourceFiles =
                 arrayOf(
                     ANDROID_MANIFEST_SOURCE,
+                    DEVICE_POLICY_MANAGER_SOURCE,
                     POLICY_DEFINITION_SOURCE,
                     java(
                         """
@@ -626,6 +633,7 @@ class StringPolicyAnnotationHandlerTest : DriverTest() {
             sourceFiles =
                 arrayOf(
                     ANDROID_MANIFEST_SOURCE,
+                    DEVICE_POLICY_MANAGER_SOURCE,
                     POLICY_DEFINITION_SOURCE,
                     java(
                         """
@@ -729,6 +737,7 @@ class StringPolicyAnnotationHandlerTest : DriverTest() {
             sourceFiles =
                 arrayOf(
                     ANDROID_MANIFEST_SOURCE,
+                    DEVICE_POLICY_MANAGER_SOURCE,
                     POLICY_DEFINITION_SOURCE,
                     java(
                         """
