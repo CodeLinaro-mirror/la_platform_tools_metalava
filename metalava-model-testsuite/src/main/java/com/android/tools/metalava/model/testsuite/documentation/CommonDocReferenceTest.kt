@@ -2425,4 +2425,100 @@ class CommonDocReferenceTest : BaseModelTest() {
             )
         }
     }
+
+    /**
+     * Verify that unresolved `#member` and `Class#member` references (including non-inherited
+     * superclass and enclosing-class constructors and non-inherited superinterface `static`
+     * methods) report `UnresolvedLink`.
+     */
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test unresolved member references`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        public interface SuperInterface {
+                            static void onlyStaticOnInterface() {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class Impl implements SuperInterface {}
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class Parent {
+                            public Parent() {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class Child extends Parent {}
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class Outer {
+                            public Outer() {}
+
+                            /**
+                             * {@link #unknownMember}
+                             * {@link #Outer}
+                             */
+                            public static class Nested {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        /**
+                         * {@link Child#Parent}
+                         * {@link Impl#onlyStaticOnInterface}
+                         */
+                        public class Test {}
+                    """
+                ),
+            ),
+        ) {
+            codebase
+                .assertClass("test.pkg.Outer.Nested")
+                .assertPrintedDocumentation(
+                    expectedOutput =
+                        """
+                            /**
+                             * {@link #unknownMember}
+                             * {@link #Outer}
+                             */
+                        """,
+                )
+
+            codebase
+                .assertClass("test.pkg.Test")
+                .assertPrintedDocumentation(
+                    expectedOutput =
+                        """
+                            /**
+                             * {@link test.pkg.Child#Parent Child.Parent}
+                             * {@link test.pkg.Impl#onlyStaticOnInterface Impl.onlyStaticOnInterface}
+                             */
+                        """,
+                )
+
+            assertAndRemoveReportedIssues(
+                // TODO(b/447588621): Report UnresolvedLink for `#unknownMember`, `#Outer`,
+                //  `Child#Parent`, and `Impl#onlyStaticOnInterface`.
+                ""
+            )
+        }
+    }
 }

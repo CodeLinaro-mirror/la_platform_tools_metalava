@@ -366,6 +366,20 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                     expectedIssues =
                         "warning: Could not resolve 'Other.unknownMember' as could not find 'unknownMember' in 'class test.pkg.Other' (ErrorWhenNew) [UnresolvedLink]",
                 ),
+                TestParams(
+                    name = "#unknownMember",
+                    expectedResolvedReference = "#unknownMember",
+                    expectedLinkLabel = null,
+                    // TODO(b/447588621): Report UnresolvedLink for unresolved `#unknownMember`.
+                    expectedIssues = "",
+                ),
+                TestParams(
+                    name = "Other#unknownMember",
+                    expectedResolvedReference = "test.pkg.Other#unknownMember",
+                    // TODO(b/447588621): Report UnresolvedLink for unresolved
+                    //  `Other#unknownMember`.
+                    expectedIssues = "",
+                ),
 
                 // Reference a member of another class in the same package.
                 TestParams(
