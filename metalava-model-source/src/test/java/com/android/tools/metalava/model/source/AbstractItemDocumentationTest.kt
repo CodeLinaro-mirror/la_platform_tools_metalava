@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
+import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.SkeletonClassItem
@@ -189,6 +190,31 @@ class AbstractItemDocumentationTest {
                 )
             containingClass.addField(field)
             return field
+        }
+
+        fun createMethod(
+            containingClass: SkeletonClassItem,
+            name: String,
+            visibility: VisibilityLevel = VisibilityLevel.PUBLIC,
+            doc: String = "",
+            annotationNames: List<String> = emptyList(),
+        ): MethodItem {
+            val method =
+                assembler.itemFactory.createMethodItem(
+                    modifiers =
+                        createImmutableModifiers(visibility, createAnnotations(annotationNames)),
+                    documentationFactory = docFactory(doc),
+                    name = name,
+                    containingClass = containingClass,
+                    typeParameterList = TypeParameterList.NONE,
+                    returnType = containingClass.type(),
+                    parameterItemsFactory = { emptyList() },
+                    throwsTypes = emptyList(),
+                    defaultValueProvider = null,
+                    isExtensionMethod = false,
+                )
+            containingClass.addMethod(method)
+            return method
         }
 
         /**
@@ -505,5 +531,75 @@ class AbstractItemDocumentationTest {
         val scopedBoth = scopedAdd.withConditionFlagState(keptRemovalState)
         assertEquals("", context.checkReference(referencer, flaggedTarget, docContext = scopedBoth))
         assertEquals("", context.checkReference(referencer, removalTarget, docContext = scopedBoth))
+    }
+
+    @Test
+    fun `Test checkReference on mapped annotation methods`() {
+        val context = TestContext()
+        val referencer = context.createClass("test.pkg.Referencer")
+
+        // `@hide` annotation mapped to external `androidx.annotation.IntDef` (not in codebase)
+        // with unhidden, `@hide` doc-tagged, and `@Hide` surface-annotated methods.
+        val androidIntDef =
+            context.createClass(
+                "android.annotation.IntDef",
+                classKind = ClassKind.ANNOTATION_TYPE,
+                doc = "/** @hide */",
+            )
+        val intDefFlagMethod = context.createMethod(androidIntDef, "flag")
+        val intDefDocHiddenMethod =
+            context.createMethod(androidIntDef, "docHiddenMethod", doc = "/** @hide */")
+        val intDefAnnotationHiddenMethod =
+            context.createMethod(
+                androidIntDef,
+                "annotationHiddenMethod",
+                annotationNames = listOf(TestableApiSurfaces.HIDE.qualifiedName),
+            )
+
+        // `@hide` annotation mapped to public `androidx.annotation.NonNull` present in codebase.
+        val androidNonNull =
+            context.createClass(
+                "android.annotation.NonNull",
+                classKind = ClassKind.ANNOTATION_TYPE,
+                doc = "/** @hide */",
+            )
+        val androidNonNullPublicMethod = context.createMethod(androidNonNull, "publicMethod")
+        val androidNonNullHiddenMethod = context.createMethod(androidNonNull, "hiddenMethod")
+        val androidNonNullUnmappedMethod = context.createMethod(androidNonNull, "unmappedMethod")
+
+        val androidxNonNull =
+            context.createClass(
+                "androidx.annotation.NonNull",
+                classKind = ClassKind.ANNOTATION_TYPE,
+            )
+        context.createMethod(androidxNonNull, "publicMethod")
+        context.createMethod(androidxNonNull, "hiddenMethod", doc = "/** @hide */")
+
+        // TODO(b/447588621): Should treat `intDefFlagMethod` and `androidNonNullPublicMethod` as
+        //  valid, and check `androidx.annotation.NonNull.hiddenMethod()` for `hiddenMethod`.
+        assertEquals(
+            "warning: Method android.annotation.IntDef.flag() is hidden (ErrorWhenNew) [HiddenDocReference]",
+            context.checkReference(referencer, intDefFlagMethod),
+        )
+        assertEquals(
+            "warning: Method android.annotation.IntDef.docHiddenMethod() is hidden (ErrorWhenNew) [HiddenDocReference]",
+            context.checkReference(referencer, intDefDocHiddenMethod),
+        )
+        assertEquals(
+            "warning: Method android.annotation.IntDef.annotationHiddenMethod() is hidden (ErrorWhenNew) [HiddenDocReference]",
+            context.checkReference(referencer, intDefAnnotationHiddenMethod),
+        )
+        assertEquals(
+            "warning: Method android.annotation.NonNull.publicMethod() is hidden (ErrorWhenNew) [HiddenDocReference]",
+            context.checkReference(referencer, androidNonNullPublicMethod),
+        )
+        assertEquals(
+            "warning: Method android.annotation.NonNull.hiddenMethod() is hidden (ErrorWhenNew) [HiddenDocReference]",
+            context.checkReference(referencer, androidNonNullHiddenMethod),
+        )
+        assertEquals(
+            "warning: Method android.annotation.NonNull.unmappedMethod() is hidden (ErrorWhenNew) [HiddenDocReference]",
+            context.checkReference(referencer, androidNonNullUnmappedMethod),
+        )
     }
 }
