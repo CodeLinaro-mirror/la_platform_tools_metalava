@@ -492,9 +492,13 @@ internal data class CurrentClassSourceReference(val member: ClassMemberSourceRef
         context: DocCommentContext,
         reporter: LocationSpecificReporter
     ): ResolvedSourceReference? {
-        // TODO(b/447588621): Report issue when no class is available, member references are not
-        //  allowed in packages.
         val classItem = context.containingClassItem
+        if (classItem == null && member !is UriFragmentSourceReference) {
+            reporter.report(
+                Issues.UNRESOLVED_LINK,
+                "Could not resolve '$normalizedForm' as there is no containing class",
+            )
+        }
         val resolvedClassName = classItem?.let { context.resolveClassReferenceName(it) } ?: ""
         val resolvedReference = member.findIn(context, reporter, classItem, resolvedClassName)
         return ResolvedSourceReference(normalizedForm, resolvedReference)

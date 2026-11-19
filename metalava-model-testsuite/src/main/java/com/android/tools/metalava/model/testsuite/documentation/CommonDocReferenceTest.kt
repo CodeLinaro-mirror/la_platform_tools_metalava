@@ -240,8 +240,7 @@ class CommonDocReferenceTest : BaseModelTest() {
             )
 
             assertAndRemoveReportedIssues(
-                // TODO(b/447588621): Should report an issue about the #invalid(...) reference.
-                ""
+                "MAIN_SRC/test/pkg/package-info.java:5:11: warning: Could not resolve '#invalid(String,Number)' as there is no containing class (ErrorWhenNew) [UnresolvedLink]"
             )
         }
     }
@@ -358,9 +357,10 @@ class CommonDocReferenceTest : BaseModelTest() {
                 )
 
             assertAndRemoveReportedIssues(
-                // TODO(b/447588621): Report UnresolvedLink for `#field` and `#method()`, while
-                //  allowing `##pkg-heading` and `##html-heading`.
-                ""
+                """
+                    MAIN_SRC/test/pkg1/package-info.java:2:11: warning: Could not resolve '#field' as there is no containing class (ErrorWhenNew) [UnresolvedLink]
+                    warning: Could not resolve '#method()' as there is no containing class (ErrorWhenNew) [UnresolvedLink]
+                """
             )
         }
     }
