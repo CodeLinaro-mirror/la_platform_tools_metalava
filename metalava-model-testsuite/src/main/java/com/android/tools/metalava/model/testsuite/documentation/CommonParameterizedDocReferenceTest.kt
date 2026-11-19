@@ -166,7 +166,6 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                 ),
                 TestParams(
                     name = "#Test",
-                    // TODO(b/447588621): Resolve it to a constructor, e.g. `#Test()`
                     expectedResolvedReference = "#Test",
                     expectedLinkLabel = null,
                 ),
@@ -375,7 +374,6 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                 ),
                 TestParams(
                     name = "Other#Other",
-                    // TODO(b/447588621): Resolve it to a constructor, e.g. `test.pkg.Other#Other()`
                     expectedResolvedReference = "test.pkg.Other#Other",
                 ),
                 TestParams(
@@ -438,8 +436,6 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                 ),
                 TestParams(
                     name = "Imported#Imported",
-                    // TODO(b/447588621): Resolve it to a constructor, e.g.
-                    //  `another.pkg.Imported#Imported()`
                     expectedResolvedReference = "another.pkg.Imported#Imported",
                 ),
                 TestParams(
@@ -503,8 +499,6 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                 ),
                 TestParams(
                     name = "other.pkg.Another#Another",
-                    // TODO(b/447588621): Resolve it to a constructor, e.g.
-                    //  `other.pkg.Another#Another()`
                     expectedResolvedReference = "other.pkg.Another#Another",
                     expectedLinkLabel = null,
                 ),

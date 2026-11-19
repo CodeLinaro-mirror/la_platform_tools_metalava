@@ -2376,57 +2376,51 @@ class CommonDocReferenceTest : BaseModelTest() {
             codebase
                 .assertClass("test.pkg.AllHiddenCtor")
                 .assertPrintedDocumentation(
-                    // TODO(b/447588621): Rewrite `#AllHiddenCtor` to `ERROR[...]`.
-                    expectedOutput = "/** {@link #AllHiddenCtor} */",
+                    expectedOutput = "/** ERROR[hidden: #AllHiddenCtor] */",
                 )
 
             codebase
                 .assertClass("test.pkg.MyEnum")
                 .assertPrintedDocumentation(
-                    // TODO(b/447588621): Rewrite `#MyEnum` to `ERROR[hidden: #MyEnum]`.
-                    expectedOutput = "/** {@link #MyEnum} */",
+                    expectedOutput = "/** ERROR[not public: #MyEnum] */",
                 )
 
             codebase
                 .assertClass("test.pkg.HiddenCtorWithMethod")
                 .assertPrintedDocumentation(
-                    // TODO(b/447588621): Resolve `#HiddenCtorWithMethod` to the hidden constructor
-                    //  rather than the same-named method and rewrite to `ERROR[...]`.
-                    expectedOutput = "/** {@link #HiddenCtorWithMethod} */",
+                    expectedOutput = "/** ERROR[hidden: #HiddenCtorWithMethod] */",
                 )
 
             codebase
                 .assertClass("test.pkg.SubWithCtor")
                 .assertPrintedDocumentation(
-                    // TODO(b/447588621): Resolve `#SubWithCtor` to the public constructor instead
-                    //  of inherited hidden field `ParentWithField.SubWithCtor`.
-                    expectedOutput = "/** ERROR[hidden: #SubWithCtor] */",
+                    expectedOutput = "/** {@link #SubWithCtor} */",
                 )
 
             codebase
                 .assertClass("test.pkg.Test")
                 .assertMethod("test", emptyList())
                 .assertPrintedDocumentation(
-                    // TODO(b/447588621): Rewrite hidden constructor references to `ERROR[...]` and
-                    //  resolve `SubWithCtor#SubWithCtor` to `SubWithCtor`'s public constructor.
                     expectedOutput =
                         """
                             /**
                              * {@link test.pkg.PublicAndHiddenCtor#PublicAndHiddenCtor PublicAndHiddenCtor.PublicAndHiddenCtor}
-                             * {@link test.pkg.AllHiddenCtor#AllHiddenCtor AllHiddenCtor.AllHiddenCtor}
-                             * {@link test.pkg.MyEnum#MyEnum MyEnum.MyEnum}
-                             * {@link test.pkg.HiddenCtorWithMethod#HiddenCtorWithMethod HiddenCtorWithMethod.HiddenCtorWithMethod}
-                             * ERROR[hidden: SubWithCtor#SubWithCtor]
+                             * ERROR[hidden: AllHiddenCtor#AllHiddenCtor]
+                             * ERROR[not public: MyEnum#MyEnum]
+                             * ERROR[hidden: HiddenCtorWithMethod#HiddenCtorWithMethod]
+                             * {@link test.pkg.SubWithCtor#SubWithCtor SubWithCtor.SubWithCtor}
                              */
                         """,
                 )
 
             assertAndRemoveReportedIssues(
-                // TODO(b/447588621): Report HiddenDocReference for `AllHiddenCtor`, `MyEnum`, and
-                //  `HiddenCtorWithMethod`, and stop reporting HiddenDocReference for `SubWithCtor`.
                 """
-                    MAIN_SRC/src/test/pkg/SubWithCtor.java:2:12: warning: Field test.pkg.ParentWithField.SubWithCtor is hidden (ErrorWhenNew) [HiddenDocReference]
-                    MAIN_SRC/src/test/pkg/Test.java:8:15: warning: Field test.pkg.ParentWithField.SubWithCtor is hidden (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/AllHiddenCtor.java:2:12: warning: Constructor test.pkg.AllHiddenCtor() is hidden (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/MyEnum.java:2:12: warning: Constructor test.pkg.MyEnum() is not public (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/HiddenCtorWithMethod.java:2:12: warning: Constructor test.pkg.HiddenCtorWithMethod() is hidden (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:5:15: warning: Constructor test.pkg.AllHiddenCtor() is hidden (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:6:15: warning: Constructor test.pkg.MyEnum() is not public (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:7:15: warning: Constructor test.pkg.HiddenCtorWithMethod() is hidden (ErrorWhenNew) [HiddenDocReference]
                 """
             )
         }

@@ -786,7 +786,6 @@ internal data class AmbiguousMemberSourceReference(val name: String) : ClassMemb
         // preserves its source qualification), and rewrite to `scopeClass` when resolved on an
         // enclosing class so generated stubs target the enclosing class rather than a non-existent
         // member on the nested class.
-        // TODO(b/447588621): Also check same-class constructors.
         for (scopeClass in generateSequence(classItem) { it.containingClass() }) {
             val targetClassName =
                 if (scopeClass == classItem) {
@@ -794,6 +793,22 @@ internal data class AmbiguousMemberSourceReference(val name: String) : ClassMemb
                 } else {
                     context.resolveClassReferenceName(scopeClass)
                 }
+
+            // On `classItem` itself, declared fields take precedence over same-class constructors,
+            // which in turn take precedence over methods and inherited members (matching `javadoc`
+            // and avoiding falling back to same-named methods when all constructors are hidden).
+            if (scopeClass == classItem && name == classItem.simpleName()) {
+                classItem.findField(name)?.let { field ->
+                    val checkResult = context.checkReference(field, reporter)
+                    return FieldReference(className, field.name(), checkResult = checkResult)
+                }
+                val constructors = classItem.constructors()
+                if (constructors.isNotEmpty()) {
+                    val checkResult =
+                        checkCallableCandidates(context, reporter, classItem, constructors)
+                    return CallableReference(className, name, checkResult = checkResult)
+                }
+            }
 
             val member = scopeClass.findNearestFieldOrMethod(name)
             if (member is FieldItem) {
@@ -839,8 +854,8 @@ internal data class AmbiguousMemberSourceReference(val name: String) : ClassMemb
         // accessible.
         val checkResult = context.checkReference(classItem, reporter)
 
-        // TODO(b/447588621): Report that the field could not be found.
-        // If the field could not be found then fallback to a field reference so that at least
+        // TODO(b/447588621): Report that the member could not be found.
+        // If the member could not be found then fallback to a field reference so that at least
         // the resolved class will be fully qualified.
         return FieldReference(className, name, checkResult = checkResult)
     }
