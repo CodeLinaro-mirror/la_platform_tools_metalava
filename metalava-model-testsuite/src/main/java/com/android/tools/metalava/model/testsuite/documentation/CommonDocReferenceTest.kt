@@ -2024,4 +2024,89 @@ class CommonDocReferenceTest : BaseModelTest() {
             )
         }
     }
+
+    /**
+     * Verify how `#member`, `Nested#member`, and `Outer.Nested#member` references resolve fields
+     * declared on enclosing classes, including hidden field targets and hidden qualifying nested
+     * classes.
+     */
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test enclosing-class field member references`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        public class Outer {
+                            public static final int OUTER_FIELD = 1;
+                            /** @hide */
+                            public static final int HIDDEN_OUTER_FIELD = 2;
+
+                            /**
+                             * {@link #OUTER_FIELD}
+                             * {@link #HIDDEN_OUTER_FIELD}
+                             * {@link Nested#OUTER_FIELD}
+                             * {@link Nested#HIDDEN_OUTER_FIELD}
+                             */
+                            public static class Nested {}
+
+                            /** @hide */
+                            public static class HiddenNested {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        /**
+                         * {@link Outer.Nested#OUTER_FIELD}
+                         * {@link Outer.Nested#HIDDEN_OUTER_FIELD}
+                         * {@link Outer.HiddenNested#OUTER_FIELD}
+                         */
+                        public class Test {}
+                    """
+                ),
+            ),
+        ) {
+            codebase
+                .assertClass("test.pkg.Outer.Nested")
+                .assertPrintedDocumentation(
+                    // TODO(b/447588621): Resolve enclosing-class fields to `test.pkg.Outer` and
+                    //  rewrite `#HIDDEN_OUTER_FIELD` and `Nested#HIDDEN_OUTER_FIELD` to
+                    //  `ERROR[...]`.
+                    expectedOutput =
+                        """
+                            /**
+                             * {@link #OUTER_FIELD}
+                             * {@link #HIDDEN_OUTER_FIELD}
+                             * {@link #OUTER_FIELD Nested.OUTER_FIELD}
+                             * {@link #HIDDEN_OUTER_FIELD Nested.HIDDEN_OUTER_FIELD}
+                             */
+                        """,
+                )
+
+            codebase
+                .assertClass("test.pkg.Test")
+                .assertPrintedDocumentation(
+                    // TODO(b/447588621): Resolve `Outer.Nested#OUTER_FIELD` to
+                    //  `test.pkg.Outer#OUTER_FIELD` and rewrite `Outer.Nested#HIDDEN_OUTER_FIELD`
+                    //  to `ERROR[...]`.
+                    expectedOutput =
+                        """
+                            /**
+                             * {@link test.pkg.Outer.Nested#OUTER_FIELD Outer.Nested.OUTER_FIELD}
+                             * {@link test.pkg.Outer.Nested#HIDDEN_OUTER_FIELD Outer.Nested.HIDDEN_OUTER_FIELD}
+                             * ERROR[hidden: Outer.HiddenNested#OUTER_FIELD]
+                             */
+                        """,
+                )
+
+            assertAndRemoveReportedIssues(
+                // TODO(b/447588621): Report HiddenDocReference for `HIDDEN_OUTER_FIELD` on
+                //  `Outer.Nested` and `Test`.
+                "MAIN_SRC/src/test/pkg/Test.java:5:11: warning: Class test.pkg.Outer.HiddenNested is hidden (ErrorWhenNew) [HiddenDocReference]"
+            )
+        }
+    }
 }
