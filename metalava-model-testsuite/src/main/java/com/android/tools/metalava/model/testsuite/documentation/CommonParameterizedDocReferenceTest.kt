@@ -346,6 +346,27 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                     expectedIssues =
                         "warning: Could not resolve a class called 'Imported.field.other' as could not find a package or class called 'field' in 'class another.pkg.Imported' (ErrorWhenNew) [UnresolvedLink]",
                 ),
+                TestParams(
+                    name = "Unknown",
+                    expectedResolvedReference = "Unknown",
+                    expectedLinkLabel = null,
+                    // TODO(b/447588621): Report UnresolvedLink for unresolved ambiguous reference.
+                    expectedIssues = "",
+                ),
+                TestParams(
+                    name = "unknown.pkg.Unknown",
+                    expectedResolvedReference = "unknown.pkg.Unknown",
+                    expectedLinkLabel = null,
+                    // TODO(b/447588621): Report UnresolvedLink for unresolved qualified reference.
+                    expectedIssues = "",
+                ),
+                TestParams(
+                    name = "Other.unknownMember",
+                    expectedResolvedReference = "Other.unknownMember",
+                    expectedLinkLabel = null,
+                    // TODO(b/447588621): Report UnresolvedLink for unresolved qualified member.
+                    expectedIssues = "",
+                ),
 
                 // Reference a member of another class in the same package.
                 TestParams(
