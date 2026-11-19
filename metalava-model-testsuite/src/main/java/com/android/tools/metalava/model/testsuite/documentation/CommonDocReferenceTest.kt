@@ -1990,12 +1990,11 @@ class CommonDocReferenceTest : BaseModelTest() {
             codebase
                 .assertClass("test.pkg.Child")
                 .assertPrintedDocumentation(
-                    // TODO(b/447588621): Rewrite `#HIDDEN_SUPER_FIELD` to `ERROR[...]`.
                     expectedOutput =
                         """
                             /**
                              * {@link #SUPER_FIELD}
-                             * {@link #HIDDEN_SUPER_FIELD}
+                             * ERROR[hidden: #HIDDEN_SUPER_FIELD]
                              */
                         """,
                 )
@@ -2003,24 +2002,23 @@ class CommonDocReferenceTest : BaseModelTest() {
             codebase
                 .assertClass("test.pkg.Test")
                 .assertPrintedDocumentation(
-                    // TODO(b/447588621): Rewrite `Child#HIDDEN_SUPER_FIELD` and
-                    //  `Child#HIDDEN_INTERFACE_FIELD` to `ERROR[...]`.
                     expectedOutput =
                         """
                             /**
                              * {@link test.pkg.Child#SUPER_FIELD Child.SUPER_FIELD}
                              * {@link test.pkg.Child#INTERFACE_FIELD Child.INTERFACE_FIELD}
-                             * {@link test.pkg.Child#HIDDEN_SUPER_FIELD Child.HIDDEN_SUPER_FIELD}
-                             * {@link test.pkg.Child#HIDDEN_INTERFACE_FIELD Child.HIDDEN_INTERFACE_FIELD}
+                             * ERROR[hidden: Child#HIDDEN_SUPER_FIELD]
+                             * ERROR[hidden: Child#HIDDEN_INTERFACE_FIELD]
                              * ERROR[hidden: HiddenChild#SUPER_FIELD]
                              */
                         """,
                 )
 
             assertAndRemoveReportedIssues(
-                // TODO(b/447588621): Also report HiddenDocReference for `HIDDEN_SUPER_FIELD` and
-                //  `HIDDEN_INTERFACE_FIELD`.
                 """
+                    MAIN_SRC/src/test/pkg/Child.java:4:11: warning: Field test.pkg.Parent.HIDDEN_SUPER_FIELD is hidden (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:5:11: warning: Field test.pkg.Parent.HIDDEN_SUPER_FIELD is hidden (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:6:11: warning: Field test.pkg.MyInterface.HIDDEN_INTERFACE_FIELD is hidden (ErrorWhenNew) [HiddenDocReference]
                     MAIN_SRC/src/test/pkg/Test.java:7:11: warning: Class test.pkg.HiddenChild is hidden (ErrorWhenNew) [HiddenDocReference]
                 """
             )

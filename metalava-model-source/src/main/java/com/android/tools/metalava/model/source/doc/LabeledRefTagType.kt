@@ -736,18 +736,38 @@ internal data class AmbiguousMemberSourceReference(val name: String) : ClassMemb
         classItem: ClassItem?,
         className: String,
     ): ResolvedReference {
+        if (classItem == null) {
+            return FieldReference(className, name, checkResult = ReferenceCheckResult.Valid)
+        }
+
+        // Keep `className` on the returned reference so `SubClass#SUPER_FIELD` preserves its source
+        // qualification in generated stubs while validating both `classItem` and `field`.
         // TODO(b/447588621): Check for methods and constructors not just fields.
-        val field = classItem?.findField(name)
+        val field =
+            classItem.findField(
+                name,
+                includeSuperClasses = true,
+                includeInterfaces = true,
+            )
         if (field != null) {
-            // Checking the resolved field also accounts for its containing class's visibility.
-            return field.toResolvedReference(context, reporter)
+            val classCheck =
+                if (field.containingClass() != classItem) {
+                    context.checkReference(classItem, reporter)
+                } else {
+                    ReferenceCheckResult.Valid
+                }
+            val checkResult =
+                if (classCheck.isValid) {
+                    context.checkReference(field, reporter)
+                } else {
+                    classCheck
+                }
+            return FieldReference(className, field.name(), checkResult = checkResult)
         }
 
         // When no matching field is found (e.g. a method reference without `()`), still validate
         // that the qualifying class itself is accessible.
-        val checkResult =
-            if (classItem == null) ReferenceCheckResult.Valid
-            else context.checkReference(classItem, reporter)
+        val checkResult = context.checkReference(classItem, reporter)
 
         // TODO(b/447588621): Report that the field could not be found.
         // If the field could not be found then fallback to a field reference so that at least
