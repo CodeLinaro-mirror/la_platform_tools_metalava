@@ -409,6 +409,26 @@ private fun rewriteMappedSourceClassName(
     resolvedClassName: String,
 ): String = if (sourceClassName == classItem.qualifiedName()) resolvedClassName else sourceClassName
 
+/**
+ * Rewrite [sourceCallableName] from `<unmappedClass>.[callableName]` to
+ * `[resolvedClassName].[callableName]` when the author wrote the full original qualified name of
+ * [containingClass] (e.g. `android.annotation.IntDef.flag` -> `androidx.annotation.IntDef.flag`),
+ * so mapped annotations do not synthesize a fallback label containing the unmapped name.
+ */
+private fun rewriteMappedSourceCallableName(
+    sourceCallableName: String,
+    containingClass: ClassItem,
+    callableName: String,
+    resolvedClassName: String,
+): String {
+    val unmappedQualifiedCallable = "${containingClass.qualifiedName()}.$callableName"
+    return if (sourceCallableName == unmappedQualifiedCallable) {
+        "$resolvedClassName.$callableName"
+    } else {
+        sourceCallableName
+    }
+}
+
 /** An ambiguous reference to something by [name]. */
 internal data class AmbiguousSourceReference(val name: String) : ParsedReference {
     override val normalizedForm: String
@@ -634,14 +654,13 @@ internal data class CallableSourceReference(
                 val classCheckResult = context.checkReference(containingClass, reporter)
 
                 val resolvedClassName = context.resolveClassReferenceName(containingClass)
-                val unmappedQualifiedCallable =
-                    "${containingClass.qualifiedName()}.${resolved.name}"
                 val sourceCallableName =
-                    if (name == unmappedQualifiedCallable) {
-                        "$resolvedClassName.${resolved.name}"
-                    } else {
-                        name
-                    }
+                    rewriteMappedSourceCallableName(
+                        name,
+                        containingClass,
+                        resolved.name,
+                        resolvedClassName,
+                    )
                 ResolvedSourceReference(
                     formatSignature(sourceCallableName, parameters, eraseGenericArguments = false),
                     createCallableReference(
