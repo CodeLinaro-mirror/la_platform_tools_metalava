@@ -2286,4 +2286,149 @@ class CommonDocReferenceTest : BaseModelTest() {
             )
         }
     }
+
+    /**
+     * Verify how unparameterized `#Constructor` and `Class#Constructor` references resolve
+     * same-class constructors, including overloaded constructors with mixed visibility, all-hidden
+     * constructors, implicit `private` enum constructors, constructors taking precedence over
+     * same-named methods and inherited fields.
+     */
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test ambiguous member constructor references`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        public class PublicAndHiddenCtor {
+                            public PublicAndHiddenCtor() {}
+                            /** @hide */
+                            public PublicAndHiddenCtor(int x) {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        /** {@link #AllHiddenCtor} */
+                        public class AllHiddenCtor {
+                            /** @hide */
+                            public AllHiddenCtor() {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        /** {@link #MyEnum} */
+                        public enum MyEnum {
+                            A;
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        /** {@link #HiddenCtorWithMethod} */
+                        public class HiddenCtorWithMethod {
+                            /** @hide */
+                            public HiddenCtorWithMethod() {}
+                            public static void HiddenCtorWithMethod(int x) {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class ParentWithField {
+                            /** @hide */
+                            public static final int SubWithCtor = 1;
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        /** {@link #SubWithCtor} */
+                        public class SubWithCtor extends ParentWithField {
+                            public SubWithCtor() {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class Test {
+                            /**
+                             * {@link PublicAndHiddenCtor#PublicAndHiddenCtor}
+                             * {@link AllHiddenCtor#AllHiddenCtor}
+                             * {@link MyEnum#MyEnum}
+                             * {@link HiddenCtorWithMethod#HiddenCtorWithMethod}
+                             * {@link SubWithCtor#SubWithCtor}
+                             */
+                            public void test() {}
+                        }
+                    """
+                ),
+            ),
+        ) {
+            codebase
+                .assertClass("test.pkg.AllHiddenCtor")
+                .assertPrintedDocumentation(
+                    // TODO(b/447588621): Rewrite `#AllHiddenCtor` to `ERROR[...]`.
+                    expectedOutput = "/** {@link #AllHiddenCtor} */",
+                )
+
+            codebase
+                .assertClass("test.pkg.MyEnum")
+                .assertPrintedDocumentation(
+                    // TODO(b/447588621): Rewrite `#MyEnum` to `ERROR[hidden: #MyEnum]`.
+                    expectedOutput = "/** {@link #MyEnum} */",
+                )
+
+            codebase
+                .assertClass("test.pkg.HiddenCtorWithMethod")
+                .assertPrintedDocumentation(
+                    // TODO(b/447588621): Resolve `#HiddenCtorWithMethod` to the hidden constructor
+                    //  rather than the same-named method and rewrite to `ERROR[...]`.
+                    expectedOutput = "/** {@link #HiddenCtorWithMethod} */",
+                )
+
+            codebase
+                .assertClass("test.pkg.SubWithCtor")
+                .assertPrintedDocumentation(
+                    // TODO(b/447588621): Resolve `#SubWithCtor` to the public constructor instead
+                    //  of inherited hidden field `ParentWithField.SubWithCtor`.
+                    expectedOutput = "/** ERROR[hidden: #SubWithCtor] */",
+                )
+
+            codebase
+                .assertClass("test.pkg.Test")
+                .assertMethod("test", emptyList())
+                .assertPrintedDocumentation(
+                    // TODO(b/447588621): Rewrite hidden constructor references to `ERROR[...]` and
+                    //  resolve `SubWithCtor#SubWithCtor` to `SubWithCtor`'s public constructor.
+                    expectedOutput =
+                        """
+                            /**
+                             * {@link test.pkg.PublicAndHiddenCtor#PublicAndHiddenCtor PublicAndHiddenCtor.PublicAndHiddenCtor}
+                             * {@link test.pkg.AllHiddenCtor#AllHiddenCtor AllHiddenCtor.AllHiddenCtor}
+                             * {@link test.pkg.MyEnum#MyEnum MyEnum.MyEnum}
+                             * {@link test.pkg.HiddenCtorWithMethod#HiddenCtorWithMethod HiddenCtorWithMethod.HiddenCtorWithMethod}
+                             * ERROR[hidden: SubWithCtor#SubWithCtor]
+                             */
+                        """,
+                )
+
+            assertAndRemoveReportedIssues(
+                // TODO(b/447588621): Report HiddenDocReference for `AllHiddenCtor`, `MyEnum`, and
+                //  `HiddenCtorWithMethod`, and stop reporting HiddenDocReference for `SubWithCtor`.
+                """
+                    MAIN_SRC/src/test/pkg/SubWithCtor.java:2:12: warning: Field test.pkg.ParentWithField.SubWithCtor is hidden (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:8:15: warning: Field test.pkg.ParentWithField.SubWithCtor is hidden (ErrorWhenNew) [HiddenDocReference]
+                """
+            )
+        }
+    }
 }
