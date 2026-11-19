@@ -379,6 +379,30 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                     expectedIssues =
                         "warning: Could not resolve 'unknownMember' in 'class test.pkg.Other' (ErrorWhenNew) [UnresolvedLink]",
                 ),
+                TestParams(
+                    name = "#Nested",
+                    expectedResolvedReference = "#Nested",
+                    expectedLinkLabel = null,
+                    // TODO(b/447588621): Suggest nested class `Test.Nested` in UnresolvedLink.
+                    expectedIssues =
+                        "warning: Could not resolve 'Nested' in 'class test.pkg.Test' (ErrorWhenNew) [UnresolvedLink]",
+                ),
+                TestParams(
+                    name = "Other#Nested",
+                    expectedResolvedReference = "test.pkg.Other#Nested",
+                    // TODO(b/447588621): Suggest nested class `Other.Nested` in UnresolvedLink.
+                    expectedIssues =
+                        "warning: Could not resolve 'Nested' in 'class test.pkg.Other' (ErrorWhenNew) [UnresolvedLink]",
+                ),
+                TestParams(
+                    name = "other.pkg.Another#Nested",
+                    expectedResolvedReference = "other.pkg.Another#Nested",
+                    expectedLinkLabel = null,
+                    // TODO(b/447588621): Suggest nested class `other.pkg.Another.Nested` in
+                    //  UnresolvedLink.
+                    expectedIssues =
+                        "warning: Could not resolve 'Nested' in 'class other.pkg.Another' (ErrorWhenNew) [UnresolvedLink]",
+                ),
 
                 // Reference a member of another class in the same package.
                 TestParams(

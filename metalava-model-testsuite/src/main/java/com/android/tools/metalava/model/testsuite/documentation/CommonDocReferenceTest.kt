@@ -2524,4 +2524,135 @@ class CommonDocReferenceTest : BaseModelTest() {
             )
         }
     }
+
+    /**
+     * Verify that `#Nested` and `Class#Nested` references targeting direct, multi-level nested,
+     * enclosing, or inherited (superclass and superinterface) nested classes report
+     * `UnresolvedLink` with a hint suggesting `.` qualification, while skipping non-inherited
+     * `private` and hidden supertype nested classes.
+     */
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test hash references targeting nested classes`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        public interface SuperInterface {
+                            class InterfaceNested {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class Parent {
+                            public static class InheritedNested {}
+                            private static class PrivateHelper {}
+                            /** @hide */
+                            public static class HiddenHelper {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        /**
+                         * {@link #InheritedNested}
+                         * {@link #InterfaceNested}
+                         */
+                        public class Child extends Parent implements SuperInterface {}
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class Outer {
+                            public static class SiblingNested {}
+                            public static class PrivateHelper {}
+
+                            /**
+                             * {@link #SiblingNested}
+                             * {@link #PrivateHelper}
+                             */
+                            public static class Nested extends Parent {
+                                public static class DeepNested {}
+                            }
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        /**
+                         * {@link Child#InheritedNested}
+                         * {@link Child#InterfaceNested}
+                         * {@link Outer.Nested#DeepNested}
+                         * {@link Child#PrivateHelper}
+                         * {@link Child#HiddenHelper}
+                         */
+                        public class Test {}
+                    """
+                ),
+            ),
+        ) {
+            codebase
+                .assertClass("test.pkg.Child")
+                .assertPrintedDocumentation(
+                    expectedOutput =
+                        """
+                            /**
+                             * {@link #InheritedNested}
+                             * {@link #InterfaceNested}
+                             */
+                        """,
+                )
+
+            codebase
+                .assertClass("test.pkg.Outer.Nested")
+                .assertPrintedDocumentation(
+                    expectedOutput =
+                        """
+                            /**
+                             * {@link #SiblingNested}
+                             * {@link #PrivateHelper}
+                             */
+                        """,
+                )
+
+            codebase
+                .assertClass("test.pkg.Test")
+                .assertPrintedDocumentation(
+                    expectedOutput =
+                        """
+                            /**
+                             * {@link test.pkg.Child#InheritedNested Child.InheritedNested}
+                             * {@link test.pkg.Child#InterfaceNested Child.InterfaceNested}
+                             * {@link test.pkg.Outer.Nested#DeepNested Outer.Nested.DeepNested}
+                             * {@link test.pkg.Child#PrivateHelper Child.PrivateHelper}
+                             * {@link test.pkg.Child#HiddenHelper Child.HiddenHelper}
+                             */
+                        """,
+                )
+
+            assertAndRemoveReportedIssues(
+                // TODO(b/447588621): Suggest `Child.InheritedNested`, `Child.InterfaceNested`,
+                //  `Outer.SiblingNested`, `Outer.PrivateHelper`, and `Outer.Nested.DeepNested` in
+                //  UnresolvedLink warnings, while keeping `Child#PrivateHelper` and
+                //  `Child#HiddenHelper` without a suggestion.
+                """
+                    MAIN_SRC/src/test/pkg/Child.java:3:11: warning: Could not resolve 'InheritedNested' in 'class test.pkg.Child' (ErrorWhenNew) [UnresolvedLink]
+                    MAIN_SRC/src/test/pkg/Child.java:4:11: warning: Could not resolve 'InterfaceNested' in 'class test.pkg.Child' (ErrorWhenNew) [UnresolvedLink]
+                    MAIN_SRC/src/test/pkg/Outer.java:7:15: warning: Could not resolve 'SiblingNested' in 'class test.pkg.Outer.Nested' (ErrorWhenNew) [UnresolvedLink]
+                    MAIN_SRC/src/test/pkg/Outer.java:8:15: warning: Could not resolve 'PrivateHelper' in 'class test.pkg.Outer.Nested' (ErrorWhenNew) [UnresolvedLink]
+                    MAIN_SRC/src/test/pkg/Test.java:3:11: warning: Could not resolve 'InheritedNested' in 'class test.pkg.Child' (ErrorWhenNew) [UnresolvedLink]
+                    MAIN_SRC/src/test/pkg/Test.java:4:11: warning: Could not resolve 'InterfaceNested' in 'class test.pkg.Child' (ErrorWhenNew) [UnresolvedLink]
+                    MAIN_SRC/src/test/pkg/Test.java:5:11: warning: Could not resolve 'DeepNested' in 'class test.pkg.Outer.Nested' (ErrorWhenNew) [UnresolvedLink]
+                    MAIN_SRC/src/test/pkg/Test.java:6:11: warning: Could not resolve 'PrivateHelper' in 'class test.pkg.Child' (ErrorWhenNew) [UnresolvedLink]
+                    MAIN_SRC/src/test/pkg/Test.java:7:11: warning: Could not resolve 'HiddenHelper' in 'class test.pkg.Child' (ErrorWhenNew) [UnresolvedLink]
+                """
+            )
+        }
+    }
 }
