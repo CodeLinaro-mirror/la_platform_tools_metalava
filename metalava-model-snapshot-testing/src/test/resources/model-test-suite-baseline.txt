@@ -28,7 +28,6 @@ com.android.tools.metalava.model.testsuite.multiplatform.CommonMultiplatformType
 
 com.android.tools.metalava.model.testsuite.parameteritem.CommonParameterItemTest
   Test publicName reports correct name when called on binary class - Object#equals[turbine]
-  Test publicName reports correct name when called on binary class - ViewGroup#onLayout[turbine]
 
 com.android.tools.metalava.model.testsuite.parameteritem.CommonParameterKindTest
   Kind for parameters on function with all kinds of parameters[psi,kotlin]

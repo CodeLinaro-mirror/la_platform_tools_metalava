@@ -3,4 +3,3 @@ com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
 
 com.android.tools.metalava.model.testsuite.parameteritem.CommonParameterItemTest
   Test publicName reports correct name when called on binary class - Object#equals
-  Test publicName reports correct name when called on binary class - ViewGroup#onLayout

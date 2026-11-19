@@ -683,11 +683,14 @@ internal class TurbineClassBuilder(
                         parameterDecls.get(parameterIndex)
                     else null
 
+                // Bytecode without a MethodParameters attribute has a null name; synthesize
+                // Metalava's default parameter names ("p", "p1", "p2", ...) to match PSI.
+                val name = parameter.name() ?: if (parameterIndex == 0) "p" else "p$parameterIndex"
                 val parameterItem =
                     itemFactory.createParameterItem(
                         sourcePosition = decl.sourcePosition,
                         modifiers = parametermodifiers,
-                        name = parameter.name(),
+                        name = name,
                         publicName = null,
                         containingItem = containingCallable,
                         parameterIndex = parameterIndex,
