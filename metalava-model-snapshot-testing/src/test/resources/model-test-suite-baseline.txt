@@ -33,10 +33,6 @@ com.android.tools.metalava.model.testsuite.parameteritem.CommonParameterItemTest
 com.android.tools.metalava.model.testsuite.parameteritem.CommonParameterKindTest
   Kind for parameters on function with all kinds of parameters[psi,kotlin]
 
-com.android.tools.metalava.model.testsuite.typeitem.CommonParameterizedInvalidTypeTest
-  Test invalid source reference[turbine,genericStringInnerNumber - generic defined but inner undefined]
-  Test invalid source reference[turbine,otherNested - other defined but nested undefined]
-
 com.android.tools.metalava.model.testsuite.typeitem.CommonParameterizedTypeVariableNullabilityTest
   Test type variable as type argument of inner class type[text,KOTLIN_STYLE_NULLS,non-nullable variable]
   Test type variable as type argument of outer class type[text,KOTLIN_STYLE_NULLS,non-nullable variable]
