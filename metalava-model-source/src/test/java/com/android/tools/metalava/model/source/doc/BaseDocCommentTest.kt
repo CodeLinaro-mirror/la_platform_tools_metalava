@@ -19,9 +19,7 @@ package com.android.tools.metalava.model.source.doc
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ReferencableItem
-import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypeParameterScope
-import com.android.tools.metalava.model.api.surface.ReferenceCheckResult
 import com.android.tools.metalava.model.parser.LineMap
 import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.source.javadoc.ExprContext
@@ -29,7 +27,6 @@ import com.android.tools.metalava.model.source.javadoc.TestTagTypes
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues.Issue
-import com.android.tools.metalava.reporter.LocationSpecificReporter
 import com.android.tools.metalava.reporter.RecordingReporter
 import com.android.tools.metalava.reporter.Reportable
 import com.android.tools.metalava.reporter.Reporter
@@ -161,12 +158,6 @@ internal class TestDocCommentContext(
                     "referencableItemResolver did not return an item for ${nameClassification.describeName(sourceReference)}"
                 )
         }
-
-    /** Implements [DocCommentContext.checkReference] as a no-op for parser unit tests. */
-    override fun checkReference(
-        referencedItem: SelectableItem,
-        reporter: LocationSpecificReporter,
-    ) = ReferenceCheckResult.Valid
 
     /** Implements [ExprContext.isFlagEnabled]. */
     override fun isFlagEnabled(flagName: String) = flagToEnabledStatus[flagName] ?: false

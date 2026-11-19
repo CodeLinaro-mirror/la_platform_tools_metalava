@@ -94,10 +94,6 @@ class SelectedApiUpdater(
     internal fun markAsHidden(selectedApi: SourceSelectedApi<*>, revert: Boolean) {
         selectedApi.revert = revert
         selectedApi.revertItem = null
-
-        // Clear any `@removed` flag recorded earlier in `updateSelectedApi` before hiding.
-        selectedApi.removed = false
-
         // A hidden item does not belong to any API surfaces.
         selectedApi.rawItemApiVariants = ApiVariantSet.EMPTY
         selectedApi.inheritableApiVariants = ApiVariantSet.EMPTY
@@ -110,12 +106,6 @@ class SelectedApiUpdater(
     /**
      * Update [selectedApi] with information about [ApiVariant]s to which the
      * [SourceSelectedApi.item] belongs.
-     *
-     * [SourceSelectedApi.initialize] always initializes [parent] before calling [updateSelectedApi]
-     * on a child, so properties set on [parent] here (such as [SourceSelectedApi.accessible],
-     * [SourceSelectedApi.explicitlyHidden], [SourceSelectedApi.removed],
-     * [SourceSelectedApi.forRemoval], and [SourceSelectedApi.docOnly]) are guaranteed to be up to
-     * date when updating enclosed items.
      */
     internal fun updateSelectedApi(
         selectedApi: SourceSelectedApi<*>,
@@ -164,10 +154,6 @@ class SelectedApiUpdater(
 
         // Indicates whether a removed annotation has been seen.
         var removed = false
-
-        // Indicates whether a removed annotation gated by a kept (unfinalized) @FlaggedApi
-        // annotation has been seen.
-        var forRemoval = false
 
         var revert = false
 
@@ -323,13 +309,9 @@ class SelectedApiUpdater(
         // annotation, only remove the item if the flag has been finalized. Otherwise (when no
         // api flags are provided, or the flag is kept or reverted), keep the item in the API.
         if (removed && flaggedApiAnnotation != null) {
-            val action = flaggedApiAnnotation.apiFlag!!.action
-            if (action != ApiFlagAction.FINALIZE) {
+            if (flaggedApiAnnotation.apiFlag!!.action != ApiFlagAction.FINALIZE) {
                 removed = false
                 revert = false
-                if (action == ApiFlagAction.KEEP) {
-                    forRemoval = true
-                }
             }
             flaggedApiAnnotation = null
         }
@@ -337,9 +319,7 @@ class SelectedApiUpdater(
         // Check whether the item is marked for revert only after verifying that it is not
         // explicitly hidden from the target API surface.
         if (!revert) {
-            if (
-                flaggedApiAnnotation == null && item.containingClass()?.isMarkedForRevert() == true
-            ) {
+            if (item.containingClass()?.isMarkedForRevert() == true) {
                 revert = true
             } else if (item is MethodItem) {
                 // If any of a method's super methods are part of a unstable API that needs to be
@@ -404,14 +384,9 @@ class SelectedApiUpdater(
             }
 
             // If this item has a removed annotation, is enclosed within a removed parent, or has a
-            // doc tag of @removed (and is not reverting to a previously released item) then make
-            // it removed; otherwise if it has a kept @FlaggedApi removal or is enclosed within a
-            // forRemoval parent (and is not reverting to a previously released item) then mark it
-            // as forRemoval.
-            if (revertedItem == null && (removed || parent.removed || item.hasRemovedDocTag)) {
+            // doc tag of @removed then make it removed.
+            if (removed || parent.removed || item.hasRemovedDocTag) {
                 selectedApi.removed = true
-            } else if (revertedItem == null && (forRemoval || parent.forRemoval)) {
-                selectedApi.forRemoval = true
             }
 
             // If this item is not already doc-only but is enclosed within a doc-only parent then

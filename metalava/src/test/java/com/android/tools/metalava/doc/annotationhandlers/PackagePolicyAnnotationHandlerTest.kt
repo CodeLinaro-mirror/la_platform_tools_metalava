@@ -34,11 +34,16 @@ class PackagePolicyAnnotationHandlerTest : DriverTest() {
                     java(
                         """
                         package test.pkg;
-                        $POLICY_IMPORTS
+                        import android.processor.devicepolicy.PackagePolicyDefinition;
+                        import android.processor.devicepolicy.PolicyDefinition;
+                        import android.processor.devicepolicy.AllowedDpcTypes;
+                        import android.processor.devicepolicy.AllowedRoles;
+                        import static android.processor.devicepolicy.AllowedDpcTypes.ALLOWED;
 
                         @Retention(RetentionPolicy.SOURCE)
                         public class TestPolicy {
-                            $POLICY_DEFINES
+                            private static final int SCOPE_USER = 1;
+                            private static final int RESOURCE_DEVICE_WIDE = 1;
                           /**
                            * A test policy for package policy definition.
                            *

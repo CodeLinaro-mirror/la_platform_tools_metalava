@@ -1,7 +1,6 @@
 [versions]
 kotlin = "2.2.0"
 androidLint = "32.6.0-alpha01"
-autoValue = "1.11.0"
 tracing = "2.0.4"
 
 [libraries]
@@ -15,12 +14,8 @@ androidToolsExternalUast = { module = "com.android.tools.external.org-jetbrains:
 androidToolsExternalKotlinCompiler = { module = "com.android.tools.external.com-intellij:kotlin-compiler", version.ref = "androidLint" }
 androidToolsExternalIntellijCore = { module = "com.android.tools.external.com-intellij:intellij-core", version.ref = "androidLint" }
 asm = { module = "org.ow2.asm:asm", version = "8.0" }
-autoValue = { module = "com.google.auto.value:auto-value", version.ref = "autoValue" }
-autoValueAnnotations = { module = "com.google.auto.value:auto-value-annotations", version.ref = "autoValue" }
 clikt = { module = "com.github.ajalt.clikt:clikt-jvm", version = "3.5.3" }
-errorProneAnnotations = { module = "com.google.errorprone:error_prone_annotations", version = "2.41.0" }
 gson = { module = "com.google.code.gson:gson", version = "2.8.9" }
-guava = { module = "com.google.guava:guava", version = "33.5.0-jre" }
 jspecify = { module = "org.jspecify:jspecify", version = "1.0.0" }
 junit4 = { module = "junit:junit", version = "4.13.2" }
 kotlinGradlePlugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
@@ -31,6 +26,7 @@ mockitoKotlin = { module = "org.mockito.kotlin:mockito-kotlin", version = "4.0.0
 tracing = { module = "androidx.tracing:tracing", version.ref = "tracing" }
 tracingWire = { module = "androidx.tracing:tracing-wire", version.ref = "tracing" }
 truth = { module = "com.google.truth:truth", version = "1.1.3" }
+turbine = {module = "com.google.turbine:turbine", version = "1.15.0"}
 
 [plugins]
 kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }

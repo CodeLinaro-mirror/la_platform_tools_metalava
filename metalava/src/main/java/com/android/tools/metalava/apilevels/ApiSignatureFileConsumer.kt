@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.apilevels
 
-import com.android.tools.metalava.model.ANDROID_SDK_EXTENSION_API
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.SourcePosition
@@ -94,29 +93,6 @@ internal class ApiSignatureFileConsumer(
      */
     private val classesByQualifiedName = mutableMapOf<String, ClassContext>()
 
-    /**
-     * The [MutableModifierList] most recently returned by [parseModifierAnnotations] for a
-     * declaration annotated with `@SdkExtensionApi`, or `null` if there is none.
-     *
-     * [parseModifierAnnotations] must return a [MutableModifierList] that does not contain any
-     * annotations, so this, along with [lastSdkExtensionApi], records the value of the
-     * `@SdkExtensionApi` annotation without allocating any additional objects. Modifiers are parsed
-     * for parameters after the modifiers for their containing method are parsed, so this is only
-     * set when a declaration has an `@SdkExtensionApi` annotation so that parsing parameters does
-     * not lose the value for their containing method.
-     */
-    private var lastSdkExtensionApiModifiers: MutableModifierList? = null
-
-    /** The value of the `@SdkExtensionApi` annotation on [lastSdkExtensionApiModifiers]. */
-    private var lastSdkExtensionApi: Int = 0
-
-    /**
-     * The value of the `@SdkExtensionApi` annotation found by the current call to
-     * [skipAnnotationAndCheckDeprecated], or `null` if it was not an `@SdkExtensionApi` annotation
-     * or its value could not be parsed.
-     */
-    private var currentSdkExtensionApi: Int? = null
-
     override fun startFile(
         signatureFile: SignatureFile,
         path: Path,
@@ -151,50 +127,27 @@ internal class ApiSignatureFileConsumer(
         // Skip all modifier annotations without allocating AnnotationItem instances, while still
         // recognizing @Deprecated and @java.lang.Deprecated.
         var deprecated = false
-        var sdkExtensionApi: Int? = null
         while (tokenStream.peekType() == SharedTokenType.AT) {
             if (skipAnnotationAndCheckDeprecated(tokenStream, apiText)) {
                 deprecated = true
             }
-            currentSdkExtensionApi?.let { sdkExtensionApi = it }
         }
         val modifiers = createMutableModifiers(visibilityLevel)
         if (deprecated) {
             modifiers.setDeprecated(true)
         }
-        sdkExtensionApi?.let {
-            lastSdkExtensionApiModifiers = modifiers
-            lastSdkExtensionApi = it
-        }
         return modifiers
     }
-
-    /**
-     * Get the value of the `@SdkExtensionApi` annotation on the declaration whose [modifiers] were
-     * returned by [parseModifierAnnotations], or `null` if it was not annotated.
-     *
-     * This is only the floor explicitly declared on the declaration. A member without an explicit
-     * floor inherits the floor of its containing class, but that is resolved when the floor is used
-     * to compute the `sdks` attribute in `api-versions.xml`, see [ApiElement.sdkExtensionApi].
-     */
-    private fun sdkExtensionApiFor(modifiers: MutableModifierList): Int? =
-        if (modifiers === lastSdkExtensionApiModifiers) lastSdkExtensionApi else null
 
     /**
      * Skips a single `@QualifiedName(...)` annotation starting at the current `@` token in
      * [tokenStream], returning `true` if the annotation is `@Deprecated` or
      * `@java.lang.Deprecated`.
-     *
-     * If the annotation is `@SdkExtensionApi(<int>)` or
-     * `@android.annotation.SdkExtensionApi(<int>)` then this sets [currentSdkExtensionApi] to its
-     * value, otherwise it sets it to `null`.
      */
     private fun skipAnnotationAndCheckDeprecated(
         tokenStream: TokenStream,
         apiText: String,
     ): Boolean {
-        currentSdkExtensionApi = null
-
         // Consume `@` and the first identifier of the annotation name.
         tokenStream.consume()
         val firstNameToken = tokenStream.consume()
@@ -204,23 +157,8 @@ internal class ApiSignatureFileConsumer(
         while (tokenStream.match(SharedTokenType.DOT)) {
             nameEnd = tokenStream.consume().endOffset
         }
-        val nameLength = nameEnd - nameStart
-
-        // Check whether the annotation name matches `SdkExtensionApi` or
-        // `android.annotation.SdkExtensionApi` without allocating a substring.
-        val isSdkExtensionApi =
-            apiText.regionMatchesExactly(nameStart, nameLength, SDK_EXTENSION_API_SIMPLE_NAME) ||
-                apiText.regionMatchesExactly(
-                    nameStart,
-                    nameLength,
-                    SDK_EXTENSION_API_QUALIFIED_NAME,
-                )
-
         // If the annotation has an argument list, consume balanced `(...)` tokens.
         if (tokenStream.match(SharedTokenType.PAREN_OPEN)) {
-            if (isSdkExtensionApi) {
-                currentSdkExtensionApi = parseSdkExtensionApiValue(tokenStream, apiText)
-            }
             var balance = 1
             while (balance > 0 && tokenStream.peekType() != SharedTokenType.EOF) {
                 when (tokenStream.consume().type) {
@@ -233,56 +171,11 @@ internal class ApiSignatureFileConsumer(
 
         // Check whether the annotation name matches `Deprecated` or `java.lang.Deprecated` without
         // allocating a substring.
-        return apiText.regionMatchesExactly(nameStart, nameLength, DEPRECATED_SIMPLE_NAME) ||
-            apiText.regionMatchesExactly(nameStart, nameLength, DEPRECATED_QUALIFIED_NAME)
-    }
-
-    /**
-     * Parse the value of an `@SdkExtensionApi` annotation whose `(` has just been consumed from
-     * [tokenStream], returning `null` if it does not have the form `(<int>)` or `(value=<int>)`.
-     *
-     * This consumes the tokens up to, but not including, the `)` token if the annotation has one of
-     * the expected forms, otherwise it consumes the tokens up to the first unexpected token.
-     */
-    private fun parseSdkExtensionApiValue(tokenStream: TokenStream, apiText: String): Int? {
-        // Skip over an optional `value=`.
-        // `value` may be lexed as a keyword, so check whether the token can be an identifier.
-        if (tokenStream.peekType().canBeIdentifier) {
-            val nameToken = tokenStream.consume()
-            val nameLength = nameToken.endOffset - nameToken.startOffset
-            if (
-                !apiText.regionMatchesExactly(nameToken.startOffset, nameLength, "value") ||
-                    !tokenStream.match(SharedTokenType.EQUALS)
-            ) {
-                return null
-            }
-        }
-        if (tokenStream.peekType() != SharedTokenType.NUMBER_LITERAL) return null
-        val numberToken = tokenStream.consume()
-        if (tokenStream.peekType() != SharedTokenType.PAREN_CLOSE) return null
-        return apiText.parseDecimalInt(numberToken.startOffset, numberToken.endOffset)
-    }
-
-    /**
-     * Check whether the region of this of [length] characters starting at [start] is exactly
-     * [other].
-     */
-    private fun String.regionMatchesExactly(start: Int, length: Int, other: String) =
-        length == other.length && regionMatches(start, other, 0, length)
-
-    /**
-     * Parse the characters between [start] (inclusive) and [end] (exclusive) as a non-negative
-     * decimal [Int], returning `null` if they are not a valid non-negative decimal [Int].
-     */
-    private fun String.parseDecimalInt(start: Int, end: Int): Int? {
-        if (start >= end) return null
-        var value = 0
-        for (i in start until end) {
-            val digit = this[i] - '0'
-            if (digit !in 0..9 || value > (Int.MAX_VALUE - digit) / 10) return null
-            value = value * 10 + digit
-        }
-        return value
+        val nameLength = nameEnd - nameStart
+        return (nameLength == DEPRECATED_SIMPLE_NAME.length &&
+            apiText.regionMatches(nameStart, DEPRECATED_SIMPLE_NAME, 0, nameLength)) ||
+            (nameLength == DEPRECATED_QUALIFIED_NAME.length &&
+                apiText.regionMatches(nameStart, DEPRECATED_QUALIFIED_NAME, 0, nameLength))
     }
 
     override fun startPackage(
@@ -328,7 +221,6 @@ internal class ApiSignatureFileConsumer(
         // (e.g., `public.txt` followed by `system.txt`), merge the delta declaration into the
         // existing ClassContext instead of replacing it.
         classesByQualifiedName[qualifiedName]?.let { existingClass ->
-            updater.updateSdkExtensionApi(existingClass.apiClass, sdkExtensionApiFor(modifiers))
             if (modifiers.isDeprecated() && !existingClass.effectivelyDeprecated) {
                 existingClass.effectivelyDeprecated = true
                 api.updateClass(
@@ -404,7 +296,6 @@ internal class ApiSignatureFileConsumer(
                 effectivelyDeprecated,
                 classKind == ClassKind.ENUM,
             )
-        updater.updateSdkExtensionApi(apiClass, sdkExtensionApiFor(modifiers))
 
         // Resolve the explicit superclass if specified, or fall back to the default binary
         // superclass for this class kind. Every class kind except java/lang/Object itself has a
@@ -553,8 +444,7 @@ internal class ApiSignatureFileConsumer(
             }
 
         val effectivelyDeprecated = modifiers.isDeprecated() || currentClass.effectivelyDeprecated
-        val method = currentClass.apiClass.updateMethod(signature, updater, effectivelyDeprecated)
-        updater.updateSdkExtensionApi(method, sdkExtensionApiFor(modifiers))
+        currentClass.apiClass.updateMethod(signature, updater, effectivelyDeprecated)
     }
 
     override fun consumeMethod(
@@ -620,8 +510,7 @@ internal class ApiSignatureFileConsumer(
             }
 
         val effectivelyDeprecated = modifiers.isDeprecated() || currentClass.effectivelyDeprecated
-        val method = currentClass.apiClass.updateMethod(signature, updater, effectivelyDeprecated)
-        updater.updateSdkExtensionApi(method, sdkExtensionApiFor(modifiers))
+        currentClass.apiClass.updateMethod(signature, updater, effectivelyDeprecated)
     }
 
     /**
@@ -720,8 +609,7 @@ internal class ApiSignatureFileConsumer(
         // Field names in Api do not include their type descriptor or constant value, so updateField
         // can be called directly without parsing typeString or valueString.
         val effectivelyDeprecated = modifiers.isDeprecated() || currentClass.effectivelyDeprecated
-        val field = currentClass.apiClass.updateField(name, updater, effectivelyDeprecated)
-        updater.updateSdkExtensionApi(field, sdkExtensionApiFor(modifiers))
+        currentClass.apiClass.updateField(name, updater, effectivelyDeprecated)
     }
 
     override fun consumeProperty(
@@ -740,8 +628,6 @@ internal class ApiSignatureFileConsumer(
     companion object {
         private const val DEPRECATED_SIMPLE_NAME = "Deprecated"
         private const val DEPRECATED_QUALIFIED_NAME = "java.lang.Deprecated"
-        private const val SDK_EXTENSION_API_SIMPLE_NAME = "SdkExtensionApi"
-        private const val SDK_EXTENSION_API_QUALIFIED_NAME = ANDROID_SDK_EXTENSION_API
         private const val JAVA_LANG_OBJECT_INTERNAL_NAME = "java/lang/Object"
         private const val JAVA_LANG_OBJECT_QUALIFIED_NAME = "java.lang.Object"
         private const val JAVA_LANG_ENUM_INTERNAL_NAME = "java/lang/Enum"

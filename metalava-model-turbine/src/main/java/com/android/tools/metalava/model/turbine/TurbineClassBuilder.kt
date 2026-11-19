@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrVariableTypeItem
 import com.android.tools.metalava.model.ClassOrigin
+import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.ItemKind
 import com.android.tools.metalava.model.ModifierContext
 import com.android.tools.metalava.model.ModifierFlags
@@ -636,10 +637,17 @@ internal class TurbineClassBuilder(
         typeItemFactory: TurbineTypeItemFactory,
     ): List<ParameterItem> {
         val fingerprint = MethodFingerprint(containingCallable.name(), parameters.size)
+        // Some parameters in [parameters] are implicit parameters that do not have a corresponding
+        // entry in the [parameterDecls] list. The number of implicit parameters is the total
+        // number of [parameters] minus the number of declared parameters [parameterDecls]. The
+        // implicit parameters are always at the beginning so the offset from the declared parameter
+        // in [parameterDecls] to the corresponding parameter in [parameters] is simply the number
+        // of the implicit parameters.
+        val ignoreSynthetic = containingCallable is ConstructorItem
         return buildList {
             var parameterIndex = 0
             for ((idx, parameter) in parameters.withIndex()) {
-                if (parameter.synthetic()) continue
+                if (ignoreSynthetic && parameter.synthetic()) continue
                 // Bytecode does not store the varargs flag on the parameter, it stores it on the
                 // method, so if the callable has the varargs flag set then make sure it is also set
                 // on the last parameter.
@@ -692,6 +700,22 @@ internal class TurbineClassBuilder(
         }
     }
 
+    /**
+     * Return true if constructors for [classItem] will have an implicit first parameter that needs
+     * removing.
+     *
+     * Constructors of inner classes that are loaded from the class path will have an implicit
+     * parameter that is used to supply the reference to the instance of the containing class to
+     * which the inner class instance belongs.
+     */
+    private fun willConstructorFirstParameterBeImplicit(classItem: SkeletonClassItem): Boolean {
+        // Check to see whether the class is an inner class, i.e. is a non-static class nested
+        // inside another.
+        val isInnerClass = classItem.containingClass() != null && !classItem.modifiers.isStatic()
+
+        return isInnerClass && classItem.origin == ClassOrigin.CLASS_PATH
+    }
+
     private fun createConstructors(
         classItem: SkeletonClassItem,
         methods: List<MethodInfo>,
@@ -702,6 +726,9 @@ internal class TurbineClassBuilder(
         val treatConstructorsAsPrivate =
             classItem.modifiers.let { modifiers -> modifiers.isSealed() && modifiers.isAbstract() }
 
+        // Check to see if the first parameter of the constructors is implicit and need removing.
+        val firstParameterIsImplicit = willConstructorFirstParameterBeImplicit(classItem)
+
         for (constructor in methods) {
             // Skip real methods.
             if (constructor.sym().name() != "<init>") continue
@@ -709,6 +736,16 @@ internal class TurbineClassBuilder(
             // Get the source declaration for the constructor. Will be null for constructors loaded
             // from the class path.
             val decl: MethDecl? = constructor.decl()
+
+            // Get the constructor parameters, removing an implicit first parameter if necessary.
+            val constructorParameters =
+                constructor.parameters().let { parameters ->
+                    if (firstParameterIsImplicit) {
+                        parameters.subList(1, parameters.size)
+                    } else {
+                        parameters
+                    }
+                }
 
             val modifiers =
                 createModifiers(
@@ -746,7 +783,7 @@ internal class TurbineClassBuilder(
                             constructorItem,
                             constructor.access(),
                             decl?.params(),
-                            constructor.parameters(),
+                            constructorParameters,
                             constructorTypeItemFactory,
                         )
                     },
@@ -809,7 +846,8 @@ internal class TurbineClassBuilder(
      * had an `@NonNull` annotation.
      */
     private fun isInitialValueNonNull(field: FieldInfo): Boolean {
-        val expr = field.decl()?.init()?.getOrNull()
+        val optExpr = field.decl()?.init()
+        val expr = if (optExpr != null && optExpr.isPresent) optExpr.get() else null
         val constantValue = field.value()?.value
 
         val initialValueWithoutRequiredConstant =
@@ -817,11 +855,17 @@ internal class TurbineClassBuilder(
                 constantValue != null -> constantValue
                 expr == null -> null
                 else ->
-                    when (expr) {
-                        is Literal -> expr.value().underlyingValue
+                    when (expr.kind()) {
+                        Tree.Kind.LITERAL -> {
+                            (expr as Literal).value().underlyingValue
+                        }
                         // Class Type
-                        is Tree.ClassLiteral -> expr
-                        else -> null
+                        Tree.Kind.CLASS_LITERAL -> {
+                            expr
+                        }
+                        else -> {
+                            null
+                        }
                     }
             }
 

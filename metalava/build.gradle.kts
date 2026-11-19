@@ -26,11 +26,26 @@ application {
     applicationDefaultJvmArgs = listOf("-ea", "-Xms2g", "-Xmx4g")
 }
 
+configurations {
+    compileClasspath {
+        // Prevent metalava from using sdklib classes pulled in by indirect dependencies.
+        exclude(group = "com.android.tools", module = "sdklib")
+        // Prevent metalava from using Guava classes pulled in by indirect dependencies.
+        exclude(group = "com.google.guava")
+        // Prevent metalava from using ASM classes pulled in by indirect dependencies.
+        exclude(group = "org.ow2.asm")
+    }
+}
+
 dependencies {
     implementation(project(":metalava-model"))
     implementation(project(":metalava-model-source"))
     implementation(project(":metalava-model-text"))
     implementation(project(":metalava-reporter"))
+    implementation(libs.androidLintApi)
+    implementation(libs.androidLintChecks)
+    implementation(libs.androidLint)
+    implementation(libs.androidToolsCommon)
     implementation(libs.clikt)
     implementation(libs.gson)
     implementation(libs.tracingWire)
@@ -40,17 +55,13 @@ dependencies {
     testImplementation(project(":metalava-testing"))
     testImplementation(testFixtures(project(":metalava-model")))
     testImplementation(testFixtures(project(":metalava-model-text")))
-    testImplementation(libs.androidLint)
-    testImplementation(libs.androidLintChecks)
     testImplementation(libs.androidLintTests)
     testImplementation(libs.junit4)
     testImplementation(libs.truth)
     testImplementation(libs.kotlinTest)
     testImplementation(libs.kotlinTestJUnit)
 
-    // Include :metalava-model-turbine in tests when available (it is only included in
-    // settings.gradle.kts when ../../external/turbine is present in the checkout).
-    findProject(":metalava-model-turbine")?.let { testRuntimeOnly(it) }
+    testRuntimeOnly(project(":metalava-model-turbine"))
 }
 
 val testDataDir = layout.projectDirectory.dir("src/testdata")

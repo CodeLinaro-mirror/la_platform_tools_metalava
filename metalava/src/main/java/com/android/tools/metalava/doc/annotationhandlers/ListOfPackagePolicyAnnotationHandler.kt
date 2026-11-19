@@ -29,35 +29,34 @@ class ListOfPackagePolicyAnnotationHandler(
      * policy.
      */
     override fun processPolicyAnnotation(annotation: AnnotationItem, item: Item): String {
-        val proxy = annotation.bindTo<ListOfPackagePolicyDefinitionProxy>(item) ?: return ""
-        return generateDocs(proxy, item)
+        val proxy = annotation.bindTo<ListOfPackagePolicyDefinitionProxy>(item)
+        return proxy?.generateDocs() ?: ""
     }
 }
 
-/**
- * Proxy class bound to an instance of the
- * `android.processor.devicepolicy.ListOfPackagePolicyDefinition` annotation class.
- *
- * @see bindTo
- */
 data class ListOfPackagePolicyDefinitionProxy(
     val base: PolicyDefinitionProxy,
     val resolutionMechanism: ListResolutionMechanismProxy,
     val emptyListAllowed: Boolean,
     val maxListLength: Int,
-) : DevicePolicy {
-    override fun generateDocRows(context: DevicePolicyContext): List<TableRow> = buildList {
-        addAll(base.generateDocRows())
+) {
 
-        val resMechDocs = resolutionMechanism.generateDocs(base.item)
-        if (resMechDocs.isNotEmpty()) {
-            add(TableRow("Conflict resolution mechanism", resMechDocs))
+    fun generateDocs() = buildString {
+        val tableEntries = buildList {
+            addAll(base.getTableEntries())
+
+            val resMechDocs = resolutionMechanism.generateDocs(base.item)
+            if (resMechDocs.isNotEmpty()) {
+                add(Pair("Conflict resolution mechanism", resMechDocs))
+            }
+
+            val policyValueValidations = buildList {
+                if (maxListLength != Int.MAX_VALUE) add("Length max $maxListLength items")
+                if (!emptyListAllowed) add("No empty list allowed")
+            }
+            add(Pair("Policy value", renderPolicyValue("List<Package>", policyValueValidations)))
         }
 
-        val policyValueValidations = buildList {
-            if (maxListLength != Int.MAX_VALUE) add("Length max $maxListLength items")
-            if (!emptyListAllowed) add("No empty list allowed")
-        }
-        add(TableRow("Policy value", renderPolicyValue("List<Package>", policyValueValidations)))
+        append(renderTable(tableEntries))
     }
 }

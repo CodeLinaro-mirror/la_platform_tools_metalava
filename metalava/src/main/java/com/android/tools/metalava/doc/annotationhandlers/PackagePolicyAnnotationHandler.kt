@@ -28,8 +28,8 @@ class PackagePolicyAnnotationHandler(
      * Processes the [PackagePolicyDefinitionProxy] and returns the documentation for the policy.
      */
     override fun processPolicyAnnotation(annotation: AnnotationItem, item: Item): String {
-        val proxy = annotation.bindTo<PackagePolicyDefinitionProxy>(item) ?: return ""
-        return generateDocs(proxy, item)
+        val proxy = annotation.bindTo<PackagePolicyDefinitionProxy>(item)
+        return proxy?.generateDocs() ?: ""
     }
 }
 
@@ -41,9 +41,12 @@ class PackagePolicyAnnotationHandler(
  */
 data class PackagePolicyDefinitionProxy(
     val base: PolicyDefinitionProxy,
-) : DevicePolicy {
-    override fun generateDocRows(context: DevicePolicyContext): List<TableRow> = buildList {
-        addAll(base.generateDocRows())
-        add(TableRow("Policy value", renderPolicyValue("Package", emptyList())))
+) {
+    fun generateDocs() = buildString {
+        val tableEntries = buildList {
+            addAll(base.getTableEntries())
+            add(Pair("Policy value", renderPolicyValue("Package", emptyList())))
+        }
+        append(renderTable(tableEntries))
     }
 }

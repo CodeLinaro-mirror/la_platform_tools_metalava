@@ -290,43 +290,6 @@ class ClassMergerTest : BaseTextCodebaseTest() {
         }
     }
 
-    /**
-     * Verifies that when a generic class from an earlier signature file transitions to a typealias
-     * in a later file, the parsed `optionalAliasedType` reuses the existing class's
-     * `TypeParameterItem`s rather than referencing newly created ones.
-     */
-    @Test
-    fun `Test parse multiple files transitions generic class to typealias`() {
-        runSignatureTest(
-            signature(
-                "first.txt",
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                        public class GenericFoo<T> {
-                        }
-                    }
-                """,
-            ),
-            signature(
-                "second.txt",
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                        public typealias GenericFoo<T> = java.util.List<T>;
-                    }
-                """,
-            ),
-        ) {
-            val genericFooClass = codebase.assertTypeAlias("test.pkg.GenericFoo")
-            genericFooClass.optionalAliasedType.assertClassTypeItem {
-                arguments.single().assertVariableTypeItem {
-                    assertSame(genericFooClass.typeParameterList.single(), asTypeParameter)
-                }
-            }
-        }
-    }
-
     @Test
     fun `Test incompatible class modifiers throws exception when allowClassModifierChanges is false`() {
         val exception =

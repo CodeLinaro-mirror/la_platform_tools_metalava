@@ -73,11 +73,11 @@ internal val List<Ident>.dotSeparatedName: String
 internal fun CompUnit.getHeaderComments(): String {
     // Find the package statement.
     val pkgDecl = pkg().getOrNull() ?: return ""
+    val source = source().source()
     // The PkgDecl.position() is the start of the package name not the `package` keyword.
     val packageNamePosition = pkgDecl.position()
-    val source = source().substring(0, packageNamePosition)
     // Search backwards for the start of the `package` keyword.
-    val packageKeywordStart = source.lastIndexOf("package")
+    val packageKeywordStart = source.lastIndexOf("package", packageNamePosition)
     // Return the content before the `package` keyword to match Java.
     return source.substring(0, packageKeywordStart).replace("\r\n", "\n")
 }

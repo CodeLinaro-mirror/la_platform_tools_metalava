@@ -17,14 +17,17 @@
 package com.android.tools.metalava.cli.compatibility
 
 import com.android.tools.metalava.ARG_BASELINE
-import com.android.tools.metalava.ARG_REMOVED_API
 import com.android.tools.metalava.ARG_UPDATE_BASELINE
+import com.android.tools.metalava.PROGRAM_NAME
 import com.android.tools.metalava.cli.common.BaselineOptionsMixin
 import com.android.tools.metalava.cli.common.DefaultSignatureFileLoader
-import com.android.tools.metalava.cli.common.IssueReportingOptions
+import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.MetalavaSubCommand
+import com.android.tools.metalava.cli.common.commonOptions
+import com.android.tools.metalava.cli.common.executionEnvironment
 import com.android.tools.metalava.cli.common.existingFile
-import com.android.tools.metalava.cli.common.runWithReporter
+import com.android.tools.metalava.cli.common.registerPostCommandAction
+import com.android.tools.metalava.cli.common.stdout
 import com.android.tools.metalava.cli.common.tracer
 import com.android.tools.metalava.cli.compatibility.CheckRequest.CheckType
 import com.android.tools.metalava.compatibility.CompatibilityCheck
@@ -32,12 +35,13 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
-import com.android.tools.metalava.model.api.surface.ApiVariantType
 import com.android.tools.metalava.model.text.SignatureFile
+import com.android.tools.metalava.reporter.Baseline
+import com.android.tools.metalava.reporter.DefaultReporter
+import com.android.tools.metalava.reporter.IssueConfiguration
 import com.android.tools.metalava.trace
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.multiple
-import com.github.ajalt.clikt.parameters.groups.provideDelegate
 import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
 
@@ -69,22 +73,6 @@ class CheckCompatibilityCommand :
             .existingFile()
             .multiple(required = true)
 
-    /** Removed API signature files for the current API. */
-    private val removedApiFiles by
-        option(
-                ARG_REMOVED_API,
-                metavar = "<file>",
-                help =
-                    """
-                        Removed API signature file for the current API. Can be specified multiple
-                        times; when multiple files are provided they must be in order from the
-                        narrowest API to the widest API.
-                    """
-                        .trimIndent(),
-            )
-            .existingFile()
-            .multiple()
-
     private val baselineOptionsMixin =
         BaselineOptionsMixin(
             containingParameterHolder = this,
@@ -93,9 +81,6 @@ class CheckCompatibilityCommand :
             issueType = "compatibility",
             description = "compatibility",
         )
-
-    /** Add options for controlling the behavior of the issue Numerical/Category reporters. */
-    private val issueReportingOptions by IssueReportingOptions()
 
     /** The list of signature files defining the current API to check for compatibility. */
     private val sourceFiles by
@@ -113,10 +98,41 @@ class CheckCompatibilityCommand :
             .multiple(required = true)
 
     override fun run() {
-        runWithReporter(
-            issueReportingOptions = issueReportingOptions,
-            baselineOptionsMixin = baselineOptionsMixin,
-        ) { reporter ->
+        val issueConfiguration = IssueConfiguration()
+        val baseline =
+            baselineOptionsMixin.computeBaseline(
+                executionEnvironment = executionEnvironment,
+                baselineConfig =
+                    Baseline.Config(
+                        issueConfiguration = issueConfiguration,
+                        deleteEmptyBaselines = false,
+                        sourcePath = emptyList(),
+                        rootFolder = executionEnvironment.reporterEnvironment.rootFolder,
+                    ),
+            )
+
+        // Make sure to flush out the baseline file.
+        registerPostCommandAction {
+            baseline?.let {
+                if (commonOptions.verbosity.verbose) {
+                    it.dumpStats(stdout)
+                }
+                if (it.close()) {
+                    if (!commonOptions.verbosity.quiet) {
+                        stdout.println("$PROGRAM_NAME wrote updated baseline to ${it.updateFile}")
+                    }
+                }
+            }
+        }
+
+        val reporter =
+            DefaultReporter(
+                environment = executionEnvironment.reporterEnvironment,
+                issueConfiguration = issueConfiguration,
+                baseline = baseline,
+            )
+
+        try {
             val apiSurfaces = ApiSurfaces.DEFAULT
             val apiSurface = apiSurfaces.main
 
@@ -138,13 +154,7 @@ class CheckCompatibilityCommand :
             val signatureFileLoader = DefaultSignatureFileLoader(codebaseConfig, tracer = tracer)
 
             val oldCodebase = signatureFileLoader.load(SignatureFile.fromFiles(releasedFiles))
-            val newSignatureFiles =
-                SignatureFile.fromFiles(sourceFiles) +
-                    SignatureFile.fromFiles(
-                        removedApiFiles,
-                        apiVariantTypeChooser = { ApiVariantType.REMOVED },
-                    )
-            val newCodebase = signatureFileLoader.load(newSignatureFiles)
+            val newCodebase = signatureFileLoader.load(SignatureFile.fromFiles(sourceFiles))
 
             tracer.trace("CompatibilityCheck.checkCompatibility") {
                 CompatibilityCheck.checkCompatibility(
@@ -152,12 +162,20 @@ class CheckCompatibilityCommand :
                     oldCodebase = oldCodebase,
                     checkType = CheckType.PUBLIC_API,
                     reporter = reporter,
-                    issueConfiguration = reporter.issueConfiguration,
+                    issueConfiguration = issueConfiguration,
                     apiCompatAnnotations = emptySet(),
                     apiName = null,
                     apiSurface = apiSurface,
                 )
             }
+        } finally {
+            // Write all saved reports. Do this even if the previous code threw an exception.
+            tracer.trace("writeSavedReports") { reporter.writeSavedReports() }
+        }
+
+        if (reporter.hasErrors()) {
+            // Make sure that the process exits with an error code.
+            throw MetalavaCliException(exitCode = -1)
         }
     }
 }

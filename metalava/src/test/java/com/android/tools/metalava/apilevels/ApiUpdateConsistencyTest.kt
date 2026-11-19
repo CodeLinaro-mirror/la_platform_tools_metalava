@@ -134,7 +134,7 @@ class ApiUpdateConsistencyTest : DriverTest() {
         // Clean the API as is done when generating it properly.
         api.clean()
         val writer = StringWriter()
-        val printer = ApiXmlPrinter()
+        val printer = ApiXmlPrinter(null, versionedApis)
         PrintWriter(writer).use { printWriter -> printer.print(api, printWriter) }
         assertEquals(
             expectedXmlContents.trimIndent(),

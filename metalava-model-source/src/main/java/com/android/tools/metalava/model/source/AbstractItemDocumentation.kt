@@ -16,21 +16,14 @@
 
 package com.android.tools.metalava.model.source
 
-import com.android.tools.metalava.model.AnnotationManager
-import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ReferencableItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypeParameterListOwner
-import com.android.tools.metalava.model.api.SurfaceSelectionRule
-import com.android.tools.metalava.model.api.surface.ReferenceCheckResult
-import com.android.tools.metalava.model.api.surface.ReferenceKind
 import com.android.tools.metalava.model.doc.DocContent
 import com.android.tools.metalava.model.doc.DocContentOwner
 import com.android.tools.metalava.model.doc.DocContentPredicate
@@ -50,7 +43,6 @@ import com.android.tools.metalava.model.source.javadoc.InvalidBlockUseVisitor
 import com.android.tools.metalava.model.source.javadoc.toOptionalJavadocContent
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
-import com.android.tools.metalava.reporter.LocationSpecificReporter
 import java.io.PrintWriter
 
 /** Supplies the initial [DocComment] and [FileLocation] for an [ItemDocumentation]. */
@@ -112,107 +104,6 @@ internal abstract class AbstractItemDocumentation(
         nameClassification: NameClassification
     ): ReferencableItem {
         return item.resolveReferencableItem(sourceReference, nameClassification)
-    }
-
-    /**
-     * If [classItem] is an annotation class that [AnnotationManager] maps to a different annotation
-     * in [AnnotationTarget.DOC_STUBS_FILE] (for example, `android.annotation.Nullable` ->
-     * `androidx.annotation.Nullable`), return that mapped qualified name; otherwise return `null`.
-     */
-    private fun mappedDocStubsAnnotationName(classItem: ClassItem): String? {
-        if (!classItem.isAnnotationType()) {
-            return null
-        }
-        val originalName = classItem.qualifiedName()
-        val annotationManager = item.codebase.annotationManager
-        val internalName = annotationManager.normalizeInputName(originalName) ?: return null
-        val outputName =
-            annotationManager.normalizeOutputName(internalName, AnnotationTarget.DOC_STUBS_FILE)
-        return if (outputName != originalName) outputName else null
-    }
-
-    /** Implements [DocCommentContext.resolveClassReferenceName]. */
-    override fun resolveClassReferenceName(classItem: ClassItem): String =
-        mappedDocStubsAnnotationName(classItem) ?: classItem.qualifiedName()
-
-    /**
-     * Resolve [referencedItem] to the effective [SelectableItem] to check in documentation stubs,
-     * or `null` if [referencedItem] maps to an external replacement annotation not present in
-     * [item]'s [Codebase].
-     *
-     * Platform annotations such as `android.annotation.Nullable` are `@hide` in framework source
-     * but replaced by `androidx.annotation.Nullable` in documentation stubs. Checking the source
-     * annotation directly would report a false-positive `HiddenDocReference` warning, so check the
-     * replacement annotation instead when present in the codebase, or skip checking when the
-     * replacement annotation is external.
-     */
-    private fun effectiveReferencedItem(referencedItem: SelectableItem): SelectableItem? {
-        return when (referencedItem) {
-            is ClassItem -> {
-                val mappedName =
-                    mappedDocStubsAnnotationName(referencedItem) ?: return referencedItem
-                item.codebase.resolveClass(mappedName)
-            }
-            is FieldItem -> {
-                val mappedName =
-                    mappedDocStubsAnnotationName(referencedItem.containingClass())
-                        ?: return referencedItem
-                val mappedClass = item.codebase.resolveClass(mappedName)
-                if (mappedClass != null) {
-                    mappedClass.findField(referencedItem.name()) ?: referencedItem
-                } else if (referencedItem.isDirectlyHiddenOrRemoved()) {
-                    referencedItem
-                } else {
-                    null
-                }
-            }
-            else -> referencedItem
-        }
-    }
-
-    /**
-     * Check whether this [SelectableItem] is directly marked hidden or removed by its own
-     * documentation tags or surface annotations (ignoring hiddenness inherited from its enclosing
-     * class).
-     */
-    private fun SelectableItem.isDirectlyHiddenOrRemoved(): Boolean =
-        documentation?.isHidden == true ||
-            documentation?.isRemoved == true ||
-            modifiers.annotations().any {
-                val effect = it.surfaceData?.effect
-                effect == SurfaceSelectionRule.Effect.HIDE ||
-                    effect == SurfaceSelectionRule.Effect.REMOVED
-            }
-
-    /** Implements [DocCommentContext.checkReference]. */
-    override fun checkReference(
-        referencedItem: SelectableItem,
-        reporter: LocationSpecificReporter,
-    ): ReferenceCheckResult {
-        val referenceStrategy = item.codebase.apiSurfaces.referenceStrategy
-
-        // Skip checking references in documentation on items that are not themselves documented
-        // (e.g. `@hide` or `@removed` items), since `ReferenceKind.DOCUMENTATION` checks target
-        // visibility regardless of whether `from` is hidden.
-        if (!referenceStrategy.isValidReference(null, item, ReferenceKind.DOCUMENTATION)) {
-            return ReferenceCheckResult.Valid
-        }
-
-        val targetItem =
-            effectiveReferencedItem(referencedItem) ?: return ReferenceCheckResult.Valid
-
-        // Check whether `targetItem` is accessible in documentation (`CORE` or `DOC_ONLY`).
-        val result = referenceStrategy.checkReference(item, targetItem, ReferenceKind.DOCUMENTATION)
-
-        // Report `HiddenDocReference` with the strategy's human-readable reason (e.g. "hidden").
-        if (result is ReferenceCheckResult.Invalid) {
-            reporter.report(
-                Issues.HIDDEN_DOC_REFERENCE,
-                "${targetItem.describe(capitalize = true)} is ${result.reasonLabel}",
-            )
-        }
-
-        return result
     }
 
     /** Implements [ExprContext.isFlagEnabled]. */
@@ -304,11 +195,6 @@ internal abstract class AbstractItemDocumentation(
         docComment.hasBlockTagOfType(blockTagType)
 
     override fun print(writer: PrintWriter) {
-        // Ensure [item.selectedApi] is initialized before stripping `@hide` tags below; otherwise,
-        // if [print] is called before [item.selectedApi] has been accessed, resolving links while
-        // printing would initialize [item.selectedApi] after `@hide` was removed.
-        item.selectedApi
-
         // Remove all `@hide`, and `@doconly` tags before printing to prevent them from being
         // visible to the documentation generation tool that consumes the stubs. That is because the
         // tool may act upon them, e.g. hiding any APIs that are tagged with `@hide`.

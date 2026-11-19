@@ -58,15 +58,10 @@ internal class JavadocContentPrinter(
     }
 
     override fun visit(inlineTag: JavadocInlineTag) {
-        val tagData = inlineTag.tagData
-        if (tagData != null) {
-            tagData.printInlineTag(inlineTag, this)
-        } else {
-            writer.print("{@")
-            writer.print(inlineTag.tagType)
-            inlineTag.printTagContents(this)
-            writer.print("}")
-        }
+        writer.print("{@")
+        writer.print(inlineTag.tagType)
+        inlineTag.printTagContents(this)
+        writer.print("}")
     }
 
     override fun visit(text: JavadocText) {
@@ -85,7 +80,7 @@ internal class JavadocContentPrinter(
     }
 
     val containingClassName
-        get() = context.containingClassItem?.let { context.resolveClassReferenceName(it) }
+        get() = context.containingClassItem?.qualifiedName()
 
     companion object {
         /** Check to see whether [JavadocContent] starts with a newline character. */

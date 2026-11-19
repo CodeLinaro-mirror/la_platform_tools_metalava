@@ -20,7 +20,6 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.api.flags.ApiFlagAction
-import com.android.tools.metalava.model.api.flags.FlagState
 import com.android.tools.metalava.model.api.surface.ApiVariant
 import com.android.tools.metalava.model.api.surface.ApiVariantSet
 import com.android.tools.metalava.reporter.Issues
@@ -102,19 +101,6 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
         internal set
 
     /**
-     * Indicates whether the associated [SelectableItem] is marked for future removal via a removed
-     * annotation gated by an unfinalized (kept) `@FlaggedApi` annotation (or is enclosed within a
-     * parent that is [forRemoval]).
-     *
-     * Unlike [removed] (which is `true` for immediate removals that move the item to
-     * `ApiVariantType.REMOVED`), this is `true` when the removal is deferred (`ApiFlagAction.KEEP`)
-     * so the item remains in the core API with `@ForRemoval` until its flag is finalized.
-     *
-     * Initialized by [SelectedApiUpdater.updateSelectedApi] called from [updateFromSelectableItem].
-     */
-    internal var forRemoval: Boolean = false
-
-    /**
      * Indicates whether the associated [SelectableItem] is being reverted.
      *
      * Initialized by [SelectedApiUpdater.updateSelectedApi] called from [updateFromSelectableItem].
@@ -161,14 +147,6 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
      */
     var flaggedApiAnnotation: AnnotationItem? = null
         internal set
-
-    override var ignoreOwnFlaggedApi: Boolean = false
-
-    /** Backing property for [flagState], or `null` if it has not yet been computed. */
-    private var _flagState: FlagState? = null
-
-    override val flagState: FlagState
-        get() = _flagState ?: computeFlagState(item).also { _flagState = it }
 
     /**
      * Backing property for [itemApiVariants] so internal updates and checks during initialization
@@ -289,9 +267,6 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
         docOnly = other.docOnly
         removed = other.removed
         hasRemovedAnnotation = other.hasRemovedAnnotation
-        ignoreOwnFlaggedApi = other.ignoreOwnFlaggedApi
-        _flagState = other._flagState
-        forRemoval = other.forRemoval
         revert = other.revert
         revertItem = other.revertItem
         wasPreviouslyReleased = other.wasPreviouslyReleased

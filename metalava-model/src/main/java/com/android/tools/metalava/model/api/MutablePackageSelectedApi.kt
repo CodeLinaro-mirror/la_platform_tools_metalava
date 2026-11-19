@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model.api
 
 import com.android.tools.metalava.model.PackageItem
-import com.android.tools.metalava.model.api.flags.FlagState
 import com.android.tools.metalava.model.api.surface.ApiVariant
 
 /**
@@ -30,13 +29,6 @@ import com.android.tools.metalava.model.api.surface.ApiVariant
 internal class MutablePackageSelectedApi(
     item: PackageItem,
 ) : MutableSelectedApi<PackageItem>(item) {
-    /**
-     * Packages cannot be annotated with `@FlaggedApi` or `@removed`, and their [itemApiVariants] is
-     * the union of all their classes' variants. Always return [FlagState.NONE].
-     */
-    override val flagState: FlagState
-        get() = FlagState.NONE
-
     override fun addItemApiVariant(value: ApiVariant) {
         // Packages do not belong to an API surface in their own right, but belong to the union of
         // all API surfaces to which their contained classes/members belong.

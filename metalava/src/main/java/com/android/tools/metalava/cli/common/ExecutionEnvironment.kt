@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.cli.common
 
+import com.android.tools.lint.detector.api.assertionsEnabled
 import com.android.tools.metalava.model.source.SourceModelProvider
 import com.android.tools.metalava.reporter.DefaultReporterEnvironment
 import com.android.tools.metalava.reporter.ReporterEnvironment
@@ -48,7 +49,7 @@ data class ExecutionEnvironment(
 
     /** Whether to suppress dumping of information to stderr by a [SourceModelProvider]. */
     fun disableStderrDumping(): Boolean {
-        return !javaClass.desiredAssertionStatus() && !isUnderTest()
+        return !assertionsEnabled() && !isUnderTest()
     }
 
     /** Whether metalava is running unit tests */

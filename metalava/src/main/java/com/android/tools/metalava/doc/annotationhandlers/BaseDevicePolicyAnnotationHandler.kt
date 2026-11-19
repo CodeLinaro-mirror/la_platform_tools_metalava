@@ -16,31 +16,17 @@
 
 package com.android.tools.metalava.doc.annotationhandlers
 
-import com.android.tools.metalava.doc.linkToField
 import com.android.tools.metalava.model.ANDROIDX_INT_DEF
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.annotation.binding.bindTo
+import com.android.tools.metalava.model.testOrTrue
 import com.android.tools.metalava.model.value.FieldReferenceValue
 import com.android.tools.metalava.model.value.asAny
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
-
-/** A single row in a policy details documentation table. */
-data class TableRow(
-    /** The label shown in the left column of the row. */
-    val label: String,
-    /** The HTML body shown in the right column of the row. */
-    val body: String,
-)
-
-/** A device policy definition capable of generating documentation rows. */
-interface DevicePolicy {
-    /** Generates the documentation table rows describing this policy under [context]. */
-    fun generateDocRows(context: DevicePolicyContext): List<TableRow>
-}
 
 /**
  * Base class for Device Policy Annotation Handlers.
@@ -53,27 +39,21 @@ abstract class BaseDevicePolicyAnnotationHandler(protected val context: DevicePo
         annotation: AnnotationItem,
         item: Item,
     ): String
-
-    /** Generates the HTML documentation table for [currentVersion]. */
-    protected fun generateDocs(
-        currentVersion: DevicePolicy,
-        @Suppress("UNUSED_PARAMETER") item: Item,
-    ): String = renderTable(currentVersion.generateDocRows(context))
 }
 
-/** Renders a list of table rows into an HTML table format. */
-fun renderTable(tableEntries: List<TableRow>): String {
+/** Renders a list of table entries into an HTML table format. */
+fun renderTable(tableEntries: List<Pair<String, String>>): String {
     return buildString {
         append("\n <table>\n")
         append("  <tr>\n")
         append("    <th colspan=\"2\">Policy details</th>\n")
         append("  </tr>\n")
-        for ((label, body) in tableEntries) {
+        for ((name, value) in tableEntries) {
             append("  <tr>\n")
-            append("    <td>$label</td>\n")
-            if (body.contains('\n')) {
+            append("    <td>$name</td>\n")
+            if (value.contains('\n')) {
                 append("    <td>\n")
-                body.trimEnd('\n').split('\n').forEach { line ->
+                value.trimEnd('\n').split('\n').forEach { line ->
                     if (line.isNotEmpty()) {
                         append("      $line\n")
                     } else {
@@ -82,7 +62,7 @@ fun renderTable(tableEntries: List<TableRow>): String {
                 }
                 append("    </td>\n")
             } else {
-                append("    <td>$body</td>\n")
+                append("    <td>$value</td>\n")
             }
             append("  </tr>\n")
         }
@@ -141,7 +121,7 @@ fun Reporter.reportOnMissingFields(fieldName: String, item: Item) {
 fun buildEnumValueToCodeReferenceMap(
     intDef: ClassItem?,
     item: Item,
-    @Suppress("UNUSED_PARAMETER") filterReference: FilterPredicate?,
+    filterReference: FilterPredicate?,
 ): Map<Int, String> {
     val reporter = item.codebase.reporter
 
@@ -156,6 +136,7 @@ fun buildEnumValueToCodeReferenceMap(
 
     for (enumValueAttr in enumValueAttrs) {
         if (enumValueAttr is FieldReferenceValue) {
+            val qualifiedClassName = enumValueAttr.qualifiedClassName
             val fieldName = enumValueAttr.fieldName
             val fieldItem = enumValueAttr.resolve()
             val fieldValue = fieldItem?.constantValue?.asAny() as? Int
@@ -167,15 +148,17 @@ fun buildEnumValueToCodeReferenceMap(
                 )
                 continue
             }
-            enumValueToName[fieldValue] =
-                linkToField(item, fieldItem) {
-                    reporter.report(
-                        Issues.INVALID_DEVICE_POLICY_ANNOTATION,
-                        item,
-                        "Cannot locate $fieldName required by $item (may be hidden or removed)"
-                    )
-                    fieldName
-                }
+            if (filterReference.testOrTrue(fieldItem)) {
+                val link = "{@link $qualifiedClassName#$fieldName}"
+                enumValueToName[fieldValue] = link
+            } else {
+                reporter.report(
+                    Issues.INVALID_DEVICE_POLICY_ANNOTATION,
+                    item,
+                    "Cannot locate $fieldName required by $item (may be hidden or removed)"
+                )
+                enumValueToName[fieldValue] = fieldName
+            }
         }
     }
     return enumValueToName

@@ -61,9 +61,7 @@ internal class ThrowsTagType() : TagType<ThrowsTagData>("throws", TagTypeForm.BL
         val resolved = context.resolveItemReference(typeName, NameClassification.TYPE)
         // TODO(b/447588621): Ensure that the resolved type is a Throwable.
         return when (resolved) {
-            is ClassItem -> resolved.toResolvedReference(context, reporter)
-
-            // Type parameters cannot be hidden independently of their declaring item.
+            is ClassItem -> resolved.toResolvedReference()
             is TypeParameterItem -> resolved.toResolvedReference()
             is ExternalReferencableItem -> null
             is InvalidReferencableItem -> {

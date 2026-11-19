@@ -29,7 +29,6 @@ import com.android.tools.metalava.model.item.DefaultItemFactory
 import com.android.tools.metalava.model.source.SourceCodebaseAssembler
 import com.android.tools.metalava.model.source.SourcePackageInfo
 import com.google.common.collect.ImmutableList
-import com.google.turbine.binder.Binder.BindingResult
 import com.google.turbine.binder.bound.SourceTypeBoundClass
 import com.google.turbine.binder.bound.TypeBoundClass
 import com.google.turbine.binder.bytecode.BytecodeBoundClass
@@ -53,8 +52,6 @@ internal class TurbineCodebaseInitialiser(
 ) : SourceCodebaseAssembler(), TurbineGlobalContext {
 
     override val codebase = codebaseFactory(this)
-
-    private lateinit var bindingResult: BindingResult
 
     /**
      * Map between ClassSymbols and TurbineClass for classes present on the source path or the class
@@ -96,7 +93,7 @@ internal class TurbineCodebaseInitialiser(
     ) {
         val sourceSet = boundSources.sourceSet
         val allUnits = boundSources.allUnits
-        bindingResult = boundSources.bindingResult
+        val bindingResult = boundSources.bindingResult
 
         // Get the top level index needed for creating TurbineElements.
         index = bindingResult.tli()
@@ -346,7 +343,10 @@ internal class TurbineCodebaseInitialiser(
             is SourceTypeBoundClass ->
                 TurbineFieldResolver(
                     classSymbol,
-                    bindingResult,
+                    classSymbol,
+                    typeBoundClass.memberImports(),
+                    typeBoundClass.scope(),
+                    envClassMap,
                 )
             else -> null
         }

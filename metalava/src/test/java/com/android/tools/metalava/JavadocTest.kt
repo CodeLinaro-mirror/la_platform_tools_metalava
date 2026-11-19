@@ -888,14 +888,7 @@ class JavadocTest : DriverTest() {
     fun `Rewrite parameter list`() {
         checkStubs(
             docStubs = true,
-
-            // `test.pkg2.OtherClass1` is package-private, so `{@link OtherClass1#myMethod(...)}`
-            // from public `Test` reports `HiddenDocReference`.
-            warnings =
-                """
-                    src/test/pkg1/Test.java:6: warning: Class test.pkg2.OtherClass1 is not public (ErrorWhenNew) [HiddenDocReference]
-                    src/test/pkg1/Test.java:11: warning: Class test.pkg2.OtherClass1 is not public (ErrorWhenNew) [HiddenDocReference]
-                """,
+            warnings = "",
             sourceFiles =
                 arrayOf(
                     java(
@@ -940,11 +933,11 @@ class JavadocTest : DriverTest() {
             source =
                 """
                 package test.pkg1;
-                /** Reference to ERROR[not public: OtherClass1#myMethod(OtherClass2,int,OtherClass2[])], */
+                /** Reference to {@link test.pkg2.OtherClass1#myMethod(test.pkg2.OtherClass2,int,test.pkg2.OtherClass2[]) OtherClass1.myMethod(OtherClass2,int,OtherClass2[])}, */
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class Test<E extends test.pkg2.OtherClass2> {
                 public Test() { throw new RuntimeException("Stub!"); }
-                /** Reference to ERROR[not public: OtherClass1#myMethod(E,int,OtherClass2[])], */
+                /** Reference to {@link test.pkg2.OtherClass1#myMethod(test.pkg2.OtherClass2,int,test.pkg2.OtherClass2[]) OtherClass1.myMethod(E,int,OtherClass2[])}, */
                 public void test() { throw new RuntimeException("Stub!"); }
                 }
                 """
@@ -1328,7 +1321,7 @@ class JavadocTest : DriverTest() {
                             public class Foo {
                             Foo() { throw new RuntimeException("Stub!"); }
                             /**
-                             * Does not use @hide correctly; {@link androidx.annotation.Nullable Nullable}.
+                             * Does not use @hide correctly; {@link android.annotation.Nullable Nullable}.
                              * @return This value may be {@code null}.
                              */
                             @androidx.annotation.Nullable

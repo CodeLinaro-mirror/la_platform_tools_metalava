@@ -50,21 +50,6 @@ private constructor(
      */
     abstract fun supersedesAndroidSdkVersion(androidSdkVersion: ApiVersion): Boolean
 
-    /**
-     * Check to see whether an API annotated with `@SdkExtensionApi(floor)` is available in this SDK
-     * extension.
-     *
-     * A dessert release based extension matches any dessert release [floor], i.e. less than
-     * [DESSERT_RELEASE_INDEPENDENT_SDK_BASE], that is less than or equal to its [id], e.g.
-     * `@SdkExtensionApi(33)` matches the extensions with [id]s `33`, `34`, etc.
-     *
-     * A dessert release independent extension only matches a [floor] that is equal to its [id],
-     * e.g. `@SdkExtensionApi(1000000)` only matches the extension with [id] `1000000`.
-     *
-     * @param floor the value of the `@SdkExtensionApi` annotation.
-     */
-    abstract fun matchesSdkExtensionApiFloor(floor: Int): Boolean
-
     init {
         require(id >= 1) { "SDK extensions cannot have an id less than 1 but it is $id" }
     }
@@ -115,9 +100,6 @@ private constructor(
 
         override fun supersedesAndroidSdkVersion(androidSdkVersion: ApiVersion) =
             baseSdkVersion <= androidSdkVersion
-
-        override fun matchesSdkExtensionApiFloor(floor: Int) =
-            floor < DESSERT_RELEASE_INDEPENDENT_SDK_BASE && floor <= id
     }
 
     /** An [SdkExtension] that is independent of an Android SDK version. */
@@ -128,7 +110,5 @@ private constructor(
         reference: String,
     ) : SdkExtension(id, shortname, name, reference) {
         override fun supersedesAndroidSdkVersion(androidSdkVersion: ApiVersion) = true
-
-        override fun matchesSdkExtensionApiFloor(floor: Int) = floor == id
     }
 }

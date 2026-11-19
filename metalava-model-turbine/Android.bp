@@ -32,8 +32,7 @@ java_library_host {
         "prebuilts-metalava-tracing",
     ],
     static_libs: [
-        // turbine-core (in external/turbine) statically links and exports guava
-        // and jspecify via exported_static_libs.
-        "turbine-core",
+        "prebuilts-metalava-guava",
+        "prebuilts-metalava-turbine",
     ],
 }

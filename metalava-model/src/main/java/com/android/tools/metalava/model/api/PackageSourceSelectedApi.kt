@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model.api
 
 import com.android.tools.metalava.model.PackageItem
-import com.android.tools.metalava.model.api.flags.FlagState
 import com.android.tools.metalava.model.api.surface.ApiVariantSet
 
 /** Base [SelectedApi] class for source [PackageItem]s. */
@@ -27,15 +26,6 @@ internal class PackageSourceSelectedApi(
 ) : SourceSelectedApi<PackageItem>(selectedApiUpdater, item) {
     /** Whether the classes in [item] have had their [SelectedApi] initialized. */
     private var classesInitialized = false
-
-    /**
-     * Packages cannot be annotated with `@FlaggedApi` or `@removed`, and their [itemApiVariants] is
-     * the union of all their classes' variants (so a package containing only `@removed` classes has
-     * only `REMOVED` variants without the package itself being removed). Always return
-     * [FlagState.NONE].
-     */
-    override val flagState: FlagState
-        get() = FlagState.NONE
 
     override val itemApiVariants: ApiVariantSet
         get() {

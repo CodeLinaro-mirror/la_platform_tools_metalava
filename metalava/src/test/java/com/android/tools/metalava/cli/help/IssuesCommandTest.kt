@@ -78,7 +78,6 @@ Available Issues                             |  Category                        
   ChangedNative                              |  other_compatibility                  |   hidden
   ChangedRecordComponent                     |  binary_and_source_compatibility      |   error
   ChangedScope                               |  binary_and_source_compatibility      |   error
-  ChangedSdkExtensionApi                     |  other_compatibility                  |   warning
   ChangedStatic                              |  binary_and_source_compatibility      |   error
   ChangedSuperclass                          |  binary_and_source_compatibility      |   error
   ChangedThrows                              |  source_compatibility_only            |   error
@@ -121,15 +120,14 @@ Available Issues                             |  Category                        
   HeavyBitSet                                |  api_lint                             |   error
   HiddenAbstractMethod                       |  api_lint                             |   error
   HiddenAbstractMethodInInterface            |  api_lint                             |   hidden
-  HiddenDocReference                         |  documentation                        |   warning_error_when_new
   HiddenShowAnnotation                       |  api_lint                             |   warning_error_when_new
   HiddenSuperclass                           |  documentation                        |   warning
+  HiddenTypeParameter                        |  documentation                        |   warning
   HiddenTypedefConstant                      |  unknown                              |   error
   HidingApiMethodOverride                    |  api_lint                             |   hidden
   HidingApiMethodOverrideClasspath           |  api_lint                             |   hidden
   HidingRecordComponent                      |  api_lint                             |   error
   IgnoringSymlink                            |  unknown                              |   info
-  InconsistentApiHistory                     |  unknown                              |   error
   InconsistentMergeAnnotation                |  api_lint                             |   warning_error_when_new
   InfixRemoval                               |  source_compatibility_only            |   error
   InheritChangesSignature                    |  unknown                              |   warning_error_when_new
@@ -155,7 +153,6 @@ Available Issues                             |  Category                        
   InvalidNullabilityOverride                 |  api_lint                             |   error
   InvalidPackage                             |  unknown                              |   error
   InvalidParamOrReturn                       |  unknown                              |   hidden
-  InvalidSdkExtensionApi                     |  api_lint                             |   error
   InvalidSources                             |  unknown                              |   error
   InvalidSyntax                              |  unknown                              |   error
   InvalidTagForm                             |  documentation                        |   warning_error_when_new
@@ -267,6 +264,7 @@ Available Issues                             |  Category                        
   TypeParameterName                          |  api_lint                             |   warning_error_when_new
   TypeParseError                             |  unknown                              |   error
   TypealiasDefinition                        |  api_lint                             |   error
+  UnavailableSymbol                          |  documentation                        |   warning
   UnclosedInlineTag                          |  documentation                        |   error
   UnexportedFlaggedApi                       |  api_lint                             |   warning_error_when_new
   UnflaggedApi                               |  api_lint                             |   hidden

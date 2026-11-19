@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model.api
 
 import com.android.tools.metalava.model.SelectableItem
-import com.android.tools.metalava.model.api.flags.FlagState
 import com.android.tools.metalava.model.api.surface.ApiVariant
 import com.android.tools.metalava.model.api.surface.ApiVariantSet
 
@@ -49,17 +48,7 @@ internal open class MutableSelectedApi<S : SelectableItem>(
 
     override fun markHasRemovedAnnotation() {
         hasRemovedAnnotation = true
-
-        // Invalidate any cached `flagState` so subsequent reads reflect `@RemovedFromApi` /
-        // `@ForRemoval`.
-        _flagState = null
     }
-
-    /** Backing property for [flagState], or `null` if it has not yet been computed. */
-    private var _flagState: FlagState? = null
-
-    override val flagState: FlagState
-        get() = _flagState ?: computeFlagState(item).also { _flagState = it }
 
     override fun initialize() {}
 
@@ -71,10 +60,6 @@ internal open class MutableSelectedApi<S : SelectableItem>(
             // surface it already belongs to.
             if (itemApiVariants.isEmpty() || itemApiVariants.containsAny(value.surface)) {
                 itemApiVariants += value
-
-                // Invalidate any cached `flagState` so subsequent reads reflect the updated
-                // variants (e.g. when a `REMOVED` variant is added).
-                _flagState = null
             }
         }
     }

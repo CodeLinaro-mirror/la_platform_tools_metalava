@@ -60,33 +60,36 @@ class ApiSignatureFileConsumerTest {
         val consumerApi = Api(useInternalNames = useInternalNames)
         val codebaseApi = Api(useInternalNames = useInternalNames)
 
-        versions.forEachIndexed { index, versionFiles ->
-            val apiVersion = ApiVersion.fromLevel(index + 1)
-            val updater = ApiHistoryUpdater.forApiVersion(apiVersion)
-            val signatureFiles =
-                versionFiles.mapIndexed { fileIndex, contents ->
-                    SignatureFile.fromText("$apiVersion-$fileIndex.txt", contents)
-                }
+        val versionedApis =
+            versions.mapIndexed { index, versionFiles ->
+                val apiVersion = ApiVersion.fromLevel(index + 1)
+                val updater = ApiHistoryUpdater.forApiVersion(apiVersion)
+                val signatureFiles =
+                    versionFiles.mapIndexed { fileIndex, contents ->
+                        SignatureFile.fromText("$apiVersion-$fileIndex.txt", contents)
+                    }
 
-            ApiFile.consumeApi(
-                signatureFiles,
-                ApiSignatureFileConsumer(consumerApi, updater),
-            )
-
-            val codebase = ApiFile.parseApi(signatureFiles)
-            val fragment =
-                CodebaseFragment.create(
-                    codebase,
-                    factory = ::EmittableDelegatingVisitor,
+                ApiFile.consumeApi(
+                    signatureFiles,
+                    ApiSignatureFileConsumer(consumerApi, updater),
                 )
-            addApisFromCodebase(codebaseApi, updater, fragment)
-        }
+
+                val codebase = ApiFile.parseApi(signatureFiles)
+                val fragment =
+                    CodebaseFragment.create(
+                        codebase,
+                        factory = ::EmittableDelegatingVisitor,
+                    )
+                addApisFromCodebase(codebaseApi, updater, fragment)
+
+                VersionedSourceApi({ fragment }, apiVersion)
+            }
 
         consumerApi.clean()
         codebaseApi.clean()
 
-        val consumerXml = printXml(consumerApi)
-        val codebaseXml = printXml(codebaseApi)
+        val consumerXml = printXml(consumerApi, versionedApis)
+        val codebaseXml = printXml(codebaseApi, versionedApis)
 
         if (expectedXml != null) {
             assertEquals(expectedXml.trimIndent(), consumerXml)
@@ -95,9 +98,9 @@ class ApiSignatureFileConsumerTest {
     }
 
     /** Formats [api] using [ApiXmlPrinter] with 4-space indentation. */
-    private fun printXml(api: Api): String {
+    private fun printXml(api: Api, versionedApis: List<VersionedApi>): String {
         val writer = StringWriter()
-        val printer = ApiXmlPrinter()
+        val printer = ApiXmlPrinter(null, versionedApis)
         PrintWriter(writer).use { printWriter -> printer.print(api, printWriter) }
         return writer.toString().trimIndent().replace("\t", "    ")
     }
@@ -668,215 +671,6 @@ class ApiSignatureFileConsumerTest {
                             <field name="OK"/>
                         </class>
                     </api>
-                """,
-        )
-    }
-
-    /**
-     * Populates an [Api] across [versions] (where each version may consist of multiple delta
-     * signature files) using [ApiSignatureFileConsumer] and checks that the
-     * [ApiElement.sdkExtensionApi] of each class and member matches [expectedSdkExtensionApis].
-     */
-    private fun checkSdkExtensionApis(
-        vararg versions: List<String>,
-        expectedSdkExtensionApis: String,
-    ) {
-        val consumerApi = Api(useInternalNames = true)
-
-        versions.forEachIndexed { index, versionFiles ->
-            val apiVersion = ApiVersion.fromLevel(index + 1)
-            val updater = ApiHistoryUpdater.forApiVersion(apiVersion)
-            val signatureFiles =
-                versionFiles.mapIndexed { fileIndex, contents ->
-                    SignatureFile.fromText("$apiVersion-$fileIndex.txt", contents)
-                }
-
-            ApiFile.consumeApi(
-                signatureFiles,
-                ApiSignatureFileConsumer(consumerApi, updater),
-            )
-        }
-
-        consumerApi.clean()
-
-        assertEquals(expectedSdkExtensionApis.trimIndent(), dumpSdkExtensionApis(consumerApi))
-    }
-
-    /**
-     * Dumps the [ApiElement.sdkExtensionApi] of each class and member in [api], one per line, in
-     * the form `<element> -> <floor>`, where `<floor>` is the floor explicitly declared on the
-     * element, or `null` if it does not have an explicit floor.
-     */
-    private fun dumpSdkExtensionApis(api: Api) =
-        buildString {
-                for (apiClass in api.classes.sortedBy { it.name }) {
-                    append("${apiClass.name} -> ${apiClass.sdkExtensionApi}\n")
-                    for (member in (apiClass.methods + apiClass.fields).sortedBy { it.name }) {
-                        append("${apiClass.name}#${member.name} -> ${member.sdkExtensionApi}\n")
-                    }
-                }
-            }
-            .trimEnd()
-
-    @Test
-    fun `SdkExtensionApi on classes and members`() {
-        checkSdkExtensionApis(
-            listOf(
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      @SdkExtensionApi(33) public class Foo {
-                        ctor @SdkExtensionApi(34) public Foo();
-                        method public void noExplicitFloor(@NonNull String);
-                        method @SdkExtensionApi(34) public void overridesClassFloor(@NonNull String);
-                        field @SdkExtensionApi(1000000) public int adServicesField;
-                        field public int noExplicitFloorField;
-                      }
-                      @SdkExtensionApi(33) public static class Foo.Nested {
-                      }
-                      @android.annotation.SdkExtensionApi(value=31) public enum MyEnum {
-                        enum_constant public static final test.pkg.MyEnum A;
-                      }
-                      @Deprecated @SdkExtensionApi(34) @SomeAnnotation(12) public class Multiple {
-                      }
-                      public class Unannotated {
-                        method @SomeAnnotation(12) public void foo();
-                      }
-                    }
-                """
-            ),
-            // Only the floor explicitly declared on each element is recorded. Members without an
-            // explicit floor, e.g. `Foo#noExplicitFloor`, `Foo#noExplicitFloorField` and the enum
-            // members, have a `null` floor here and will inherit the floor of their class when
-            // the floor is used to compute the `sdks` attribute in `api-versions.xml`. Nested
-            // classes, e.g. `Foo.Nested`, have an explicit floor as signature files include the
-            // inherited @SdkExtensionApi annotation on nested classes.
-            expectedSdkExtensionApis =
-                """
-                    test/pkg/Foo -> 33
-                    test/pkg/Foo#<init>()V -> 34
-                    test/pkg/Foo#adServicesField -> 1000000
-                    test/pkg/Foo#noExplicitFloor(Ljava/lang/String;)V -> null
-                    test/pkg/Foo#noExplicitFloorField -> null
-                    test/pkg/Foo#overridesClassFloor(Ljava/lang/String;)V -> 34
-                    test/pkg/Foo${'$'}Nested -> 33
-                    test/pkg/Multiple -> 34
-                    test/pkg/MyEnum -> 31
-                    test/pkg/MyEnum#A -> null
-                    test/pkg/MyEnum#valueOf(Ljava/lang/String;)Ltest/pkg/MyEnum; -> null
-                    test/pkg/MyEnum#values()[Ltest/pkg/MyEnum; -> null
-                    test/pkg/Unannotated -> null
-                    test/pkg/Unannotated#foo()V -> null
-                """,
-        )
-    }
-
-    @Test
-    fun `SdkExtensionApi with unsupported values is ignored`() {
-        checkSdkExtensionApis(
-            listOf(
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      @SdkExtensionApi(Build.VERSION_CODES.TIRAMISU) public class Constant {
-                      }
-                      @SdkExtensionApi(-1) public class Negative {
-                      }
-                      @SdkExtensionApi(0x22) public class Hex {
-                      }
-                      @SdkExtensionApi(99999999999) public class Overflow {
-                      }
-                      @SdkExtensionApi public class NoValue {
-                      }
-                      @SdkExtensionApi(33, 34) public class MultipleValues {
-                      }
-                      @other.SdkExtensionApi(33) public class OtherPackage {
-                      }
-                    }
-                """
-            ),
-            expectedSdkExtensionApis =
-                """
-                    test/pkg/Constant -> null
-                    test/pkg/Hex -> null
-                    test/pkg/MultipleValues -> null
-                    test/pkg/Negative -> null
-                    test/pkg/NoValue -> null
-                    test/pkg/OtherPackage -> null
-                    test/pkg/Overflow -> null
-                """,
-        )
-    }
-
-    @Test
-    fun `SdkExtensionApi is preserved across delta signature files`() {
-        checkSdkExtensionApis(
-            listOf(
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      @SdkExtensionApi(33) public class Foo {
-                        method public void publicMethod();
-                      }
-                    }
-                """,
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      public class Foo {
-                        method @SdkExtensionApi(34) public void systemMethod();
-                      }
-                    }
-                """,
-            ),
-            // The explicit floor of `Foo` from the first file is not cleared by the unannotated
-            // delta declaration of `Foo` in the second file. `Foo#publicMethod()` has no explicit
-            // floor so will inherit the floor of `Foo`.
-            expectedSdkExtensionApis =
-                """
-                    test/pkg/Foo -> 33
-                    test/pkg/Foo#publicMethod()V -> null
-                    test/pkg/Foo#systemMethod()V -> 34
-                """,
-        )
-    }
-
-    @Test
-    fun `SdkExtensionApi from newest version takes precedence`() {
-        checkSdkExtensionApis(
-            listOf(
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      @SdkExtensionApi(33) public class Lowered {
-                      }
-                      @SdkExtensionApi(33) public class Raised {
-                      }
-                      @SdkExtensionApi(33) public class Unannotated {
-                      }
-                    }
-                """
-            ),
-            listOf(
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      @SdkExtensionApi(31) public class Lowered {
-                      }
-                      @SdkExtensionApi(34) public class Raised {
-                      }
-                      public class Unannotated {
-                      }
-                    }
-                """
-            ),
-            // `Unannotated` keeps its explicit floor from the first version as an unannotated
-            // declaration does not clear an existing floor.
-            expectedSdkExtensionApis =
-                """
-                    test/pkg/Lowered -> 31
-                    test/pkg/Raised -> 34
-                    test/pkg/Unannotated -> 33
                 """,
         )
     }

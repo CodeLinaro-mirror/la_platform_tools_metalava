@@ -16,12 +16,11 @@
 
 package com.android.tools.metalava.model.source.javadoc
 
+import com.android.tools.metalava.model.parser.AbstractLexer
 import com.android.tools.metalava.model.parser.SharedTokenType
 import com.android.tools.metalava.model.parser.Token
 import com.android.tools.metalava.model.parser.TokenType
-import com.android.tools.metalava.model.source.doc.AbstractDocLexer
 import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
-import com.android.tools.metalava.model.source.doc.IF_TAG_ELSE_TOKEN
 import com.android.tools.metalava.reporter.Issues
 import java.util.ArrayDeque
 
@@ -55,7 +54,7 @@ internal object JavadocTokenType {
     val INLINE_IF_TAG_START = TokenType("INLINE_IF_TAG_START")
 
     /** The `else` keyword in an `{@if}` tag. */
-    val IF_TAG_ELSE = IF_TAG_ELSE_TOKEN
+    val IF_TAG_ELSE = TokenType("IF_TAG_ELSE")
 
     /** An opening parenthesis `(`. */
     val PAREN_OPEN = SharedTokenType.PAREN_OPEN
@@ -170,17 +169,27 @@ internal class JavadocLexer(
     text: String,
     startInclusive: Int,
     endExclusive: Int,
-    reporter: DocumentationIssueReporter,
+    private val reporter: DocumentationIssueReporter,
 ) :
-    AbstractDocLexer(
+    AbstractLexer(
         text,
         startInclusive,
         endExclusive,
-        reporter,
     ) {
-
     /** Stack of [LexerMode]s controlling context-dependent tokenization. */
     private val modeStack = ArrayDeque<LexerMode>()
+
+    /**
+     * Start index in [text] of an unexpected character sequence, or equal to [unexpectedEndIndex]
+     * if none.
+     */
+    private var unexpectedStartIndex = startInclusive
+
+    /** Exclusive end index in [text] of an unexpected character sequence. */
+    private var unexpectedEndIndex = startInclusive
+
+    /** Context description for the unexpected character sequence (e.g. "in expression"). */
+    private var unexpectedContext: String? = null
 
     /** Whether the end of input has already been reached and checked. */
     private var reachedEof = false
@@ -189,8 +198,53 @@ internal class JavadocLexer(
         modeStack.push(LexerMode.DEFAULT)
     }
 
-    override fun exitExpr() {
-        modeStack.pop()
+    /** Creates and returns a [Token], flushing any pending unexpected character sequence first. */
+    override fun createToken(
+        type: TokenType,
+        startIndex: Int,
+        endIndex: Int,
+    ): Token {
+        flushUnexpected()
+        return super.createToken(
+            type,
+            startIndex,
+            endIndex,
+        )
+    }
+
+    /**
+     * Reports an issue via [reporter], flushing any pending unexpected character sequence first.
+     */
+    private fun reportIssue(
+        issue: Issues.Issue,
+        message: String,
+    ) {
+        flushUnexpected()
+        reporter.report(issue, message, index)
+    }
+
+    /** Records an unexpected character with the given [context], advancing [index]. */
+    private fun recordUnexpected(context: String) {
+        if (unexpectedStartIndex == unexpectedEndIndex) {
+            unexpectedStartIndex = index
+            unexpectedContext = context
+        }
+        index++
+        unexpectedEndIndex = index
+    }
+
+    /** Flushes any accumulated unexpected character sequence and reports it as an issue. */
+    private fun flushUnexpected() {
+        if (unexpectedStartIndex != unexpectedEndIndex) {
+            val chunk = text.substring(unexpectedStartIndex, unexpectedEndIndex)
+            reporter.report(
+                Issues.INVALID_JAVADOC,
+                "unexpected '$chunk' $unexpectedContext",
+                unexpectedStartIndex,
+            )
+            unexpectedStartIndex = unexpectedEndIndex
+            unexpectedContext = null
+        }
     }
 
     override fun nextToken(): Token {
@@ -527,12 +581,52 @@ internal class JavadocLexer(
     }
 
     /**
+     * Skips whitespace and newlines (including continuation asterisks) within `{@if ...}` tags and
+     * expressions.
+     */
+    private fun skipWhitespaceAndNewlinesInIfOrExpr() {
+        while (index < endExclusive) {
+            val c = text[index]
+            if (c == ' ' || c == '\t') {
+                // Horizontal whitespace (spaces/tabs).
+                index++
+            } else if (c == '\n' || c == '\r') {
+                // Newline sequence.
+                // Advance index for \r\n (2 chars) or \n/\r (1 char).
+                if (c == '\r' && index + 1 < endExclusive && text[index + 1] == '\n') {
+                    index += 2
+                } else {
+                    index++
+                }
+
+                // Skip optional leading spaces/tabs on the new line.
+                var p = index
+                while (p < endExclusive && (text[p] == ' ' || text[p] == '\t')) {
+                    p++
+                }
+
+                // If followed by one or more asterisks '*', skip them as comment continuation
+                // prefix.
+                if (p < endExclusive && text[p] == '*') {
+                    while (p < endExclusive && text[p] == '*') {
+                        p++
+                    }
+                    index = p
+                }
+            } else {
+                // Non-whitespace character reached; stop skipping.
+                break
+            }
+        }
+    }
+
+    /**
      * Tokenize in [LexerMode.INLINE_IF_TAG].
      *
      * Skips whitespace and recognizes `(`, `{`, `}`, and `else`.
      */
     private fun tokenizeInlineIfTag(): Token {
-        skipWhitespaceAndNewlines()
+        skipWhitespaceAndNewlinesInIfOrExpr()
 
         // If end of input is reached, return.
         if (index >= endExclusive) return Token.NONE
@@ -545,7 +639,6 @@ internal class JavadocLexer(
                 // Opening parenthesis '(' begins the condition expression.
                 // Switch to EXPR mode to tokenize the condition.
                 index++
-                enterExpr()
                 modeStack.push(LexerMode.EXPR)
                 createToken(
                     JavadocTokenType.PAREN_OPEN,
@@ -575,9 +668,12 @@ internal class JavadocLexer(
                     index,
                 )
             }
-
             // The keyword "else" introducing the alternative branch.
-            isElseKeywordAtCurrentIndex() -> {
+            // Ensure "else" fits completely within the subrange [startInclusive, endExclusive),
+            // and is not a prefix of a longer identifier before emitting IF_TAG_ELSE.
+            index + 4 <= endExclusive &&
+                text.startsWith("else", index) &&
+                (index + 4 == endExclusive || !text[index + 4].isJavaIdentifierPart()) -> {
                 index += 4
                 createToken(
                     JavadocTokenType.IF_TAG_ELSE,
@@ -590,6 +686,82 @@ internal class JavadocLexer(
                 // Record unexpected characters to report as a chunk once a valid token or issue is
                 // reached.
                 recordUnexpected("in '@if' tag")
+                Token.NONE
+            }
+        }
+    }
+
+    /**
+     * Tokenize in [LexerMode.EXPR].
+     *
+     * Recognizes `(`, `)`, `.`, and identifier names within conditional expressions.
+     */
+    private fun tokenizeExpr(): Token {
+        skipWhitespaceAndNewlinesInIfOrExpr()
+
+        // If end of input is reached, return.
+        if (index >= endExclusive) return Token.NONE
+
+        val c = text[index]
+        val startIndex = index
+
+        return when {
+            c == '(' -> {
+                // Opening parenthesis '(' for nested expression or function call argument list.
+                // Push EXPR mode to track nested parentheses.
+                index++
+                modeStack.push(LexerMode.EXPR)
+                createToken(
+                    JavadocTokenType.PAREN_OPEN,
+                    startIndex,
+                    index,
+                )
+            }
+            c == ')' -> {
+                // Closing parenthesis ')' ending an expression or function call argument list.
+                // Pop the current EXPR mode.
+                index++
+                modeStack.pop()
+                createToken(
+                    JavadocTokenType.PAREN_CLOSE,
+                    startIndex,
+                    index,
+                )
+            }
+            c == '.' -> {
+                // Dot '.' separator in qualified names (e.g. package or class qualifiers).
+                index++
+                createToken(
+                    JavadocTokenType.DOT,
+                    startIndex,
+                    index,
+                )
+            }
+            c.isJavaIdentifierStart() -> {
+                // Identifier start character (e.g. function name, class name, or field name).
+                // Consume all subsequent identifier characters.
+                while (index < endExclusive && text[index].isJavaIdentifierPart()) {
+                    index++
+                }
+                createToken(
+                    JavadocTokenType.IDENTIFIER,
+                    startIndex,
+                    index,
+                )
+            }
+            c == '{' || c == '}' -> {
+                // Brace character encountered while in EXPR mode.
+                // Indicates an unclosed expression (missing ')') before the body block '{' or end
+                // of tag '}'.
+                // Pop EXPR mode to recover and allow INLINE_IF_TAG mode to handle the brace.
+                modeStack.pop()
+                Token.NONE
+            }
+            else -> {
+                // Unexpected character sequence in expression.
+                // Record unexpected characters to report as a chunk once a valid token or issue is
+                // reached.
+                recordUnexpected("in expression")
                 Token.NONE
             }
         }

@@ -34,11 +34,18 @@ class ListOfPackagePolicyAnnotationHandlerTest : DriverTest() {
                     java(
                         """
                         package test.pkg;
-                        $POLICY_IMPORTS
+                        import android.processor.devicepolicy.ListOfPackagePolicyDefinition;
+                        import android.processor.devicepolicy.ListResolutionMechanism;
+                        import android.processor.devicepolicy.PolicyDefinition;
+                        import android.processor.devicepolicy.AllowedDpcTypes;
+                        import android.processor.devicepolicy.AllowedRoles;
+                        import static android.processor.devicepolicy.AllowedDpcTypes.ALLOWED;
 
                         @Retention(RetentionPolicy.SOURCE)
                         public class TestPolicy {
-                            $POLICY_DEFINES
+                            private static final int SCOPE_USER = 1;
+                            private static final int RESOURCE_DEVICE_WIDE = 1;
+                            private static final int DEFAULT_VALUE = 1;
                           /**
                            * A test policy for list-of-package policy definition.
                            *
@@ -137,9 +144,14 @@ class ListOfPackagePolicyAnnotationHandlerTest : DriverTest() {
                     java(
                         """
                         package test.pkg;
-                        $POLICY_IMPORTS
+                        import android.processor.devicepolicy.ListOfPackagePolicyDefinition;
+                        import android.processor.devicepolicy.ListResolutionMechanism;
+                        import android.processor.devicepolicy.PolicyDefinition;
+                        import android.processor.devicepolicy.AllowedDpcTypes;
+                        import static android.processor.devicepolicy.AllowedDpcTypes.ALLOWED;
                         public class TestPolicy {
-                            $POLICY_DEFINES
+                            private static final int SCOPE_USER = 1;
+                            private static final int RESOURCE_DEVICE_WIDE = 1;
 
                             @ListOfPackagePolicyDefinition(
                                 base = @PolicyDefinition(
@@ -215,7 +227,7 @@ class ListOfPackagePolicyAnnotationHandlerTest : DriverTest() {
                 ),
             expectedIssues =
                 """
-                    src/test/pkg/TestPolicy.java:47: error: ListResolutionMechanism must have either 'custom' or 'union' set to true. [InvalidDevicePolicyAnnotation]
+                src/test/pkg/TestPolicy.java:26: error: ListResolutionMechanism must have either 'custom' or 'union' set to true. [InvalidDevicePolicyAnnotation]
                 """
         )
     }

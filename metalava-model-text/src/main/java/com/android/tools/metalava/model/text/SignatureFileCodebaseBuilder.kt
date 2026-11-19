@@ -451,21 +451,14 @@ internal class SignatureFileCodebaseBuilder(
         typeParameters: List<ParsedTypeParameter>,
         aliasedTypeString: TypeString,
     ) {
-        // Delegate to resolveDeclaredClassType so that if this typealias replaces a class from an
-        // earlier signature file, aliasedTypeString is parsed using that existing class's
-        // TypeParameterItems.
-        val (
-            qualifiedClassName,
-            _,
-            typeParameterList,
-            typeItemFactory,
-        ) = resolveDeclaredClassType(
-            currentPackage,
-            name,
-            typeParameters,
-            sourcePosition,
-            kind = "typealias",
-        )
+        val (typeParameterList, typeItemFactory) =
+            createTypeParameterListAndFactory(
+                globalTypeItemFactory,
+                "typealias",
+                name,
+                typeParameters,
+            )
+        val qualifiedClassName = qualifiedName(currentPackage.qualifiedName(), name)
         val type = typeItemFactory.getGeneralType(aliasedTypeString)
 
         // Check for the existing class from a previously parsed file. If it was found then use that
@@ -714,9 +707,8 @@ internal class SignatureFileCodebaseBuilder(
     )
 
     /**
-     * Resolves the declared class or typealias [fullName] and [parsedTypeParameters] in [pkg] into
-     * [DeclaredClassTypeComponents], using [kind] as the scope description when creating a new
-     * [TextTypeItemFactory].
+     * Resolves the declared class name [fullName] and [parsedTypeParameters] in [pkg] into
+     * [DeclaredClassTypeComponents].
      *
      * If the qualified name matches an existing class then return its information.
      */
@@ -725,7 +717,6 @@ internal class SignatureFileCodebaseBuilder(
         fullName: String,
         parsedTypeParameters: List<ParsedTypeParameter>,
         classSourcePosition: SourcePosition,
-        kind: String = "class",
     ): DeclaredClassTypeComponents {
         val pkgName = pkg.qualifiedName()
         val qualifiedName = qualifiedName(pkgName, fullName)
@@ -752,7 +743,7 @@ internal class SignatureFileCodebaseBuilder(
         val (typeParameterList, typeItemFactory) =
             createTypeParameterListAndFactory(
                 outerClassTypeItemFactory,
-                kind,
+                "class",
                 qualifiedName,
                 parsedTypeParameters,
             )

@@ -17,11 +17,8 @@
 package com.android.tools.metalava.cli.compatibility
 
 import com.android.tools.metalava.ARG_BASELINE
-import com.android.tools.metalava.ARG_REMOVED_API
 import com.android.tools.metalava.ARG_UPDATE_BASELINE
-import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.cli.common.BaseCommandTest
-import com.android.tools.metalava.cli.common.ISSUE_REPORTING_OPTIONS_HELP
 import com.android.tools.metalava.testing.signature
 import com.android.tools.metalava.testing.source
 import kotlin.test.assertEquals
@@ -38,9 +35,6 @@ Options:
   --api-released <file>                      Previously released API signature file against which compatibility will be
                                              checked. Can be specified multiple times; when multiple files are provided
                                              they must be in order from the narrowest API to the widest API. (required)
-  --removed-api <file>                       Removed API signature file for the current API. Can be specified multiple
-                                             times; when multiple files are provided they must be in order from the
-                                             narrowest API to the widest API.
   --baseline <file>                          An optional baseline file that contains a list of known compatibility
                                              issues which should be ignored.
   --update-baseline <file>                   An optional file into which a list of the latest compatibility issues found
@@ -53,8 +47,6 @@ Options:
                                              issues will be reported as errors. If --delete-empty-baselines is specified
                                              and this baseline is empty then the file will be deleted.
   -h, -?, --help                             Show this message and exit
-
-$ISSUE_REPORTING_OPTIONS_HELP
 
 Arguments:
   <files>                                    Signature files defining the current API to check for compatibility. When
@@ -320,161 +312,6 @@ class CheckCompatibilityCommandTest :
                     updatedBaseline.readText().trim(),
                 )
             }
-        }
-    }
-
-    @Test
-    fun `Test items moved to removed-api`() {
-        commandTest {
-            args += "check-compatibility"
-            args +=
-                ARG_API_RELEASED to
-                    signature(
-                        "released.txt",
-                        """
-                            // Signature format: 2.0
-                            package test.pkg {
-                              public class Foo {
-                                ctor public Foo();
-                                method public void removedMethod();
-                                field public static final int REMOVED_FIELD = 1;
-                              }
-                              public class RemovedBar {
-                                ctor public RemovedBar();
-                                method public void bar();
-                              }
-                            }
-                        """,
-                    )
-            args +=
-                ARG_REMOVED_API to
-                    signature(
-                        "removed.txt",
-                        """
-                            // Signature format: 2.0
-                            package test.pkg {
-                              public class Foo {
-                                method public void removedMethod();
-                                field public static final int REMOVED_FIELD = 1;
-                              }
-                              public class RemovedBar {
-                                ctor public RemovedBar();
-                                method public void bar();
-                              }
-                            }
-                        """,
-                    )
-            args +=
-                signature(
-                    "current.txt",
-                    """
-                        // Signature format: 2.0
-                        package test.pkg {
-                          public class Foo {
-                            ctor public Foo();
-                          }
-                        }
-                    """,
-                )
-        }
-    }
-
-    @Test
-    fun `Test incompatible changes in items moved to removed-api`() {
-        commandTest {
-            args += "check-compatibility"
-            args +=
-                ARG_API_RELEASED to
-                    signature(
-                        "released.txt",
-                        """
-                            // Signature format: 2.0
-                            package test.pkg {
-                              public class Foo {
-                                ctor public Foo();
-                                method public void changedMethod();
-                              }
-                              public class RemovedBar {
-                                ctor public RemovedBar();
-                                method public void bar();
-                                method public void deletedFromRemovedBar();
-                              }
-                            }
-                        """,
-                    )
-            args +=
-                ARG_REMOVED_API to
-                    signature(
-                        "removed.txt",
-                        """
-                            // Signature format: 2.0
-                            package test.pkg {
-                              public class Foo {
-                                method public final void changedMethod();
-                              }
-                              public class RemovedBar {
-                                ctor public RemovedBar();
-                                method public void bar();
-                              }
-                            }
-                        """,
-                    )
-            args +=
-                signature(
-                    "current.txt",
-                    """
-                        // Signature format: 2.0
-                        package test.pkg {
-                          public class Foo {
-                            ctor public Foo();
-                          }
-                        }
-                    """,
-                )
-
-            expectedStderr =
-                """
-                    TESTROOT/released.txt:10: error: Binary breaking change: Removed method test.pkg.RemovedBar.deletedFromRemovedBar() [RemovedMethod]
-                    TESTROOT/removed.txt:4: error: Binary breaking change: Method test.pkg.Foo.changedMethod has added 'final' qualifier [AddedFinal]
-
-                    Aborting: Found compatibility problems checking the public API (TESTROOT/current.txt) against the API in TESTROOT/released.txt
-                """
-                    .trimIndent()
-
-            verify { assertEquals(-1, exitCode) }
-        }
-    }
-
-    @Test
-    fun `Test issue reporting options`() {
-        commandTest {
-            args += listOf("check-compatibility", ARG_HIDE, "RemovedMethod")
-            args +=
-                ARG_API_RELEASED to
-                    signature(
-                        "released.txt",
-                        """
-                            // Signature format: 2.0
-                            package test.pkg {
-                              public class Foo {
-                                ctor public Foo();
-                                method public void removedMethod();
-                              }
-                            }
-                        """,
-                    )
-            args +=
-                signature(
-                    "current.txt",
-                    """
-                        // Signature format: 2.0
-                        package test.pkg {
-                          public class Foo {
-                            ctor public Foo();
-                          }
-                        }
-                    """,
-                )
         }
     }
 }

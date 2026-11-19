@@ -16,16 +16,12 @@
 
 package com.android.tools.metalava.cli.common
 
-import com.android.tools.metalava.PROGRAM_NAME
 import com.android.tools.metalava.config.IssuesConfig
-import com.android.tools.metalava.reporter.Baseline
 import com.android.tools.metalava.reporter.DefaultReporter
 import com.android.tools.metalava.reporter.ERROR_WHEN_NEW_SUFFIX
 import com.android.tools.metalava.reporter.IssueConfiguration
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Severity
-import com.android.tools.metalava.trace
-import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.multiple
@@ -201,84 +197,6 @@ class IssueReportingOptions() :
             { reportEvenIfSuppressedFile },
             commonOptions.terminal
         )
-    }
-}
-
-/**
- * Configure a [DefaultReporter] from [issueReportingOptions], optional [issuesConfig], and optional
- * [baselineOptionsMixin], run [action] with it, write saved reports in a `finally` block, and
- * repeat errors and throw a [MetalavaCliException] with exit code `-1` if any errors were reported.
- */
-fun CliktCommand.runWithReporter(
-    issueReportingOptions: IssueReportingOptions,
-    issuesConfig: IssuesConfig? = null,
-    baselineOptionsMixin: BaselineOptionsMixin? = null,
-    action: (DefaultReporter) -> Unit,
-) {
-    // Configure the issue reporter from CLI options and any <issues> elements in config files.
-    val computedIssueReportingOptions = issueReportingOptions.compute(commonOptions, issuesConfig)
-    val issueConfiguration = computedIssueReportingOptions.issueConfiguration
-    val baseline =
-        baselineOptionsMixin?.computeBaseline(
-            executionEnvironment = executionEnvironment,
-            baselineConfig =
-                Baseline.Config(
-                    issueConfiguration = issueConfiguration,
-                    deleteEmptyBaselines = false,
-                    sourcePath = emptyList(),
-                    rootFolder = executionEnvironment.reporterEnvironment.rootFolder,
-                ),
-        )
-
-    // Make sure to flush out the baseline file.
-    if (baseline != null) {
-        registerPostCommandAction {
-            if (commonOptions.verbosity.verbose) {
-                baseline.dumpStats(stdout)
-            }
-            if (baseline.close()) {
-                if (!commonOptions.verbosity.quiet) {
-                    stdout.println("$PROGRAM_NAME wrote updated baseline to ${baseline.updateFile}")
-                }
-            }
-        }
-    }
-
-    val reporter =
-        DefaultReporter(
-            environment = executionEnvironment.reporterEnvironment,
-            issueConfiguration = issueConfiguration,
-            baseline = baseline,
-            config = computedIssueReportingOptions.reporterConfig,
-        )
-
-    // Ensure the suppressed-issues writer is closed when the command finishes.
-    registerPostCommandAction {
-        computedIssueReportingOptions.reporterConfig.reportEvenIfSuppressedWriter?.close()
-    }
-
-    try {
-        action(reporter)
-    } finally {
-        // Write all saved reports. Do this even if the previous code threw an exception.
-        tracer.trace("writeSavedReports") { reporter.writeSavedReports() }
-    }
-
-    if (reporter.hasErrors()) {
-        // Repeat the errors at the end to make it easy to find the actual problems.
-        if (issueReportingOptions.repeatErrorsMax > 0) {
-            stderr.println("Error: $PROGRAM_NAME detected the following problems:")
-            val totalErrors = reporter.errorCount
-            val numShown = reporter.printErrors(stderr, issueReportingOptions.repeatErrorsMax)
-            if (numShown < totalErrors) {
-                stderr.println(
-                    "${totalErrors - numShown} more error(s) omitted. Search the log for 'error:' to find all of them."
-                )
-            }
-        }
-
-        // Make sure that the process exits with an error code.
-        throw MetalavaCliException(exitCode = -1)
     }
 }
 

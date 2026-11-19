@@ -1961,20 +1961,6 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                             package test.pkg {
                               public class Foo {
                                 ctor public Foo();
-                                method public void removedPublicApi();
-                              }
-                              public class RemovedBar {
-                                ctor public RemovedBar();
-                                method public void method();
-                              }
-                            }
-                        """,
-                    Surface.SYSTEM to
-                        """
-                            // Signature format: 2.0
-                            package test.pkg {
-                              public class Foo {
-                                method public void removedSystemApi();
                               }
                             }
                         """,

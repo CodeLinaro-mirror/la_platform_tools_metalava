@@ -15,8 +15,6 @@
  */
 package com.android.tools.metalava.apilevels
 
-import com.android.tools.metalava.cli.common.cliError
-
 /**
  * A filter of classes, fields and methods that are allowed in and extension SDK, and for each item,
  * what extension SDK it first appeared in. Also, a mapping between SDK name and numerical ID.
@@ -43,76 +41,15 @@ internal constructor(
 ) {
     fun isEmpty(): Boolean = root.children.isEmpty() && root.extensions.isEmpty()
 
-    /**
-     * Get the short names of the SDK extensions in which [clazz] is available.
-     *
-     * See [getExtensions] for details.
-     */
-    fun getExtensions(clazz: ApiClass): List<String> =
-        getExtensions(clazz.name.toDotNotation(), clazz.sdkExtensionApi)
+    fun getExtensions(clazz: ApiClass): List<String> = getExtensions(clazz.name.toDotNotation())
 
-    /**
-     * Get the short names of the SDK extensions in which [member] of [clazz] is available.
-     *
-     * A [member] without an explicit `@SdkExtensionApi` floor inherits the floor of [clazz]. See
-     * [getExtensions] for details.
-     */
     fun getExtensions(clazz: ApiClass, member: ApiElement): List<String> =
-        getExtensions(
-            clazz.name.toDotNotation() + "#" + member.name.toDotNotation(),
-            member.sdkExtensionApi ?: clazz.sdkExtensionApi,
-        )
-
-    /**
-     * Get the short names of the SDK extensions in which [what] is available, given its effective
-     * `@SdkExtensionApi` [floor], if any.
-     *
-     * If [what] has a [floor] then the SDK extensions are those that match the floor (see
-     * [AvailableSdkExtensions.findSdkExtensionsForFloor]), otherwise they are those from the
-     * `<symbol>` rules in `sdk-extensions-info.xml` that match [what].
-     *
-     * During migration from `<symbol>` rules to `@SdkExtensionApi`, an API can be configured by
-     * both, e.g. when `@SdkExtensionApi` annotations have been added to a module but the module's
-     * `<symbol>` rules have not yet been removed. In that case, they must resolve to the same SDK
-     * extensions, so this fails if they do not. That checks that the `@SdkExtensionApi` annotations
-     * match the `<symbol>` rules that they replace.
-     */
-    private fun getExtensions(what: String, floor: Int?): List<String> {
-        // Special case: getExtensionVersion is not part of an extension, even if annotated.
-        if (isNeverInSdkExtension(what)) {
-            return listOf()
-        }
-
-        // Get the SDK extensions from the `<symbol>` rules.
-        val symbolExtensions = getExtensions(what)
-        // If there is no floor then just use the `<symbol>` rules.
-        floor ?: return symbolExtensions
-
-        // Get the SDK extensions that match the floor.
-        val floorExtensions =
-            availableSdkExtensions.findSdkExtensionsForFloor(floor).map { it.shortname }
-        // If there are no matching `<symbol>` rules then just use the floor.
-        if (symbolExtensions.isEmpty()) return floorExtensions
-
-        // If an API is configured in both @SdkExtensionApi and a `<symbol>` rule then they must
-        // agree.
-        if (floorExtensions.toSet() != symbolExtensions.toSet()) {
-            val floorSdks = floorExtensions.joinToString(",")
-            val symbolSdks = symbolExtensions.joinToString(",")
-            cliError(
-                "$what has @SdkExtensionApi($floor) with sdks=\"$floorSdks\" but its <symbol>" +
-                    " rule in sdk-extensions-info.xml has sdks=\"$symbolSdks\"; they must agree"
-            )
-        }
-
-        // They agree so use the `<symbol>` rules, to preserve the order of the SDK extensions in
-        // the existing output.
-        return symbolExtensions
-    }
+        getExtensions(clazz.name.toDotNotation() + "#" + member.name.toDotNotation())
 
     fun getExtensions(what: String): List<String> {
         // Special case: getExtensionVersion is not part of an extension
-        if (isNeverInSdkExtension(what)) {
+        val sdkExtensions = "android.os.ext.SdkExtensions"
+        if (what == sdkExtensions || what == "$sdkExtensions#getExtensionVersion") {
             return listOf()
         }
 
@@ -131,16 +68,6 @@ internal constructor(
             }
         }
         return lastSeenExtensions
-    }
-
-    /**
-     * Check whether [what] is never part of an SDK extension, i.e. `android.os.ext.SdkExtensions`
-     * and `android.os.ext.SdkExtensions#getExtensionVersion`, as they are needed to check which SDK
-     * extensions are available.
-     */
-    private fun isNeverInSdkExtension(what: String): Boolean {
-        val sdkExtensions = "android.os.ext.SdkExtensions"
-        return what == sdkExtensions || what == "$sdkExtensions#getExtensionVersion"
     }
 
     /**

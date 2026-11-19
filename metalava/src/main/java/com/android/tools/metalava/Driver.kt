@@ -16,6 +16,7 @@
 package com.android.tools.metalava
 
 import androidx.tracing.Tracer
+import com.android.SdkConstants.DOT_TXT
 import com.android.tools.metalava.api.AnnotationsMerger
 import com.android.tools.metalava.api.ApiAnalyzer
 import com.android.tools.metalava.apilevels.ApiGenerator
@@ -448,48 +449,15 @@ class Driver(
                 apiFilters = apiFilters,
             )
 
-        // Compute the filters and lazily create the CodebaseFragment for the removed API so it can
-        // be shared between FlaggedApiLint (when checking against a previously released API) and
-        // writing `--removed-api` without constructing it when neither needs it.
-        val removedApiFilters =
-            if (preFiltered) {
-                // Pre-filtered so does not need any filters.
-                null
-            } else {
-                ApiSurfacePredicate.apiFilters(ApiType.REMOVED, apiSurface)
-            }
-
-        val removedApiCodebaseFragment by
-            lazy(LazyThreadSafetyMode.NONE) {
-                createSignatureFileFragment(
-                    codebase,
-                    fileFormat = fileFormat,
-                    apiFilters = removedApiFilters,
-                )
-            }
-
         runApiChecksFromOptions(codebase) { _, previouslyReleasedCodebase ->
             tracer.trace("FlaggedApiLint") {
-                FlaggedApiLint.check(
-                    apiSurface = apiSurface,
-                    previouslyReleasedCodebase = previouslyReleasedCodebase,
-                    reporter = reporter,
-                    coreCodebaseFragment = codebaseFragment,
-                    coreApiFilters = apiFilters ?: ApiFilters.ALL,
-                    // Only instantiate and pass the lazy removedApiCodebaseFragment when:
-                    // 1. A previously released API is available (required to distinguish newly
-                    //    removed APIs from never-released or previously removed APIs), and
-                    // 2. The codebase is not pre-filtered (pre-filtered signature codebases only
-                    //    represent a single pre-filtered fragment rather than separate core and
-                    //    removed variants).
-                    removedCodebaseFragment =
-                        if (previouslyReleasedCodebase == null || removedApiFilters == null) {
-                            null
-                        } else {
-                            removedApiCodebaseFragment
-                        },
-                    removedApiFilters = removedApiFilters,
-                )
+                val flaggedApiLintVisitor =
+                    FlaggedApiLint(
+                        previouslyReleasedCodebase,
+                        reporter,
+                        apiFilters ?: ApiFilters.ALL,
+                    )
+                codebaseFragment.accept(flaggedApiLintVisitor)
             }
         }
 
@@ -508,6 +476,21 @@ class Driver(
         }
 
         signatureFileOptions.removedApiFile?.let { apiSignatureFile ->
+            val apiFilters =
+                if (preFiltered) {
+                    // Pre-filtered so does not need any filters.
+                    null
+                } else {
+                    ApiSurfacePredicate.apiFilters(ApiType.REMOVED, apiSurface)
+                }
+
+            val removedApiCodebaseFragment =
+                createSignatureFileFragment(
+                    codebase,
+                    fileFormat = fileFormat,
+                    apiFilters = apiFilters,
+                )
+
             tracer.trace("createOutputFileFromCodebaseFragment removed API") {
                 createOutputFileFromCodebaseFragment(
                     removedApiCodebaseFragment,
@@ -768,7 +751,7 @@ class Driver(
             }
         }
 
-        val apiGenerator = ApiGenerator(tracer, reporter)
+        val apiGenerator = ApiGenerator(tracer)
         apiLevelsGenerationOptions
             .fromSignatureFilesConfig(
                 // Do not use a cache here as each file loaded is only loaded once and the created

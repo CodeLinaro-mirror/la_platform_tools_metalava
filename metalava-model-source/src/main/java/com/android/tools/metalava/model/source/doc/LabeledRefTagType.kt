@@ -28,14 +28,12 @@ import com.android.tools.metalava.model.TypeComparator
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeStringConfiguration
-import com.android.tools.metalava.model.api.surface.ReferenceCheckResult
 import com.android.tools.metalava.model.parser.SharedTokenType
 import com.android.tools.metalava.model.parser.TokenStream
 import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.scope.ReferencableNameScope
 import com.android.tools.metalava.model.source.doc.CallableSourceReference.SourceParameter
 import com.android.tools.metalava.model.source.javadoc.JavadocContent
-import com.android.tools.metalava.model.source.javadoc.JavadocInlineTag
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.LocationSpecificReporter
 
@@ -77,25 +75,18 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
         }
 
         // Resolve the parsed source reference, if available.
-        val resolved =
+        val resolvedReference =
             // Resolve the reference.
-            parsedReference?.resolveReference(context, reporter)?.also {
-                checkSourceReferenceValidForResolvedReference(
-                    reporter,
-                    sourceReference,
-                    it.resolvedReference,
-                )
+            parsedReference?.resolveReference(context, reporter)?.also { resolved ->
+                checkSourceReferenceValidForResolvedReference(reporter, sourceReference, resolved)
             }
 
         // Get a normalized form of the source reference for use as the label if the resolved
         // reference is different.
-        val normalizedSourceReference =
-            resolved?.normalizedSourceReference
-                ?: parsedReference?.normalizedForm
-                ?: sourceReference
+        val normalizedSourceReference = parsedReference?.normalizedForm ?: sourceReference
 
         return ExtractDataResult(
-            LabeledRefTagData(name, normalizedSourceReference, resolved?.resolvedReference),
+            LabeledRefTagData(name, normalizedSourceReference, resolvedReference),
             // The source reference and any following whitespace must be removed from the content as
             // they are part of [LinkTagData].
             consumedContent = labelStart
@@ -337,29 +328,8 @@ internal sealed interface ParsedReference {
     fun resolveReference(
         context: DocCommentContext,
         reporter: LocationSpecificReporter
-    ): ResolvedSourceReference?
+    ): ResolvedReference?
 }
-
-/**
- * Result of resolving a [ParsedReference]: pairs the [resolvedReference] with the
- * [normalizedSourceReference] to use when synthesizing a fallback label (with any fully qualified
- * mapped annotation name rewritten so the hidden source package is not leaked into the label).
- */
-internal data class ResolvedSourceReference(
-    val normalizedSourceReference: String,
-    val resolvedReference: ResolvedReference,
-)
-
-/**
- * Rewrite [sourceClassName] to [resolvedClassName] when the author already wrote the full original
- * qualified name of [classItem], so mapped annotations (e.g. `android.annotation.Nullable` ->
- * `androidx.annotation.Nullable`) do not synthesize a fallback label containing the unmapped name.
- */
-private fun rewriteMappedSourceClassName(
-    sourceClassName: String,
-    classItem: ClassItem,
-    resolvedClassName: String,
-): String = if (sourceClassName == classItem.qualifiedName()) resolvedClassName else sourceClassName
 
 /** An ambiguous reference to something by [name]. */
 internal data class AmbiguousSourceReference(val name: String) : ParsedReference {
@@ -369,22 +339,13 @@ internal data class AmbiguousSourceReference(val name: String) : ParsedReference
     override fun resolveReference(
         context: DocCommentContext,
         reporter: LocationSpecificReporter
-    ): ResolvedSourceReference? =
+    ): ResolvedReference? =
         // Resolve the reference.
         when (val resolved = context.resolveItemReference(name, NameClassification.AMBIGUOUS)) {
-            is ClassItem -> {
-                val resolvedRef = resolved.toResolvedReference(context, reporter)
-                val sourceName =
-                    rewriteMappedSourceClassName(name, resolved, resolvedRef.fullyQualifiedForm)
-                ResolvedSourceReference(sourceName, resolvedRef)
-            }
-            is PackageItem ->
-                ResolvedSourceReference(name, resolved.toResolvedReference(context, reporter))
-            // Type parameters are scoped to the declaring item/class and cannot be hidden
-            // independently, so they do not need reference visibility checking.
-            is TypeParameterItem -> ResolvedSourceReference(name, resolved.toResolvedReference())
-            is FieldItem ->
-                ResolvedSourceReference(name, resolved.toResolvedReference(context, reporter))
+            is ClassItem -> resolved.toResolvedReference()
+            is PackageItem -> resolved.toResolvedReference()
+            is TypeParameterItem -> resolved.toResolvedReference()
+            is FieldItem -> resolved.toResolvedReference()
             else -> null
         }
 }
@@ -400,7 +361,7 @@ internal data class QualifyingClassSourceReference(
     override fun resolveReference(
         context: DocCommentContext,
         reporter: LocationSpecificReporter
-    ): ResolvedSourceReference? {
+    ): ResolvedReference? {
         val resolved = context.resolveItemReference(className, NameClassification.CLASS)
         val classItem =
             when (resolved) {
@@ -416,20 +377,12 @@ internal data class QualifyingClassSourceReference(
                 else -> error("type '$className' was resolved to an unknown type $resolved")
             }
 
-        // Use the resolved (possibly mapped) class name if available, otherwise use the source
-        // name.
-        val resolvedClassName =
-            classItem?.let { context.resolveClassReferenceName(it) } ?: className
-        val resolvedReference = member.findIn(context, reporter, classItem, resolvedClassName)
-        val sourceClassName =
-            if (classItem != null) {
-                rewriteMappedSourceClassName(className, classItem, resolvedClassName)
-            } else {
-                className
-            }
-        return ResolvedSourceReference(
-            "$sourceClassName#${member.normalizedForm}",
-            resolvedReference
+        return member.findIn(
+            context,
+            reporter,
+            classItem,
+            // Use the qualified class name if available, otherwise use the source name.
+            classItem?.qualifiedName() ?: className,
         )
     }
 }
@@ -443,13 +396,11 @@ internal data class CurrentClassSourceReference(val member: ClassMemberSourceRef
     override fun resolveReference(
         context: DocCommentContext,
         reporter: LocationSpecificReporter
-    ): ResolvedSourceReference? {
+    ): ResolvedReference? {
         // TODO(b/447588621): Report issue when no class is available, member references are not
         //  allowed in packages.
         val classItem = context.containingClassItem
-        val resolvedClassName = classItem?.let { context.resolveClassReferenceName(it) } ?: ""
-        val resolvedReference = member.findIn(context, reporter, classItem, resolvedClassName)
-        return ResolvedSourceReference(normalizedForm, resolvedReference)
+        return member.findIn(context, reporter, classItem, classItem?.qualifiedName() ?: "")
     }
 }
 
@@ -498,25 +449,13 @@ internal data class AmbiguousMemberSourceReference(val name: String) : ClassMemb
         reporter: LocationSpecificReporter,
         classItem: ClassItem?,
         className: String,
-    ): ResolvedReference {
+    ) =
         // TODO(b/447588621): Check for methods and constructors not just fields.
-        val field = classItem?.findField(name)
-        if (field != null) {
-            // Checking the resolved field also accounts for its containing class's visibility.
-            return field.toResolvedReference(context, reporter)
-        }
-
-        // When no matching field is found (e.g. a method reference without `()`), still validate
-        // that the qualifying class itself is accessible.
-        val checkResult =
-            if (classItem == null) ReferenceCheckResult.Valid
-            else context.checkReference(classItem, reporter)
-
-        // TODO(b/447588621): Report that the field could not be found.
-        // If the field could not be found then fallback to a field reference so that at least
-        // the resolved class will be fully qualified.
-        return FieldReference(className, name, checkResult = checkResult)
-    }
+        classItem?.findField(name)?.toResolvedReference()
+            // TODO(b/447588621): Report that the field could not be found.
+            // If the field could not be found then fallback to a field reference so that at least
+            // the resolved class will be fully qualified.
+            ?: FieldReference(className, name)
 }
 
 /**
@@ -570,57 +509,30 @@ internal data class CallableSourceReference(
     override fun resolveReference(
         context: DocCommentContext,
         reporter: LocationSpecificReporter
-    ): ResolvedSourceReference? {
+    ): ResolvedReference? {
         val resolved = context.resolveItemReference(name, NameClassification.CALLABLE_SET)
         return when (resolved) {
             is ReferencableMethodSet -> {
                 // TODO(b/447588621): Try and find a callable that matches the resolved
                 //  [parameters].
-                // Callable overloads are not yet resolved to a single CallableItem, so at least
-                // validate that their containing class is accessible.
                 val containingClass = resolved.containingClass
-                val classCheckResult = context.checkReference(containingClass, reporter)
-
-                val resolvedClassName = context.resolveClassReferenceName(containingClass)
-                val unmappedQualifiedCallable =
-                    "${containingClass.qualifiedName()}.${resolved.name}"
-                val sourceCallableName =
-                    if (name == unmappedQualifiedCallable) {
-                        "$resolvedClassName.${resolved.name}"
-                    } else {
-                        name
-                    }
-                ResolvedSourceReference(
-                    formatSignature(sourceCallableName, parameters, eraseGenericArguments = false),
-                    createCallableReference(
-                        context,
-                        reporter,
-                        resolvedClassName,
-                        // Use the resolved name as the source name may be qualified.
-                        resolved.name,
-                        classCheckResult,
-                    ),
+                createCallableReference(
+                    context,
+                    reporter,
+                    containingClass.qualifiedName(),
+                    // Use the resolved name as the source name may be qualified.
+                    resolved.name,
                 )
             }
             is ClassItem -> {
                 // Resolving a callable can return the class in lieu of a set of constructor so
-                // treat it as one, validate that the class is accessible, and create a reference
-                // to the constructor.
-                val classCheckResult = context.checkReference(resolved, reporter)
-
-                val resolvedClassName = context.resolveClassReferenceName(resolved)
-                val sourceCallableName =
-                    rewriteMappedSourceClassName(name, resolved, resolvedClassName)
-                ResolvedSourceReference(
-                    formatSignature(sourceCallableName, parameters, eraseGenericArguments = false),
-                    createCallableReference(
-                        context,
-                        reporter,
-                        resolvedClassName,
-                        // Use the class's simple name as the constructor name.
-                        resolved.simpleName(),
-                        classCheckResult,
-                    ),
+                // treat it as one and create a reference to the constructor.
+                createCallableReference(
+                    context,
+                    reporter,
+                    resolved.qualifiedName(),
+                    // Use the class's simple name as the constructor name.
+                    resolved.simpleName(),
                 )
             }
             is ExternalReferencableItem -> null
@@ -641,22 +553,15 @@ internal data class CallableSourceReference(
         reporter: LocationSpecificReporter,
         classItem: ClassItem?,
         className: String,
-    ): CallableReference {
-        // Validate that the qualifying class of the callable reference is accessible.
-        val classCheckResult =
-            if (classItem == null) ReferenceCheckResult.Valid
-            else context.checkReference(classItem, reporter)
-
-        return createCallableReference(
+    ) =
+        createCallableReference(
             context,
             reporter,
             className,
             // The source name will always be the simple callable name in this case, it will never
             // be qualified so it is safe to use in the callable reference.
             name,
-            classCheckResult,
         )
-    }
 
     /**
      * Return a [CallableReference] that uses the fully qualified name of the containing class and
@@ -667,28 +572,19 @@ internal data class CallableSourceReference(
         reporter: LocationSpecificReporter,
         className: String,
         name: String,
-        classCheckResult: ReferenceCheckResult,
-    ): CallableReference {
-        var checkResult = classCheckResult
-        val qualifiedParameters =
-            parameters.map { sourceParameter ->
-                val (fullyQualifiedType, parameterCheckResult) =
-                    sourceParameter.type.fullyQualify(context, reporter)
-                checkResult = checkResult.combineWith(parameterCheckResult)
-                SourceParameter(fullyQualifiedType, sourceParameter.name)
-            }
-        return CallableReference(
+    ) =
+        CallableReference(
             className,
             formatSignature(
                 name,
-                qualifiedParameters,
-
+                parameters.map { sourceParameter ->
+                    val fullyQualifiedType = sourceParameter.type.fullyQualify(context, reporter)
+                    SourceParameter(fullyQualifiedType, sourceParameter.name)
+                },
                 // Erase generic arguments from the reference part of this.
                 eraseGenericArguments = true,
-            ),
-            checkResult = checkResult,
+            )
         )
-    }
 
     data class SourceParameter(
         val type: TypeItem,
@@ -716,70 +612,41 @@ internal data class CallableSourceReference(
     }
 }
 
-/**
- * Combine two [ReferenceCheckResult]s, retaining the first [ReferenceCheckResult.Invalid] if either
- * result is invalid.
- */
-private fun ReferenceCheckResult.combineWith(other: ReferenceCheckResult): ReferenceCheckResult =
-    if (isValid) other else this
+/** Fully qualify this [TypeItem] within [context], reporting any issues to [reporter]. */
+private fun TypeItem.fullyQualify(context: DocCommentContext, reporter: LocationSpecificReporter) =
+    transform(
+        object : BaseTypeTransformer() {
+            override fun transform(typeItem: ClassTypeItem): ClassTypeItem {
+                // Resolve the qualified name (which may in fact be a simple name, or a partially
+                // qualified name) as a class.
+                val resolved =
+                    context.resolveItemReference(typeItem.qualifiedName, NameClassification.CLASS)
 
-/**
- * Fully qualify this [TypeItem] within [context], reporting any issues to [reporter], and return
- * the qualified [TypeItem] paired with the combined [ReferenceCheckResult] of all resolved classes
- * in the type.
- */
-private fun TypeItem.fullyQualify(
-    context: DocCommentContext,
-    reporter: LocationSpecificReporter,
-): Pair<TypeItem, ReferenceCheckResult> {
-    var checkResult: ReferenceCheckResult = ReferenceCheckResult.Valid
-    val qualifiedType =
-        transform(
-            object : BaseTypeTransformer() {
-                override fun transform(typeItem: ClassTypeItem): ClassTypeItem {
-                    // Resolve the qualified name (which may in fact be a simple name, or a
-                    // partially qualified name) as a class.
-                    val resolved =
-                        context.resolveItemReference(
-                            typeItem.qualifiedName,
-                            NameClassification.CLASS,
-                        )
-
-                    val resolvedType =
-                        when (resolved) {
-                            is ClassItem -> {
-                                // Validate each parameter class referenced in the callable
-                                // signature.
-                                checkResult =
-                                    checkResult.combineWith(
-                                        context.checkReference(resolved, reporter)
-                                    )
-
-                                // Use the resolved class's type.
-                                resolved.type()
+                val resolvedType =
+                    when (resolved) {
+                        is ClassItem ->
+                            // Use the resolved class's type.
+                            resolved.type()
+                        else -> {
+                            // Report any issues with resolving the class.
+                            if (resolved is InvalidReferencableItem) {
+                                resolved.reportIssue(reporter)
                             }
-                            else -> {
-                                // Report any issues with resolving the class.
-                                if (resolved is InvalidReferencableItem) {
-                                    resolved.reportIssue(reporter)
-                                }
 
-                                // Default to just using this type
-                                typeItem
-                            }
+                            // Default to just using this type
+                            typeItem
                         }
+                    }
 
-                    // Fully qualify the type arguments, reporting any issues with class references.
-                    val fullyQualifiedTypeArguments = typeItem.arguments.map { it.transform(this) }
+                // Fully qualify the type arguments, reporting any issues with class references.
+                val fullyQualifiedTypeArguments = typeItem.arguments.map { it.transform(this) }
 
-                    // Use the resolved type with the fully qualified type arguments provided in the
-                    // source.
-                    return resolvedType.substitute(arguments = fullyQualifiedTypeArguments)
-                }
+                // Use the resolved type with the fully qualified type arguments provided in the
+                // source.
+                return resolvedType.substitute(arguments = fullyQualifiedTypeArguments)
             }
-        )
-    return qualifiedType to checkResult
-}
+        }
+    )
 
 /** A reference to a [uriFragment]. */
 internal data class UriFragmentSourceReference(val uriFragment: String) :
@@ -797,16 +664,10 @@ internal data class UriFragmentSourceReference(val uriFragment: String) :
         reporter: LocationSpecificReporter,
         classItem: ClassItem?,
         className: String,
-    ): UriFragmentReference {
-        // Validate that the qualifying class of `Class##uri-fragment` is accessible.
-        val checkResult =
-            if (classItem == null) ReferenceCheckResult.Valid
-            else context.checkReference(classItem, reporter)
-
+    ) =
         // TODO(b/447588621): If the source for classItem is available then check it for an
         //  id="<uriFragment>" attribute.
-        return UriFragmentReference(className, uriFragment, checkResult = checkResult)
-    }
+        UriFragmentReference(className, uriFragment)
 }
 
 /**
@@ -863,24 +724,6 @@ internal data class LabeledRefTagData(
     private val resolvedReference: ResolvedReference?,
 ) : TagData {
     /**
-     * Print [inlineTag] to [contentPrinter], replacing the tag with `ERROR[<reason>: <link>]` or
-     * `ERROR[<reason>: <link> <label>]` when [resolvedReference] failed
-     * [DocCommentContext.checkReference] ([ReferenceCheckResult.Invalid]).
-     */
-    override fun printInlineTag(
-        inlineTag: JavadocInlineTag,
-        contentPrinter: JavadocContentPrinter,
-    ) {
-        val checkResult = resolvedReference?.checkResult
-        if (checkResult !is ReferenceCheckResult.Invalid) {
-            super.printInlineTag(inlineTag, contentPrinter)
-            return
-        }
-
-        printErrorReference(contentPrinter, checkResult, inlineTag.content)
-    }
-
-    /**
      * Print the tag contents which consists of the [sourceReference] and the [content] which is the
      * optional label.
      *
@@ -889,14 +732,6 @@ internal data class LabeledRefTagData(
      */
     override fun printTagContents(contentPrinter: JavadocContentPrinter, content: JavadocContent?) {
         val writer = contentPrinter.writer
-        val checkResult = resolvedReference?.checkResult
-        if (checkResult is ReferenceCheckResult.Invalid) {
-            writer.print(" \"")
-            printErrorReference(contentPrinter, checkResult, content)
-            writer.print("\"")
-            return
-        }
-
         writer.print(" ")
         val formattedReference =
             resolvedReference?.formatForTagReference(contentPrinter.containingClassName)
@@ -955,25 +790,6 @@ internal data class LabeledRefTagData(
         // Use the source reference as the label.
         writer.print(" ")
         writer.print(sourceReferenceAsLabel)
-    }
-
-    /**
-     * Print `ERROR[<reason>: <link>]` or `ERROR[<reason>: <link> <label>]` to [contentPrinter],
-     * using [invalidResult]'s [ReferenceCheckResult.Invalid.reasonLabel] as `<reason>`,
-     * [sourceReference] as `<link>`, and [content] (if present) as `<label>`.
-     */
-    private fun printErrorReference(
-        contentPrinter: JavadocContentPrinter,
-        invalidResult: ReferenceCheckResult.Invalid,
-        content: JavadocContent?,
-    ) {
-        val writer = contentPrinter.writer
-        writer.print("ERROR[")
-        writer.print(invalidResult.reasonLabel)
-        writer.print(": ")
-        writer.print(sourceReference)
-        content?.printWithLeadingSpaceTo(contentPrinter)
-        writer.print("]")
     }
 
     /**

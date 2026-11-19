@@ -19,7 +19,6 @@ package com.android.tools.metalava
 import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.api.surface.ReferenceKind
 import com.android.tools.metalava.model.value.asString
 import java.io.BufferedWriter
 import java.io.File
@@ -66,9 +65,6 @@ class SdkFileWriter(val codebase: Codebase, private val outputDir: File) {
         val layoutParams = mutableListOf<ClassItem>()
 
         val classes = codebase.getPackages().allClasses()
-        // Cache the reference strategy to check whether each widget class is a valid code reference
-        // in the target API surface.
-        val referenceStrategy = codebase.apiSurfaces.referenceStrategy
 
         // The topmost LayoutParams class - android.view.ViewGroup.LayoutParams
         var topLayoutParams: ClassItem? = null
@@ -101,18 +97,9 @@ class SdkFileWriter(val codebase: Codebase, private val outputDir: File) {
                 }
             }
 
-            // Now check the class for @Widget or if it is in the android.widget package
-            // (unless the class is abstract, non-public, or not a valid code reference in the
-            // target API surface, e.g. hidden, removed, or @DocOnly).
-            if (
-                clazz.isPublic &&
-                    !clazz.modifiers.isAbstract() &&
-                    referenceStrategy.isValidReference(
-                        from = null,
-                        to = clazz,
-                        kind = ReferenceKind.CODE,
-                    )
-            ) {
+            // Now check the class for @Widget or if its in the android.widget package
+            // (unless the class is hidden or abstract, or non public)
+            if (!clazz.isHiddenOrRemoved() && clazz.isPublic && !clazz.modifiers.isAbstract()) {
                 var annotated = false
                 val annotations = clazz.modifiers.annotations()
                 if (annotations.isNotEmpty()) {

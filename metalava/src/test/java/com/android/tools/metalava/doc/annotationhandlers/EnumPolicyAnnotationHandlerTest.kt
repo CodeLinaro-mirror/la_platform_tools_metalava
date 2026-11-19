@@ -39,11 +39,20 @@ class EnumPolicyAnnotationHandlerTest : DriverTest() {
                     java(
                         """
                         package test.pkg;
-                        $ENUM_POLICY_IMPORTS
+                        import android.processor.devicepolicy.EnumPolicyDefinition;
+                        import android.processor.devicepolicy.EnumPolicyValues.EnumPolicyValue;
+                        import android.processor.devicepolicy.PolicyDefinition;
+                        import android.processor.devicepolicy.EnumResolutionMechanism;
+                        import android.processor.devicepolicy.AllowedDpcTypes;
+                        import android.processor.devicepolicy.AllowedRoles;
+                        import static android.processor.devicepolicy.AllowedDpcTypes.ALLOWED;
+                        import static android.processor.devicepolicy.AllowedDpcTypes.DISALLOWED;
 
                         @Retention(RetentionPolicy.SOURCE)
                         public class TestPolicy {
-                            $POLICY_DEFINES
+                            private static final int SCOPE_USER = 1;
+                            private static final int RESOURCE_DEVICE_WIDE = 1;
+                            private static final int DEFAULT_VALUE = 1;
                             @EnumPolicyDefinition(
                                 base = @PolicyDefinition(
                                     allowedScopes = {SCOPE_USER},
@@ -135,11 +144,19 @@ class EnumPolicyAnnotationHandlerTest : DriverTest() {
                     java(
                         """
                         package test.pkg;
-                        $ENUM_POLICY_IMPORTS
+                        import android.processor.devicepolicy.EnumPolicyDefinition;
+                        import android.processor.devicepolicy.EnumPolicyValues.EnumPolicyValue;
+                        import android.processor.devicepolicy.PolicyDefinition;
+                        import android.processor.devicepolicy.EnumResolutionMechanism;
+                        import android.processor.devicepolicy.AllowedDpcTypes;
+                        import static android.processor.devicepolicy.AllowedDpcTypes.ALLOWED;
+                        import static android.processor.devicepolicy.AllowedDpcTypes.DISALLOWED;
 
                         @Retention(RetentionPolicy.SOURCE)
                         public class TestPolicy {
-                            $POLICY_DEFINES
+                            private static final int SCOPE_USER = 1;
+                            private static final int RESOURCE_DEVICE_WIDE = 1;
+                            private static final int DEFAULT_VALUE = 1;
                             @EnumPolicyDefinition(
                                 base = @PolicyDefinition(
                                     allowedScopes = {SCOPE_USER},
@@ -232,11 +249,18 @@ class EnumPolicyAnnotationHandlerTest : DriverTest() {
                     java(
                         """
                         package test.pkg;
-                        $ENUM_POLICY_IMPORTS
+                        import android.processor.devicepolicy.EnumPolicyDefinition;
+                        import android.processor.devicepolicy.EnumPolicyValues.EnumPolicyValue;
+                        import android.processor.devicepolicy.PolicyDefinition;
+                        import android.processor.devicepolicy.EnumResolutionMechanism;
+                        import android.processor.devicepolicy.AllowedDpcTypes;
+                        import static android.processor.devicepolicy.AllowedDpcTypes.ALLOWED;
 
                         @Retention(RetentionPolicy.SOURCE)
                         public class TestPolicy {
-                            $POLICY_DEFINES
+                            private static final int SCOPE_USER = 1;
+                            private static final int RESOURCE_PER_USER = 2;
+                            private static final int DEFAULT_VALUE = 1;
                             @EnumPolicyDefinition(
                                 base = @PolicyDefinition(
                                     allowedScopes = {SCOPE_USER},
@@ -265,8 +289,8 @@ class EnumPolicyAnnotationHandlerTest : DriverTest() {
             expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 """
-                    src/test/pkg/TestPolicy.java:53: error: Cannot find permission field for android.permission.DOES_NOT_EXIST required by field test.pkg.TestPolicy.POLICY_FIELD (may be hidden or removed) [InvalidDevicePolicyAnnotation]
-                    src/test/pkg/TestPolicy.java:53: error: Missing required field 'resolutionMechanism' inside field test.pkg.TestPolicy.POLICY_FIELD [InvalidDevicePolicyAnnotation]
+                    src/test/pkg/TestPolicy.java:32: error: Cannot find permission field for android.permission.DOES_NOT_EXIST required by field test.pkg.TestPolicy.POLICY_FIELD (may be hidden or removed) [InvalidDevicePolicyAnnotation]
+                    src/test/pkg/TestPolicy.java:32: error: Missing required field 'resolutionMechanism' inside field test.pkg.TestPolicy.POLICY_FIELD [InvalidDevicePolicyAnnotation]
                 """,
             expectedStubFiles =
                 arrayOf(

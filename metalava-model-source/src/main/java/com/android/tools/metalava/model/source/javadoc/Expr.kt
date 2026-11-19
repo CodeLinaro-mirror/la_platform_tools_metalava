@@ -20,9 +20,7 @@ import com.android.tools.metalava.model.ExternalReferencableItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.InvalidReferencableItem
 import com.android.tools.metalava.model.ReferencableItem
-import com.android.tools.metalava.model.parser.SharedTokenType
 import com.android.tools.metalava.model.parser.Token
-import com.android.tools.metalava.model.parser.TokenStream
 import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.value.StringValue
 import com.android.tools.metalava.model.value.Value
@@ -74,97 +72,12 @@ internal interface ExprBuilderContext {
     ): ReferencableItem
 }
 
-/** Parses and builds [Expr] instances for conditional `@if` documentation tags. */
+/** Builds [Expr] instances. */
 internal class ExprBuilder(
-    /** Full source text containing the documentation comment. */
     private val text: String,
-
-    /** Context used to resolve field references inside conditional expressions. */
     private val context: ExprBuilderContext,
-
-    /** Reporter for syntax and expression validation issues on tokens. */
     private val reporter: TokenIssueReporter,
 ) {
-    /**
-     * Parse a conditional expression from [tokens], currently limited to a function call.
-     *
-     * @return the parsed [Expr], or `null` if expression parsing failed.
-     */
-    fun parseExpr(tokens: TokenStream): Expr? {
-        val functionNameToken =
-            reporter.expect(tokens, SharedTokenType.IDENTIFIER, "expected function name")
-        if (functionNameToken == Token.NONE) {
-            skipUntilParenClose(tokens)
-            return null
-        }
-
-        return parseFunctionCall(tokens, functionNameToken)
-    }
-
-    /**
-     * Parse a function call expression, e.g. `flag(pkg.Flags.FLAG)`.
-     *
-     * @param tokens the [TokenStream] to read arguments from.
-     * @param functionNameToken the token for the function name (e.g. `flag`).
-     * @return the [Expr] representing the function call.
-     */
-    private fun parseFunctionCall(tokens: TokenStream, functionNameToken: Token): Expr {
-        val parenOpen =
-            reporter.expect(tokens, SharedTokenType.PAREN_OPEN, "expected '(' after function name")
-        if (parenOpen == Token.NONE) {
-            return FlagFunctionCall(null)
-        }
-
-        // Parse the qualified field reference argument: (IDENTIFIER DOT)* IDENTIFIER
-        val fieldReferenceTokens = mutableListOf<Token>()
-        if (tokens.peekType() == SharedTokenType.IDENTIFIER) {
-            fieldReferenceTokens.add(tokens.consume())
-
-            while (tokens.peekType() == SharedTokenType.DOT) {
-                fieldReferenceTokens.add(tokens.consume())
-                val nextIdent =
-                    reporter.expect(
-                        tokens,
-                        SharedTokenType.IDENTIFIER,
-                        "expected identifier after '.'",
-                    )
-                if (nextIdent != Token.NONE) {
-                    fieldReferenceTokens.add(nextIdent)
-                }
-            }
-        } else {
-            val token = tokens.peek()
-            reporter.report(
-                token,
-                Issues.INVALID_JAVADOC,
-                "expected field reference, found '${token.text(text)}'",
-            )
-        }
-
-        reporter.expect(tokens, SharedTokenType.PAREN_CLOSE, "expected ')' after field reference")
-        return buildFunctionCall(functionNameToken, fieldReferenceTokens)
-    }
-
-    /**
-     * Error recovery helper: skips tokens in [tokens] until a matching closing parenthesis `)` is
-     * found or an opening brace `{` or EOF is reached.
-     */
-    private fun skipUntilParenClose(tokens: TokenStream) {
-        var parenDepth = 1
-        while (parenDepth > 0) {
-            when (tokens.peekType()) {
-                SharedTokenType.PAREN_OPEN -> parenDepth++
-                SharedTokenType.PAREN_CLOSE -> parenDepth--
-                SharedTokenType.BRACE_OPEN,
-                SharedTokenType.EOF -> {
-                    // Stop before consuming `{` or EOF so the enclosing `@if` parser can still
-                    // parse or recover the branch body when `(` was unclosed.
-                    break
-                }
-            }
-            tokens.consume()
-        }
-    }
 
     /**
      * Build an [Expr] from [functionNameToken] and [fieldReferenceTokens].
@@ -178,7 +91,7 @@ internal class ExprBuilder(
      * @param fieldReferenceTokens the list of tokens representing the qualified field reference.
      * @return a [FlagFunctionCall] expression with the resolved flag name, or `null` if invalid.
      */
-    private fun buildFunctionCall(
+    fun buildFunctionCall(
         functionNameToken: Token,
         fieldReferenceTokens: List<Token>,
     ): Expr {

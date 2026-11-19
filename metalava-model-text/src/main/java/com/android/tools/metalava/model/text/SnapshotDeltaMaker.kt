@@ -20,7 +20,6 @@ import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
-import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.FieldItem
@@ -29,9 +28,7 @@ import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SelectableItem
-import com.android.tools.metalava.model.TypeComparator
 import com.android.tools.metalava.model.TypeParameterListOwner
-import com.android.tools.metalava.model.equalTo
 import com.android.tools.metalava.model.snapshot.EmittableDelegatingVisitor
 import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
 
@@ -109,13 +106,9 @@ private constructor(
     override fun visitClass(cls: ClassItem) {
         cls.findCorrespondingItemIn(base)?.let { baseClass ->
             // If super class type is set and is different to the base class then drop out to emit
-            // this class. Compare using TypeComparator.STRICT so type variable references from the
-            // two different codebases are compared by name rather than object identity.
+            // this class.
             val superClassType = cls.superClassType()
-            if (
-                superClassType != null &&
-                    !superClassType.equalTo(baseClass.superClassType(), TypeComparator.STRICT)
-            ) {
+            if (superClassType != null && baseClass.superClassType() != superClassType) {
                 return@let
             }
 
@@ -123,7 +116,7 @@ private constructor(
             // emit this class.
             if (
                 cls.interfaceTypes().isNotEmpty() &&
-                    !equivalentInterfaceTypes(baseClass.interfaceTypes(), cls.interfaceTypes())
+                    cls.interfaceTypes().toSet() != baseClass.interfaceTypes().toSet()
             ) {
                 return@let
             }
@@ -217,31 +210,6 @@ private constructor(
 
         // The property is new or changed.
         property.markEmit()
-    }
-
-    /**
-     * Checks if [baseInterfaces] and [extensionInterfaces] contain the same set of interface types
-     * according to [TypeComparator.STRICT].
-     *
-     * [TypeComparator.STRICT] is used instead of [com.android.tools.metalava.model.TypeItem.equals]
-     * ([TypeComparator.IDENTICAL]) so that type variable references from the two different
-     * codebases are compared by name rather than
-     * [com.android.tools.metalava.model.TypeParameterItem] object identity.
-     */
-    private fun equivalentInterfaceTypes(
-        baseInterfaces: List<ClassTypeItem>,
-        extensionInterfaces: List<ClassTypeItem>,
-    ): Boolean {
-        if (baseInterfaces.size != extensionInterfaces.size) return false
-
-        // TypeComparator.STRICT does not have a corresponding hashCode implementation so Set
-        // equality cannot be used; check mutual inclusion in both directions instead.
-        return extensionInterfaces.all { extItf ->
-            baseInterfaces.any { baseItf -> extItf.equalTo(baseItf, TypeComparator.STRICT) }
-        } &&
-            baseInterfaces.all { baseItf ->
-                extensionInterfaces.any { extItf -> baseItf.equalTo(extItf, TypeComparator.STRICT) }
-            }
     }
 
     /** Checks if the two items have the same set of annotations. */

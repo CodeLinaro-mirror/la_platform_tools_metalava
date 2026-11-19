@@ -20,22 +20,26 @@ import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.testing.BaseTemporaryFolderOwner
 import com.android.tools.metalava.testing.java
 import com.google.common.collect.ImmutableList
+import com.google.common.util.concurrent.MoreExecutors
 import com.google.turbine.binder.Binder
-import com.google.turbine.binder.Binder.BindingResult
 import com.google.turbine.binder.ClassPathBinder
 import com.google.turbine.binder.JimageClassBinder
+import com.google.turbine.binder.bound.SourceTypeBoundClass
+import com.google.turbine.binder.bound.TypeBoundClass
+import com.google.turbine.binder.env.CompoundEnv
+import com.google.turbine.binder.env.SimpleEnv
 import com.google.turbine.binder.sym.ClassSymbol
 import com.google.turbine.diag.SourceFile
-import com.google.turbine.parallel.TurbineExecutor
 import com.google.turbine.parse.Parser
 import com.google.turbine.tree.Tree
 import com.google.turbine.tree.Tree.Ident
+import java.util.Optional
 import kotlin.test.fail
 import org.junit.Test
 
 class TurbineFieldResolverTest : BaseTemporaryFolderOwner() {
-    /** Parse and bind [sources] into a [BindingResult]. */
-    private fun bind(sources: List<TestFile>): BindingResult {
+    /** Parse and bind [sources] into a [CompoundEnv]. */
+    private fun bind(sources: List<TestFile>): CompoundEnv<ClassSymbol, TypeBoundClass> {
         val srcDir = temporaryFolder.newFolder("src")
 
         // Parse all the files.
@@ -47,29 +51,48 @@ class TurbineFieldResolverTest : BaseTemporaryFolderOwner() {
                 .collect(ImmutableList.toImmutableList())
 
         // Bind them together.
-        val executor = TurbineExecutor.direct()
-        val classPath = ClassPathBinder.bindClasspath(executor, listOf())
+        val classPath = ClassPathBinder.bindClasspath(listOf())
         val bootClassPath = JimageClassBinder.bindDefault()
-        return Binder.bind(
-            executor,
-            Binder.BindingRequest.builder()
-                .units(units)
-                .classpath(classPath)
-                .bootclasspath(bootClassPath)
-                .build(),
-        ) ?: error("Binding failed")
+        val result =
+            Binder.bind(
+                MoreExecutors.newDirectExecutorService(),
+                units,
+                classPath,
+                bootClassPath,
+                /* moduleVersion= */ Optional.empty(),
+            ) ?: error("Binding failed")
+
+        // Get mapping from ClassSymbol to TypeBoundClass from the class path.
+        val classPathEnv: CompoundEnv<ClassSymbol, TypeBoundClass> =
+            CompoundEnv.of(result.classPathEnv())
+
+        // Get mapping from ClassSymbol to SourceTypeBoundClass from sources.
+        val sourceEnv = SimpleEnv(result.units())
+
+        // Combine the mappings together. Searching sources first then class path.
+        val combinedEnv = classPathEnv.append(sourceEnv)
+        return combinedEnv
     }
 
     /** Create a [FieldResolver] for resolving fields as if from within [binaryClassName]. */
-    private fun BindingResult.resolverFor(binaryClassName: String): FieldResolver {
+    private fun CompoundEnv<ClassSymbol, TypeBoundClass>.resolverFor(
+        binaryClassName: String
+    ): FieldResolver {
         // Select the class from where the field will be resolved.
         val testClassSym = ClassSymbol(binaryClassName)
-        if (!units().containsKey(testClassSym)) {
-            error("unknown class $testClassSym")
-        }
+        val testClassInfo =
+            this[testClassSym] as? SourceTypeBoundClass ?: error("unknown class $testClassSym")
 
         // Create a resolver.
-        return TurbineFieldResolver(testClassSym, this)
+        val fieldResolver =
+            TurbineFieldResolver(
+                testClassSym,
+                testClassSym,
+                testClassInfo.memberImports(),
+                testClassInfo.scope(),
+                this
+            )
+        return fieldResolver
     }
 
     private fun assertFieldCanBeResolved(fieldResolver: FieldResolver, fieldName: String) {

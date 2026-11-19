@@ -26,7 +26,7 @@ import java.util.function.Predicate
 
 class DefaultReporter(
     private val environment: ReporterEnvironment,
-    val issueConfiguration: IssueConfiguration,
+    private val issueConfiguration: IssueConfiguration,
 
     /** [Baseline] file associated with this [Reporter]. */
     private val baseline: Baseline? = null,
