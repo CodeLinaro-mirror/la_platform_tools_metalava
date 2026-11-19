@@ -1925,4 +1925,105 @@ class CommonDocReferenceTest : BaseModelTest() {
             )
         }
     }
+
+    /**
+     * Verify how `#member` and `Class#member` references resolve fields inherited from superclasses
+     * and superinterfaces, including hidden field targets and hidden qualifying subclasses.
+     */
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test inherited field member references`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        public interface MyInterface {
+                            int INTERFACE_FIELD = 1;
+                            /** @hide */
+                            int HIDDEN_INTERFACE_FIELD = 2;
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class Parent {
+                            public static final int SUPER_FIELD = 1;
+                            /** @hide */
+                            public static final int HIDDEN_SUPER_FIELD = 2;
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        /**
+                         * {@link #SUPER_FIELD}
+                         * {@link #HIDDEN_SUPER_FIELD}
+                         */
+                        public class Child extends Parent implements MyInterface {}
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        /** @hide */
+                        public class HiddenChild extends Parent {}
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        /**
+                         * {@link Child#SUPER_FIELD}
+                         * {@link Child#INTERFACE_FIELD}
+                         * {@link Child#HIDDEN_SUPER_FIELD}
+                         * {@link Child#HIDDEN_INTERFACE_FIELD}
+                         * {@link HiddenChild#SUPER_FIELD}
+                         */
+                        public class Test {}
+                    """
+                ),
+            ),
+        ) {
+            codebase
+                .assertClass("test.pkg.Child")
+                .assertPrintedDocumentation(
+                    // TODO(b/447588621): Rewrite `#HIDDEN_SUPER_FIELD` to `ERROR[...]`.
+                    expectedOutput =
+                        """
+                            /**
+                             * {@link #SUPER_FIELD}
+                             * {@link #HIDDEN_SUPER_FIELD}
+                             */
+                        """,
+                )
+
+            codebase
+                .assertClass("test.pkg.Test")
+                .assertPrintedDocumentation(
+                    // TODO(b/447588621): Rewrite `Child#HIDDEN_SUPER_FIELD` and
+                    //  `Child#HIDDEN_INTERFACE_FIELD` to `ERROR[...]`.
+                    expectedOutput =
+                        """
+                            /**
+                             * {@link test.pkg.Child#SUPER_FIELD Child.SUPER_FIELD}
+                             * {@link test.pkg.Child#INTERFACE_FIELD Child.INTERFACE_FIELD}
+                             * {@link test.pkg.Child#HIDDEN_SUPER_FIELD Child.HIDDEN_SUPER_FIELD}
+                             * {@link test.pkg.Child#HIDDEN_INTERFACE_FIELD Child.HIDDEN_INTERFACE_FIELD}
+                             * ERROR[hidden: HiddenChild#SUPER_FIELD]
+                             */
+                        """,
+                )
+
+            assertAndRemoveReportedIssues(
+                // TODO(b/447588621): Also report HiddenDocReference for `HIDDEN_SUPER_FIELD` and
+                //  `HIDDEN_INTERFACE_FIELD`.
+                """
+                    MAIN_SRC/src/test/pkg/Test.java:7:11: warning: Class test.pkg.HiddenChild is hidden (ErrorWhenNew) [HiddenDocReference]
+                """
+            )
+        }
+    }
 }
