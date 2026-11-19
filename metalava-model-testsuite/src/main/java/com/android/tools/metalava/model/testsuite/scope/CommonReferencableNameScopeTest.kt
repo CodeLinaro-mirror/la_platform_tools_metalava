@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ExternalReferencableItem
 import com.android.tools.metalava.model.InvalidReferencableItem
+import com.android.tools.metalava.model.ReferencableMethodSet
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.scope.ReferencableNameScope
@@ -491,6 +492,64 @@ class CommonReferencableNameScopeTest : BaseModelTest() {
                     "Could not resolve a class called 'androidx_extra.Foo' as could not find a package or class called 'androidx_extra' in 'class test.pkg.Test'"
                 ),
                 testClass.resolveReferencableItem("androidx_extra.Foo", NameClassification.CLASS),
+            )
+        }
+    }
+
+    /**
+     * Verify that subclasses inherit fields and methods from their supertypes, while a supertype's
+     * own simple name, type parameters, and constructors are not inherited.
+     */
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test non-inheritance of base class simple name, type parameters, and constructors`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package other.pkg;
+                        public class Base<B> {
+                            public int baseField;
+                            public Base() {}
+                            public void baseMethod() {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class Derived extends other.pkg.Base<String> {
+                        }
+                    """
+                ),
+            ),
+        ) {
+            val baseClass = codebase.assertClass("other.pkg.Base")
+            val derivedClass = codebase.assertClass("test.pkg.Derived")
+
+            // Inherited fields and methods are in scope on Derived.
+            assertSame(
+                baseClass.assertField("baseField"),
+                derivedClass.resolveReferencableItem("baseField", NameClassification.AMBIGUOUS),
+            )
+            assertEquals(
+                ReferencableMethodSet(baseClass, "baseMethod"),
+                derivedClass.resolveReferencableItem("baseMethod", NameClassification.AMBIGUOUS),
+            )
+
+            // TODO(b/447588621): Supertypes' own simple names, type parameters, and constructors
+            //  are not inherited and should not resolve on Derived.
+            assertSame(
+                baseClass,
+                derivedClass.resolveReferencableItem("Base", NameClassification.AMBIGUOUS),
+            )
+            assertSame(
+                baseClass,
+                derivedClass.resolveReferencableItem("Base", NameClassification.CALLABLE_SET),
+            )
+            assertSame(
+                baseClass.assertTypeParameter("B"),
+                derivedClass.resolveReferencableItem("B", NameClassification.AMBIGUOUS),
             )
         }
     }
