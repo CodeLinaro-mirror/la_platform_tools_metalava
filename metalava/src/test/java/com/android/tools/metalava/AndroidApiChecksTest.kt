@@ -134,6 +134,7 @@ class AndroidApiChecksTest : DriverTest() {
                             public static final String ACCESS_COARSE_LOCATION = "android.permission.ACCESS_COARSE_LOCATION";
                             public static final String ACCESS_FINE_LOCATION = "android.permission.ACCESS_FINE_LOCATION";
                             public static final String ACCOUNT_MANAGER = "android.permission.ACCOUNT_MANAGER";
+                            public static final String READ_PHONE_STATE = "android.permission.READ_PHONE_STATE";
                         }
                     }
                     """
