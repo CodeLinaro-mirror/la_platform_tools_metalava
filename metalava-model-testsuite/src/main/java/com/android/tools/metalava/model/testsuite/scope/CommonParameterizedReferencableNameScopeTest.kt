@@ -352,11 +352,9 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                     name = "ClassItem - qualified TypeParameter - Test.O",
                     scopeGetter = { codebase.assertClass("test.pkg.Test") },
                     referencableName = "Test.O",
-                    // TODO(b/447588621): Should fail to resolve 'O' as a qualified member of
-                    //  'Test'.
-                    expectedItemGetter = {
-                        codebase.assertClass("test.pkg.Test").assertTypeParameter("O")
-                    },
+                    expectedItemGetter = { null },
+                    expectedErrorMessage =
+                        "Could not resolve 'Test.O' as could not find 'O' in 'class test.pkg.Test'",
                 ),
                 TestParams(
                     name = "ClassItem - resolve simple field reference",

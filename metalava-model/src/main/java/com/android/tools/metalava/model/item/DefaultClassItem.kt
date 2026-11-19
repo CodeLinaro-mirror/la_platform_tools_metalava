@@ -513,9 +513,9 @@ internal class DefaultClassItem(
         nameClassification.findClass {
             if (isFirstSimpleName && simpleName == simpleName()) this else null
         }
-            // Then check to see type parameters.
+            // Then check type parameters, which are only in scope for unqualified names.
             ?: nameClassification.findTypeParameter {
-                typeParameterList.find { it.name() == simpleName }
+                if (isFirstSimpleName) typeParameterList.find { it.name() == simpleName } else null
             }
             // Then, check to see if it is a field of this class.
             ?: nameClassification.findField { findField(simpleName) }
