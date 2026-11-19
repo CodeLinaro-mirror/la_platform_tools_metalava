@@ -34,7 +34,6 @@ import com.google.turbine.binder.bound.SourceTypeBoundClass
 import com.google.turbine.binder.bound.TypeBoundClass
 import com.google.turbine.binder.bytecode.BytecodeBoundClass
 import com.google.turbine.binder.env.CompoundEnv
-import com.google.turbine.binder.env.SimpleEnv
 import com.google.turbine.binder.lookup.LookupKey
 import com.google.turbine.binder.lookup.TopLevelIndex
 import com.google.turbine.binder.sym.ClassSymbol
@@ -104,17 +103,8 @@ internal class TurbineCodebaseInitialiser(
         // Get the SourceTypeBoundClass for all units that have been bound together.
         val allSourceClassMap = bindingResult.units()
 
-        // Maps class symbols to their source-based definitions
-        val sourceEnv = SimpleEnv(allSourceClassMap)
-
-        // Maps class symbols to their classpath-based definitions
-        val classPathEnv = bindingResult.classPathEnv()
-
-        // Provides a unified view of both source and classpath classes. Although, the `sourceEnv`
-        // is appended to the `CompoundEnv` that contains the `classPathEnv`, it is actually
-        // queried first. So, this will search for a class on the source path first and then on the
-        // class path.
-        envClassMap = CompoundEnv.of<ClassSymbol, TypeBoundClass>(classPathEnv).append(sourceEnv)
+        // Provides a unified view of both source and classpath classes (sources take precedence).
+        envClassMap = bindingResult.env()
 
         // Create a cache from SourceFile to the TurbineSourceFile wrapper. The latter needs the
         // CompUnit associated with the SourceFile so pass in all the CompUnits so it can find it.
