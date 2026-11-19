@@ -1744,4 +1744,190 @@ class CommonDocReferenceTest : BaseModelTest() {
             )
         }
     }
+
+    /**
+     * Verify how unparameterized method references without `#` or `()` check accessibility across
+     * hidden methods (declared and inherited), superinterface `static` methods, and overloaded
+     * methods with mixed visibility (including overloads split across supertypes and methods
+     * inherited via hidden intermediate supertypes).
+     */
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test hidden and overloaded ambiguous method references`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        public class Other {
+                            /** @hide */
+                            public void hiddenMethod() {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class SubOther extends Other {}
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public interface StaticHelperInterface {
+                            static void helper() {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class ImplWithHiddenHelper implements StaticHelperInterface {
+                            /** {@link helper} */
+                            public void test() {}
+
+                            /** @hide */
+                            public void helper() {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public interface HiddenOverload {
+                            /** @hide */
+                            default void compute(String s) {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public interface PublicOverload {
+                            default void compute(int x) {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class SplitOverloads implements HiddenOverload, PublicOverload {
+                            /** {@link compute} */
+                            public void test() {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public interface PublicApi {
+                            default void inheritedViaHidden() {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        /** @hide */
+                        public interface HiddenMid extends PublicApi {
+                            @Override
+                            default void inheritedViaHidden() {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public interface PublicSub extends HiddenMid, PublicApi {
+                            /** {@link inheritedViaHidden} */
+                            void test();
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class Test {
+                            /**
+                             * {@link hiddenMethod}
+                             * {@link overloadedMethod}
+                             * {@link allHiddenOverloads}
+                             * {@link Other.hiddenMethod}
+                             * {@link SubOther.hiddenMethod}
+                             * {@link StaticHelperInterface.helper}
+                             * {@link ImplWithHiddenHelper.helper}
+                             */
+                            public void test() {}
+
+                            /** @hide */
+                            public void hiddenMethod() {}
+
+                            public void overloadedMethod(int x) {}
+                            /** @hide */
+                            public void overloadedMethod(String s) {}
+
+                            void allHiddenOverloads(String s) {}
+                            /** @hide */
+                            public void allHiddenOverloads(int x) {}
+                        }
+                    """
+                ),
+            ),
+        ) {
+            codebase
+                .assertClass("test.pkg.ImplWithHiddenHelper")
+                .assertMethod("test", emptyList())
+                .assertPrintedDocumentation(
+                    // TODO(b/447588621): Rewrite hidden method reference to `ERROR[hidden: helper]`
+                    //  without treating StaticHelperInterface.helper() as an inherited overload.
+                    expectedOutput = "/** {@link #helper} */",
+                )
+
+            codebase
+                .assertClass("test.pkg.SplitOverloads")
+                .assertMethod("test", emptyList())
+                .assertPrintedDocumentation(
+                    // TODO(b/447588621): Resolve unqualified inherited method against
+                    //  SplitOverloads (`{@link #compute}`) so overloads across all supertypes are
+                    //  considered.
+                    expectedOutput = "/** {@link test.pkg.HiddenOverload#compute compute} */",
+                )
+
+            codebase
+                .assertClass("test.pkg.PublicSub")
+                .assertMethod("test", emptyList())
+                .assertPrintedDocumentation(
+                    // TODO(b/447588621): Resolve unqualified inherited method against PublicSub
+                    //  (`{@link #inheritedViaHidden}`) instead of hidden intermediate HiddenMid.
+                    expectedOutput = "/** ERROR[hidden: inheritedViaHidden] */",
+                )
+
+            codebase
+                .assertClass("test.pkg.Test")
+                .assertMethod("test", emptyList())
+                .assertPrintedDocumentation(
+                    // TODO(b/447588621): Rewrite hidden method references to `ERROR[...]`.
+                    expectedOutput =
+                        """
+                            /**
+                             * {@link #hiddenMethod}
+                             * {@link #overloadedMethod}
+                             * {@link #allHiddenOverloads}
+                             * {@link test.pkg.Other#hiddenMethod Other.hiddenMethod}
+                             * {@link test.pkg.SubOther#hiddenMethod SubOther.hiddenMethod}
+                             * {@link test.pkg.StaticHelperInterface#helper StaticHelperInterface.helper}
+                             * {@link test.pkg.ImplWithHiddenHelper#helper ImplWithHiddenHelper.helper}
+                             */
+                        """,
+                )
+
+            assertAndRemoveReportedIssues(
+                // TODO(b/447588621): Report HiddenDocReference for `hiddenMethod`,
+                //  `allHiddenOverloads`, `Other.hiddenMethod`, `SubOther.hiddenMethod`,
+                //  `ImplWithHiddenHelper` `helper`, and `ImplWithHiddenHelper.helper`, and stop
+                //  reporting HiddenDocReference on `PublicSub` `inheritedViaHidden`.
+                "MAIN_SRC/src/test/pkg/PublicSub.java:3:16: warning: Class test.pkg.HiddenMid is hidden (ErrorWhenNew) [HiddenDocReference]"
+            )
+        }
+    }
 }
