@@ -407,7 +407,7 @@ class CommonDocReferenceTest : BaseModelTest() {
                              * {@link IntDef#flag()}
                              * {@link android.annotation.IntDef#flag()}
                              * {@link android.annotation.IntDef.flag()}
-                             * {@link Nullable##uri-fragment}
+                             * {@link Nullable##uri-fragment label}
                              * {@link Hide}
                              * {@link Hide#value()}
                              *
@@ -442,7 +442,7 @@ class CommonDocReferenceTest : BaseModelTest() {
                              * {@link androidx.annotation.IntDef#flag() IntDef.flag()}
                              * {@link androidx.annotation.IntDef#flag()}
                              * {@link androidx.annotation.IntDef#flag()}
-                             * {@link androidx.annotation.Nullable##uri-fragment}
+                             * {@link androidx.annotation.Nullable##uri-fragment label}
                              * {@link android.annotation.Hide Hide}
                              * {@link android.annotation.Hide#value() Hide.value()}
                              *
@@ -520,7 +520,7 @@ class CommonDocReferenceTest : BaseModelTest() {
                              * {@link HiddenClass#field}
                              * {@link HiddenClass#method}
                              * {@link HiddenClass#method(PackagePrivateClass)}
-                             * {@link HiddenClass##uri-fragment}
+                             * {@link HiddenClass##uri-fragment label}
                              * {@link Other#hiddenField}
                              * {@link Other#packagePrivateField}
                              * {@link Other.HiddenNested}
@@ -558,7 +558,7 @@ class CommonDocReferenceTest : BaseModelTest() {
                          * ERROR[hidden: HiddenClass#field]
                          * ERROR[hidden: HiddenClass#method]
                          * ERROR[hidden: HiddenClass#method(PackagePrivateClass)]
-                         * ERROR[hidden: HiddenClass##uri-fragment]
+                         * ERROR[hidden: HiddenClass##uri-fragment label]
                          * ERROR[hidden: Other#hiddenField]
                          * ERROR[not public: Other#packagePrivateField]
                          * ERROR[hidden: Other.HiddenNested]
@@ -681,7 +681,7 @@ class CommonDocReferenceTest : BaseModelTest() {
                              * {@link IntDef#HIDDEN_FLAG}
                              * {@link IntDef#flag}
                              * {@link IntDef#flag()}
-                             * {@link Nullable##uri-fragment}
+                             * {@link Nullable##uri-fragment label}
                              * {@link NonNull}
                              * {@link IntRange}
                              * {@link Hide}
@@ -705,7 +705,7 @@ class CommonDocReferenceTest : BaseModelTest() {
                              * ERROR[hidden: IntDef#HIDDEN_FLAG]
                              * {@link androidx.annotation.IntDef#flag IntDef.flag}
                              * {@link androidx.annotation.IntDef#flag() IntDef.flag()}
-                             * {@link androidx.annotation.Nullable##uri-fragment}
+                             * {@link androidx.annotation.Nullable##uri-fragment label}
                              * {@link androidx.annotation.NonNull NonNull}
                              * ERROR[hidden: IntRange]
                              * ERROR[hidden: Hide]
