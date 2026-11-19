@@ -22,8 +22,10 @@ import com.android.tools.metalava.model.api.flags.ApiFlag
 import com.android.tools.metalava.model.api.flags.ApiFlagAction
 import com.android.tools.metalava.model.api.flags.ApiFlags
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
+import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.source.doc.DocContentPredicates
+import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.KnownJarFiles
@@ -1378,6 +1380,210 @@ class CommonDocReferenceTest : BaseModelTest() {
                     MAIN_SRC/src/test/pkg/Test.java:24:18: warning: Class test.pkg.FlaggedAdditionClass is guarded by @FlaggedApi(test.pkg.flags.add_flag) (ErrorWhenNew) [HiddenDocReference]
                 """
             )
+        }
+    }
+
+    /**
+     * Verify that when a previously released non-deprecated item is newly deprecated under an
+     * unfinalized `@FlaggedApi`, unguarded references inside `@deprecated` to unfinalized
+     * `@FlaggedApi` items are valid (because `CodebaseSnapshotTaker` strips `@deprecated` on
+     * revert), whereas unguarded references in its main description, on items with a finalized
+     * `@FlaggedApi`, or on items that were already deprecated in the previously released API still
+     * report `HiddenDocReference` and rewrite to `ERROR[...]`.
+     */
+    @RequiresCapabilities(Capability.REVERTED_ITEMS)
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test deprecated section references on newly deprecated FlaggedApi items`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        public class PreviouslyUndeprecated {
+                            public void methodByAnnotation() {}
+                            public void methodByDocTagOnly() {}
+                            public void methodWithFinalizedFlag() {}
+                        }
+                        public class OuterNewlyFlagged {
+                            public void inheritedDeprecatedMethod() {}
+                        }
+                        @Deprecated
+                        public class PreviouslyDeprecated {
+                            @Deprecated
+                            public void alreadyDeprecatedMethod() {}
+                        }
+                    """
+                ),
+            ),
+            testFixture = TestFixture(checkSupportedInputFormats = false),
+        ) {
+            val previousCodebase = codebase
+            runCodebaseTest(
+                inputSet(
+                    java(
+                        """
+                            package test.pkg;
+                            public class Flags {
+                                public static final String ADD_FLAG = "test.pkg.flags.add_flag";
+                                public static final String FINALIZED_FLAG = "test.pkg.flags.finalized_flag";
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.FlaggedApi;
+                            @FlaggedApi(Flags.ADD_FLAG)
+                            public class FlaggedReplacement {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.FlaggedApi;
+                            public class PreviouslyUndeprecated {
+                                /**
+                                 * Main unguarded: {@link FlaggedReplacement}.
+                                 * Main conditional: {@if (flag(Flags.ADD_FLAG)) {{@link FlaggedReplacement}}}.
+                                 *
+                                 * @deprecated Use {@link FlaggedReplacement} instead.
+                                 */
+                                @FlaggedApi(Flags.ADD_FLAG)
+                                @Deprecated
+                                public void methodByAnnotation() {}
+
+                                /**
+                                 * Summary.
+                                 *
+                                 * @deprecated Use {@link FlaggedReplacement} instead.
+                                 */
+                                @FlaggedApi(Flags.ADD_FLAG)
+                                public void methodByDocTagOnly() {}
+
+                                /**
+                                 * @deprecated Use {@link FlaggedReplacement} instead.
+                                 */
+                                @FlaggedApi(Flags.FINALIZED_FLAG)
+                                @Deprecated
+                                public void methodWithFinalizedFlag() {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.FlaggedApi;
+                            @FlaggedApi(Flags.ADD_FLAG)
+                            public class OuterNewlyFlagged {
+                                /**
+                                 * @deprecated Use {@link FlaggedReplacement} instead.
+                                 */
+                                @Deprecated
+                                public void inheritedDeprecatedMethod() {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.FlaggedApi;
+                            @FlaggedApi(Flags.ADD_FLAG)
+                            @Deprecated
+                            public class PreviouslyDeprecated {
+                                /**
+                                 * @deprecated Use {@link FlaggedReplacement} instead.
+                                 */
+                                @FlaggedApi(Flags.ADD_FLAG)
+                                @Deprecated
+                                public void alreadyDeprecatedMethod() {}
+                            }
+                        """
+                    ),
+                ),
+                testFixture =
+                    TestFixture(
+                        additionalClassPath = listOf(KnownJarFiles.stubAnnotationsJar),
+                        apiFlags =
+                            ApiFlags(
+                                listOf(
+                                    ApiFlag("test.pkg.flags.add_flag", ApiFlagAction.KEEP),
+                                    ApiFlag(
+                                        "test.pkg.flags.finalized_flag",
+                                        ApiFlagAction.FINALIZE,
+                                    ),
+                                )
+                            ),
+                        previouslyReleasedCodebase = previousCodebase,
+                    ),
+            ) {
+                val undeprecated = codebase.assertClass("test.pkg.PreviouslyUndeprecated")
+                // TODO(b/568477816): Guard @deprecated doc references by
+                //  SelectedApi.deprecatedFlagState so newly deprecated @FlaggedApi items do not
+                //  rewrite @deprecated links to ERROR[...] or report HiddenDocReference.
+                undeprecated
+                    .assertMethod("methodByAnnotation", emptyList())
+                    .assertPrintedDocumentation(
+                        expectedOutput =
+                            """
+                                /**
+                                 * Main unguarded: ERROR[guarded by @FlaggedApi(test.pkg.flags.add_flag): FlaggedReplacement].
+                                 * Main conditional: {@link test.pkg.FlaggedReplacement FlaggedReplacement}.
+                                 * @deprecated Use ERROR[guarded by @FlaggedApi(test.pkg.flags.add_flag): FlaggedReplacement] instead.
+                                 */
+                            """,
+                    )
+                undeprecated
+                    .assertMethod("methodByDocTagOnly", emptyList())
+                    .assertPrintedDocumentation(
+                        expectedOutput =
+                            """
+                                /**
+                                 * Summary.
+                                 * @deprecated Use ERROR[guarded by @FlaggedApi(test.pkg.flags.add_flag): FlaggedReplacement] instead.
+                                 */
+                            """,
+                    )
+                undeprecated
+                    .assertMethod("methodWithFinalizedFlag", emptyList())
+                    .assertPrintedDocumentation(
+                        expectedOutput =
+                            """
+                                /** @deprecated Use ERROR[guarded by @FlaggedApi(test.pkg.flags.add_flag): FlaggedReplacement] instead. */
+                            """,
+                    )
+
+                codebase
+                    .assertClass("test.pkg.OuterNewlyFlagged")
+                    .assertMethod("inheritedDeprecatedMethod", emptyList())
+                    .assertPrintedDocumentation(
+                        expectedOutput =
+                            """
+                                /** @deprecated Use ERROR[guarded by @FlaggedApi(test.pkg.flags.add_flag): FlaggedReplacement] instead. */
+                            """,
+                    )
+
+                codebase
+                    .assertClass("test.pkg.PreviouslyDeprecated")
+                    .assertMethod("alreadyDeprecatedMethod", emptyList())
+                    .assertPrintedDocumentation(
+                        expectedOutput =
+                            """
+                                /** @deprecated Use ERROR[guarded by @FlaggedApi(test.pkg.flags.add_flag): FlaggedReplacement] instead. */
+                            """,
+                    )
+
+                assertAndRemoveReportedIssues(
+                    """
+                        MAIN_SRC/src/test/pkg/PreviouslyUndeprecated.java:5:31: warning: Class test.pkg.FlaggedReplacement is guarded by @FlaggedApi(test.pkg.flags.add_flag) (ErrorWhenNew) [HiddenDocReference]
+                        MAIN_SRC/src/test/pkg/PreviouslyUndeprecated.java:8:31: warning: Class test.pkg.FlaggedReplacement is guarded by @FlaggedApi(test.pkg.flags.add_flag) (ErrorWhenNew) [HiddenDocReference]
+                        MAIN_SRC/src/test/pkg/PreviouslyUndeprecated.java:17:31: warning: Class test.pkg.FlaggedReplacement is guarded by @FlaggedApi(test.pkg.flags.add_flag) (ErrorWhenNew) [HiddenDocReference]
+                        MAIN_SRC/src/test/pkg/PreviouslyUndeprecated.java:23:31: warning: Class test.pkg.FlaggedReplacement is guarded by @FlaggedApi(test.pkg.flags.add_flag) (ErrorWhenNew) [HiddenDocReference]
+                        MAIN_SRC/src/test/pkg/OuterNewlyFlagged.java:6:31: warning: Class test.pkg.FlaggedReplacement is guarded by @FlaggedApi(test.pkg.flags.add_flag) (ErrorWhenNew) [HiddenDocReference]
+                        MAIN_SRC/src/test/pkg/PreviouslyDeprecated.java:7:31: warning: Class test.pkg.FlaggedReplacement is guarded by @FlaggedApi(test.pkg.flags.add_flag) (ErrorWhenNew) [HiddenDocReference]
+                    """
+                )
+            }
         }
     }
 }
