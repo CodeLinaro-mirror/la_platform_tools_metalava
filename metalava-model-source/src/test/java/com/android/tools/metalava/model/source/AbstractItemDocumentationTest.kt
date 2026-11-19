@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.source
 
+import com.android.tools.metalava.model.ANDROID_FLAGGED_API
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
@@ -32,6 +33,10 @@ import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.api.ApiSurfaceSelector
 import com.android.tools.metalava.model.api.SelectedApi
+import com.android.tools.metalava.model.api.flags.ApiFlag
+import com.android.tools.metalava.model.api.flags.ApiFlagAction
+import com.android.tools.metalava.model.api.flags.ApiFlags
+import com.android.tools.metalava.model.api.flags.FlagState
 import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
@@ -39,6 +44,7 @@ import com.android.tools.metalava.model.item.DefaultItemFactory
 import com.android.tools.metalava.model.item.PackageInfo
 import com.android.tools.metalava.model.source.doc.DocCommentContext
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces
+import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.LocationSpecificReporter
@@ -47,6 +53,7 @@ import java.io.File
 import java.io.PrintWriter
 import java.io.StringWriter
 import kotlin.test.assertEquals
+import kotlin.test.assertSame
 import org.junit.Test
 
 /** Unit tests for [AbstractItemDocumentation], including [DocCommentContext.checkReference]. */
@@ -58,6 +65,7 @@ class AbstractItemDocumentationTest {
      */
     private class TestContext(
         packageDocs: Map<String, String> = emptyMap(),
+        apiFlags: ApiFlags? = null,
     ) {
         private val apiSurfaceRules = TestableApiSurfaces.publicStandaloneRules
         private val codebaseReporter =
@@ -69,8 +77,10 @@ class AbstractItemDocumentationTest {
                         DefaultAnnotationManager.Config(
                             reporter = codebaseReporter,
                             apiSurfaceSelector = ApiSurfaceSelector(apiSurfaceRules),
+                            apiFlags = apiFlags,
                         )
                     ),
+                apiFlags = apiFlags,
                 apiSurfaces = apiSurfaceRules.apiSurfaces,
                 reporter = codebaseReporter,
             )
@@ -108,8 +118,23 @@ class AbstractItemDocumentationTest {
         private fun docFactory(doc: String): ItemDocumentationFactory =
             if (doc.isEmpty()) NO_SOURCE_COMMENT_FACTORY else doc.toItemDocumentationFactory()
 
-        private fun createAnnotations(annotationNames: List<String>): List<AnnotationItem> =
-            annotationNames.map { AnnotationItem.createMarkerAnnotation(codebase, it)!! }
+        private fun createAnnotations(
+            annotationNames: List<String>,
+            flagName: String? = null,
+        ): List<AnnotationItem> = buildList {
+            for (name in annotationNames) {
+                add(AnnotationItem.createMarkerAnnotation(codebase, name)!!)
+            }
+            if (flagName != null) {
+                add(
+                    AnnotationItem.createSingleElementAnnotation(
+                        codebase,
+                        ANDROID_FLAGGED_API,
+                        Value.createLiteralValue(null, flagName),
+                    )!!
+                )
+            }
+        }
 
         fun findOrCreatePackage(name: String): PackageItem = codebase.findOrCreatePackage(name)
 
@@ -119,6 +144,7 @@ class AbstractItemDocumentationTest {
             classKind: ClassKind = ClassKind.CLASS,
             doc: String = "",
             annotationNames: List<String> = emptyList(),
+            flagName: String? = null,
             containingClass: ClassItem? = null,
         ): SkeletonClassItem {
             val packageName =
@@ -127,7 +153,10 @@ class AbstractItemDocumentationTest {
             val pkg = codebase.findOrCreatePackage(packageName)
             return assembler.itemFactory.createClassItem(
                 modifiers =
-                    createImmutableModifiers(visibility, createAnnotations(annotationNames)),
+                    createImmutableModifiers(
+                        visibility,
+                        createAnnotations(annotationNames, flagName),
+                    ),
                 documentationFactory = docFactory(doc),
                 classKind = classKind,
                 containingClass = containingClass,
@@ -163,12 +192,16 @@ class AbstractItemDocumentationTest {
         }
 
         /**
-         * Invoke [DocCommentContext.checkReference] on [from]'s documentation targeting [to],
-         * verify its [ReferenceCheckResult.isValid] matches whether an issue was reported, and
-         * return any reported issue messages.
+         * Invoke [DocCommentContext.checkReference] on [docContext] (defaulting to [from]'s
+         * documentation) targeting [to], verify its [ReferenceCheckResult.isValid] matches whether
+         * an issue was reported, and return any reported issue messages.
          */
-        fun checkReference(from: SelectableItem, to: SelectableItem): String {
-            val context = from.requiredDocumentation as DocCommentContext
+        fun checkReference(
+            from: SelectableItem,
+            to: SelectableItem,
+            conditionFlagState: FlagState = FlagState.NONE,
+            docContext: DocCommentContext = from.requiredDocumentation as DocCommentContext,
+        ): String {
             val reporter = RecordingReporter()
             val locationReporter =
                 object : LocationSpecificReporter {
@@ -176,7 +209,7 @@ class AbstractItemDocumentationTest {
                         reporter.report(issue, null, message, FileLocation.UNKNOWN)
                     }
                 }
-            val result = context.checkReference(to, locationReporter)
+            val result = docContext.checkReference(to, locationReporter, conditionFlagState)
             val issues = reporter.removeIssues()
             assertEquals(
                 issues.isEmpty(),
@@ -399,5 +432,78 @@ class AbstractItemDocumentationTest {
             "warning: Class test.pkg.HiddenTarget is hidden (ErrorWhenNew) [HiddenDocReference]",
             context.checkReference(docOnlyClass, hiddenTarget),
         )
+    }
+
+    @Test
+    fun `Test checkReference with conditionFlagState and withConditionFlagState`() {
+        val context =
+            TestContext(
+                apiFlags =
+                    ApiFlags(
+                        listOf(
+                            ApiFlag("test.pkg.add_flag", ApiFlagAction.KEEP),
+                            ApiFlag("test.pkg.finalized_flag", ApiFlagAction.FINALIZE),
+                            ApiFlag("test.pkg.remove_flag", ApiFlagAction.KEEP),
+                        )
+                    )
+            )
+        val referencer = context.createClass("test.pkg.Referencer")
+        val flaggedTarget =
+            context.createClass("test.pkg.FlaggedTarget", flagName = "test.pkg.add_flag")
+        val removalTarget =
+            context.createClass(
+                "test.pkg.RemovalTarget",
+                annotationNames = listOf(TestableApiSurfaces.REMOVED_FROM_API.qualifiedName),
+                flagName = "test.pkg.remove_flag",
+            )
+
+        val keptAddState = FlagState.additionFlag("test.pkg.add_flag", ApiFlagAction.KEEP)
+        val finalizedAddState =
+            FlagState.additionFlag("test.pkg.finalized_flag", ApiFlagAction.FINALIZE)
+        val keptRemovalState = FlagState.removalFlag("test.pkg.remove_flag", ApiFlagAction.KEEP)
+
+        // Unguarded or finalized-flag references from an unflagged item to a kept `@FlaggedApi`
+        // item report `HiddenDocReference`.
+        assertEquals(
+            "warning: Class test.pkg.FlaggedTarget is guarded by @FlaggedApi(test.pkg.add_flag) (ErrorWhenNew) [HiddenDocReference]",
+            context.checkReference(referencer, flaggedTarget),
+        )
+        assertEquals(
+            "warning: Class test.pkg.FlaggedTarget is guarded by @FlaggedApi(test.pkg.add_flag) (ErrorWhenNew) [HiddenDocReference]",
+            context.checkReference(
+                referencer,
+                flaggedTarget,
+                conditionFlagState = finalizedAddState
+            ),
+        )
+
+        // Passing a kept addition `conditionFlagState` guards `flaggedTarget`, while still
+        // reporting references to scheduled-removal items (`Retained > FlaggedForRemoval`).
+        assertEquals(
+            "",
+            context.checkReference(referencer, flaggedTarget, conditionFlagState = keptAddState),
+        )
+        assertEquals(
+            "warning: Class test.pkg.RemovalTarget is scheduled for removal by @FlaggedApi(test.pkg.remove_flag) (ErrorWhenNew) [HiddenDocReference]",
+            context.checkReference(referencer, removalTarget, conditionFlagState = keptAddState),
+        )
+
+        // `withConditionFlagState(FlagState.NONE)` returns the receiver unchanged, and chaining
+        // `withConditionFlagState` combines nested flag guards across dimensions.
+        val baseDocContext = referencer.requiredDocumentation as DocCommentContext
+        assertSame(baseDocContext, baseDocContext.withConditionFlagState(FlagState.NONE))
+
+        val scopedAdd = baseDocContext.withConditionFlagState(keptAddState)
+        assertSame(scopedAdd, scopedAdd.withConditionFlagState(FlagState.NONE))
+        assertSame(scopedAdd, scopedAdd.withConditionFlagState(keptAddState))
+        assertEquals("", context.checkReference(referencer, flaggedTarget, docContext = scopedAdd))
+        assertEquals(
+            "warning: Class test.pkg.RemovalTarget is scheduled for removal by @FlaggedApi(test.pkg.remove_flag) (ErrorWhenNew) [HiddenDocReference]",
+            context.checkReference(referencer, removalTarget, docContext = scopedAdd),
+        )
+
+        val scopedBoth = scopedAdd.withConditionFlagState(keptRemovalState)
+        assertEquals("", context.checkReference(referencer, flaggedTarget, docContext = scopedBoth))
+        assertEquals("", context.checkReference(referencer, removalTarget, docContext = scopedBoth))
     }
 }

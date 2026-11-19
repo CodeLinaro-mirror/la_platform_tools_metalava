@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.api.flags.FlagState
 import com.android.tools.metalava.model.api.surface.ReferenceCheckResult
 import com.android.tools.metalava.model.source.javadoc.ExprBuilderContext
 import com.android.tools.metalava.model.source.javadoc.ExprContext
@@ -41,13 +42,24 @@ internal interface DocCommentContext : ExprBuilderContext, ExprContext {
      *
      * @param referencedItem The resolved target [SelectableItem] referenced by the doc tag.
      * @param reporter Location-specific reporter for the reference tag in the doc comment.
+     * @param conditionFlagState Any conditional [FlagState] enclosing the reference (for example,
+     *   from `{@if (flag(...))}` or `@if (flag(...))`).
      * @return The [ReferenceCheckResult] indicating whether the reference is valid or why it is
      *   invalid.
      */
     fun checkReference(
         referencedItem: SelectableItem,
         reporter: LocationSpecificReporter,
+        conditionFlagState: FlagState = FlagState.NONE,
     ): ReferenceCheckResult
+
+    /**
+     * Return a [DocCommentContext] that includes [flagState] in the active conditional [FlagState]
+     * passed to [checkReference] (or `this` if [flagState] is [FlagState.NONE]).
+     */
+    fun withConditionFlagState(flagState: FlagState): DocCommentContext =
+        if (flagState === FlagState.NONE) this
+        else ScopedDocCommentContext(this, conditionFlagState = flagState)
 
     /**
      * Resolve the qualified class name to emit in documentation references for [classItem].
@@ -94,4 +106,29 @@ internal interface DocCommentContext : ExprBuilderContext, ExprContext {
 
     /** Provides support for parsing type references within Javadoc content. */
     val docTypeParser: DocTypeParser
+}
+
+/**
+ * Flat delegating [DocCommentContext] that combines any active `@if` / `{@if}` [conditionFlagState]
+ * when [checkReference] is invoked.
+ */
+private class ScopedDocCommentContext(
+    private val delegate: DocCommentContext,
+    private val conditionFlagState: FlagState = FlagState.NONE,
+) : DocCommentContext by delegate {
+    override fun checkReference(
+        referencedItem: SelectableItem,
+        reporter: LocationSpecificReporter,
+        conditionFlagState: FlagState,
+    ): ReferenceCheckResult {
+        val effectiveState = this.conditionFlagState combineWith conditionFlagState
+        return delegate.checkReference(referencedItem, reporter, effectiveState)
+    }
+
+    override fun withConditionFlagState(flagState: FlagState): DocCommentContext {
+        if (flagState === FlagState.NONE) return this
+        val combined = this.conditionFlagState combineWith flagState
+        if (combined == this.conditionFlagState) return this
+        return ScopedDocCommentContext(delegate, combined)
+    }
 }

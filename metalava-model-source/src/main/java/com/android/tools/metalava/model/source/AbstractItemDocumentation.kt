@@ -29,6 +29,7 @@ import com.android.tools.metalava.model.ReferencableItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypeParameterListOwner
 import com.android.tools.metalava.model.api.SurfaceSelectionRule
+import com.android.tools.metalava.model.api.flags.FlagState
 import com.android.tools.metalava.model.api.surface.ReferenceCheckResult
 import com.android.tools.metalava.model.api.surface.ReferenceKind
 import com.android.tools.metalava.model.doc.DocContent
@@ -188,6 +189,7 @@ internal abstract class AbstractItemDocumentation(
     override fun checkReference(
         referencedItem: SelectableItem,
         reporter: LocationSpecificReporter,
+        conditionFlagState: FlagState,
     ): ReferenceCheckResult {
         val referenceStrategy = item.codebase.apiSurfaces.referenceStrategy
 
@@ -202,7 +204,13 @@ internal abstract class AbstractItemDocumentation(
             effectiveReferencedItem(referencedItem) ?: return ReferenceCheckResult.Valid
 
         // Check whether `targetItem` is accessible in documentation (`CORE` or `DOC_ONLY`).
-        val result = referenceStrategy.checkReference(item, targetItem, ReferenceKind.DOCUMENTATION)
+        val result =
+            referenceStrategy.checkReference(
+                item,
+                targetItem,
+                ReferenceKind.DOCUMENTATION,
+                conditionFlagState,
+            )
 
         // Report `HiddenDocReference` with the strategy's human-readable reason (e.g. "hidden").
         if (result is ReferenceCheckResult.Invalid) {

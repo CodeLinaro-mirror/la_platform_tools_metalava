@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ReferencableItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypeParameterScope
+import com.android.tools.metalava.model.api.flags.FlagState
 import com.android.tools.metalava.model.api.surface.ReferenceCheckResult
 import com.android.tools.metalava.model.parser.LineMap
 import com.android.tools.metalava.model.scope.NameClassification
@@ -172,6 +173,7 @@ internal class TestDocCommentContext(
     override fun checkReference(
         referencedItem: SelectableItem,
         reporter: LocationSpecificReporter,
+        conditionFlagState: FlagState,
     ) = ReferenceCheckResult.Valid
 
     /** Implements [ExprContext.isFlagEnabled]. */
