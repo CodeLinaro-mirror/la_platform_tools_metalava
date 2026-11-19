@@ -67,6 +67,15 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
                 // Ensures consistent formatting irrespective of how it was formatted in the source.
                 .collapseSpaces()
 
+        // KDoc uses `[...]` links rather than Javadoc reference tags, and Kotlin stubs are not
+        // supported, so leave labeled reference tags in Kotlin comments unresolved.
+        if (context.isKotlin) {
+            return ExtractDataResult(
+                LabeledRefTagData(name, sourceReference, null),
+                consumedContent = labelStart,
+            )
+        }
+
         // Parse the source reference, reporting an error if it could not be done.
         val parsedReference = parseReference(sourceReference, context.docTypeParser)
         if (parsedReference == null) {

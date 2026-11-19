@@ -33,12 +33,19 @@ internal class ThrowsTagType() : TagType<ThrowsTagData>("throws", TagTypeForm.BL
     ): ExtractDataResult<ThrowsTagData>? {
         val throwsName = text.findLeadingIdentifier() ?: return null
 
-        // Resolve the class name to a fully qualified class reference or type parameter, including
-        // any `{@if (flag(...))}` scope covering the throwable identifier.
-        val referenceContext = context.forTextRange(text, 0, throwsName.length)
+        // Leave @throws and @exception names in Kotlin comments unresolved (matching
+        // LabeledRefTagType), avoiding partial java.lang qualification and spurious UnresolvedLink
+        // warnings on KDoc '[Exception]' or Kotlin-imported exception names.
         val throwableReference =
-            resolveThrowableType(referenceContext, reporter, throwsName)
-                ?: ClassReference(throwsName)
+            if (context.isKotlin) {
+                ClassReference(throwsName)
+            } else {
+                // Resolve the class name to a fully qualified class reference or type parameter,
+                // including any `{@if (flag(...))}` scope covering the throwable identifier.
+                val referenceContext = context.forTextRange(text, 0, throwsName.length)
+                resolveThrowableType(referenceContext, reporter, throwsName)
+                    ?: ClassReference(throwsName)
+            }
 
         return ExtractDataResult(
             tagData =

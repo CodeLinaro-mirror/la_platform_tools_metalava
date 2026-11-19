@@ -101,24 +101,17 @@ class CommonParameterizedDocumentationTest : BaseModelTest() {
                     name = "doc comment with java.lang link - kotlin",
                     inputFormats = kotlinOnly,
                     comment = "/** {@link String} */",
-                    // TODO(b/447588621): Skip Javadoc reference resolution on Kotlin declarations.
-                    expectedText = "/** {@link java.lang.String String} */",
                 ),
                 TestParams(
                     name = "doc comment with java.lang throws - kotlin",
                     inputFormats = kotlinOnly,
                     comment = "/** @throws IllegalArgumentException if invalid */",
-                    // TODO(b/447588621): Skip Javadoc reference resolution on Kotlin declarations.
-                    expectedText = "/** @throws java.lang.IllegalArgumentException if invalid */",
                 ),
                 TestParams(
                     name = "doc comment with kdoc bracketed throws - kotlin",
                     inputFormats = kotlinOnly,
                     imports = listOf("java.io.IOException"),
                     comment = "/** @throws [IOException] if failed */",
-                    // TODO(b/447588621): Skip Javadoc reference resolution on Kotlin declarations.
-                    expectedIssues =
-                        "MAIN_SRC/src/test/pkg/Test.kt:5:13: warning: Could not resolve a class or type parameter called '[IOException]' in 'class test.pkg.Test' (ErrorWhenNew) [UnresolvedLink]",
                 ),
             )
 

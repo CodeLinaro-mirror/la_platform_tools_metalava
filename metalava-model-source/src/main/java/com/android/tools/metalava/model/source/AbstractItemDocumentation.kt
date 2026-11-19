@@ -322,6 +322,9 @@ internal abstract class AbstractItemDocumentation(
                 else -> null
             }
 
+    override val isKotlin: Boolean
+        get() = item.isKotlin()
+
     /** Implements [DocCommentContext.docTypeParser]. */
     override val docTypeParser: DocTypeParser
         get() = DocTypeParser.create(reporter = this, item)
