@@ -154,20 +154,32 @@ internal abstract class AbstractItemDocumentation(
                     mappedDocStubsAnnotationName(referencedItem) ?: return referencedItem
                 item.codebase.resolveClass(mappedName)
             }
-            is FieldItem -> {
-                val mappedName =
-                    mappedDocStubsAnnotationName(referencedItem.containingClass())
-                        ?: return referencedItem
-                val mappedClass = item.codebase.resolveClass(mappedName)
-                if (mappedClass != null) {
-                    mappedClass.findField(referencedItem.name()) ?: referencedItem
-                } else if (referencedItem.isDirectlyHiddenOrRemoved()) {
-                    referencedItem
-                } else {
-                    null
+            is FieldItem ->
+                effectiveMappedAnnotationMember(referencedItem) { mappedClass ->
+                    mappedClass.findField(referencedItem.name())
                 }
-            }
             else -> referencedItem
+        }
+    }
+
+    /**
+     * Resolve [memberItem] to its counterpart on the replacement doc-stubs annotation class (if its
+     * containing class is a mapped annotation), or `null` when the replacement annotation is
+     * external and [memberItem] is not itself directly hidden or removed.
+     */
+    private inline fun effectiveMappedAnnotationMember(
+        memberItem: MemberItem,
+        findInMappedClass: (ClassItem) -> SelectableItem?,
+    ): SelectableItem? {
+        val mappedName =
+            mappedDocStubsAnnotationName(memberItem.containingClass()) ?: return memberItem
+        val mappedClass = item.codebase.resolveClass(mappedName)
+        return if (mappedClass != null) {
+            findInMappedClass(mappedClass) ?: memberItem
+        } else if (memberItem.isDirectlyHiddenOrRemoved()) {
+            memberItem
+        } else {
+            null
         }
     }
 
