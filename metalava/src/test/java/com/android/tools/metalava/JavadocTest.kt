@@ -1004,7 +1004,11 @@ class JavadocTest : DriverTest() {
         @Suppress("ConstantConditionIf")
         checkStubs(
             docStubs = true,
-            warnings = "",
+            warnings =
+                """
+                    src/test/pkg1/Test.java:7: warning: Could not resolve 'SomethingMissing' in 'method test.pkg1.Test.test()' (ErrorWhenNew) [UnresolvedLink]
+                    src/test/pkg1/Test.java:10: warning: Could not resolve 'OtherMissing' in 'method test.pkg1.Test.test()' (ErrorWhenNew) [UnresolvedLink]
+                """,
             sourceFiles =
                 arrayOf(
                     java(

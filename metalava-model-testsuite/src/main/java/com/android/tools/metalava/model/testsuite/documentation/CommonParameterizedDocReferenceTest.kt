@@ -350,22 +350,22 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                     name = "Unknown",
                     expectedResolvedReference = "Unknown",
                     expectedLinkLabel = null,
-                    // TODO(b/447588621): Report UnresolvedLink for unresolved ambiguous reference.
-                    expectedIssues = "",
+                    expectedIssues =
+                        "warning: Could not resolve 'Unknown' in 'class test.pkg.Test' (ErrorWhenNew) [UnresolvedLink]",
                 ),
                 TestParams(
                     name = "unknown.pkg.Unknown",
                     expectedResolvedReference = "unknown.pkg.Unknown",
                     expectedLinkLabel = null,
-                    // TODO(b/447588621): Report UnresolvedLink for unresolved qualified reference.
-                    expectedIssues = "",
+                    expectedIssues =
+                        "warning: Could not resolve 'unknown.pkg.Unknown' as could not find a package or class called 'unknown' in 'class test.pkg.Test' (ErrorWhenNew) [UnresolvedLink]",
                 ),
                 TestParams(
                     name = "Other.unknownMember",
                     expectedResolvedReference = "Other.unknownMember",
                     expectedLinkLabel = null,
-                    // TODO(b/447588621): Report UnresolvedLink for unresolved qualified member.
-                    expectedIssues = "",
+                    expectedIssues =
+                        "warning: Could not resolve 'Other.unknownMember' as could not find 'unknownMember' in 'class test.pkg.Other' (ErrorWhenNew) [UnresolvedLink]",
                 ),
 
                 // Reference a member of another class in the same package.

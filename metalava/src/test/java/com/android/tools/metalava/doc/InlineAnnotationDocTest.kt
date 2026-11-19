@@ -223,7 +223,8 @@ class InlineAnnotationDocTest : DriverTest() {
                         """
                     ),
                 ),
-            expectedIssues = "",
+            expectedIssues =
+                "src/anno/pkg/Anno.java:3: warning: Could not resolve 'Broken' in 'class anno.pkg.Anno' (ErrorWhenNew) [UnresolvedLink]",
         )
     }
 }

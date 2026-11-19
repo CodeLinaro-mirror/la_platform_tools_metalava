@@ -614,7 +614,11 @@ internal data class AmbiguousSourceReference(val name: String) : ParsedReference
                     ),
                 )
             }
-            else -> null
+            is ExternalReferencableItem -> null
+            is InvalidReferencableItem -> {
+                resolved.reportIssue(reporter)
+                null
+            }
         }
 }
 
