@@ -1336,22 +1336,20 @@ class CommonDocReferenceTest : BaseModelTest() {
                 ),
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
-            // TODO(b/568477816): Implement additionFlagState in AbstractItemDocumentation so
-            //  guardedMethod does not rewrite links to ERROR[...] or report HiddenDocReference.
             testClass
                 .assertMethod("guardedMethod", listOf("int"))
                 .assertPrintedDocumentation(
                     expectedOutput =
                         """
                             /**
-                             * ERROR[guarded by @FlaggedApi(test.pkg.flags.add_flag): FlaggedAdditionClass] and ERROR[guarded by @FlaggedApi(test.pkg.flags.add_flag): FlaggedAdditionClass#action()]
-                             * ERROR[guarded by @FlaggedApi(test.pkg.flags.add_flag): FlaggedAdditionClass]
-                             * ERROR[guarded by @FlaggedApi(test.pkg.flags.add_flag): FlaggedAdditionClass]
-                             * ERROR[guarded by @FlaggedApi(test.pkg.flags.add_flag): FlaggedAdditionClass]
+                             * {@link test.pkg.FlaggedAdditionClass FlaggedAdditionClass} and {@linkplain test.pkg.FlaggedAdditionClass#action() FlaggedAdditionClass.action()}
+                             * {@link test.pkg.FlaggedAdditionClass FlaggedAdditionClass}
+                             * {@link test.pkg.FlaggedAdditionClass FlaggedAdditionClass}
+                             * {@link test.pkg.FlaggedAdditionClass FlaggedAdditionClass}
                              *
-                             * @param x ERROR[guarded by @FlaggedApi(test.pkg.flags.add_flag): FlaggedAdditionClass]
-                             * @throws test.pkg.FlaggedException if ERROR[guarded by @FlaggedApi(test.pkg.flags.add_flag): FlaggedAdditionClass] fails.
-                             * @see "ERROR[guarded by @FlaggedApi(test.pkg.flags.add_flag): FlaggedAdditionClass]"
+                             * @param x {@link test.pkg.FlaggedAdditionClass FlaggedAdditionClass}
+                             * @throws test.pkg.FlaggedException if {@link test.pkg.FlaggedAdditionClass FlaggedAdditionClass} fails.
+                             * @see test.pkg.FlaggedAdditionClass FlaggedAdditionClass
                              */
                         """,
                 )
@@ -1373,15 +1371,6 @@ class CommonDocReferenceTest : BaseModelTest() {
 
             assertAndRemoveReportedIssues(
                 """
-                    MAIN_SRC/src/test/pkg/Test.java:4:44: warning: Class test.pkg.FlaggedAdditionClass is guarded by @FlaggedApi(test.pkg.flags.add_flag) (ErrorWhenNew) [HiddenDocReference]
-                    MAIN_SRC/src/test/pkg/Test.java:4:82: warning: Class test.pkg.FlaggedAdditionClass is guarded by @FlaggedApi(test.pkg.flags.add_flag) (ErrorWhenNew) [HiddenDocReference]
-                    MAIN_SRC/src/test/pkg/Test.java:5:51: warning: Class test.pkg.FlaggedAdditionClass is guarded by @FlaggedApi(test.pkg.flags.add_flag) (ErrorWhenNew) [HiddenDocReference]
-                    MAIN_SRC/src/test/pkg/Test.java:6:79: warning: Class test.pkg.FlaggedAdditionClass is guarded by @FlaggedApi(test.pkg.flags.add_flag) (ErrorWhenNew) [HiddenDocReference]
-                    MAIN_SRC/src/test/pkg/Test.java:7:92: warning: Class test.pkg.FlaggedAdditionClass is guarded by @FlaggedApi(test.pkg.flags.add_flag) (ErrorWhenNew) [HiddenDocReference]
-                    MAIN_SRC/src/test/pkg/Test.java:10:29: warning: Class test.pkg.FlaggedAdditionClass is guarded by @FlaggedApi(test.pkg.flags.add_flag) (ErrorWhenNew) [HiddenDocReference]
-                    MAIN_SRC/src/test/pkg/Test.java:11:48: warning: Class test.pkg.FlaggedAdditionClass is guarded by @FlaggedApi(test.pkg.flags.add_flag) (ErrorWhenNew) [HiddenDocReference]
-                    MAIN_SRC/src/test/pkg/Test.java:11:21: warning: Class test.pkg.FlaggedException is guarded by @FlaggedApi(test.pkg.flags.add_flag) (ErrorWhenNew) [HiddenDocReference]
-                    MAIN_SRC/src/test/pkg/Test.java:12:18: warning: Class test.pkg.FlaggedAdditionClass is guarded by @FlaggedApi(test.pkg.flags.add_flag) (ErrorWhenNew) [HiddenDocReference]
                     MAIN_SRC/src/test/pkg/Test.java:18:50: warning: Class test.pkg.FlaggedAdditionClass is guarded by @FlaggedApi(test.pkg.flags.add_flag) (ErrorWhenNew) [HiddenDocReference]
                     MAIN_SRC/src/test/pkg/Test.java:19:63: warning: Class test.pkg.FlaggedAdditionClass is guarded by @FlaggedApi(test.pkg.flags.add_flag) (ErrorWhenNew) [HiddenDocReference]
                     MAIN_SRC/src/test/pkg/Test.java:20:44: warning: Class test.pkg.SystemClass is in a wider API surface (system) than public (ErrorWhenNew) [HiddenDocReference]

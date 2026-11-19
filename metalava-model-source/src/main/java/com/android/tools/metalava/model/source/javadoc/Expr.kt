@@ -48,7 +48,7 @@ internal interface ExprContext {
     fun includesSurface(surfaceName: String): Boolean
 
     /** Obtain the [FlagState] established by `flag(flagName)` in its `true` branch. */
-    fun additionFlagState(flagName: String): FlagState = FlagState.NONE
+    fun additionFlagState(flagName: String): FlagState
 }
 
 /** An expression that can be used with a Javadoc conditional expression. */

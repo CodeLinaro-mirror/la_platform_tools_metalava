@@ -234,6 +234,10 @@ internal abstract class AbstractItemDocumentation(
         return surfaceName in item.codebase.apiSurfaces.main.includedSurfaceNames
     }
 
+    /** Implements [ExprContext.additionFlagState]. */
+    override fun additionFlagState(flagName: String): FlagState =
+        FlagState.additionFlag(flagName, item.codebase.config.apiFlags?.get(flagName)?.action)
+
     override val isHidden: Boolean
         get() {
             // When API surfaces are configured in a configuration file, the Javadoc `@hide` block

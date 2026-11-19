@@ -2254,7 +2254,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
 
     @Test
     fun `Test conditional doc references to FlaggedApi items`() {
-        val stubsWithFlaggedApisBrokenIf =
+        val stubsWithFlaggedApis =
             arrayOf(
                 java(
                     """
@@ -2263,8 +2263,8 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                         public class Foo {
                         public Foo() { throw new RuntimeException("Stub!"); }
                         /**
-                         * Existing method. ERROR[guarded by @FlaggedApi(test.pkg.flags.foo_bar): NewReplacement] and ERROR[guarded by @FlaggedApi(test.pkg.flags.foo_bar): #NEW_CONSTANT]
-                         * @see "ERROR[guarded by @FlaggedApi(test.pkg.flags.foo_bar): NewReplacement]"
+                         * Existing method. {@link test.pkg.NewReplacement NewReplacement} and {@link #NEW_CONSTANT}
+                         * @see test.pkg.NewReplacement NewReplacement
                          */
                         public void existingMethod() { throw new RuntimeException("Stub!"); }
                         @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar") public static final int NEW_CONSTANT = 1;
@@ -2278,34 +2278,6 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                         @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar")
                         public class NewReplacement {
                         @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar")
-                        public NewReplacement() { throw new RuntimeException("Stub!"); }
-                        }
-                    """
-                ),
-            )
-
-        val stubsFinalized =
-            arrayOf(
-                java(
-                    """
-                        package test.pkg;
-                        @SuppressWarnings({"unchecked", "deprecation", "all"})
-                        public class Foo {
-                        public Foo() { throw new RuntimeException("Stub!"); }
-                        /**
-                         * Existing method. {@link test.pkg.NewReplacement NewReplacement} and {@link #NEW_CONSTANT}
-                         * @see test.pkg.NewReplacement NewReplacement
-                         */
-                        public void existingMethod() { throw new RuntimeException("Stub!"); }
-                        public static final int NEW_CONSTANT = 1;
-                        }
-                    """
-                ),
-                java(
-                    """
-                        package test.pkg;
-                        @SuppressWarnings({"unchecked", "deprecation", "all"})
-                        public class NewReplacement {
                         public NewReplacement() { throw new RuntimeException("Stub!"); }
                         }
                     """
@@ -2326,13 +2298,6 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                     """
                 ),
             )
-
-        val preFixIfIssues =
-            """
-                src/test/pkg/Foo.java:8: warning: Class test.pkg.NewReplacement is guarded by @FlaggedApi(test.pkg.flags.foo_bar) (ErrorWhenNew) [HiddenDocReference]
-                src/test/pkg/Foo.java:8: warning: Field test.pkg.Foo.NEW_CONSTANT is guarded by @FlaggedApi(test.pkg.flags.foo_bar) (ErrorWhenNew) [HiddenDocReference]
-                src/test/pkg/Foo.java:11: warning: Class test.pkg.NewReplacement is guarded by @FlaggedApi(test.pkg.flags.foo_bar) (ErrorWhenNew) [HiddenDocReference]
-            """
 
         checkFlaggedApis(
             java(
@@ -2383,8 +2348,6 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                 ),
             expectationsList =
                 listOf(
-                    // TODO(b/568477816): Implement additionFlagState in AbstractItemDocumentation
-                    //  so KEEP_ALL emits valid {@link ...} tags without HiddenDocReference.
                     Expectations(
                         Surface.PUBLIC,
                         Flagged.KEEP_ALL,
@@ -2402,27 +2365,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                                   }
                                 }
                             """,
-                        expectedIssues = preFixIfIssues,
-                        expectedStubFiles = stubsWithFlaggedApisBrokenIf,
-                    ),
-                    Expectations(
-                        Surface.PUBLIC,
-                        Flagged.FINALIZE_FOO_BAR_APIS,
-                        expectedApiSignature =
-                            """
-                                // Signature format: 2.0
-                                package test.pkg {
-                                  public class Foo {
-                                    ctor public Foo();
-                                    method public void existingMethod();
-                                    field public static final int NEW_CONSTANT = 1; // 0x1
-                                  }
-                                  public class NewReplacement {
-                                    ctor public NewReplacement();
-                                  }
-                                }
-                            """,
-                        expectedStubFiles = stubsFinalized,
+                        expectedStubFiles = stubsWithFlaggedApis,
                     ),
                     Expectations(
                         Surface.PUBLIC,
@@ -2446,17 +2389,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                             """
                                 // Signature format: 2.0
                             """,
-                        expectedIssues = preFixIfIssues,
-                        expectedStubFiles = stubsWithFlaggedApisBrokenIf,
-                    ),
-                    Expectations(
-                        Surface.SYSTEM,
-                        Flagged.FINALIZE_FOO_BAR_APIS,
-                        expectedApiSignature =
-                            """
-                                // Signature format: 2.0
-                            """,
-                        expectedStubFiles = stubsFinalized,
+                        expectedStubFiles = stubsWithFlaggedApis,
                     ),
                     Expectations(
                         Surface.SYSTEM,
@@ -2474,17 +2407,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                             """
                                 // Signature format: 2.0
                             """,
-                        expectedIssues = preFixIfIssues,
-                        expectedStubFiles = stubsWithFlaggedApisBrokenIf,
-                    ),
-                    Expectations(
-                        Surface.MODULE_LIB,
-                        Flagged.FINALIZE_FOO_BAR_APIS,
-                        expectedApiSignature =
-                            """
-                                // Signature format: 2.0
-                            """,
-                        expectedStubFiles = stubsFinalized,
+                        expectedStubFiles = stubsWithFlaggedApis,
                     ),
                     Expectations(
                         Surface.MODULE_LIB,

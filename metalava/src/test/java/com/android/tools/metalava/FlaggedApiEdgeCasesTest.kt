@@ -934,14 +934,6 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                     ),
                     flaggedApiSource,
                 ),
-            // TODO(b/568477816): Implement additionFlagState in AbstractItemDocumentation so kept
-            //  @if/{@if} branches do not report HiddenDocReference or rewrite links to ERROR[...].
-            expectedIssues =
-                """
-                    src/test/pkg/Foo.java:7: warning: Class test.pkg.NewReplacement is guarded by @FlaggedApi(test.pkg.flags.foo_bar) (ErrorWhenNew) [HiddenDocReference]
-                    src/test/pkg/Foo.java:7: warning: Field test.pkg.Foo.NEW_CONSTANT is guarded by @FlaggedApi(test.pkg.flags.foo_bar) (ErrorWhenNew) [HiddenDocReference]
-                    src/test/pkg/Foo.java:10: warning: Class test.pkg.NewReplacement is guarded by @FlaggedApi(test.pkg.flags.foo_bar) (ErrorWhenNew) [HiddenDocReference]
-                """,
             expectedStubFiles =
                 arrayOf(
                     java(
@@ -951,8 +943,8 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                             public class Foo {
                             public Foo() { throw new RuntimeException("Stub!"); }
                             /**
-                             * Existing method. ERROR[guarded by @FlaggedApi(test.pkg.flags.foo_bar): NewReplacement] and ERROR[guarded by @FlaggedApi(test.pkg.flags.foo_bar): #NEW_CONSTANT]
-                             * @see "ERROR[guarded by @FlaggedApi(test.pkg.flags.foo_bar): NewReplacement]"
+                             * Existing method. {@link test.pkg.NewReplacement NewReplacement} and {@link #NEW_CONSTANT}
+                             * @see test.pkg.NewReplacement NewReplacement
                              */
                             public void existingMethod() { throw new RuntimeException("Stub!"); }
                             @$ANDROID_FLAGGED_API("test.pkg.flags.foo_bar") public static final int NEW_CONSTANT = 1;
