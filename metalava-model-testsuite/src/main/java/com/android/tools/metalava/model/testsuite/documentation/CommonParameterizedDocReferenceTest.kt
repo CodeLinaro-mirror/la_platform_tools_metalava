@@ -80,6 +80,7 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
      */
     @get:Rule val entryPointCallerRule = EntryPointCallerRule { params.entryPointCallerTracker }
 
+    /** Parameters for a single documentation reference test case. */
     data class TestParams
     @EntryPoint
     constructor(
@@ -91,15 +92,19 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
          */
         val reference: String = name,
 
+        /** Optional explicit label supplied after [reference] in the input comment. */
+        val linkLabel: String? = null,
+
         /** The expected resolved reference of resolving [reference]. */
         val expectedResolvedReference: String,
 
         /**
          * The expected label that will be added, `null` if it does not add a label.
          *
-         * Defaults to [reference] with `#` replaced with `.`.
+         * Defaults to [linkLabel], or [reference] with `#` replaced with `.` when [linkLabel] is
+         * `null`.
          */
-        val expectedLinkLabel: String? = reference.replace('#', '.'),
+        val expectedLinkLabel: String? = linkLabel ?: reference.replace('#', '.'),
 
         /** The expected issues that will be reported. */
         val expectedIssues: String = "",
@@ -502,9 +507,13 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
             }
     }
 
+    /**
+     * Verify that [params] resolves, formats its printed tag, and reports issues as expected for
+     * [testTagType].
+     */
     @Test
     fun `Documentation text`() {
-        val comment = testTagType.commentForReference(params.reference, null)
+        val comment = testTagType.commentForReference(params.reference, params.linkLabel)
         runSourceCodebaseTest(
             inputSet(
                 java(
