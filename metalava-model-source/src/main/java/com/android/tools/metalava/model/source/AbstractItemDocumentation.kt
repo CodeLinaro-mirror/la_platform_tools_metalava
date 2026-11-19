@@ -158,6 +158,10 @@ internal abstract class AbstractItemDocumentation(
                 effectiveMappedAnnotationMember(referencedItem) { mappedClass ->
                     mappedClass.findField(referencedItem.name())
                 }
+            is MethodItem ->
+                effectiveMappedAnnotationMember(referencedItem) { mappedClass ->
+                    mappedClass.methods().firstOrNull { it.name() == referencedItem.name() }
+                }
             else -> referencedItem
         }
     }

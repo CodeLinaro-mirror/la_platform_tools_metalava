@@ -575,12 +575,7 @@ class AbstractItemDocumentationTest {
         context.createMethod(androidxNonNull, "publicMethod")
         context.createMethod(androidxNonNull, "hiddenMethod", doc = "/** @hide */")
 
-        // TODO(b/447588621): Should treat `intDefFlagMethod` and `androidNonNullPublicMethod` as
-        //  valid, and check `androidx.annotation.NonNull.hiddenMethod()` for `hiddenMethod`.
-        assertEquals(
-            "warning: Method android.annotation.IntDef.flag() is hidden (ErrorWhenNew) [HiddenDocReference]",
-            context.checkReference(referencer, intDefFlagMethod),
-        )
+        assertEquals("", context.checkReference(referencer, intDefFlagMethod))
         assertEquals(
             "warning: Method android.annotation.IntDef.docHiddenMethod() is hidden (ErrorWhenNew) [HiddenDocReference]",
             context.checkReference(referencer, intDefDocHiddenMethod),
@@ -589,12 +584,9 @@ class AbstractItemDocumentationTest {
             "warning: Method android.annotation.IntDef.annotationHiddenMethod() is hidden (ErrorWhenNew) [HiddenDocReference]",
             context.checkReference(referencer, intDefAnnotationHiddenMethod),
         )
+        assertEquals("", context.checkReference(referencer, androidNonNullPublicMethod))
         assertEquals(
-            "warning: Method android.annotation.NonNull.publicMethod() is hidden (ErrorWhenNew) [HiddenDocReference]",
-            context.checkReference(referencer, androidNonNullPublicMethod),
-        )
-        assertEquals(
-            "warning: Method android.annotation.NonNull.hiddenMethod() is hidden (ErrorWhenNew) [HiddenDocReference]",
+            "warning: Method androidx.annotation.NonNull.hiddenMethod() is hidden (ErrorWhenNew) [HiddenDocReference]",
             context.checkReference(referencer, androidNonNullHiddenMethod),
         )
         assertEquals(
