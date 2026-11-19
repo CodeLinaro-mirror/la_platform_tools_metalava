@@ -36,8 +36,7 @@ internal class TurbineSourceFile(
     override val fileLocation: FileLocation =
         FileLocation.createLocation(Path.of(compUnit.source().path()))
 
-    override fun computeLineMap(): LineMap =
-        TurbineLineMap(TurbineDiagLineMap.create(compUnit.source().source()))
+    override fun computeLineMap(): LineMap = TurbineLineMap(compUnit.source().lineMap())
 
     override fun computeContainingPackageName() = getPackageName(compUnit)
 
