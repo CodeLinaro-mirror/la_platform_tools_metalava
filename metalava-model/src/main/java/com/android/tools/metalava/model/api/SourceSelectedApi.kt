@@ -182,6 +182,15 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
                 ?: _flagState
                 ?: computeFlagState(item).also { _flagState = it }
 
+    /** Backing property for [deprecatedFlagState], or `null` if it has not yet been computed. */
+    private var _deprecatedFlagState: FlagState? = null
+
+    override val deprecatedFlagState: FlagState
+        get() =
+            adoptedSelectedApi?.deprecatedFlagState
+                ?: _deprecatedFlagState
+                ?: computeDeprecatedFlagState(item).also { _deprecatedFlagState = it }
+
     /**
      * Backing property for [itemApiVariants] so internal updates and checks during initialization
      * do not trigger lazy child initialization in [PackageSourceSelectedApi] or

@@ -88,6 +88,21 @@ sealed class SelectedApi {
     abstract val flagState: FlagState
 
     /**
+     * Additional `@FlaggedApi` [FlagState] guarding `@deprecated` documentation on the associated
+     * [SelectableItem].
+     *
+     * When a previously released, non-deprecated item is newly deprecated under an unfinalized
+     * `@FlaggedApi` annotation (directly or inherited from an enclosing class), the item itself has
+     * [AdditionFlagState.Finalized] in [flagState] (because the item and its main documentation
+     * remain in the API if the flag is reverted), whereas `CodebaseSnapshotTaker` strips its
+     * `@deprecated` block tag on revert. This property captures that addition [FlagState] so
+     * documentation references inside `@deprecated` to APIs guarded by an unfinalized `@FlaggedApi`
+     * are treated as guarded, and returns [FlagState.NONE] in all other cases (including when the
+     * item was already deprecated in the previously released API).
+     */
+    abstract val deprecatedFlagState: FlagState
+
+    /**
      * Whether any `@FlaggedApi` annotation directly on the associated [SelectableItem] should be
      * ignored when computing [flagState] (e.g. when a `@RemovedFromApi @FlaggedApi` annotation on a
      * method override was invalidated because the overridden method remains active in the API).
@@ -109,6 +124,31 @@ sealed class SelectedApi {
         } else {
             ownState
         }
+    }
+
+    /**
+     * Computes [deprecatedFlagState] for [item].
+     *
+     * Only applies when [item] was previously released without deprecation, is not currently being
+     * reverted, and is now effectively deprecated (matching the exact condition under which
+     * `CodebaseSnapshotTaker` strips `@deprecated` when reverting).
+     */
+    protected fun computeDeprecatedFlagState(item: SelectableItem): FlagState {
+        if (revertItem != null || !wasPreviouslyReleased() || wasPreviouslyDeprecated()) {
+            return FlagState.NONE
+        }
+        if (!item.effectivelyDeprecated) {
+            return FlagState.NONE
+        }
+
+        val isRemoved = itemApiVariants.isNotEmpty() && itemApiVariants.isHiddenOrRemoved()
+        val directAnnotation = if (ignoreOwnFlaggedApi) null else findDirectFlaggedApi(item)
+        return computeAdditionFlagState(
+            item,
+            directAnnotation,
+            isRemoved,
+            includeSuperMethods = false,
+        )
     }
 
     /**
@@ -149,13 +189,21 @@ sealed class SelectedApi {
 
     /**
      * Computes the addition [FlagState] from [item]'s [directAnnotation] (if non-removal), or else
-     * from any compatible enclosing class's `@FlaggedApi` annotation, combined with any addition
-     * flags required by overridden [MethodItem.superMethods].
+     * from any compatible enclosing class's `@FlaggedApi` annotation, optionally combined with any
+     * addition flags required by overridden [MethodItem.superMethods] when [includeSuperMethods] is
+     * `true`.
+     *
+     * Used both for [computeOwnFlagState] on unreleased items (with `includeSuperMethods = true`)
+     * and for [computeDeprecatedFlagState] on previously released items that are newly deprecated
+     * under `@FlaggedApi` (with `includeSuperMethods = false`, since an unreleased super method's
+     * `@FlaggedApi` does not revert a previously released overriding method's deprecation when its
+     * enclosing superinterface or superclass is reverted).
      */
     private fun computeAdditionFlagState(
         item: SelectableItem,
         directAnnotation: AnnotationItem?,
         isRemoved: Boolean,
+        includeSuperMethods: Boolean = true,
     ): FlagState {
         var state = FlagState.NONE
         val additionAnnotation =
@@ -176,7 +224,7 @@ sealed class SelectedApi {
         // Combine with any addition flags required by overridden super methods so both unflagged
         // overrides of `@FlaggedApi` methods and overrides annotated with an additional
         // `@FlaggedApi` require the overridden super methods' flags as well.
-        if (item is MethodItem) {
+        if (includeSuperMethods && item is MethodItem) {
             val superAddition = computeSuperMethodsAdditionFlagState(item)
             if (superAddition !== AdditionFlagState.Finalized) {
                 state =

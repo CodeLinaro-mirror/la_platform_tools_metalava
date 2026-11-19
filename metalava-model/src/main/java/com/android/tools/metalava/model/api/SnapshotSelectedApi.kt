@@ -46,6 +46,10 @@ internal class SnapshotSelectedApi : SelectedApi() {
     override var flagState: FlagState = FlagState.NONE
         private set
 
+    /** Additional `@deprecated` [FlagState] copied from the snapshotted item. */
+    override var deprecatedFlagState: FlagState = FlagState.NONE
+        private set
+
     /** Whether the snapshotted item has a removed annotation. */
     private var hasRemovedAnnotation: Boolean = false
 
@@ -73,6 +77,7 @@ internal class SnapshotSelectedApi : SelectedApi() {
         superClassApiVariants = original.superClassApiVariants
         elidableApiVariants = original.elidableApiVariants
         flagState = original.flagState
+        deprecatedFlagState = original.deprecatedFlagState
         hasRemovedAnnotation = original.hasRemovedAnnotation()
         wasPreviouslyReleased = original.wasPreviouslyReleased()
         wasPreviouslyDeprecated = original.wasPreviouslyDeprecated()

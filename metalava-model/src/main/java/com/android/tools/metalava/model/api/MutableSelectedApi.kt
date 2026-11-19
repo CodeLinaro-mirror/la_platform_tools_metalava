@@ -61,6 +61,9 @@ internal open class MutableSelectedApi<S : SelectableItem>(
     override val flagState: FlagState
         get() = _flagState ?: computeFlagState(item).also { _flagState = it }
 
+    override val deprecatedFlagState: FlagState
+        get() = FlagState.NONE
+
     override fun initialize() {}
 
     override fun addItemApiVariant(value: ApiVariant) {

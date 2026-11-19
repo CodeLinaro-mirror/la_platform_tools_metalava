@@ -39,6 +39,7 @@ import com.android.tools.metalava.testing.KnownJarFiles
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import org.junit.Test
@@ -1068,6 +1069,403 @@ class CommonFlagTest : BaseModelTest() {
                 val unreleasedProp = holder.assertProperty("CONST_UNRELEASED")
                 assertFalse(unreleasedProp.selectedApi.wasPreviouslyReleased())
                 assertFalse(unreleasedProp.selectedApi.wasPreviouslyDeprecated())
+            }
+        }
+    }
+
+    /**
+     * Verify [SelectedApi.deprecatedFlagState] across unreleased items, previously released
+     * non-deprecated items newly deprecated via `@Deprecated` or `@deprecated` (with kept,
+     * finalized, and reverted flags, as well as inherited enclosing class flags), previously
+     * released already-deprecated items, scheduled-removal items, and snapshot codebases.
+     */
+    @RequiresCapabilities(Capability.REVERTED_ITEMS)
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test deprecatedFlagState`() {
+        val apiSurfaces = ApiSurfaces.create()
+        val apiSurfaceRules =
+            ApiSurfaceRules(
+                apiSurfaces,
+                mapOf("main" to listOf(SurfaceSelectionRule.unannotated)),
+                listOf(
+                    SurfaceSelectionRule.createAnnotationRule(
+                        "test.pkg.Removed",
+                        effect = SurfaceSelectionRule.Effect.REMOVED,
+                    ),
+                ),
+            )
+        val removedAnnotation =
+            java(
+                """
+                    package test.pkg;
+                    import java.lang.annotation.Retention;
+                    import java.lang.annotation.RetentionPolicy;
+                    @Retention(RetentionPolicy.SOURCE)
+                    public @interface Removed {}
+                """
+            )
+
+        runCodebaseTest(
+            inputSet(
+                removedAnnotation,
+                java(
+                    """
+                        package test.pkg;
+                        public class ReleasedOuter {
+                            public ReleasedOuter() {}
+                            public void newlyDeprecatedInherited() {}
+                            public void implicitlyDeprecatedMethod() {}
+                            public int newlyDeprecatedField;
+                        }
+                        public class ReleasedUndeprecatedOuter {
+                            public void undeprecatedMethod() {}
+                            public int newlyDeprecatedField;
+                        }
+                        public class ReleasedHolder {
+                            public void newlyDeprecatedKept() {}
+                            public void newlyDeprecatedDocTagOnly() {}
+                            public void newlyDeprecatedFinalized() {}
+                            public void newlyDeprecatedReverted() {}
+                            public void scheduledRemovalDeprecated() {}
+                            public void unflaggedDeprecatedOverrideOfFlaggedIface() {}
+                            public void flaggedDeprecatedOverrideOfFlaggedIface() {}
+                            public void unflaggedDeprecatedOverrideOfRevertedIface() {}
+                        }
+                        @Deprecated
+                        public class AlreadyDeprecatedClass {
+                            @Deprecated
+                            public void alreadyDeprecatedMethod() {}
+                        }
+                    """
+                ),
+            ),
+            testFixture =
+                TestFixture(
+                    apiSurfaceRules = apiSurfaceRules,
+                    checkSupportedInputFormats = false,
+                ),
+        ) {
+            val previousCodebase = codebase
+            runCodebaseTest(
+                inputSet(
+                    removedAnnotation,
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.FlaggedApi;
+                            /** @deprecated newly deprecated outer class via doc tag only */
+                            @FlaggedApi("test.pkg.flags.kept_flag")
+                            public class ReleasedOuter {
+                                @Deprecated
+                                public ReleasedOuter() {}
+                                @Deprecated
+                                public void newlyDeprecatedInherited() {}
+                                public void implicitlyDeprecatedMethod() {}
+                                @Deprecated
+                                public int newlyDeprecatedField;
+                            }
+                            @FlaggedApi("test.pkg.flags.kept_flag")
+                            public class ReleasedUndeprecatedOuter {
+                                public void undeprecatedMethod() {}
+                                @Deprecated
+                                public int newlyDeprecatedField;
+                            }
+                            @FlaggedApi("test.pkg.flags.iface_flag")
+                            public interface UnreleasedFlaggedInterface {
+                                void unflaggedDeprecatedOverrideOfFlaggedIface();
+                                void flaggedDeprecatedOverrideOfFlaggedIface();
+                            }
+                            @FlaggedApi("test.pkg.flags.reverted_flag")
+                            public interface RevertedFlaggedInterface {
+                                void unflaggedDeprecatedOverrideOfRevertedIface();
+                            }
+                            public class ReleasedHolder
+                                    implements UnreleasedFlaggedInterface, RevertedFlaggedInterface {
+                                @FlaggedApi("test.pkg.flags.kept_flag")
+                                @Deprecated
+                                public void newlyDeprecatedKept() {}
+
+                                /** @deprecated newly deprecated via doc tag only */
+                                @FlaggedApi("test.pkg.flags.kept_flag")
+                                public void newlyDeprecatedDocTagOnly() {}
+
+                                @FlaggedApi("test.pkg.flags.finalized_flag")
+                                @Deprecated
+                                public void newlyDeprecatedFinalized() {}
+
+                                @FlaggedApi("test.pkg.flags.reverted_flag")
+                                @Deprecated
+                                public void newlyDeprecatedReverted() {}
+
+                                @Removed
+                                @FlaggedApi("test.pkg.flags.kept_flag")
+                                @Deprecated
+                                public void scheduledRemovalDeprecated() {}
+
+                                @Deprecated
+                                @Override
+                                public void unflaggedDeprecatedOverrideOfFlaggedIface() {}
+
+                                @FlaggedApi("test.pkg.flags.kept_flag")
+                                @Deprecated
+                                @Override
+                                public void flaggedDeprecatedOverrideOfFlaggedIface() {}
+
+                                @Deprecated
+                                @Override
+                                public void unflaggedDeprecatedOverrideOfRevertedIface() {}
+                            }
+                            @FlaggedApi("test.pkg.flags.kept_flag")
+                            @Deprecated
+                            public class AlreadyDeprecatedClass {
+                                @FlaggedApi("test.pkg.flags.kept_flag")
+                                @Deprecated
+                                public void alreadyDeprecatedMethod() {}
+                            }
+                            @FlaggedApi("test.pkg.flags.kept_flag")
+                            @Deprecated
+                            public class UnreleasedDeprecatedClass {}
+                        """
+                    ),
+                ),
+                testFixture =
+                    TestFixture(
+                        additionalClassPath = listOf(KnownJarFiles.stubAnnotationsJar),
+                        apiSurfaceRules = apiSurfaceRules,
+                        apiFlags =
+                            ApiFlags(
+                                listOf(
+                                    ApiFlag("test.pkg.flags.kept_flag", KEEP),
+                                    ApiFlag("test.pkg.flags.iface_flag", KEEP),
+                                    ApiFlag("test.pkg.flags.finalized_flag", FINALIZE),
+                                    ApiFlag("test.pkg.flags.reverted_flag", REVERT),
+                                ),
+                            ),
+                        previouslyReleasedCodebase = previousCodebase,
+                    ),
+            ) {
+                val keptFlagged = FlagState.additionFlag("test.pkg.flags.kept_flag", KEEP)
+                val snapshot =
+                    CodebaseSnapshotTaker.takeSnapshot(
+                        codebase,
+                        definitionVisitorFactory = ::NonFilteringDelegatingVisitor,
+                        referenceVisitorFactory = ::NonFilteringDelegatingVisitor,
+                        includeDocumentation = false,
+                    )
+                for (target in listOf(codebase, snapshot)) {
+                    // Previously released outer class newly deprecated via `@deprecated` Javadoc
+                    // tag, and its members (explicitly and implicitly deprecated) inheriting
+                    // `@FlaggedApi` from `ReleasedOuter`.
+                    val outer = target.assertClass("test.pkg.ReleasedOuter")
+                    assertSame(FlagState.NONE, outer.selectedApi.flagState)
+                    assertEquals(keptFlagged, outer.selectedApi.deprecatedFlagState)
+                    assertEquals(
+                        keptFlagged,
+                        outer.assertConstructor(emptyList()).selectedApi.deprecatedFlagState,
+                    )
+                    assertEquals(
+                        keptFlagged,
+                        outer
+                            .assertMethod("newlyDeprecatedInherited", emptyList())
+                            .selectedApi
+                            .deprecatedFlagState,
+                    )
+                    assertEquals(
+                        keptFlagged,
+                        outer
+                            .assertMethod("implicitlyDeprecatedMethod", emptyList())
+                            .selectedApi
+                            .deprecatedFlagState,
+                    )
+                    assertEquals(
+                        keptFlagged,
+                        outer.assertField("newlyDeprecatedField").selectedApi.deprecatedFlagState,
+                    )
+
+                    // In a non-deprecated previously released `@FlaggedApi` outer class,
+                    // non-deprecated members retain `FlagState.NONE`, while newly deprecated
+                    // members inherit the flag.
+                    val undeprecatedOuter = target.assertClass("test.pkg.ReleasedUndeprecatedOuter")
+                    assertSame(FlagState.NONE, undeprecatedOuter.selectedApi.deprecatedFlagState)
+                    assertSame(
+                        FlagState.NONE,
+                        undeprecatedOuter
+                            .assertMethod("undeprecatedMethod", emptyList())
+                            .selectedApi
+                            .deprecatedFlagState,
+                    )
+                    assertEquals(
+                        keptFlagged,
+                        undeprecatedOuter
+                            .assertField("newlyDeprecatedField")
+                            .selectedApi
+                            .deprecatedFlagState,
+                    )
+
+                    val holder = target.assertClass("test.pkg.ReleasedHolder")
+                    val keptMethod = holder.assertMethod("newlyDeprecatedKept", emptyList())
+                    assertSame(FlagState.NONE, keptMethod.selectedApi.flagState)
+                    assertEquals(keptFlagged, keptMethod.selectedApi.deprecatedFlagState)
+
+                    val docTagMethod = holder.assertMethod("newlyDeprecatedDocTagOnly", emptyList())
+                    assertSame(FlagState.NONE, docTagMethod.selectedApi.flagState)
+                    assertEquals(keptFlagged, docTagMethod.selectedApi.deprecatedFlagState)
+
+                    // Finalized and reverted deprecation flags have `FlagState.NONE`.
+                    assertSame(
+                        FlagState.NONE,
+                        holder
+                            .assertMethod("newlyDeprecatedFinalized", emptyList())
+                            .selectedApi
+                            .deprecatedFlagState,
+                    )
+                    assertSame(
+                        FlagState.NONE,
+                        holder
+                            .assertMethod("newlyDeprecatedReverted", emptyList())
+                            .selectedApi
+                            .deprecatedFlagState,
+                    )
+
+                    // Scheduled removal (`@Removed @FlaggedApi`) does not guard addition references
+                    // in `@deprecated` (`hasRemovedAnnotation() == true`).
+                    val scheduledRemoval =
+                        holder.assertMethod("scheduledRemovalDeprecated", emptyList())
+                    assertEquals(
+                        FlagState.removalFlag("test.pkg.flags.kept_flag", KEEP),
+                        scheduledRemoval.selectedApi.flagState,
+                    )
+                    assertSame(FlagState.NONE, scheduledRemoval.selectedApi.deprecatedFlagState)
+
+                    // Previously released methods that newly implement an unreleased `@FlaggedApi`
+                    // interface are not reverted when that interface is reverted, so
+                    // `deprecatedFlagState` must not inherit overridden super-method flags.
+                    val unflaggedIfaceOverride =
+                        holder.assertMethod(
+                            "unflaggedDeprecatedOverrideOfFlaggedIface",
+                            emptyList(),
+                        )
+                    assertSame(FlagState.NONE, unflaggedIfaceOverride.selectedApi.flagState)
+                    assertSame(
+                        FlagState.NONE,
+                        unflaggedIfaceOverride.selectedApi.deprecatedFlagState,
+                    )
+                    val flaggedIfaceOverride =
+                        holder.assertMethod(
+                            "flaggedDeprecatedOverrideOfFlaggedIface",
+                            emptyList(),
+                        )
+                    assertSame(FlagState.NONE, flaggedIfaceOverride.selectedApi.flagState)
+                    assertEquals(keptFlagged, flaggedIfaceOverride.selectedApi.deprecatedFlagState)
+                    val revertedIfaceOverride =
+                        holder.assertMethod(
+                            "unflaggedDeprecatedOverrideOfRevertedIface",
+                            emptyList(),
+                        )
+                    assertNull(revertedIfaceOverride.selectedApi.revertItem)
+                    assertSame(
+                        FlagState.NONE,
+                        revertedIfaceOverride.selectedApi.deprecatedFlagState,
+                    )
+
+                    // Items that were already deprecated in `previouslyReleasedCodebase` keep their
+                    // `@deprecated` tag on revert, so `deprecatedFlagState` must be
+                    // `FlagState.NONE`.
+                    val alreadyDeprecated = target.assertClass("test.pkg.AlreadyDeprecatedClass")
+                    assertSame(FlagState.NONE, alreadyDeprecated.selectedApi.deprecatedFlagState)
+                    assertSame(
+                        FlagState.NONE,
+                        alreadyDeprecated
+                            .assertMethod("alreadyDeprecatedMethod", emptyList())
+                            .selectedApi
+                            .deprecatedFlagState,
+                    )
+
+                    // Unreleased `@FlaggedApi` items carry the flag directly in `flagState` and
+                    // return `FlagState.NONE` from `deprecatedFlagState`.
+                    val unreleased = target.assertClass("test.pkg.UnreleasedDeprecatedClass")
+                    assertEquals(keptFlagged, unreleased.selectedApi.flagState)
+                    assertSame(FlagState.NONE, unreleased.selectedApi.deprecatedFlagState)
+                }
+            }
+        }
+    }
+
+    /**
+     * Verify that Kotlin properties with exposed backing fields (`const val` and `@JvmField`)
+     * delegate [SelectedApi.flagState] and [SelectedApi.deprecatedFlagState] to their backing field
+     * against a `FieldItem`-only `previouslyReleasedCodebase`.
+     */
+    @RequiresCapabilities(Capability.KOTLIN, Capability.REVERTED_ITEMS)
+    @SupportedInputFormats(InputFormat.KOTLIN)
+    @Test
+    fun `Test deprecatedFlagState on Kotlin exposed backing field properties`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        public class Holder {
+                            public static final int NEWLY_DEPRECATED_CONST = 1;
+                            @Deprecated
+                            public static final int ALREADY_DEPRECATED_CONST = 2;
+                        }
+                    """
+                ),
+                com.android.tools.metalava.testing.kotlin(
+                    """
+                        package test.pkg
+                        class Unused
+                    """
+                ),
+            ),
+            testFixture = TestFixture(checkSupportedInputFormats = false),
+        ) {
+            val previousCodebase = codebase
+            runCodebaseTest(
+                inputSet(
+                    com.android.tools.metalava.testing.kotlin(
+                        """
+                            package test.pkg
+                            import android.annotation.FlaggedApi
+                            object Holder {
+                                @FlaggedApi("test.pkg.flags.kept_flag")
+                                @Deprecated("newly deprecated")
+                                const val NEWLY_DEPRECATED_CONST: Int = 1
+
+                                @FlaggedApi("test.pkg.flags.kept_flag")
+                                @Deprecated("already deprecated")
+                                const val ALREADY_DEPRECATED_CONST: Int = 2
+
+                                @FlaggedApi("test.pkg.flags.kept_flag")
+                                @Deprecated("unreleased")
+                                const val UNRELEASED_CONST: Int = 3
+                            }
+                        """
+                    ),
+                ),
+                testFixture =
+                    TestFixture(
+                        additionalClassPath = listOf(KnownJarFiles.stubAnnotationsJar),
+                        apiFlags = ApiFlags(listOf(ApiFlag("test.pkg.flags.kept_flag", KEEP))),
+                        previouslyReleasedCodebase = previousCodebase,
+                    ),
+            ) {
+                val keptFlagged = FlagState.additionFlag("test.pkg.flags.kept_flag", KEEP)
+                val holder = codebase.assertClass("test.pkg.Holder")
+
+                val newlyDepProp = holder.assertProperty("NEWLY_DEPRECATED_CONST")
+                assertSame(FlagState.NONE, newlyDepProp.selectedApi.flagState)
+                assertEquals(keptFlagged, newlyDepProp.selectedApi.deprecatedFlagState)
+
+                val alreadyDepProp = holder.assertProperty("ALREADY_DEPRECATED_CONST")
+                assertSame(FlagState.NONE, alreadyDepProp.selectedApi.flagState)
+                assertSame(FlagState.NONE, alreadyDepProp.selectedApi.deprecatedFlagState)
+
+                val unreleasedProp = holder.assertProperty("UNRELEASED_CONST")
+                assertEquals(keptFlagged, unreleasedProp.selectedApi.flagState)
+                assertSame(FlagState.NONE, unreleasedProp.selectedApi.deprecatedFlagState)
             }
         }
     }
