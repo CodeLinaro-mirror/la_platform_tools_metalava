@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.ReferencableItem
 import com.android.tools.metalava.model.parser.SharedTokenType
 import com.android.tools.metalava.model.parser.Token
 import com.android.tools.metalava.model.parser.TokenStream
+import com.android.tools.metalava.model.parser.parseStringLiteralValue
 import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.value.StringValue
 import com.android.tools.metalava.model.value.Value
@@ -36,6 +37,14 @@ internal interface ExprContext {
      * @param flagName is the name of the flag.
      */
     fun isFlagEnabled(flagName: String): Boolean
+
+    /**
+     * Check to see whether [surfaceName] is the current API surface being generated or one of the
+     * API surfaces that it extends.
+     *
+     * @param surfaceName is the name of the API surface.
+     */
+    fun includesSurface(surfaceName: String): Boolean
 }
 
 /** An expression that can be used with a Javadoc conditional expression. */
@@ -53,11 +62,19 @@ internal interface Expr {
 /**
  * The `flag(...)` function call.
  *
- * @param flagName the optional flag name, if `null` then this always evaluates to `false`
+ * @param flagName the resolved flag name.
  */
-internal class FlagFunctionCall(private val flagName: String?) : Expr {
-    override fun evaluate(context: ExprContext) =
-        if (flagName == null) false else context.isFlagEnabled(flagName)
+internal class FlagFunctionCall(private val flagName: String) : Expr {
+    override fun evaluate(context: ExprContext) = context.isFlagEnabled(flagName)
+}
+
+/**
+ * The `surface(...)` function call.
+ *
+ * @param surfaceName the validated API surface name.
+ */
+internal class SurfaceFunctionCall(private val surfaceName: String) : Expr {
+    override fun evaluate(context: ExprContext) = context.includesSurface(surfaceName)
 }
 
 /** Context that is made available when building [Expr]. */
@@ -102,19 +119,40 @@ internal class ExprBuilder(
     }
 
     /**
-     * Parse a function call expression, e.g. `flag(pkg.Flags.FLAG)`.
+     * Parse a function call expression, e.g. `flag(pkg.Flags.FLAG)` or `surface("public")`.
      *
      * @param tokens the [TokenStream] to read arguments from.
-     * @param functionNameToken the token for the function name (e.g. `flag`).
-     * @return the [Expr] representing the function call.
+     * @param functionNameToken the token for the function name (`flag` or `surface`).
+     * @return the [Expr] representing the function call, or `null` if invalid.
      */
-    private fun parseFunctionCall(tokens: TokenStream, functionNameToken: Token): Expr {
+    private fun parseFunctionCall(tokens: TokenStream, functionNameToken: Token): Expr? {
         val parenOpen =
             reporter.expect(tokens, SharedTokenType.PAREN_OPEN, "expected '(' after function name")
         if (parenOpen == Token.NONE) {
-            return FlagFunctionCall(null)
+            return null
         }
 
+        return when (val name = functionNameToken.text(text)) {
+            "flag" -> parseFlagFunctionCall(tokens)
+            "surface" -> parseSurfaceFunctionCall(tokens)
+            else -> {
+                reporter.report(
+                    functionNameToken,
+                    Issues.INVALID_JAVADOC_EXPR,
+                    "unknown function '$name', expected 'flag' or 'surface'",
+                )
+                skipUntilParenClose(tokens)
+                null
+            }
+        }
+    }
+
+    /**
+     * Parse the arguments and closing `)` of a `flag(<field-ref>)` function call.
+     *
+     * @return a [FlagFunctionCall] expression, or `null` if invalid.
+     */
+    private fun parseFlagFunctionCall(tokens: TokenStream): Expr? {
         // Parse the qualified field reference argument: (IDENTIFIER DOT)* IDENTIFIER
         val fieldReferenceTokens = mutableListOf<Token>()
         if (tokens.peekType() == SharedTokenType.IDENTIFIER) {
@@ -139,15 +177,83 @@ internal class ExprBuilder(
                 Issues.INVALID_JAVADOC,
                 "expected field reference, found '${token.text(text)}'",
             )
+            skipBeforeParenClose(tokens)
         }
 
-        reporter.expect(tokens, SharedTokenType.PAREN_CLOSE, "expected ')' after field reference")
-        return buildFunctionCall(functionNameToken, fieldReferenceTokens)
+        if (
+            reporter.expect(
+                tokens,
+                SharedTokenType.PAREN_CLOSE,
+                "expected ')' after field reference",
+            ) == Token.NONE
+        ) {
+            skipUntilParenClose(tokens)
+        }
+
+        return buildFlagFunctionCall(fieldReferenceTokens)
+    }
+
+    /**
+     * Parse the arguments and closing `)` of a `surface("<surface-name>")` function call.
+     *
+     * @return a [SurfaceFunctionCall] expression, or `null` if invalid.
+     */
+    private fun parseSurfaceFunctionCall(tokens: TokenStream): Expr? {
+        val surfaceNameToken =
+            if (tokens.peekType() == SharedTokenType.STRING_LITERAL) {
+                tokens.consume()
+            } else {
+                val token = tokens.peek()
+                reporter.report(
+                    token,
+                    Issues.INVALID_JAVADOC,
+                    "expected string literal, found '${token.text(text)}'",
+                )
+                skipBeforeParenClose(tokens)
+                Token.NONE
+            }
+
+        if (
+            reporter.expect(
+                tokens,
+                SharedTokenType.PAREN_CLOSE,
+                "expected ')' after surface name",
+            ) == Token.NONE
+        ) {
+            skipUntilParenClose(tokens)
+        }
+
+        if (surfaceNameToken == Token.NONE) {
+            return null
+        }
+
+        return buildSurfaceFunctionCall(surfaceNameToken)
+    }
+
+    /**
+     * Error recovery helper: skips argument tokens in [tokens] until a closing parenthesis `)` at
+     * depth 0 is reached (without consuming it), or `{`, `}`, or EOF is reached.
+     */
+    private fun skipBeforeParenClose(tokens: TokenStream) {
+        var parenDepth = 0
+        while (true) {
+            when (tokens.peekType()) {
+                SharedTokenType.PAREN_OPEN -> parenDepth++
+                SharedTokenType.PAREN_CLOSE -> {
+                    if (parenDepth == 0) break
+                    parenDepth--
+                }
+                SharedTokenType.BRACE_OPEN,
+                SharedTokenType.BRACE_CLOSE,
+                SharedTokenType.EOF -> break
+            }
+            tokens.consume()
+        }
     }
 
     /**
      * Error recovery helper: skips tokens in [tokens] until a matching closing parenthesis `)` is
-     * found or an opening brace `{` or EOF is reached.
+     * found or `{`, `}`, or EOF is reached.
      */
     private fun skipUntilParenClose(tokens: TokenStream) {
         var parenDepth = 1
@@ -156,9 +262,10 @@ internal class ExprBuilder(
                 SharedTokenType.PAREN_OPEN -> parenDepth++
                 SharedTokenType.PAREN_CLOSE -> parenDepth--
                 SharedTokenType.BRACE_OPEN,
+                SharedTokenType.BRACE_CLOSE,
                 SharedTokenType.EOF -> {
-                    // Stop before consuming `{` or EOF so the enclosing `@if` parser can still
-                    // parse or recover the branch body when `(` was unclosed.
+                    // Stop before consuming `{`, `}`, or EOF so the enclosing `@if` parser can
+                    // still parse or recover the branch body when `(` was unclosed.
                     break
                 }
             }
@@ -167,35 +274,20 @@ internal class ExprBuilder(
     }
 
     /**
-     * Build an [Expr] from [functionNameToken] and [fieldReferenceTokens].
+     * Build a [FlagFunctionCall] from [fieldReferenceTokens].
      *
-     * Validates that the function name is `flag`, extracts and resolves the field reference to a
-     * [FieldItem], and extracts its constant string value to use as the flag name. Reports an
-     * [Issues.INVALID_JAVADOC_EXPR] issue if the function is unknown or the field reference cannot
-     * be resolved to a constant string value.
+     * Resolves the field reference to a [FieldItem] and extracts its constant string value to use
+     * as the flag name, reporting [Issues.INVALID_JAVADOC_EXPR] if the field reference cannot be
+     * resolved to a constant string value.
      *
-     * @param functionNameToken the token containing the function name (expected to be `flag`).
      * @param fieldReferenceTokens the list of tokens representing the qualified field reference.
      * @return a [FlagFunctionCall] expression with the resolved flag name, or `null` if invalid.
      */
-    private fun buildFunctionCall(
-        functionNameToken: Token,
+    private fun buildFlagFunctionCall(
         fieldReferenceTokens: List<Token>,
-    ): Expr {
-        val name = functionNameToken.text(text)
-        if (name != "flag") {
-            reporter.report(
-                functionNameToken,
-                Issues.INVALID_JAVADOC_EXPR,
-                "unknown function '$name', expected 'flag'"
-            )
-
-            // Return an expr that always evaluates to false.
-            return FlagFunctionCall(null)
-        }
-
+    ): Expr? {
         if (fieldReferenceTokens.isEmpty()) {
-            return FlagFunctionCall(null)
+            return null
         }
 
         // Get the field reference, removing any white space.
@@ -253,10 +345,37 @@ internal class ExprBuilder(
                 // limit the returned types to FieldItem, ExternalReferencableItem, or
                 // InvalidReferencableItem
                 else -> error("type '$fieldReference' was resolved to an unknown type $resolved")
-            }
+            } ?: return null
 
-        // Create the flag function call expression. If `flagName` is `null` then this will always
-        // evaluate to false.
         return FlagFunctionCall(flagName)
     }
+
+    /**
+     * Build a [SurfaceFunctionCall] from [surfaceNameToken].
+     *
+     * Extracts and unescapes the string value (reporting [Issues.INVALID_JAVADOC] if malformed) and
+     * validates that it matches `[a-z-]+`, reporting [Issues.INVALID_JAVADOC_EXPR] if invalid.
+     */
+    private fun buildSurfaceFunctionCall(surfaceNameToken: Token): Expr? {
+        val surfaceName =
+            parseStringLiteralValue(surfaceNameToken.text(text)) { message ->
+                reporter.report(surfaceNameToken, Issues.INVALID_JAVADOC, message)
+            } ?: return null
+        if (!isValidSurfaceName(surfaceName)) {
+            reporter.report(
+                surfaceNameToken,
+                Issues.INVALID_JAVADOC_EXPR,
+                "invalid surface name '$surfaceName', must match '[a-z-]+'",
+            )
+            return null
+        }
+        return SurfaceFunctionCall(surfaceName)
+    }
+
+    /**
+     * Returns `true` if [surfaceName] matches `[a-z-]+` (the `ApiSurfaceNameType` pattern in
+     * `config.xsd`).
+     */
+    private fun isValidSurfaceName(surfaceName: String): Boolean =
+        surfaceName.isNotEmpty() && surfaceName.all { it in 'a'..'z' || it == '-' }
 }

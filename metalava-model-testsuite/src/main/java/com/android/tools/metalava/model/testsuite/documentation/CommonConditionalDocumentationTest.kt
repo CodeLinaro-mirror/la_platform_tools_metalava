@@ -22,8 +22,10 @@ import com.android.tools.metalava.model.api.flags.ApiFlagAction
 import com.android.tools.metalava.model.api.flags.ApiFlags
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.SupportedInputFormats
+import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
+import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
 
 class CommonConditionalDocumentationTest : BaseModelTest() {
@@ -604,6 +606,164 @@ class CommonConditionalDocumentationTest : BaseModelTest() {
                     MAIN_SRC/src/test/pkg/Test.java:10:12: warning: block tag '@see' cannot be used inside an inline tag (ErrorWhenNew) [InvalidJavadoc]
                     MAIN_SRC/src/test/pkg/Test.java:11:12: warning: block tag '@see' cannot be used inside an inline tag (ErrorWhenNew) [InvalidJavadoc]
                 """,
+            )
+        }
+    }
+
+    /**
+     * Verify that an invalid surface name in `surface("...")` reports `InvalidJavadocExpr` and
+     * evaluates to `false`.
+     */
+    @SupportedInputFormats(InputFormat.JAVA, InputFormat.KOTLIN)
+    @Test
+    fun `Test conditional doc with invalid surface() name`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    /**
+                     * {@if (surface("InvalidName")) {True.} else {False.}}
+                     */
+                    public class Test {
+                    }
+                """,
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    /**
+                     * {@if (surface("InvalidName")) {True.} else {False.}}
+                     */
+                    class Test
+                """,
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val ext = if (inputFormat == InputFormat.JAVA) "java" else "kt"
+            testClass.assertPrintedDocumentation(
+                expectedOutput =
+                    """
+                        /** False. */
+                    """,
+            )
+            assertAndRemoveReportedIssues(
+                """
+                    MAIN_SRC/src/test/pkg/Test.$ext:4:18: error: invalid surface name 'InvalidName', must match '[a-z-]+' [InvalidJavadocExpr]
+                """,
+            )
+        }
+    }
+
+    /**
+     * Verify `surface("name")` evaluation across a multi-level surface hierarchy (`public` <-
+     * `system` <- `module`) in both Java and Kotlin comments.
+     */
+    @SupportedInputFormats(InputFormat.JAVA, InputFormat.KOTLIN)
+    @Test
+    fun `Test conditional doc with surface() on extending hierarchy`() {
+        runSourceCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        /**
+                         * {@if (surface("public")) {Public. } else {NoPublic. }}{@if (surface("system")) {System. } else {NoSystem. }}{@if (surface("module")) {Module. } else {NoModule. }}{@if (surface("other")) {Other.} else {NoOther.}}
+                         *
+                         * @if (surface("system")) {
+                         *     :@see Helper
+                         * }
+                         */
+                        public class Test {
+                        }
+                    """,
+                ),
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Helper {}
+                    """,
+                ),
+            ),
+            inputSet(
+                kotlin(
+                    """
+                        package test.pkg
+
+                        /**
+                         * {@if (surface("public")) {Public. } else {NoPublic. }}{@if (surface("system")) {System. } else {NoSystem. }}{@if (surface("module")) {Module. } else {NoModule. }}{@if (surface("other")) {Other.} else {NoOther.}}
+                         *
+                         * @if (surface("system")) {
+                         *     :@see Helper
+                         * }
+                         */
+                        class Test
+
+                        class Helper
+                    """,
+                ),
+            ),
+            testFixture =
+                TestFixture(
+                    apiSurfaceRules = TestableApiSurfaces.publicSystemModuleRules,
+                ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            testClass.assertPrintedDocumentation(
+                expectedOutput =
+                    """
+                        /**
+                         * Public. System. Module. NoOther.
+                         * @see test.pkg.Helper Helper
+                         */
+                    """,
+            )
+        }
+    }
+
+    /**
+     * Verify `surface("name")` evaluation on a standalone surface that folds in `public` so
+     * `contents` has no effect on behavior.
+     */
+    @SupportedInputFormats(InputFormat.JAVA, InputFormat.KOTLIN)
+    @Test
+    fun `Test conditional doc with surface() on standalone surface`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    /**
+                     * {@if (surface("public")) {Public. } else {NoPublic. }}{@if (surface("standalone")) {Standalone. } else {NoStandalone. }}{@if (surface("other")) {Other.} else {NoOther.}}
+                     */
+                    public class Test {
+                    }
+                """,
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    /**
+                     * {@if (surface("public")) {Public. } else {NoPublic. }}{@if (surface("standalone")) {Standalone. } else {NoStandalone. }}{@if (surface("other")) {Other.} else {NoOther.}}
+                     */
+                    class Test
+                """,
+            ),
+            testFixture =
+                TestFixture(
+                    apiSurfaceRules = TestableApiSurfaces.publicStandaloneRules,
+                ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            testClass.assertPrintedDocumentation(
+                expectedOutput =
+                    """
+                        /** Public. Standalone. NoOther. */
+                    """,
             )
         }
     }

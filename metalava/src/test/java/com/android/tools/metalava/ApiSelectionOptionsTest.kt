@@ -276,6 +276,8 @@ class ApiSelectionOptionsTest :
         ) {
             apiSurfaces.assertBaseWasNotCreated()
             assertThat(apiSurfaces.main.name).isEqualTo("restricted")
+            assertThat(apiSurfaces.main.includedSurfaceNames)
+                .containsExactly("public", "intermediate", "restricted")
 
             apiSurfaceSelector.assertState(
                 expectedMatcherState =
@@ -366,6 +368,8 @@ class ApiSelectionOptionsTest :
             apiSurfaces.assertBaseWasCreated()
             assertThat(apiSurfaces.main.name).isEqualTo("other")
             assertThat(apiSurfaces.base?.name).isEqualTo("intermediate")
+            assertThat(apiSurfaces.main.includedSurfaceNames)
+                .containsExactly("public", "intermediate", "other")
 
             apiSurfaceSelector.assertState(
                 expectedMatcherState =

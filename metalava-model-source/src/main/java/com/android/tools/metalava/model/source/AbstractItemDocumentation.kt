@@ -221,6 +221,11 @@ internal abstract class AbstractItemDocumentation(
         return !apiFlags[flagName].action.revert
     }
 
+    /** Implements [ExprContext.includesSurface]. */
+    override fun includesSurface(surfaceName: String): Boolean {
+        return surfaceName in item.codebase.apiSurfaces.main.includedSurfaceNames
+    }
+
     override val isHidden: Boolean
         get() {
             // When API surfaces are configured in a configuration file, the Javadoc `@hide` block

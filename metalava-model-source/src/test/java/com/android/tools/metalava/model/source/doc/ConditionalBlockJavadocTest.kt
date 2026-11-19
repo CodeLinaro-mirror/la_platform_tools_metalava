@@ -24,12 +24,13 @@ import org.junit.Test
 /** Unit tests for conditional `@if` block tag parsing, evaluation, and error recovery. */
 class ConditionalBlockJavadocTest : BaseDocCommentTest() {
     /**
-     * Parses [input] into a [DocComment] with [flags] and verifies [expectedString],
+     * Parses [input] into a [DocComment] with [flags] and [surfaces] and verifies [expectedString],
      * [expectedPrintOutput], and [expectedIssues].
      */
     private fun checkConditionalDocComment(
         input: String,
         flags: Map<String, Boolean> = emptyMap(),
+        surfaces: Set<String> = emptySet(),
         expectedString: String? = null,
         expectedPrintOutput: String? = null,
         expectedIssues: String = "",
@@ -40,6 +41,7 @@ class ConditionalBlockJavadocTest : BaseDocCommentTest() {
                 input,
                 expectedIssues = expectedIssues,
                 flagToEnabledStatus = flags,
+                includedSurfaces = surfaces,
             )
         if (expectedString != null) {
             assertEquals(expectedString.trimIndent(), docComment.toString())
@@ -678,6 +680,134 @@ class ConditionalBlockJavadocTest : BaseDocCommentTest() {
             expectedIssues =
                 """
                     5:8: block tag '@Override' cannot be used inside an inline tag [InvalidJavadoc]
+                """,
+        )
+    }
+
+    /**
+     * Verify that an `@if (surface("..."))` block tag emits its `true` branch when the surface is
+     * included in the current API surface.
+     */
+    @Test
+    fun `Test @if surface - matching surface`() {
+        checkConditionalDocComment(
+            input =
+                """
+                    /**
+                     * Summary.
+                     *
+                     * @if (surface("system")) {
+                     *     :@see First
+                     *     :@deprecated Use {@link First} instead.
+                     * } else {
+                     *     :@see Second
+                     * }
+                     */
+                """,
+            surfaces = setOf("public", "system"),
+            expectedPrintOutput =
+                """
+                    /**
+                     * Summary.
+                     *
+                     * @see resolved.First First
+                     * @deprecated Use {@link resolved.First First} instead.
+                     */
+                """,
+        ) { docComment ->
+            assertTrue(docComment.hasBlockTagOfType("deprecated"))
+        }
+    }
+
+    /**
+     * Verify that an `@if (surface("..."))` block tag emits its `else` branch when the surface is
+     * not included in the current API surface.
+     */
+    @Test
+    fun `Test @if surface - non-matching surface`() {
+        checkConditionalDocComment(
+            input =
+                """
+                    /**
+                     * Summary.
+                     *
+                     * @if (surface("module-lib")) {
+                     *     :@see First
+                     *     :@deprecated Use {@link First} instead.
+                     * } else {
+                     *     :@see Second
+                     * }
+                     */
+                """,
+            surfaces = setOf("public", "system"),
+            expectedPrintOutput =
+                """
+                    /**
+                     * Summary.
+                     * @see resolved.Second Second
+                     */
+                """,
+        ) { docComment ->
+            assertFalse(docComment.hasBlockTagOfType("deprecated"))
+        }
+    }
+
+    /** Verify nested `@if` block tags combining `surface("...")` and `flag(...)` conditions. */
+    @Test
+    fun `Test nested @if combining surface and flag`() {
+        val comment =
+            """
+                /**
+                 * Summary.
+                 *
+                 * @if (surface("system")) {
+                 *     :@if (flag(Flags.TEST_FLAG)) {
+                 *         :@see SystemFlagged
+                 *     } else {
+                 *         :@see SystemUnflagged
+                 *     }
+                 * } else {
+                 *     :@see PublicOnly
+                 * }
+                 */
+            """
+
+        checkConditionalDocComment(
+            input = comment,
+            flags = mapOf("Flags.TEST_FLAG" to true),
+            surfaces = setOf("public", "system"),
+            expectedPrintOutput =
+                """
+                    /**
+                     * Summary.
+                     * @see resolved.SystemFlagged SystemFlagged
+                     */
+                """,
+        )
+
+        checkConditionalDocComment(
+            input = comment,
+            flags = mapOf("Flags.TEST_FLAG" to false),
+            surfaces = setOf("public", "system"),
+            expectedPrintOutput =
+                """
+                    /**
+                     * Summary.
+                     * @see resolved.SystemUnflagged SystemUnflagged
+                     */
+                """,
+        )
+
+        checkConditionalDocComment(
+            input = comment,
+            flags = mapOf("Flags.TEST_FLAG" to true),
+            surfaces = setOf("public"),
+            expectedPrintOutput =
+                """
+                    /**
+                     * Summary.
+                     * @see resolved.PublicOnly PublicOnly
+                     */
                 """,
         )
     }

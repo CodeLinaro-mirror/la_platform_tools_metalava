@@ -66,6 +66,9 @@ internal object JavadocTokenType {
     /** An identifier in an expression (e.g. function or flag name). */
     val IDENTIFIER = SharedTokenType.IDENTIFIER
 
+    /** A string literal in an expression (e.g. surface name). */
+    val STRING_LITERAL = SharedTokenType.STRING_LITERAL
+
     /** A dot `.` separator in a qualified identifier. */
     val DOT = SharedTokenType.DOT
 
@@ -87,7 +90,10 @@ private enum class LexerMode {
     /** Mode active within `{@if ...}`, ignoring whitespace and recognizing delimiters. */
     INLINE_IF_TAG,
 
-    /** Mode active within conditional expressions, recognizing identifiers, dots, and parens. */
+    /**
+     * Mode active within conditional expressions, recognizing identifiers, string literals, dots,
+     * and parens.
+     */
     EXPR,
 }
 

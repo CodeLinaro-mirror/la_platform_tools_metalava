@@ -56,16 +56,18 @@ abstract class BaseDocCommentTest {
     }
 
     /**
-     * Create a [TestDocCommentContext] using [reporter] and the optional [flagToEnabledStatus] map
-     * from flag name to enabled status.
+     * Create a [TestDocCommentContext] using [reporter], the optional [flagToEnabledStatus] map
+     * from flag name to enabled status, and the optional [includedSurfaces] set of surface names.
      */
     internal fun createDocContext(
         text: String,
         flagToEnabledStatus: Map<String, Boolean> = emptyMap(),
+        includedSurfaces: Set<String> = emptySet(),
     ): TestDocCommentContext =
         TestDocCommentContext(
             TestDocumentationIssueReporter(reporter, LineMap.create(text)),
             flagToEnabledStatus,
+            includedSurfaces,
         )
 
     /**
@@ -75,9 +77,10 @@ abstract class BaseDocCommentTest {
         input: String,
         expectedIssues: String = "",
         flagToEnabledStatus: Map<String, Boolean> = emptyMap(),
+        includedSurfaces: Set<String> = emptySet(),
     ): Pair<DocComment, TestDocCommentContext> {
         val text = input.trimIndent()
-        val context = createDocContext(text, flagToEnabledStatus)
+        val context = createDocContext(text, flagToEnabledStatus, includedSurfaces)
         val docComment =
             DocCommentParser.parseText(
                 context,
@@ -134,6 +137,9 @@ internal class TestDocCommentContext(
 
     /** A map from flag name to enabled status. */
     val flagToEnabledStatus: Map<String, Boolean> = emptyMap(),
+
+    /** The set of surface names included in the current API surface. */
+    val includedSurfaces: Set<String> = emptySet(),
 ) : DocCommentContext {
 
     /** Qualify [sourceReference], if needed. */
@@ -170,6 +176,9 @@ internal class TestDocCommentContext(
 
     /** Implements [ExprContext.isFlagEnabled]. */
     override fun isFlagEnabled(flagName: String) = flagToEnabledStatus[flagName] ?: false
+
+    /** Implements [ExprContext.includesSurface]. */
+    override fun includesSurface(surfaceName: String) = surfaceName in includedSurfaces
 
     override fun ordinalInParamsList(name: String) = 0
 

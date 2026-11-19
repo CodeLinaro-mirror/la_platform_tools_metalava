@@ -141,9 +141,40 @@ class ApiSurfacesTest {
 
         val base = assertNotNull(apiSurfaces.base, "base is expected")
         assertEquals(setOf(base), base.includedSurfaces, message = "included in base")
+        assertEquals(setOf("base"), base.includedSurfaceNames, message = "names included in base")
 
         val main = apiSurfaces.main
         assertEquals(setOf(base, main), main.includedSurfaces, message = "included in main")
+        assertEquals(
+            setOf("base", "main"),
+            main.includedSurfaceNames,
+            message = "names included in main",
+        )
+    }
+
+    @Test
+    fun `Test includedSurfaceNames with additionalSurfaceNames`() {
+        val apiSurfaces =
+            ApiSurfaces.build {
+                createSurface(
+                    name = "intermediate",
+                    additionalSurfaceNames = setOf("public"),
+                )
+                createSurface(
+                    name = "other",
+                    extends = "intermediate",
+                    isMain = true,
+                )
+            }
+
+        assertEquals(
+            setOf("public", "intermediate"),
+            apiSurfaces.byName["intermediate"]?.includedSurfaceNames,
+        )
+        assertEquals(
+            setOf("public", "intermediate", "other"),
+            apiSurfaces.main.includedSurfaceNames,
+        )
     }
 
     @Test

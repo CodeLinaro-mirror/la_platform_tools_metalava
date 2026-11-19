@@ -452,4 +452,65 @@ class DocCommentLexerTest : BaseDocCommentTest() {
                 """,
         )
     }
+
+    /** Verify tokenization of a string literal inside a conditional `@if` block tag expression. */
+    @Test
+    fun `Test @if block tag with string literal expression`() {
+        checkTokenize(
+            """
+                /**
+                 * @if (surface("module-lib")) {
+                 *     :@see First
+                 * }
+                 */
+            """,
+            expectedTokens =
+                """
+                    BLOCK_IF_TAG_START '@if'
+                    PAREN_OPEN '('
+                    IDENTIFIER 'surface'
+                    PAREN_OPEN '('
+                    STRING_LITERAL '"module-lib"'
+                    PAREN_CLOSE ')'
+                    PAREN_CLOSE ')'
+                    BRACE_OPEN '{'
+                    BLOCK_TAG_START ':@'
+                    BLOCK_TAG_NAME 'see'
+                    DESCRIPTION 'First'
+                    BRACE_CLOSE '}'
+                    EOF ''
+                """,
+        )
+    }
+
+    /** Verify tokenization and recovery for an unclosed string literal in a block `@if`. */
+    @Test
+    fun `Test @if block tag with unclosed string literal`() {
+        checkTokenize(
+            """
+                /**
+                 * @if (surface("module-lib
+                 * )) {
+                 *     :@see First
+                 * }
+                 */
+            """,
+            expectedTokens =
+                """
+                    BLOCK_IF_TAG_START '@if'
+                    PAREN_OPEN '('
+                    IDENTIFIER 'surface'
+                    PAREN_OPEN '('
+                    STRING_LITERAL '"module-lib'
+                    PAREN_CLOSE ')'
+                    PAREN_CLOSE ')'
+                    BRACE_OPEN '{'
+                    BLOCK_TAG_START ':@'
+                    BLOCK_TAG_NAME 'see'
+                    DESCRIPTION 'First'
+                    BRACE_CLOSE '}'
+                    EOF ''
+                """,
+        )
+    }
 }

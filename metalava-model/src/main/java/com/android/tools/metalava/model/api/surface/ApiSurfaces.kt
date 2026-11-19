@@ -112,11 +112,16 @@ sealed interface ApiSurfaces {
          *
          * If the surface is the one to be created then [isMain] must be `true`. Exactly one surface
          * can have [isMain] set to `true`, none or more than one will fail.
+         *
+         * @param additionalSurfaceNames optional names of extended surfaces that were folded into
+         *   this surface (for example, when a `standalone` surface folds in the surfaces it
+         *   extends).
          */
         fun createSurface(
             name: String,
             extends: String? = null,
             isMain: Boolean = false,
+            additionalSurfaceNames: Set<String> = emptySet(),
         )
     }
 }
@@ -189,6 +194,7 @@ private class DefaultApiSurfaces(initializer: ApiSurfaces.Builder.() -> Unit) : 
             name: String,
             extends: String?,
             isMain: Boolean,
+            additionalSurfaceNames: Set<String>,
         ) {
             val existing = nameToSurface[name]
             if (existing != null) error("Duplicate surfaces called `$name`")
@@ -208,6 +214,7 @@ private class DefaultApiSurfaces(initializer: ApiSurfaces.Builder.() -> Unit) : 
                     extendsSurface,
                     isMain,
                     allVariants,
+                    additionalSurfaceNames,
                 )
             nameToSurface[name] = surface
 
@@ -237,6 +244,7 @@ private class DefaultApiSurface(
     override val extends: DefaultApiSurface?,
     override val isMain: Boolean,
     allVariants: MutableList<ApiVariant>,
+    additionalSurfaceNames: Set<String>,
 ) : ApiSurface() {
 
     /**
@@ -268,6 +276,9 @@ private class DefaultApiSurface(
     override val narrowerSurfaces: Set<ApiSurface> = extends?.includedSurfaces ?: emptySet()
 
     override val includedSurfaces = narrowerSurfaces + this
+
+    override val includedSurfaceNames: Set<String> =
+        (extends?.includedSurfaceNames ?: emptySet()) + additionalSurfaceNames + name
 
     override fun variantFor(type: ApiVariantType): ApiVariant {
         return variants[type.ordinal]

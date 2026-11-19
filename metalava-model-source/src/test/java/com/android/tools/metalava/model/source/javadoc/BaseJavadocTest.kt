@@ -25,6 +25,7 @@ abstract class BaseJavadocTest : BaseDocCommentTest() {
         text: String,
         contentGetter: (DocComment) -> JavadocContent? = { docComment -> docComment.description },
         flagToEnabledStatus: Map<String, Boolean> = emptyMap(),
+        includedSurfaces: Set<String> = emptySet(),
         expectedStructure: String,
         expectedJavadocIssues: String = "",
     ) {
@@ -33,6 +34,7 @@ abstract class BaseJavadocTest : BaseDocCommentTest() {
                 text,
                 expectedJavadocIssues,
                 flagToEnabledStatus = flagToEnabledStatus,
+                includedSurfaces = includedSurfaces,
             )
 
         // Parse the main description

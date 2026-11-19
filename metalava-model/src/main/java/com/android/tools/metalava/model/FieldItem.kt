@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.parser.unescapeJavaString
 import com.android.tools.metalava.model.value.ConstantValue
 import com.android.tools.metalava.model.value.asAny
 import java.io.PrintWriter
@@ -202,108 +203,9 @@ fun javaEscapeString(str: String): String {
     return result
 }
 
-// From doclava1 TextFieldItem#javaUnescapeString
-@Suppress("LocalVariableName")
-fun javaUnescapeString(str: String): String {
-    val n = str.length
-    var simple = true
-    for (i in 0 until n) {
-        val c = str[i]
-        if (c == '\\') {
-            simple = false
-            break
-        }
-    }
-    if (simple) {
-        return str
-    }
-
-    val buf = StringBuilder(str.length)
-    var escaped: Char = 0.toChar()
-    val START = 0
-    val CHAR1 = 1
-    val CHAR2 = 2
-    val CHAR3 = 3
-    val CHAR4 = 4
-    val ESCAPE = 5
-    var state = START
-
-    for (i in 0 until n) {
-        val c = str[i]
-        when (state) {
-            START ->
-                if (c == '\\') {
-                    state = ESCAPE
-                } else {
-                    buf.append(c)
-                }
-            ESCAPE ->
-                when (c) {
-                    '\\' -> {
-                        buf.append('\\')
-                        state = START
-                    }
-                    't' -> {
-                        buf.append('\t')
-                        state = START
-                    }
-                    'b' -> {
-                        buf.append('\b')
-                        state = START
-                    }
-                    'r' -> {
-                        buf.append('\r')
-                        state = START
-                    }
-                    'n' -> {
-                        buf.append('\n')
-                        state = START
-                    }
-                    '\'' -> {
-                        buf.append('\'')
-                        state = START
-                    }
-                    '\"' -> {
-                        buf.append('\"')
-                        state = START
-                    }
-                    'u' -> {
-                        state = CHAR1
-                        escaped = 0.toChar()
-                    }
-                }
-            CHAR1,
-            CHAR2,
-            CHAR3,
-            CHAR4 -> {
-                escaped = (escaped.code shl 4).toChar()
-                escaped =
-                    when (c) {
-                        in '0'..'9' -> (escaped.code or (c - '0')).toChar()
-                        in 'a'..'f' -> (escaped.code or (10 + (c - 'a'))).toChar()
-                        in 'A'..'F' -> (escaped.code or (10 + (c - 'A'))).toChar()
-                        else ->
-                            throw IllegalArgumentException(
-                                "bad escape sequence: '" +
-                                    c +
-                                    "' at pos " +
-                                    i +
-                                    " in: \"" +
-                                    str +
-                                    "\""
-                            )
-                    }
-                if (state == CHAR4) {
-                    buf.append(escaped)
-                    state = START
-                } else {
-                    state++
-                }
-            }
-        }
-    }
-    if (state != START) {
-        throw IllegalArgumentException("unfinished escape sequence: $str")
-    }
-    return buf.toString()
-}
+/**
+ * Unescapes Java escape sequences in [str], throwing [IllegalArgumentException] if [str] contains
+ * an invalid or incomplete escape sequence.
+ */
+fun javaUnescapeString(str: String): String =
+    unescapeJavaString(str) { throw IllegalArgumentException(it) }!!

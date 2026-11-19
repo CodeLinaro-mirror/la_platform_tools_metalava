@@ -58,6 +58,39 @@ abstract class AbstractLexer(
         )
 
     /**
+     * Scans a double-quoted string literal starting at [start], stopping at a matching unescaped
+     * `"`, a line break (`\n` or `\r`), or [endExclusive], and returns a
+     * [SharedTokenType.STRING_LITERAL] token.
+     *
+     * Validation of whether the literal was closed and unescaping of its contents is performed by
+     * [parseStringLiteralValue].
+     */
+    protected fun scanStringLiteral(start: Int): Token {
+        index = start + 1
+        while (index < endExclusive) {
+            val c = text[index]
+            if (c == '"') {
+                index++
+                break
+            } else if (c == '\n' || c == '\r') {
+                break
+            } else if (c == '\\') {
+                index++
+                if (index < endExclusive && text[index] != '\n' && text[index] != '\r') {
+                    index++
+                }
+            } else {
+                index++
+            }
+        }
+        return createToken(
+            SharedTokenType.STRING_LITERAL,
+            start,
+            index,
+        )
+    }
+
+    /**
      * Tokenize the text from [startInclusive] to [endExclusive].
      *
      * @return a lazy [TokenStream] backed by this lexer.
