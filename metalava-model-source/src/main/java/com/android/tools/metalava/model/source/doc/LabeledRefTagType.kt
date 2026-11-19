@@ -72,7 +72,7 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
         if (parsedReference == null) {
             reporter.report(
                 Issues.MALFORMED_DOC_REFERENCE,
-                "Malformed reference `$sourceReference`"
+                malformedReferenceMessage(sourceReference),
             )
         }
 
@@ -100,6 +100,23 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
             // they are part of [LinkTagData].
             consumedContent = labelStart
         )
+    }
+
+    /**
+     * Build the [Issues.MALFORMED_DOC_REFERENCE] message for an unparseable [sourceReference],
+     * providing a `<a href="...">` hint when [sourceReference] is a URL.
+     */
+    private fun malformedReferenceMessage(sourceReference: String): String {
+        if (!sourceReference.isUrlReference()) {
+            return "Malformed reference `$sourceReference`"
+        }
+        val replacement =
+            if (form == TagTypeForm.BLOCK) {
+                "`@$name <a href=\"$sourceReference\">...</a>`"
+            } else {
+                "`<a href=\"$sourceReference\">...</a>`"
+            }
+        return "Malformed reference `$sourceReference`, URLs are not valid in `@$name`, use $replacement instead"
     }
 
     /**
@@ -139,6 +156,20 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
     }
 
     companion object {
+        /**
+         * Return `true` if this [String] starts with an RFC 3986 URI scheme followed by `://` (such
+         * as `http://` or `https://`).
+         */
+        private fun String.isUrlReference(): Boolean {
+            val schemeEnd = indexOf("://")
+            if (schemeEnd <= 0 || !this[0].isLetter()) return false
+            for (i in 1 until schemeEnd) {
+                val c = this[i]
+                if (!c.isLetterOrDigit() && c != '+' && c != '-' && c != '.') return false
+            }
+            return true
+        }
+
         /**
          * Parse [sourceReference] into a [ParsedReference], or `null` if it was not valid.
          *

@@ -1120,13 +1120,11 @@ class CommonDocReferenceTest : BaseModelTest() {
                 )
 
             assertAndRemoveReportedIssues(
-                // TODO(b/568477816): Explain that URLs are not valid in `@link`, `@linkplain`, or
-                //  `@see` and suggest `<a href="...">...</a>`.
                 """
-                    MAIN_SRC/src/test/pkg/Test.java:3:11: warning: Malformed reference `https://example.com` (ErrorWhenNew) [MalformedDocReference]
-                    MAIN_SRC/src/test/pkg/Test.java:4:11: warning: Malformed reference `https://example.com` (ErrorWhenNew) [MalformedDocReference]
-                    MAIN_SRC/src/test/pkg/Test.java:5:16: warning: Malformed reference `http://example.com/docs` (ErrorWhenNew) [MalformedDocReference]
-                    MAIN_SRC/src/test/pkg/Test.java:7:9: warning: Malformed reference `https://example.com` (ErrorWhenNew) [MalformedDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:3:11: warning: Malformed reference `https://example.com`, URLs are not valid in `@link`, use `<a href="https://example.com">...</a>` instead (ErrorWhenNew) [MalformedDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:4:11: warning: Malformed reference `https://example.com`, URLs are not valid in `@link`, use `<a href="https://example.com">...</a>` instead (ErrorWhenNew) [MalformedDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:5:16: warning: Malformed reference `http://example.com/docs`, URLs are not valid in `@linkplain`, use `<a href="http://example.com/docs">...</a>` instead (ErrorWhenNew) [MalformedDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:7:9: warning: Malformed reference `https://example.com`, URLs are not valid in `@see`, use `@see <a href="https://example.com">...</a>` instead (ErrorWhenNew) [MalformedDocReference]
                 """,
             )
         }
