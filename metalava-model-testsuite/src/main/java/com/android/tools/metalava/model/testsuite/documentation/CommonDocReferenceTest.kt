@@ -2230,30 +2230,24 @@ class CommonDocReferenceTest : BaseModelTest() {
                 .assertClass("test.pkg.ImplWithHiddenHelper")
                 .assertMethod("test", emptyList())
                 .assertPrintedDocumentation(
-                    // TODO(b/447588621): Rewrite hidden `#helper` to `ERROR[hidden: #helper]`
-                    //  without treating StaticHelperInterface.helper() as an inherited overload.
-                    expectedOutput = "/** {@link #helper} */",
+                    expectedOutput = "/** ERROR[hidden: #helper] */",
                 )
 
             codebase
                 .assertClass("test.pkg.Child")
                 .assertMethod("shadowedMember", emptyList())
                 .assertPrintedDocumentation(
-                    // TODO(b/447588621): Resolve `#shadowedMember` to `Child.shadowedMember()`
-                    //  instead of inherited hidden field `Parent.shadowedMember`.
-                    expectedOutput = "/** ERROR[hidden: #shadowedMember] */",
+                    expectedOutput = "/** {@link #shadowedMember} */",
                 )
 
             codebase
                 .assertClass("test.pkg.Outer.Nested")
                 .assertPrintedDocumentation(
-                    // TODO(b/447588621): Resolve `#outerMethod` to `test.pkg.Outer#outerMethod`
-                    //  and rewrite `#hiddenOuterMethod` to `ERROR[...]`.
                     expectedOutput =
                         """
                             /**
-                             * {@link #outerMethod}
-                             * {@link #hiddenOuterMethod}
+                             * {@link test.pkg.Outer#outerMethod outerMethod}
+                             * ERROR[hidden: #hiddenOuterMethod]
                              */
                         """,
                 )
@@ -2262,34 +2256,31 @@ class CommonDocReferenceTest : BaseModelTest() {
                 .assertClass("test.pkg.Test")
                 .assertMethod("test", emptyList())
                 .assertPrintedDocumentation(
-                    // TODO(b/447588621): Rewrite hidden method references to `ERROR[...]`, resolve
-                    //  `Child#shadowedMember` to `Child.shadowedMember()`, and target
-                    //  `Outer.Nested#outerMethod` at `test.pkg.Outer#outerMethod`.
                     expectedOutput =
                         """
                             /**
-                             * {@link #hiddenMethod}
+                             * ERROR[hidden: #hiddenMethod]
                              * {@link #overloadedMethod}
-                             * {@link #allHiddenOverloads}
+                             * ERROR[hidden: #allHiddenOverloads]
                              * {@link test.pkg.Child#superMethod Child.superMethod}
-                             * {@link test.pkg.Child#hiddenSuperMethod Child.hiddenSuperMethod}
-                             * ERROR[hidden: Child#shadowedMember]
+                             * ERROR[hidden: Child#hiddenSuperMethod]
+                             * {@link test.pkg.Child#shadowedMember Child.shadowedMember}
                              * {@link test.pkg.StaticHelperInterface#helper StaticHelperInterface.helper}
-                             * {@link test.pkg.ImplWithHiddenHelper#helper ImplWithHiddenHelper.helper}
-                             * {@link test.pkg.Outer.Nested#outerMethod Outer.Nested.outerMethod}
+                             * ERROR[hidden: ImplWithHiddenHelper#helper]
+                             * {@link test.pkg.Outer#outerMethod Outer.Nested.outerMethod}
                              * ERROR[hidden: Outer.HiddenNested#outerMethod]
                              */
                         """,
                 )
 
             assertAndRemoveReportedIssues(
-                // TODO(b/447588621): Report HiddenDocReference for `#hiddenOuterMethod`,
-                //  `#hiddenMethod`, `#allHiddenOverloads`, `Child#hiddenSuperMethod`,
-                //  `ImplWithHiddenHelper` `#helper`, and `ImplWithHiddenHelper#helper`, and stop
-                //  reporting HiddenDocReference for `Child#shadowedMember` / `#shadowedMember`.
                 """
-                    MAIN_SRC/src/test/pkg/Child.java:3:16: warning: Field test.pkg.Parent.shadowedMember is hidden (ErrorWhenNew) [HiddenDocReference]
-                    MAIN_SRC/src/test/pkg/Test.java:9:15: warning: Field test.pkg.Parent.shadowedMember is hidden (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/ImplWithHiddenHelper.java:3:16: warning: Method test.pkg.ImplWithHiddenHelper.helper() is hidden (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Outer.java:9:15: warning: Method test.pkg.Outer.hiddenOuterMethod() is hidden (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:4:15: warning: Method test.pkg.Test.hiddenMethod() is hidden (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:6:15: warning: Method test.pkg.Test.allHiddenOverloads(int) is hidden (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:8:15: warning: Method test.pkg.Parent.hiddenSuperMethod() is hidden (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:11:15: warning: Method test.pkg.ImplWithHiddenHelper.helper() is hidden (ErrorWhenNew) [HiddenDocReference]
                     MAIN_SRC/src/test/pkg/Test.java:13:15: warning: Class test.pkg.Outer.HiddenNested is hidden (ErrorWhenNew) [HiddenDocReference]
                 """
             )

@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.ExternalReferencableItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.InvalidReferencableItem
 import com.android.tools.metalava.model.JAVA_LANG_OBJECT
+import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ReferencableMethodSet
@@ -495,6 +496,46 @@ private fun ClassItem.findAllMethodsByName(methodName: String): List<MethodItem>
 }
 
 /**
+ * Find the nearest field or non-constructor method named [memberName] on this [ClassItem] or its
+ * supertypes, checking direct fields before direct methods at each level of the inheritance
+ * hierarchy (this class -> superclass -> superinterfaces) while skipping `static` methods on strict
+ * superinterfaces (which are not inherited per JLS 8.4.8 / 9.4.1).
+ *
+ * Returns the matched [FieldItem] when a field wins, a representative [MethodItem] when a method
+ * wins, or `null` if no field or method named [memberName] exists in the hierarchy.
+ */
+private fun ClassItem.findNearestFieldOrMethod(
+    memberName: String,
+    isSuperInterface: Boolean = false,
+    visited: MutableSet<ClassItem> = HashSet(),
+): MemberItem? {
+    if (!visited.add(this)) return null
+
+    findField(memberName)?.let {
+        return it
+    }
+
+    methods()
+        .firstOrNull { it.name() == memberName && (!isSuperInterface || !it.modifiers.isStatic()) }
+        ?.let {
+            return it
+        }
+
+    superClass()?.findNearestFieldOrMethod(memberName, isSuperInterface = false, visited)?.let {
+        return it
+    }
+
+    for (interfaceType in interfaceTypes()) {
+        val superInterface = interfaceType.resolveClass(codebase) ?: continue
+        superInterface.findNearestFieldOrMethod(memberName, isSuperInterface = true, visited)?.let {
+            return it
+        }
+    }
+
+    return null
+}
+
+/**
  * Validate an unparameterized callable reference against [containingClass] and [candidates].
  *
  * First checks that [containingClass] itself is accessible (so references to members of a hidden
@@ -741,43 +782,61 @@ internal data class AmbiguousMemberSourceReference(val name: String) : ClassMemb
         }
 
         // Walk `classItem` and its enclosing classes (matching `javadoc` and Doclava member
-        // lookup). Keep `className` when resolved on `classItem` (so `SubClass#SUPER_FIELD`
+        // lookup). Keep `className` when resolved on `classItem` (so `SubClass#superMember`
         // preserves its source qualification), and rewrite to `scopeClass` when resolved on an
         // enclosing class so generated stubs target the enclosing class rather than a non-existent
         // member on the nested class.
-        // TODO(b/447588621): Check for methods and constructors not just fields.
+        // TODO(b/447588621): Also check same-class constructors.
         for (scopeClass in generateSequence(classItem) { it.containingClass() }) {
-            val field =
-                scopeClass.findField(
-                    name,
-                    includeSuperClasses = true,
-                    includeInterfaces = true,
-                )
-            if (field != null) {
+            val targetClassName =
+                if (scopeClass == classItem) {
+                    className
+                } else {
+                    context.resolveClassReferenceName(scopeClass)
+                }
+
+            val member = scopeClass.findNearestFieldOrMethod(name)
+            if (member is FieldItem) {
                 val classCheck =
-                    if (field.containingClass() != classItem) {
+                    if (member.containingClass() != classItem) {
                         context.checkReference(classItem, reporter)
                     } else {
                         ReferenceCheckResult.Valid
                     }
                 val checkResult =
                     if (classCheck.isValid) {
-                        context.checkReference(field, reporter)
+                        context.checkReference(member, reporter)
                     } else {
                         classCheck
                     }
-                val targetClassName =
-                    if (scopeClass == classItem) {
-                        className
+                return FieldReference(targetClassName, member.name(), checkResult = checkResult)
+            }
+
+            val methods =
+                if (member is MethodItem) {
+                    scopeClass.findAllMethodsByName(name)
+                } else {
+                    scopeClass.findImplicitObjectMethodsByName(name)
+                }
+            if (methods.isNotEmpty()) {
+                val classCheck =
+                    if (scopeClass != classItem) {
+                        context.checkReference(classItem, reporter)
                     } else {
-                        context.resolveClassReferenceName(scopeClass)
+                        ReferenceCheckResult.Valid
                     }
-                return FieldReference(targetClassName, field.name(), checkResult = checkResult)
+                val checkResult =
+                    if (classCheck.isValid) {
+                        checkCallableCandidates(context, reporter, scopeClass, methods)
+                    } else {
+                        classCheck
+                    }
+                return CallableReference(targetClassName, name, checkResult = checkResult)
             }
         }
 
-        // When no matching field is found (e.g. a method reference without `()`), still validate
-        // that the qualifying class itself is accessible.
+        // When no matching member is found, still validate that the qualifying class itself is
+        // accessible.
         val checkResult = context.checkReference(classItem, reporter)
 
         // TODO(b/447588621): Report that the field could not be found.
