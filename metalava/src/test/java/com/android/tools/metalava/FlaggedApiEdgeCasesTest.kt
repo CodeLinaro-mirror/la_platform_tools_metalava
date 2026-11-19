@@ -1039,14 +1039,6 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                       }
                     }
                 """,
-            // TODO(b/568477816): Implement deprecatedSectionFlagState in AbstractItemDocumentation
-            //  so newly deprecated @FlaggedApi items do not report HiddenDocReference or rewrite
-            //  @deprecated links to ERROR[...].
-            expectedIssues =
-                """
-                    src/test/pkg/Foo.java:9: warning: Class test.pkg.NewReplacement is guarded by @FlaggedApi(test.pkg.flags.foo_bar) (ErrorWhenNew) [HiddenDocReference]
-                    src/test/pkg/Foo.java:9: warning: Field test.pkg.Foo.NEW_CONSTANT is guarded by @FlaggedApi(test.pkg.flags.foo_bar) (ErrorWhenNew) [HiddenDocReference]
-                """,
             expectedStubFiles =
                 arrayOf(
                     java(
@@ -1057,7 +1049,7 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                             public Foo() { throw new RuntimeException("Stub!"); }
                             /**
                              * Existing method.
-                             * @deprecated Use ERROR[guarded by @FlaggedApi(test.pkg.flags.foo_bar): NewReplacement] and ERROR[guarded by @FlaggedApi(test.pkg.flags.foo_bar): #NEW_CONSTANT] instead.
+                             * @deprecated Use {@link test.pkg.NewReplacement NewReplacement} and {@link #NEW_CONSTANT} instead.
                              */
                             @Deprecated
                             public void oldMethod() { throw new RuntimeException("Stub!"); }

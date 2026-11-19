@@ -223,6 +223,10 @@ internal abstract class AbstractItemDocumentation(
         return result
     }
 
+    /** Implements [DocCommentContext.deprecatedSectionFlagState]. */
+    override val deprecatedSectionFlagState: FlagState
+        get() = item.selectedApi.deprecatedFlagState
+
     /** Implements [ExprContext.isFlagEnabled]. */
     override fun isFlagEnabled(flagName: String): Boolean {
         val apiFlags = item.codebase.config.apiFlags ?: return true

@@ -1518,9 +1518,6 @@ class CommonDocReferenceTest : BaseModelTest() {
                     ),
             ) {
                 val undeprecated = codebase.assertClass("test.pkg.PreviouslyUndeprecated")
-                // TODO(b/568477816): Guard @deprecated doc references by
-                //  SelectedApi.deprecatedFlagState so newly deprecated @FlaggedApi items do not
-                //  rewrite @deprecated links to ERROR[...] or report HiddenDocReference.
                 undeprecated
                     .assertMethod("methodByAnnotation", emptyList())
                     .assertPrintedDocumentation(
@@ -1529,7 +1526,7 @@ class CommonDocReferenceTest : BaseModelTest() {
                                 /**
                                  * Main unguarded: ERROR[guarded by @FlaggedApi(test.pkg.flags.add_flag): FlaggedReplacement].
                                  * Main conditional: {@link test.pkg.FlaggedReplacement FlaggedReplacement}.
-                                 * @deprecated Use ERROR[guarded by @FlaggedApi(test.pkg.flags.add_flag): FlaggedReplacement] instead.
+                                 * @deprecated Use {@link test.pkg.FlaggedReplacement FlaggedReplacement} instead.
                                  */
                             """,
                     )
@@ -1540,7 +1537,7 @@ class CommonDocReferenceTest : BaseModelTest() {
                             """
                                 /**
                                  * Summary.
-                                 * @deprecated Use ERROR[guarded by @FlaggedApi(test.pkg.flags.add_flag): FlaggedReplacement] instead.
+                                 * @deprecated Use {@link test.pkg.FlaggedReplacement FlaggedReplacement} instead.
                                  */
                             """,
                     )
@@ -1559,7 +1556,7 @@ class CommonDocReferenceTest : BaseModelTest() {
                     .assertPrintedDocumentation(
                         expectedOutput =
                             """
-                                /** @deprecated Use ERROR[guarded by @FlaggedApi(test.pkg.flags.add_flag): FlaggedReplacement] instead. */
+                                /** @deprecated Use {@link test.pkg.FlaggedReplacement FlaggedReplacement} instead. */
                             """,
                     )
 
@@ -1576,10 +1573,7 @@ class CommonDocReferenceTest : BaseModelTest() {
                 assertAndRemoveReportedIssues(
                     """
                         MAIN_SRC/src/test/pkg/PreviouslyUndeprecated.java:5:31: warning: Class test.pkg.FlaggedReplacement is guarded by @FlaggedApi(test.pkg.flags.add_flag) (ErrorWhenNew) [HiddenDocReference]
-                        MAIN_SRC/src/test/pkg/PreviouslyUndeprecated.java:8:31: warning: Class test.pkg.FlaggedReplacement is guarded by @FlaggedApi(test.pkg.flags.add_flag) (ErrorWhenNew) [HiddenDocReference]
-                        MAIN_SRC/src/test/pkg/PreviouslyUndeprecated.java:17:31: warning: Class test.pkg.FlaggedReplacement is guarded by @FlaggedApi(test.pkg.flags.add_flag) (ErrorWhenNew) [HiddenDocReference]
                         MAIN_SRC/src/test/pkg/PreviouslyUndeprecated.java:23:31: warning: Class test.pkg.FlaggedReplacement is guarded by @FlaggedApi(test.pkg.flags.add_flag) (ErrorWhenNew) [HiddenDocReference]
-                        MAIN_SRC/src/test/pkg/OuterNewlyFlagged.java:6:31: warning: Class test.pkg.FlaggedReplacement is guarded by @FlaggedApi(test.pkg.flags.add_flag) (ErrorWhenNew) [HiddenDocReference]
                         MAIN_SRC/src/test/pkg/PreviouslyDeprecated.java:7:31: warning: Class test.pkg.FlaggedReplacement is guarded by @FlaggedApi(test.pkg.flags.add_flag) (ErrorWhenNew) [HiddenDocReference]
                     """
                 )

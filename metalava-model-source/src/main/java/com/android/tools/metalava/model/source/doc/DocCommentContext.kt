@@ -59,7 +59,6 @@ internal interface DocCommentContext : ExprBuilderContext, ExprContext {
      * (evaluated lazily when checking references inside `@deprecated` sections).
      */
     val deprecatedSectionFlagState: FlagState
-        get() = FlagState.NONE
 
     /**
      * Return a [DocCommentContext] that includes [flagState] in the active conditional [FlagState]
