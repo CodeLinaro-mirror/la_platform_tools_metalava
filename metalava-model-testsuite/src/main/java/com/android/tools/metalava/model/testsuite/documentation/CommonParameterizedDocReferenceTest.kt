@@ -269,6 +269,18 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                     expectedLinkLabel = null,
                 ),
                 TestParams(
+                    name = "noParamsMethod",
+                    // TODO(b/447588621): Resolve to `#noParamsMethod`.
+                    expectedResolvedReference = "noParamsMethod",
+                    expectedLinkLabel = null,
+                ),
+                TestParams(
+                    name = "intMethod",
+                    // TODO(b/447588621): Resolve to `#intMethod`.
+                    expectedResolvedReference = "intMethod",
+                    expectedLinkLabel = null,
+                ),
+                TestParams(
                     name = "intMethod(int)",
                     expectedResolvedReference = "#intMethod(int)",
                     expectedLinkLabel = null,
@@ -283,6 +295,13 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                     expectedResolvedReference = "another.pkg.Imported#staticallyImportedField",
                 ),
                 TestParams(
+                    name = "staticallyImportedCollectionMethod",
+                    // TODO(b/447588621): Resolve to
+                    //  `another.pkg.Imported#staticallyImportedCollectionMethod`.
+                    expectedResolvedReference = "staticallyImportedCollectionMethod",
+                    expectedLinkLabel = null,
+                ),
+                TestParams(
                     name = "staticallyImportedCollectionMethod(Collection)",
                     expectedResolvedReference =
                         "another.pkg.Imported#staticallyImportedCollectionMethod(java.util.Collection)",
@@ -294,6 +313,12 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                     expectedResolvedReference = "test.pkg.Other#field",
                     expectedIssues =
                         "warning: Malformed reference `Other.field`, missing '#', should be 'Other#field (ErrorWhenNew) [MalformedDocReference]",
+                ),
+                TestParams(
+                    name = "Other.noParamsMethod",
+                    // TODO(b/447588621): Resolve to `test.pkg.Other#noParamsMethod`.
+                    expectedResolvedReference = "Other.noParamsMethod",
+                    expectedLinkLabel = null,
                 ),
                 TestParams(
                     name = "Other.intMethod(int)",

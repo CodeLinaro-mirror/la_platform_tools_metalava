@@ -1651,4 +1651,101 @@ class CommonDocReferenceTest : BaseModelTest() {
             }
         }
     }
+
+    /**
+     * Verify that unparameterized method references written without `#` or `()` (including
+     * `java.lang.Object` methods on interfaces and mapped doc-stubs annotation elements) resolve to
+     * `#`-separated callable links.
+     */
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test ambiguous method references without hash or parentheses`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package android.annotation;
+                        /** @hide */
+                        public @interface IntDef {
+                            boolean flag() default false;
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        /** {@link toString} */
+                        public interface MyInterface {}
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class Parent {
+                            public void superMethod() {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class Child extends Parent {}
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        /** @hide */
+                        public class HiddenChild extends Parent {}
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        import android.annotation.IntDef;
+                        public class Test {
+                            /**
+                             * {@link IntDef.flag}
+                             * {@link android.annotation.IntDef.flag}
+                             * {@link android.annotation.IntDef.getClass}
+                             * {@link Child.superMethod}
+                             * {@link HiddenChild.superMethod}
+                             */
+                            public void test() {}
+                        }
+                    """
+                ),
+            ),
+        ) {
+            codebase
+                .assertClass("test.pkg.MyInterface")
+                .assertPrintedDocumentation(
+                    // TODO(b/447588621): Resolve `toString` to `java.lang.Object#toString`.
+                    expectedOutput = "/** {@link toString} */",
+                )
+
+            codebase
+                .assertClass("test.pkg.Test")
+                .assertMethod("test", emptyList())
+                .assertPrintedDocumentation(
+                    // TODO(b/447588621): Resolve dot-qualified method references, preserving and
+                    //  checking the qualifying class.
+                    expectedOutput =
+                        """
+                            /**
+                             * {@link IntDef.flag}
+                             * {@link android.annotation.IntDef.flag}
+                             * {@link android.annotation.IntDef.getClass}
+                             * {@link Child.superMethod}
+                             * {@link HiddenChild.superMethod}
+                             */
+                        """,
+                )
+
+            assertAndRemoveReportedIssues(
+                // TODO(b/447588621): Report HiddenDocReference for `HiddenChild.superMethod`.
+                ""
+            )
+        }
+    }
 }
