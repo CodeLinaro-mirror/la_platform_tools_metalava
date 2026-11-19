@@ -95,10 +95,16 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
                 ?: sourceReference
 
         return ExtractDataResult(
-            LabeledRefTagData(name, normalizedSourceReference, resolved?.resolvedReference),
+            LabeledRefTagData(
+                name,
+                normalizedSourceReference,
+                resolved?.resolvedReference,
+                rawSourceReference = sourceReference,
+            ),
+
             // The source reference and any following whitespace must be removed from the content as
             // they are part of [LinkTagData].
-            consumedContent = labelStart
+            consumedContent = labelStart,
         )
     }
 
@@ -892,6 +898,12 @@ internal data class LabeledRefTagData(
     private val sourceReference: String,
     /** The resolved reference, subclasses identify the specific part of the API it references. */
     private val resolvedReference: ResolvedReference?,
+
+    /**
+     * The original reference written in the source comment (prior to any mapped annotation
+     * rewriting), used when reporting diagnostics on the source comment.
+     */
+    private val rawSourceReference: String = sourceReference,
 ) : TagData {
     /**
      * Print [inlineTag] to [contentPrinter], replacing the tag with `ERROR[<reason>: <link>]` or

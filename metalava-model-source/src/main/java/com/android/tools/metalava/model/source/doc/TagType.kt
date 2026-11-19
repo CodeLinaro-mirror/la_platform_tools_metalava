@@ -65,6 +65,15 @@ internal interface TagData : Comparable<TagData> {
      */
     fun printTagContents(contentPrinter: JavadocContentPrinter, content: JavadocContent?)
 
+    /**
+     * Validate this [TagData] once the unconsumed [remainder] content of the tag (such as a link
+     * label) has been extracted, reporting any issues to [reporter].
+     */
+    fun checkExtractedContent(
+        reporter: LocationSpecificReporter,
+        remainder: JavadocContent?,
+    ) {}
+
     fun textMatches(predicate: (String) -> Boolean): Boolean = false
 }
 

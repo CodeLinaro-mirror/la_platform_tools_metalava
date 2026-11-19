@@ -45,13 +45,15 @@ internal class TagDataExtractor(
     }
 
     /**
-     * Extract the [TagData], if any, from [JavadocContent].
+     * Extract the [TagData], if any, from [JavadocContent] and validate it against the unconsumed
+     * remainder via [TagData.checkExtractedContent].
      *
      * @return the [TagData] or `null` if it could not be found, e.g. because [TagType.extractData]
      *   returned `null` or [JavadocContent] did not start with [JavadocText].
      */
     fun extractTagData(content: JavadocContent): ExtractorResult {
         val remainder = content.accept(this)
+        tagData?.checkExtractedContent(reporter = this, remainder)
         return ExtractorResult(tagData, remainder)
     }
 
