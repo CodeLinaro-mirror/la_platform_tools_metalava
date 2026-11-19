@@ -1007,6 +1007,7 @@ class JavadocTest : DriverTest() {
             warnings =
                 """
                     src/test/pkg1/Test.java:7: warning: Could not resolve 'SomethingMissing' in 'method test.pkg1.Test.test()' (ErrorWhenNew) [UnresolvedLink]
+                    src/test/pkg1/Test.java:8: warning: Could not resolve 'randomMethod' in 'class java.lang.String' (ErrorWhenNew) [UnresolvedLink]
                     src/test/pkg1/Test.java:10: warning: Could not resolve 'OtherMissing' in 'method test.pkg1.Test.test()' (ErrorWhenNew) [UnresolvedLink]
                 """,
             sourceFiles =

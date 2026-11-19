@@ -854,7 +854,8 @@ internal data class AmbiguousMemberSourceReference(val name: String) : ClassMemb
         // accessible.
         val checkResult = context.checkReference(classItem, reporter)
 
-        // TODO(b/447588621): Report that the member could not be found.
+        reporter.report(Issues.UNRESOLVED_LINK, "Could not resolve '$name' in '$classItem'")
+
         // If the member could not be found then fallback to a field reference so that at least
         // the resolved class will be fully qualified.
         return FieldReference(className, name, checkResult = checkResult)

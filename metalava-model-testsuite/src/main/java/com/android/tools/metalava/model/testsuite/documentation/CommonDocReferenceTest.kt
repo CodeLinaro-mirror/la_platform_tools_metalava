@@ -2515,9 +2515,12 @@ class CommonDocReferenceTest : BaseModelTest() {
                 )
 
             assertAndRemoveReportedIssues(
-                // TODO(b/447588621): Report UnresolvedLink for `#unknownMember`, `#Outer`,
-                //  `Child#Parent`, and `Impl#onlyStaticOnInterface`.
-                ""
+                """
+                    MAIN_SRC/src/test/pkg/Outer.java:6:15: warning: Could not resolve 'unknownMember' in 'class test.pkg.Outer.Nested' (ErrorWhenNew) [UnresolvedLink]
+                    MAIN_SRC/src/test/pkg/Outer.java:7:15: warning: Could not resolve 'Outer' in 'class test.pkg.Outer.Nested' (ErrorWhenNew) [UnresolvedLink]
+                    MAIN_SRC/src/test/pkg/Test.java:3:11: warning: Could not resolve 'Parent' in 'class test.pkg.Child' (ErrorWhenNew) [UnresolvedLink]
+                    MAIN_SRC/src/test/pkg/Test.java:4:11: warning: Could not resolve 'onlyStaticOnInterface' in 'class test.pkg.Impl' (ErrorWhenNew) [UnresolvedLink]
+                """
             )
         }
     }
