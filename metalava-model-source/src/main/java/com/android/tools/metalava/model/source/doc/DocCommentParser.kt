@@ -67,7 +67,7 @@ private constructor(
 
     /** Parse [tokenStream] into a [DocComment]. */
     private fun parse(): DocComment {
-        val description = consumeDescriptionSupplier()
+        val description = consumeDescriptionSupplier(context)
 
         val blockTagSections = mutableListOf<BlockTagSection>()
         while (tokenStream.peekType() != DocCommentTokenType.EOF) {
@@ -127,9 +127,10 @@ private constructor(
         // active; skipping inactive branches prevents their references from being checked and
         // prevents inactive `:@deprecated` tags from marking the item as deprecated.
         if (active) {
-            val blockTagDescription = consumeDescriptionSupplier()
+            val blockTagDescription = consumeDescriptionSupplier(context)
             addBlockTagSection(
                 blockTagSections,
+                context,
                 blockTagType,
                 blockTagDescription,
             )
@@ -277,12 +278,13 @@ private constructor(
     /** Create a [DefaultBlockTagSection] and append it to [blockTagSections]. */
     private fun addBlockTagSection(
         blockTagSections: MutableList<BlockTagSection>,
+        sectionContext: DocCommentContext,
         blockTagType: TagType<*>,
         description: ContentSupplier,
     ) {
         blockTagSections.add(
             DefaultBlockTagSection(
-                context,
+                sectionContext,
                 blockTagType,
                 description,
             ),
@@ -293,12 +295,13 @@ private constructor(
      * If the next token is [DocCommentTokenType.DESCRIPTION], consumes it and wraps its slice in a
      * [LazyContentSupplier]; otherwise returns [ContentSupplier.NULL].
      */
-    private fun consumeDescriptionSupplier(): ContentSupplier {
+    private fun consumeDescriptionSupplier(sectionContext: DocCommentContext): ContentSupplier {
         if (tokenStream.peekType() != DocCommentTokenType.DESCRIPTION) {
             return ContentSupplier.NULL
         }
         val token = tokenStream.consume()
         return createDescriptionSupplier(
+            sectionContext,
             token.startOffset,
             token.endOffset,
         )
@@ -306,11 +309,12 @@ private constructor(
 
     /** Wrap `[startInclusive, endExclusive)` of [text] in a [LazyContentSupplier]. */
     private fun createDescriptionSupplier(
+        sectionContext: DocCommentContext,
         startInclusive: Int,
         endExclusive: Int,
     ): ContentSupplier =
         LazyContentSupplier(
-            context,
+            sectionContext,
             reporter,
             text,
             startInclusive,
