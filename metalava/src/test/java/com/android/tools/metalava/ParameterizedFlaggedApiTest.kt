@@ -2251,4 +2251,251 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                 ),
         )
     }
+
+    @Test
+    fun `Test conditional doc references to FlaggedApi items`() {
+        val stubsWithFlaggedApisBrokenIf =
+            arrayOf(
+                java(
+                    """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public class Foo {
+                        public Foo() { throw new RuntimeException("Stub!"); }
+                        /**
+                         * Existing method. ERROR[guarded by @FlaggedApi(test.pkg.flags.foo_bar): NewReplacement] and ERROR[guarded by @FlaggedApi(test.pkg.flags.foo_bar): #NEW_CONSTANT]
+                         * @see "ERROR[guarded by @FlaggedApi(test.pkg.flags.foo_bar): NewReplacement]"
+                         */
+                        public void existingMethod() { throw new RuntimeException("Stub!"); }
+                        @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar") public static final int NEW_CONSTANT = 1;
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar")
+                        public class NewReplacement {
+                        @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar")
+                        public NewReplacement() { throw new RuntimeException("Stub!"); }
+                        }
+                    """
+                ),
+            )
+
+        val stubsFinalized =
+            arrayOf(
+                java(
+                    """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public class Foo {
+                        public Foo() { throw new RuntimeException("Stub!"); }
+                        /**
+                         * Existing method. {@link test.pkg.NewReplacement NewReplacement} and {@link #NEW_CONSTANT}
+                         * @see test.pkg.NewReplacement NewReplacement
+                         */
+                        public void existingMethod() { throw new RuntimeException("Stub!"); }
+                        public static final int NEW_CONSTANT = 1;
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public class NewReplacement {
+                        public NewReplacement() { throw new RuntimeException("Stub!"); }
+                        }
+                    """
+                ),
+            )
+
+        val stubsWithoutFlaggedApis =
+            arrayOf(
+                java(
+                    """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public class Foo {
+                        public Foo() { throw new RuntimeException("Stub!"); }
+                        /** Existing method. */
+                        public void existingMethod() { throw new RuntimeException("Stub!"); }
+                        }
+                    """
+                ),
+            )
+
+        val preFixIfIssues =
+            """
+                src/test/pkg/Foo.java:8: warning: Class test.pkg.NewReplacement is guarded by @FlaggedApi(test.pkg.flags.foo_bar) (ErrorWhenNew) [HiddenDocReference]
+                src/test/pkg/Foo.java:8: warning: Field test.pkg.Foo.NEW_CONSTANT is guarded by @FlaggedApi(test.pkg.flags.foo_bar) (ErrorWhenNew) [HiddenDocReference]
+                src/test/pkg/Foo.java:11: warning: Class test.pkg.NewReplacement is guarded by @FlaggedApi(test.pkg.flags.foo_bar) (ErrorWhenNew) [HiddenDocReference]
+            """
+
+        checkFlaggedApis(
+            java(
+                """
+                    package test.pkg;
+
+                    import android.annotation.FlaggedApi;
+                    import test.pkg.flags.Flags;
+
+                    @FlaggedApi(Flags.FLAG_FOO_BAR)
+                    public class NewReplacement {}
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    import android.annotation.FlaggedApi;
+                    import test.pkg.flags.Flags;
+
+                    public class Foo {
+                        /**
+                         * Existing method. {@if (flag(Flags.FLAG_FOO_BAR)) {{@link NewReplacement} and {@link #NEW_CONSTANT}}}
+                         *
+                         * @if (flag(Flags.FLAG_FOO_BAR)) {
+                         *     :@see NewReplacement
+                         * }
+                         */
+                        public void existingMethod() {}
+
+                        @FlaggedApi(Flags.FLAG_FOO_BAR)
+                        public static final int NEW_CONSTANT = 1;
+                    }
+                """
+            ),
+            previouslyReleasedApi =
+                mapOf(
+                    Surface.PUBLIC to
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class Foo {
+                                ctor public Foo();
+                                method public void existingMethod();
+                              }
+                            }
+                        """,
+                ),
+            expectationsList =
+                listOf(
+                    // TODO(b/568477816): Implement additionFlagState in AbstractItemDocumentation
+                    //  so KEEP_ALL emits valid {@link ...} tags without HiddenDocReference.
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.KEEP_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public class Foo {
+                                    ctor public Foo();
+                                    method public void existingMethod();
+                                    field @FlaggedApi("test.pkg.flags.foo_bar") public static final int NEW_CONSTANT = 1; // 0x1
+                                  }
+                                  @FlaggedApi("test.pkg.flags.foo_bar") public class NewReplacement {
+                                    ctor public NewReplacement();
+                                  }
+                                }
+                            """,
+                        expectedIssues = preFixIfIssues,
+                        expectedStubFiles = stubsWithFlaggedApisBrokenIf,
+                    ),
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.FINALIZE_FOO_BAR_APIS,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public class Foo {
+                                    ctor public Foo();
+                                    method public void existingMethod();
+                                    field public static final int NEW_CONSTANT = 1; // 0x1
+                                  }
+                                  public class NewReplacement {
+                                    ctor public NewReplacement();
+                                  }
+                                }
+                            """,
+                        expectedStubFiles = stubsFinalized,
+                    ),
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.REVERT_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public class Foo {
+                                    ctor public Foo();
+                                    method public void existingMethod();
+                                  }
+                                }
+                            """,
+                        expectedStubFiles = stubsWithoutFlaggedApis,
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.KEEP_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedIssues = preFixIfIssues,
+                        expectedStubFiles = stubsWithFlaggedApisBrokenIf,
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.FINALIZE_FOO_BAR_APIS,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubFiles = stubsFinalized,
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.REVERT_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubFiles = stubsWithoutFlaggedApis,
+                    ),
+                    Expectations(
+                        Surface.MODULE_LIB,
+                        Flagged.KEEP_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedIssues = preFixIfIssues,
+                        expectedStubFiles = stubsWithFlaggedApisBrokenIf,
+                    ),
+                    Expectations(
+                        Surface.MODULE_LIB,
+                        Flagged.FINALIZE_FOO_BAR_APIS,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubFiles = stubsFinalized,
+                    ),
+                    Expectations(
+                        Surface.MODULE_LIB,
+                        Flagged.REVERT_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubFiles = stubsWithoutFlaggedApis,
+                    ),
+                ),
+        )
+    }
 }

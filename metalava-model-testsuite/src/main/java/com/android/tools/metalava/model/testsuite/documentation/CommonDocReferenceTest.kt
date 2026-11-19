@@ -1188,4 +1188,207 @@ class CommonDocReferenceTest : BaseModelTest() {
             )
         }
     }
+
+    /**
+     * Verify that inline `{@if (flag(...))}` and block `@if (flag(...))` branches guard references
+     * to unfinalized `@FlaggedApi` items when the branch's flag is unfinalized (`KEEP`), whereas
+     * branches guarded only by a finalized flag (`FINALIZE`), wider-surface references, and
+     * scheduled-removal references still report `HiddenDocReference` and rewrite links to
+     * `ERROR[...]`.
+     */
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test conditional if references to flagged APIs`() {
+        val apiSurfaces =
+            ApiSurfaces.build {
+                createSurface("public", isMain = true)
+                createSurface("system", extends = "public")
+            }
+        val apiSurfaceRules =
+            ApiSurfaceRules(
+                apiSurfaces,
+                mapOf(
+                    "public" to listOf(SurfaceSelectionRule.unannotated),
+                    "system" to
+                        listOf(SurfaceSelectionRule.createAnnotationRule("test.pkg.SystemApi")),
+                ),
+                listOf(
+                    SurfaceSelectionRule.createAnnotationRule(
+                        "test.pkg.Removed",
+                        effect = SurfaceSelectionRule.Effect.REMOVED,
+                    ),
+                ),
+            )
+
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        import java.lang.annotation.Retention;
+                        import java.lang.annotation.RetentionPolicy;
+                        @Retention(RetentionPolicy.SOURCE)
+                        @interface SystemApi {}
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        import java.lang.annotation.Retention;
+                        import java.lang.annotation.RetentionPolicy;
+                        @Retention(RetentionPolicy.SOURCE)
+                        @interface Removed {}
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class Flags {
+                            public static final String ADD_FLAG = "test.pkg.flags.add_flag";
+                            public static final String OTHER_KEEP_FLAG = "test.pkg.flags.other_keep_flag";
+                            public static final String FINALIZED_FLAG = "test.pkg.flags.finalized_flag";
+                            public static final String REVERTED_FLAG = "test.pkg.flags.reverted_flag";
+                            public static final String REMOVE_FLAG = "test.pkg.flags.remove_flag";
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        @SystemApi
+                        public class SystemClass {}
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        import android.annotation.FlaggedApi;
+                        @FlaggedApi(Flags.ADD_FLAG)
+                        public class FlaggedAdditionClass {
+                            public void action() {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        import android.annotation.FlaggedApi;
+                        @FlaggedApi(Flags.ADD_FLAG)
+                        public class FlaggedException extends RuntimeException {}
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        import android.annotation.FlaggedApi;
+                        @Removed
+                        @FlaggedApi(Flags.REMOVE_FLAG)
+                        public class FlaggedRemovalClass {}
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class Test {
+                            /**
+                             * {@if (flag(Flags.ADD_FLAG)) {{@link FlaggedAdditionClass} and {@linkplain FlaggedAdditionClass#action()}}}
+                             * {@if (flag(Flags.OTHER_KEEP_FLAG)) {{@link FlaggedAdditionClass}}}
+                             * {@if (flag(Flags.FINALIZED_FLAG)) {{@if (flag(Flags.ADD_FLAG)) {{@link FlaggedAdditionClass}}}}}
+                             * {@if (flag(Flags.REVERTED_FLAG)) {unused} else {{@if (flag(Flags.ADD_FLAG)) {{@link FlaggedAdditionClass}}}}}
+                             *
+                             * @if (flag(Flags.ADD_FLAG)) {
+                             *     :@param x {@link FlaggedAdditionClass}
+                             *     :@throws FlaggedException if {@link FlaggedAdditionClass} fails.
+                             *     :@see FlaggedAdditionClass
+                             * }
+                             */
+                            public void guardedMethod(int x) {}
+
+                            /**
+                             * {@if (flag(Flags.FINALIZED_FLAG)) {{@link FlaggedAdditionClass}}}
+                             * {@if (flag(Flags.REVERTED_FLAG)) {unused} else {{@link FlaggedAdditionClass}}}
+                             * {@if (flag(Flags.ADD_FLAG)) {{@link SystemClass}}}
+                             * {@if (flag(Flags.ADD_FLAG)) {{@link FlaggedRemovalClass}}}
+                             *
+                             * @if (flag(Flags.FINALIZED_FLAG)) {
+                             *     :@see FlaggedAdditionClass
+                             * }
+                             */
+                            public void invalidGuardsMethod() {}
+                        }
+                    """
+                ),
+            ),
+            testFixture =
+                TestFixture(
+                    additionalClassPath = listOf(KnownJarFiles.stubAnnotationsJar),
+                    apiSurfaceRules = apiSurfaceRules,
+                    apiFlags =
+                        ApiFlags(
+                            listOf(
+                                ApiFlag("test.pkg.flags.add_flag", ApiFlagAction.KEEP),
+                                ApiFlag("test.pkg.flags.other_keep_flag", ApiFlagAction.KEEP),
+                                ApiFlag("test.pkg.flags.finalized_flag", ApiFlagAction.FINALIZE),
+                                ApiFlag("test.pkg.flags.reverted_flag", ApiFlagAction.REVERT),
+                                ApiFlag("test.pkg.flags.remove_flag", ApiFlagAction.KEEP),
+                            )
+                        ),
+                ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            // TODO(b/568477816): Implement additionFlagState in AbstractItemDocumentation so
+            //  guardedMethod does not rewrite links to ERROR[...] or report HiddenDocReference.
+            testClass
+                .assertMethod("guardedMethod", listOf("int"))
+                .assertPrintedDocumentation(
+                    expectedOutput =
+                        """
+                            /**
+                             * ERROR[guarded by @FlaggedApi(test.pkg.flags.add_flag): FlaggedAdditionClass] and ERROR[guarded by @FlaggedApi(test.pkg.flags.add_flag): FlaggedAdditionClass#action()]
+                             * ERROR[guarded by @FlaggedApi(test.pkg.flags.add_flag): FlaggedAdditionClass]
+                             * ERROR[guarded by @FlaggedApi(test.pkg.flags.add_flag): FlaggedAdditionClass]
+                             * ERROR[guarded by @FlaggedApi(test.pkg.flags.add_flag): FlaggedAdditionClass]
+                             *
+                             * @param x ERROR[guarded by @FlaggedApi(test.pkg.flags.add_flag): FlaggedAdditionClass]
+                             * @throws test.pkg.FlaggedException if ERROR[guarded by @FlaggedApi(test.pkg.flags.add_flag): FlaggedAdditionClass] fails.
+                             * @see "ERROR[guarded by @FlaggedApi(test.pkg.flags.add_flag): FlaggedAdditionClass]"
+                             */
+                        """,
+                )
+
+            testClass
+                .assertMethod("invalidGuardsMethod", emptyList())
+                .assertPrintedDocumentation(
+                    expectedOutput =
+                        """
+                            /**
+                             * ERROR[guarded by @FlaggedApi(test.pkg.flags.add_flag): FlaggedAdditionClass]
+                             * ERROR[guarded by @FlaggedApi(test.pkg.flags.add_flag): FlaggedAdditionClass]
+                             * ERROR[in a wider API surface (system) than public: SystemClass]
+                             * ERROR[scheduled for removal by @FlaggedApi(test.pkg.flags.remove_flag): FlaggedRemovalClass]
+                             * @see "ERROR[guarded by @FlaggedApi(test.pkg.flags.add_flag): FlaggedAdditionClass]"
+                             */
+                        """,
+                )
+
+            assertAndRemoveReportedIssues(
+                """
+                    MAIN_SRC/src/test/pkg/Test.java:4:44: warning: Class test.pkg.FlaggedAdditionClass is guarded by @FlaggedApi(test.pkg.flags.add_flag) (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:4:82: warning: Class test.pkg.FlaggedAdditionClass is guarded by @FlaggedApi(test.pkg.flags.add_flag) (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:5:51: warning: Class test.pkg.FlaggedAdditionClass is guarded by @FlaggedApi(test.pkg.flags.add_flag) (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:6:79: warning: Class test.pkg.FlaggedAdditionClass is guarded by @FlaggedApi(test.pkg.flags.add_flag) (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:7:92: warning: Class test.pkg.FlaggedAdditionClass is guarded by @FlaggedApi(test.pkg.flags.add_flag) (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:10:29: warning: Class test.pkg.FlaggedAdditionClass is guarded by @FlaggedApi(test.pkg.flags.add_flag) (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:11:48: warning: Class test.pkg.FlaggedAdditionClass is guarded by @FlaggedApi(test.pkg.flags.add_flag) (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:11:21: warning: Class test.pkg.FlaggedException is guarded by @FlaggedApi(test.pkg.flags.add_flag) (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:12:18: warning: Class test.pkg.FlaggedAdditionClass is guarded by @FlaggedApi(test.pkg.flags.add_flag) (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:18:50: warning: Class test.pkg.FlaggedAdditionClass is guarded by @FlaggedApi(test.pkg.flags.add_flag) (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:19:63: warning: Class test.pkg.FlaggedAdditionClass is guarded by @FlaggedApi(test.pkg.flags.add_flag) (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:20:44: warning: Class test.pkg.SystemClass is in a wider API surface (system) than public (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:21:44: warning: Class test.pkg.FlaggedRemovalClass is scheduled for removal by @FlaggedApi(test.pkg.flags.remove_flag) (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:24:18: warning: Class test.pkg.FlaggedAdditionClass is guarded by @FlaggedApi(test.pkg.flags.add_flag) (ErrorWhenNew) [HiddenDocReference]
+                """
+            )
+        }
+    }
 }

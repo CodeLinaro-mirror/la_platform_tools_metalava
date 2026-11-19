@@ -871,4 +871,107 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                 ),
         )
     }
+
+    @Test
+    fun `Test conditional javadoc FlaggedApi doc references with kept flags`() {
+        check(
+            apiSurface = KnownApiSurface.PUBLIC,
+            docStubs = true,
+            configFiles =
+                arrayOf(
+                    xml(
+                        "config-flags.xml",
+                        """
+                            <config xmlns="http://www.google.com/tools/metalava/config">
+                                <api-flags>
+                                    <api-flag package="test.pkg.flags" name="foo_bar" mutability="mutable" status="enabled"/>
+                                </api-flags>
+                            </config>
+                        """,
+                    ),
+                ),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg.flags;
+                            /** @hide */
+                            public class Flags {
+                                public static final String FLAG_FOO_BAR = "test.pkg.flags.foo_bar";
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.FlaggedApi;
+                            import test.pkg.flags.Flags;
+
+                            @FlaggedApi(Flags.FLAG_FOO_BAR)
+                            public class NewReplacement {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.FlaggedApi;
+                            import test.pkg.flags.Flags;
+
+                            public class Foo {
+                                /**
+                                 * Existing method. {@if (flag(Flags.FLAG_FOO_BAR)) {{@link NewReplacement} and {@link #NEW_CONSTANT}}}
+                                 *
+                                 * @if (flag(Flags.FLAG_FOO_BAR)) {
+                                 *     :@see NewReplacement
+                                 * }
+                                 */
+                                public void existingMethod() {}
+
+                                @FlaggedApi(Flags.FLAG_FOO_BAR)
+                                public static final int NEW_CONSTANT = 1;
+                            }
+                        """
+                    ),
+                    flaggedApiSource,
+                ),
+            // TODO(b/568477816): Implement additionFlagState in AbstractItemDocumentation so kept
+            //  @if/{@if} branches do not report HiddenDocReference or rewrite links to ERROR[...].
+            expectedIssues =
+                """
+                    src/test/pkg/Foo.java:7: warning: Class test.pkg.NewReplacement is guarded by @FlaggedApi(test.pkg.flags.foo_bar) (ErrorWhenNew) [HiddenDocReference]
+                    src/test/pkg/Foo.java:7: warning: Field test.pkg.Foo.NEW_CONSTANT is guarded by @FlaggedApi(test.pkg.flags.foo_bar) (ErrorWhenNew) [HiddenDocReference]
+                    src/test/pkg/Foo.java:10: warning: Class test.pkg.NewReplacement is guarded by @FlaggedApi(test.pkg.flags.foo_bar) (ErrorWhenNew) [HiddenDocReference]
+                """,
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Foo {
+                            public Foo() { throw new RuntimeException("Stub!"); }
+                            /**
+                             * Existing method. ERROR[guarded by @FlaggedApi(test.pkg.flags.foo_bar): NewReplacement] and ERROR[guarded by @FlaggedApi(test.pkg.flags.foo_bar): #NEW_CONSTANT]
+                             * @see "ERROR[guarded by @FlaggedApi(test.pkg.flags.foo_bar): NewReplacement]"
+                             */
+                            public void existingMethod() { throw new RuntimeException("Stub!"); }
+                            @$ANDROID_FLAGGED_API("test.pkg.flags.foo_bar") public static final int NEW_CONSTANT = 1;
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            @$ANDROID_FLAGGED_API("test.pkg.flags.foo_bar")
+                            public class NewReplacement {
+                            @$ANDROID_FLAGGED_API("test.pkg.flags.foo_bar")
+                            public NewReplacement() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
+            skipEmitPackages = listOf("test.pkg.flags", "android.annotation"),
+        )
+    }
 }
