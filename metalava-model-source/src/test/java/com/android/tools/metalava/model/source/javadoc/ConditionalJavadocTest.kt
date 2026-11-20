@@ -652,4 +652,41 @@ class ConditionalJavadocTest : BaseJavadocTest() {
             context.checkedReferences,
         )
     }
+
+    @Test
+    fun `Test if flag - inside reference tag target conditionFlagState`() {
+        val (_, context) =
+            createTestDocCommentAndContext(
+                input =
+                    """
+                        /**
+                         * {@link {@if (flag(Flags.KEPT_FLAG)) {InlineIfLinkTarget} else {SkippedLinkTarget}} label}
+                         * {@link {@if (flag(Flags.REVERTED_FLAG)) {SkippedElseLinkTarget} else {ElseLinkTarget}} label}
+                         * {@link Partial.{@if (flag(Flags.KEPT_FLAG)) {Target} else {Other}} label}
+                         * {@link LabelOnlyTarget {@if (flag(Flags.KEPT_FLAG)) {flagged label}}}
+                         * {@if (flag(Flags.OTHER_KEPT_FLAG)) {{@link {@if (flag(Flags.KEPT_FLAG)) {CombinedLinkTarget} else {FallbackTarget}}}}}
+                         */
+                    """,
+                flagActions =
+                    mapOf(
+                        "Flags.KEPT_FLAG" to ApiFlagAction.KEEP,
+                        "Flags.OTHER_KEPT_FLAG" to ApiFlagAction.KEEP,
+                        "Flags.REVERTED_FLAG" to ApiFlagAction.REVERT,
+                    ),
+            )
+
+        val otherKeptState = FlagState.additionFlag("Flags.OTHER_KEPT_FLAG", ApiFlagAction.KEEP)
+        // TODO(b/568477816): Scope reference tag resolution by JavadocText FlagStateSpans so
+        //  targets emitted completely inside {@if (flag(...))} inherit that branch's FlagState.
+        assertEquals(
+            listOf(
+                "resolved.InlineIfLinkTarget" to FlagState.NONE,
+                "resolved.ElseLinkTarget" to FlagState.NONE,
+                "Partial.Target" to FlagState.NONE,
+                "resolved.LabelOnlyTarget" to FlagState.NONE,
+                "resolved.CombinedLinkTarget" to otherKeptState,
+            ),
+            context.checkedReferences,
+        )
+    }
 }

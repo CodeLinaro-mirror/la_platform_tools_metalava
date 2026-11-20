@@ -877,4 +877,40 @@ class ConditionalBlockJavadocTest : BaseDocCommentTest() {
             context.checkedReferences,
         )
     }
+
+    @Test
+    fun `Test block tags with {@if} inside reference tag targets`() {
+        val (_, context) =
+            createTestDocCommentAndContext(
+                input =
+                    """
+                        /**
+                         * Summary.
+                         *
+                         * @if (flag(Flags.KEPT_FLAG)) {
+                         *     :@see {@if (flag(Flags.OTHER_KEPT_FLAG)) {CombinedSeeTarget} else {OuterOnlySeeTarget}}
+                         * }
+                         * @see {@if (flag(Flags.KEPT_FLAG)) {InlineIfSeeTarget} else {SkippedSeeTarget}} label
+                         * @throws {@if (flag(Flags.KEPT_FLAG)) {InlineIfThrowsTarget} else {SkippedThrowsTarget}} reason
+                         */
+                    """,
+                flagActions =
+                    mapOf(
+                        "Flags.KEPT_FLAG" to ApiFlagAction.KEEP,
+                        "Flags.OTHER_KEPT_FLAG" to ApiFlagAction.KEEP,
+                    ),
+            )
+
+        val keptState = FlagState.additionFlag("Flags.KEPT_FLAG", ApiFlagAction.KEEP)
+        // TODO(b/568477816): Scope block reference tag resolution by JavadocText FlagStateSpans so
+        //  @see and @throws targets inside {@if (flag(...))} inherit that branch's FlagState.
+        assertEquals(
+            listOf(
+                "resolved.CombinedSeeTarget" to keptState,
+                "resolved.InlineIfSeeTarget" to FlagState.NONE,
+                "resolved.InlineIfThrowsTarget" to FlagState.NONE,
+            ),
+            context.checkedReferences,
+        )
+    }
 }
