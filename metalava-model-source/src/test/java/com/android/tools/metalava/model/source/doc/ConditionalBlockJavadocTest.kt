@@ -861,17 +861,16 @@ class ConditionalBlockJavadocTest : BaseDocCommentTest() {
                     ),
             )
 
+        val keptState = FlagState.additionFlag("Flags.KEPT_FLAG", ApiFlagAction.KEEP)
         val otherKeptState = FlagState.additionFlag("Flags.OTHER_KEPT_FLAG", ApiFlagAction.KEEP)
-        // TODO(b/568477816): Scope DocCommentContext by flag() branchFlagState in @if so kept
-        //  branches pass their addition FlagState to checkReference.
         assertEquals(
             listOf(
-                "resolved.KeptTarget" to FlagState.NONE,
-                "resolved.KeptInlineTarget" to FlagState.NONE,
+                "resolved.KeptTarget" to keptState,
+                "resolved.KeptInlineTarget" to keptState,
                 "resolved.ElseTarget" to FlagState.NONE,
                 "resolved.FinalizedTarget" to FlagState.NONE,
-                "resolved.NestedTarget" to FlagState.NONE,
-                "resolved.CombinedInlineTarget" to otherKeptState,
+                "resolved.NestedTarget" to (keptState combineWith otherKeptState),
+                "resolved.CombinedInlineTarget" to (keptState combineWith otherKeptState),
                 "resolved.SurfaceTarget" to FlagState.NONE,
                 "resolved.OutsideTarget" to FlagState.NONE,
             ),

@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.source.doc
 
+import com.android.tools.metalava.model.api.flags.FlagState
 import com.android.tools.metalava.model.parser.TokenStream
 import com.android.tools.metalava.model.source.javadoc.ExprBuilder
 import com.android.tools.metalava.model.source.javadoc.TokenIssueReporter
@@ -48,6 +49,12 @@ private constructor(
     /** Reporter for documentation issues found while parsing block tags and descriptions. */
     private val reporter: DocumentationIssueReporter,
 ) {
+    /**
+     * Active [DocCommentContext] at the current parse position, updated inside active `@if`
+     * branches via [withScopedContext].
+     */
+    private var currentContext: DocCommentContext = context
+
     /** Backing field for [tokenIssueReporter], allocated only if an `@if` tag or error occurs. */
     private var _tokenIssueReporter: TokenIssueReporter? = null
 
@@ -64,6 +71,21 @@ private constructor(
         get() =
             _exprBuilder
                 ?: ExprBuilder(text, context, tokenIssueReporter).also { _exprBuilder = it }
+
+    /**
+     * Execute [body] with [currentContext] temporarily updated via
+     * [DocCommentContext.withConditionFlagState] for [branchFlagState].
+     */
+    private inline fun <T> withScopedContext(branchFlagState: FlagState, body: () -> T): T {
+        if (branchFlagState === FlagState.NONE) return body()
+        val previous = currentContext
+        currentContext = previous.withConditionFlagState(branchFlagState)
+        return try {
+            body()
+        } finally {
+            currentContext = previous
+        }
+    }
 
     /** Parse [tokenStream] into a [DocComment]. */
     private fun parse(): DocComment {
@@ -127,10 +149,10 @@ private constructor(
         // active; skipping inactive branches prevents their references from being checked and
         // prevents inactive `:@deprecated` tags from marking the item as deprecated.
         if (active) {
-            val blockTagDescription = consumeDescriptionSupplier(context)
+            val blockTagDescription = consumeDescriptionSupplier(currentContext)
             addBlockTagSection(
                 blockTagSections,
-                context,
+                currentContext,
                 blockTagType,
                 blockTagDescription,
             )
@@ -187,7 +209,7 @@ private constructor(
             )
         }
 
-        val result = if (active) (expr?.evaluate(context) ?: false) else false
+        val result = if (active) (expr?.evaluate(currentContext) ?: false) else false
 
         if (tokenStream.peekType() != DocCommentTokenType.BRACE_OPEN) {
             val token = tokenStream.peek()
@@ -203,7 +225,13 @@ private constructor(
         }
 
         tokenStream.consume()
-        parseIfBranch(blockTagSections, active = active && result)
+        val trueBranchActive = active && result
+        val trueBranchFlagState =
+            if (trueBranchActive) expr?.branchFlagState(currentContext, true) ?: FlagState.NONE
+            else FlagState.NONE
+        withScopedContext(trueBranchFlagState) {
+            parseIfBranch(blockTagSections, active = trueBranchActive)
+        }
 
         if (tokenStream.match(DocCommentTokenType.IF_TAG_ELSE)) {
             if (tokenStream.peekType() != DocCommentTokenType.BRACE_OPEN) {
@@ -220,7 +248,13 @@ private constructor(
             }
 
             tokenStream.consume()
-            parseIfBranch(blockTagSections, active = active && !result)
+            val elseBranchActive = active && !result
+            val elseBranchFlagState =
+                if (elseBranchActive) expr?.branchFlagState(currentContext, false) ?: FlagState.NONE
+                else FlagState.NONE
+            withScopedContext(elseBranchFlagState) {
+                parseIfBranch(blockTagSections, active = elseBranchActive)
+            }
         }
     }
 
