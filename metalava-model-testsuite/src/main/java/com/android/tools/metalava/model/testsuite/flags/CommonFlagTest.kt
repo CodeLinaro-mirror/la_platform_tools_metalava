@@ -800,4 +800,90 @@ class CommonFlagTest : BaseModelTest() {
             )
         }
     }
+
+    /**
+     * Verify that Kotlin properties with exposed backing fields (`const val` and `@JvmField`)
+     * delegate [SelectedApi.wasPreviouslyReleased] and [SelectedApi.flagState] to their backing
+     * field against a `FieldItem`-only `previouslyReleasedCodebase` (such as Format 2.0 signature
+     * files), independent of evaluation order.
+     */
+    @RequiresCapabilities(Capability.KOTLIN, Capability.REVERTED_ITEMS)
+    @SupportedInputFormats(InputFormat.KOTLIN)
+    @Test
+    fun `Test SelectedApi delegation on Kotlin exposed backing field properties`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        public class Holder {
+                            public static final int RELEASED_CONST = 1;
+                            public static final int RELEASED_JVM_FIELD = 2;
+                        }
+                    """
+                ),
+                com.android.tools.metalava.testing.kotlin(
+                    """
+                        package test.pkg
+                        class Unused
+                    """
+                ),
+            ),
+            testFixture = TestFixture(checkSupportedInputFormats = false),
+        ) {
+            val previousCodebase = codebase
+            runCodebaseTest(
+                inputSet(
+                    com.android.tools.metalava.testing.kotlin(
+                        """
+                            package test.pkg
+                            import android.annotation.FlaggedApi
+                            object Holder {
+                                @FlaggedApi("test.pkg.flags.kept_flag")
+                                const val RELEASED_CONST: Int = 1
+                                @FlaggedApi("test.pkg.flags.kept_flag")
+                                @JvmField
+                                val RELEASED_JVM_FIELD: Int = 2
+                                @FlaggedApi("test.pkg.flags.kept_flag")
+                                const val UNRELEASED_CONST: Int = 3
+                            }
+                        """
+                    ),
+                ),
+                testFixture =
+                    TestFixture(
+                        additionalClassPath = listOf(KnownJarFiles.stubAnnotationsJar),
+                        apiFlags = ApiFlags(listOf(ApiFlag("test.pkg.flags.kept_flag", KEEP))),
+                        previouslyReleasedCodebase = previousCodebase,
+                    ),
+            ) {
+                val keptFlagged = FlagState.additionFlag("test.pkg.flags.kept_flag", KEEP)
+                val holder = codebase.assertClass("test.pkg.Holder")
+
+                // TODO(b/568477816): SourceSelectedApi.adoptStatusFrom copies uninitialized null
+                //  lazy fields (`_flagState` and `wasPreviouslyReleased`), causing
+                //  `property.selectedApi` to recompute against `PropertyItem` and disagree with
+                //  `backingField.selectedApi` unless `backingField.selectedApi` was queried first.
+                val constProp = holder.assertProperty("RELEASED_CONST")
+                assertFalse(constProp.selectedApi.wasPreviouslyReleased())
+                assertEquals(keptFlagged, constProp.selectedApi.flagState)
+                val constField = holder.assertField("RELEASED_CONST")
+                assertTrue(constField.selectedApi.wasPreviouslyReleased())
+                assertSame(FlagState.NONE, constField.selectedApi.flagState)
+
+                // Querying `backingField.selectedApi` before `property.selectedApi` initializes
+                // populates the backing field's cached values before `adoptStatusFrom` copies them.
+                val jvmField = holder.assertField("RELEASED_JVM_FIELD")
+                assertTrue(jvmField.selectedApi.wasPreviouslyReleased())
+                assertSame(FlagState.NONE, jvmField.selectedApi.flagState)
+                val jvmProp = holder.assertProperty("RELEASED_JVM_FIELD")
+                assertTrue(jvmProp.selectedApi.wasPreviouslyReleased())
+                assertSame(FlagState.NONE, jvmProp.selectedApi.flagState)
+
+                val unreleasedProp = holder.assertProperty("UNRELEASED_CONST")
+                assertFalse(unreleasedProp.selectedApi.wasPreviouslyReleased())
+                assertEquals(keptFlagged, unreleasedProp.selectedApi.flagState)
+            }
+        }
+    }
 }
