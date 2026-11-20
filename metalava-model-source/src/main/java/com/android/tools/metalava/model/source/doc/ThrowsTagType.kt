@@ -33,10 +33,12 @@ internal class ThrowsTagType() : TagType<ThrowsTagData>("throws", TagTypeForm.BL
     ): ExtractDataResult<ThrowsTagData>? {
         val throwsName = text.findLeadingIdentifier() ?: return null
 
-        // Resolve the class name to a fully qualified class reference or type parameter. If it
-        // could not be found then fake one.
+        // Resolve the class name to a fully qualified class reference or type parameter, including
+        // any `{@if (flag(...))}` scope covering the throwable identifier.
+        val referenceContext = context.forTextRange(text, 0, throwsName.length)
         val throwableReference =
-            resolveThrowableType(context, reporter, throwsName) ?: ClassReference(throwsName)
+            resolveThrowableType(referenceContext, reporter, throwsName)
+                ?: ClassReference(throwsName)
 
         return ExtractDataResult(
             tagData =

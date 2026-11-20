@@ -339,3 +339,19 @@ internal object TagTypes {
 internal fun InvalidReferencableItem.reportIssue(reporter: LocationSpecificReporter) {
     reporter.report(Issues.UNRESOLVED_LINK, message)
 }
+
+/**
+ * Scope [this] with any [com.android.tools.metalava.model.api.flags.FlagState] covering
+ * `[startInclusive, endExclusive)` inside [text] (such as when an inline `{@if (flag(...))}`
+ * emitted the target of a `{@link}`, `@see`, or `@throws` tag).
+ */
+internal fun DocCommentContext.forTextRange(
+    text: CharSequence,
+    startInclusive: Int,
+    endExclusive: Int,
+): DocCommentContext =
+    if (text is com.android.tools.metalava.model.source.javadoc.JavadocText) {
+        withConditionFlagState(text.flagStateForRange(startInclusive, endExclusive))
+    } else {
+        this
+    }

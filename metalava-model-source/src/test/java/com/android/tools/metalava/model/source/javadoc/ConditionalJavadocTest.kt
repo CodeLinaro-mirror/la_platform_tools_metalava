@@ -675,16 +675,15 @@ class ConditionalJavadocTest : BaseJavadocTest() {
                     ),
             )
 
+        val keptState = FlagState.additionFlag("Flags.KEPT_FLAG", ApiFlagAction.KEEP)
         val otherKeptState = FlagState.additionFlag("Flags.OTHER_KEPT_FLAG", ApiFlagAction.KEEP)
-        // TODO(b/568477816): Scope reference tag resolution by JavadocText FlagStateSpans so
-        //  targets emitted completely inside {@if (flag(...))} inherit that branch's FlagState.
         assertEquals(
             listOf(
-                "resolved.InlineIfLinkTarget" to FlagState.NONE,
+                "resolved.InlineIfLinkTarget" to keptState,
                 "resolved.ElseLinkTarget" to FlagState.NONE,
                 "Partial.Target" to FlagState.NONE,
                 "resolved.LabelOnlyTarget" to FlagState.NONE,
-                "resolved.CombinedLinkTarget" to otherKeptState,
+                "resolved.CombinedLinkTarget" to (otherKeptState combineWith keptState),
             ),
             context.checkedReferences,
         )

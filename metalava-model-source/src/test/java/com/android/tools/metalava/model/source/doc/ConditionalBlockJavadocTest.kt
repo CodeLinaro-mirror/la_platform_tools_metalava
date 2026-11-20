@@ -902,13 +902,12 @@ class ConditionalBlockJavadocTest : BaseDocCommentTest() {
             )
 
         val keptState = FlagState.additionFlag("Flags.KEPT_FLAG", ApiFlagAction.KEEP)
-        // TODO(b/568477816): Scope block reference tag resolution by JavadocText FlagStateSpans so
-        //  @see and @throws targets inside {@if (flag(...))} inherit that branch's FlagState.
+        val otherKeptState = FlagState.additionFlag("Flags.OTHER_KEPT_FLAG", ApiFlagAction.KEEP)
         assertEquals(
             listOf(
-                "resolved.CombinedSeeTarget" to keptState,
-                "resolved.InlineIfSeeTarget" to FlagState.NONE,
-                "resolved.InlineIfThrowsTarget" to FlagState.NONE,
+                "resolved.CombinedSeeTarget" to (keptState combineWith otherKeptState),
+                "resolved.InlineIfSeeTarget" to keptState,
+                "resolved.InlineIfThrowsTarget" to keptState,
             ),
             context.checkedReferences,
         )

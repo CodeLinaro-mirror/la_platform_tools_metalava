@@ -76,10 +76,12 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
             )
         }
 
-        // Resolve the parsed source reference, if available.
+        // Resolve the parsed source reference, if available, including any `{@if (flag(...))}`
+        // scope covering `[referenceStart, referenceEndExclusive)`.
+        val referenceContext = context.forTextRange(text, referenceStart, referenceEndExclusive)
         val resolved =
             // Resolve the reference.
-            parsedReference?.resolveReference(context, reporter)?.also {
+            parsedReference?.resolveReference(referenceContext, reporter)?.also {
                 checkSourceReferenceValidForResolvedReference(
                     reporter,
                     sourceReference,
