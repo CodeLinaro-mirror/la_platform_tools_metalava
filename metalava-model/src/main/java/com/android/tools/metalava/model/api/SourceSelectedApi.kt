@@ -164,11 +164,23 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
 
     override var ignoreOwnFlaggedApi: Boolean = false
 
+    /**
+     * Optional [SourceSelectedApi] whose status this adopted via [adoptStatusFrom] (for example, a
+     * Kotlin property adopting its exposed `const val` or `@JvmField` backing field's status).
+     *
+     * Lazy queries delegate to this when non-null so they resolve against the adopted item (such as
+     * matching Format 2.0 `field` entries) regardless of evaluation order.
+     */
+    private var adoptedSelectedApi: SourceSelectedApi<*>? = null
+
     /** Backing property for [flagState], or `null` if it has not yet been computed. */
     private var _flagState: FlagState? = null
 
     override val flagState: FlagState
-        get() = _flagState ?: computeFlagState(item).also { _flagState = it }
+        get() =
+            adoptedSelectedApi?.flagState
+                ?: _flagState
+                ?: computeFlagState(item).also { _flagState = it }
 
     /**
      * Backing property for [itemApiVariants] so internal updates and checks during initialization
@@ -216,7 +228,8 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
     private var wasPreviouslyReleased: Boolean? = null
 
     override fun wasPreviouslyReleased(): Boolean =
-        wasPreviouslyReleased
+        adoptedSelectedApi?.wasPreviouslyReleased()
+            ?: wasPreviouslyReleased
             ?: (selectedApiUpdater.findPreviouslyReleasedItem(item) != null).also {
                 wasPreviouslyReleased = it
             }
@@ -292,12 +305,11 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
         removed = other.removed
         hasRemovedAnnotation = other.hasRemovedAnnotation
         ignoreOwnFlaggedApi = other.ignoreOwnFlaggedApi
-        _flagState = other._flagState
         forRemoval = other.forRemoval
         revert = other.revert
         revertItem = other.revertItem
-        wasPreviouslyReleased = other.wasPreviouslyReleased
         explicitlyHidden = other.explicitlyHidden
+        adoptedSelectedApi = other.adoptedSelectedApi ?: other
     }
 
     override fun addItemApiVariant(value: ApiVariant) {
