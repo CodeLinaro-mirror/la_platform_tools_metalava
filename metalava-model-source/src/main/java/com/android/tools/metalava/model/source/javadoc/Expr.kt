@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.ExternalReferencableItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.InvalidReferencableItem
 import com.android.tools.metalava.model.ReferencableItem
+import com.android.tools.metalava.model.api.flags.FlagState
 import com.android.tools.metalava.model.parser.SharedTokenType
 import com.android.tools.metalava.model.parser.Token
 import com.android.tools.metalava.model.parser.TokenStream
@@ -45,6 +46,9 @@ internal interface ExprContext {
      * @param surfaceName is the name of the API surface.
      */
     fun includesSurface(surfaceName: String): Boolean
+
+    /** Obtain the [FlagState] established by `flag(flagName)` in its `true` branch. */
+    fun additionFlagState(flagName: String): FlagState = FlagState.NONE
 }
 
 /** An expression that can be used with a Javadoc conditional expression. */
@@ -57,6 +61,12 @@ internal interface Expr {
      * can be changed to return other types, e.g. maybe [Value].
      */
     fun evaluate(context: ExprContext): Boolean
+
+    /**
+     * Obtain the [FlagState] established within the branch selected when [evaluate] returned
+     * [branchResult] in [context], or [FlagState.NONE] if no flag guard applies.
+     */
+    fun branchFlagState(context: ExprContext, branchResult: Boolean): FlagState = FlagState.NONE
 }
 
 /**
@@ -66,6 +76,9 @@ internal interface Expr {
  */
 internal class FlagFunctionCall(private val flagName: String) : Expr {
     override fun evaluate(context: ExprContext) = context.isFlagEnabled(flagName)
+
+    override fun branchFlagState(context: ExprContext, branchResult: Boolean): FlagState =
+        if (branchResult) context.additionFlagState(flagName) else FlagState.NONE
 }
 
 /**

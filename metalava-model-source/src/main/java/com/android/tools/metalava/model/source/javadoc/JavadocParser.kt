@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.source.javadoc
 
+import com.android.tools.metalava.model.api.flags.FlagState
 import com.android.tools.metalava.model.parser.Token
 import com.android.tools.metalava.model.parser.TokenStream
 import com.android.tools.metalava.model.parser.TokenType
@@ -70,6 +71,12 @@ private constructor(
     private val context: DocCommentContext,
     reporter: DocumentationIssueReporter,
 ) {
+    /**
+     * Active [DocCommentContext] at the current parse position, updated inside active `{@if}`
+     * branches via [withScopedContext].
+     */
+    private var currentContext: DocCommentContext = context
+
     /** A [TokenIssueReporter] that can be used to report issues with a [Token]. */
     private val tokenIssueReporter = TokenIssueReporter(reporter)
 
@@ -330,7 +337,7 @@ private constructor(
                 val tokenForReport =
                     if (firstContentToken != Token.NONE) firstContentToken else startToken
                 tokenIssueReporter.reportAtToken(tokenForReport) {
-                    tagContent.extractTagDataForTagType(context, tagType, tokenIssueReporter)
+                    tagContent.extractTagDataForTagType(currentContext, tagType, tokenIssueReporter)
                 }
             }
 
@@ -428,10 +435,25 @@ private constructor(
     }
 
     /**
+     * Execute [body] with [currentContext] temporarily updated via
+     * [DocCommentContext.withConditionFlagState] for [branchFlagState].
+     */
+    private inline fun <T> withScopedContext(branchFlagState: FlagState, body: () -> T): T {
+        if (branchFlagState === FlagState.NONE) return body()
+        val previousContext = currentContext
+        currentContext = previousContext.withConditionFlagState(branchFlagState)
+        return try {
+            body()
+        } finally {
+            currentContext = previousContext
+        }
+    }
+
+    /**
      * Parse an `{@if (expr) {trueBranch} (else {falseBranch})?}` conditional tag.
      *
-     * Parses and evaluates the conditional [Expr] against [context]. Emits the true branch content
-     * if the condition evaluates to `true`, or the optional false branch if it evaluates to
+     * Parses and evaluates the conditional [Expr] against [currentContext]. Emits the true branch
+     * content if the condition evaluates to `true`, or the optional false branch if it evaluates to
      * `false`. The unused branch is skipped without emitting content.
      */
     private fun parseInlineIfTag() {
@@ -479,8 +501,9 @@ private constructor(
             )
         }
 
-        // Evaluate the expression to get a boolean result.
-        val result = expr?.evaluate(context) ?: false
+        // Evaluate the expression to get a boolean result and its active branch flag state.
+        val result = expr?.evaluate(currentContext) ?: false
+        val branchFlagState = expr?.branchFlagState(currentContext, result) ?: FlagState.NONE
 
         // Expect opening brace '{' to begin the true branch.
         if (peekType() != JavadocTokenType.BRACE_OPEN) {
@@ -502,10 +525,12 @@ private constructor(
         // Process the true branch.
         if (result) {
             // Condition evaluated to true: parse and emit the true branch content.
-            while (
-                peekType() != JavadocTokenType.EOF && peekType() != JavadocTokenType.BRACE_CLOSE
-            ) {
-                parseInlineTagContentElement()
+            withScopedContext(branchFlagState) {
+                while (
+                    peekType() != JavadocTokenType.EOF && peekType() != JavadocTokenType.BRACE_CLOSE
+                ) {
+                    parseInlineTagContentElement()
+                }
             }
             expect(JavadocTokenType.BRACE_CLOSE, "expected '}' to close true branch")
         } else {
@@ -533,10 +558,13 @@ private constructor(
             consume() // consume BRACE_OPEN
             if (!result) {
                 // Condition evaluated to false: parse and emit the else branch content.
-                while (
-                    peekType() != JavadocTokenType.EOF && peekType() != JavadocTokenType.BRACE_CLOSE
-                ) {
-                    parseInlineTagContentElement()
+                withScopedContext(branchFlagState) {
+                    while (
+                        peekType() != JavadocTokenType.EOF &&
+                            peekType() != JavadocTokenType.BRACE_CLOSE
+                    ) {
+                        parseInlineTagContentElement()
+                    }
                 }
                 expect(JavadocTokenType.BRACE_CLOSE, "expected '}' to close else branch")
             } else {

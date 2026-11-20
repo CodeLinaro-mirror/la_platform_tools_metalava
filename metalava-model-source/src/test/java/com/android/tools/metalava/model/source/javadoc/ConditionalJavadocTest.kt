@@ -638,14 +638,14 @@ class ConditionalJavadocTest : BaseJavadocTest() {
                     ),
             )
 
-        // TODO(b/568477816): Scope DocCommentContext by flag() branchFlagState in {@if} so kept
-        //  branches pass their addition FlagState to checkReference.
+        val keptState = FlagState.additionFlag("Flags.KEPT_FLAG", ApiFlagAction.KEEP)
+        val otherKeptState = FlagState.additionFlag("Flags.OTHER_KEPT_FLAG", ApiFlagAction.KEEP)
         assertEquals(
             listOf(
-                "resolved.KeptTarget" to FlagState.NONE,
+                "resolved.KeptTarget" to keptState,
                 "resolved.ElseTarget" to FlagState.NONE,
                 "resolved.FinalizedTarget" to FlagState.NONE,
-                "resolved.NestedTarget" to FlagState.NONE,
+                "resolved.NestedTarget" to (keptState combineWith otherKeptState),
                 "resolved.SurfaceTarget" to FlagState.NONE,
                 "resolved.OutsideTarget" to FlagState.NONE,
             ),

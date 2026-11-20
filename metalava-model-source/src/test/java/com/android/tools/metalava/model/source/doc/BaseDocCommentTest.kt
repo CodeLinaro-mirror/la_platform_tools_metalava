@@ -202,6 +202,14 @@ internal class TestDocCommentContext(
     /** Implements [ExprContext.includesSurface]. */
     override fun includesSurface(surfaceName: String) = surfaceName in includedSurfaces
 
+    /** Implements [ExprContext.additionFlagState]. */
+    override fun additionFlagState(flagName: String): FlagState {
+        val action =
+            flagActions[flagName]
+                ?: if (isFlagEnabled(flagName)) ApiFlagAction.KEEP else ApiFlagAction.REVERT
+        return FlagState.additionFlag(flagName, action)
+    }
+
     override fun ordinalInParamsList(name: String) = 0
 
     override fun isOverridingMethod() = false
