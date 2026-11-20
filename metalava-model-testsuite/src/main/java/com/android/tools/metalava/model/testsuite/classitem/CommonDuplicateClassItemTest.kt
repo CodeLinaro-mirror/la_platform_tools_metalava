@@ -18,13 +18,11 @@ package com.android.tools.metalava.model.testsuite.classitem
 
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
-import kotlin.test.fail
 import org.junit.Test
 
 /** Common tests for implementations of [ClassItem]. */
@@ -50,21 +48,11 @@ class CommonDuplicateClassItemTest : BaseModelTest() {
                 )
             ),
         ) {
-            val providerSpecificIssues =
-                when (codebaseCreatorConfig.providerName) {
-                    "psi" ->
-                        "MAIN_SRC/src2/test/pkg/Foo.java:3: warning: Attempted to register test.pkg.Foo twice; once from MAIN_SRC/src/test/pkg/Foo.java and this one from MAIN_SRC/src2/test/pkg/Foo.java [DuplicateSourceClass]"
-                    "turbine" ->
-                        "MAIN_SRC/src2/test/pkg/Foo.java:3:14: error: duplicate declaration of test.pkg.Foo [InvalidSyntax]"
-                    else -> fail("Unknown provider ${codebaseCreatorConfig.providerName}")
-                }
-            assertAndRemoveReportedIssues(providerSpecificIssues)
+            assertAndRemoveReportedIssues(
+                "MAIN_SRC/src2/test/pkg/Foo.java:3: warning: Attempted to register test.pkg.Foo twice; once from MAIN_SRC/src/test/pkg/Foo.java and this one from MAIN_SRC/src2/test/pkg/Foo.java [DuplicateSourceClass]"
+            )
 
-            // If the codebase creator can continue after encountering errors while parsing then
-            // check the status of the Codebase, otherwise do not.
-            if (codebaseCreatorHasCapability(Capability.LAX_PARSER)) {
-                codebaseChecker()
-            }
+            codebaseChecker()
         }
     }
 
