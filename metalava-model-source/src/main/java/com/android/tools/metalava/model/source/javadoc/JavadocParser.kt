@@ -123,6 +123,18 @@ private constructor(
     /** [StringBuilder] into which consecutive blocks of text from the Javadoc are accumulated. */
     private val textBuffer = StringBuilder()
 
+    /**
+     * [FlagState] accumulated from active `{@if}` branches within this parser invocation, recorded
+     * on substrings appended to [textBuffer] via [textFlagStateSpans].
+     */
+    private var activeTextFlagState: FlagState = FlagState.NONE
+
+    /**
+     * Optional [FlagStateSpan]s recorded for characters currently buffered in [textBuffer]; `null`
+     * until text is emitted inside an active `{@if (flag(...))}` branch.
+     */
+    private var textFlagStateSpans: MutableList<FlagStateSpan>? = null
+
     companion object {
         /**
          * Parse [text] from [startInclusive] up to, but not including [endExclusive] as a javadoc
@@ -441,11 +453,14 @@ private constructor(
     private inline fun <T> withScopedContext(branchFlagState: FlagState, body: () -> T): T {
         if (branchFlagState === FlagState.NONE) return body()
         val previousContext = currentContext
+        val previousTextFlagState = activeTextFlagState
         currentContext = previousContext.withConditionFlagState(branchFlagState)
+        activeTextFlagState = previousTextFlagState combineWith branchFlagState
         return try {
             body()
         } finally {
             currentContext = previousContext
+            activeTextFlagState = previousTextFlagState
         }
     }
 
@@ -714,23 +729,74 @@ private constructor(
     ) {
         // If this could be the start of the whole description block then check to see if there are
         // any leading newlines that can be skipped.
-        if (trimLeadingWhitespace) {
-            // Trimming leading whitespace is active.
-            // Find the first non-newline character in the text to be appended.
-            val start = source.skipForwardsOverLeadingWhitespace(startInclusive, endExclusive)
+        val actualStart =
+            if (trimLeadingWhitespace) {
+                // Trimming leading whitespace is active.
+                // Find the first non-newline character in the text to be appended.
+                val start = source.skipForwardsOverLeadingWhitespace(startInclusive, endExclusive)
 
-            // If the text only consists of a newline character then do nothing.
-            if (start == endExclusive) return
+                // If the text only consists of a newline character then do nothing.
+                if (start == endExclusive) return
 
-            // Append the text from the first non-newline character.
-            textBuffer.append(source, start, endExclusive)
+                // As a non-newline character was seen any newline characters found from now onwards
+                // cannot be a leading newline.
+                trimLeadingWhitespace = false
+                start
+            } else {
+                startInclusive
+            }
 
-            // As a non-newline character was seen any newline characters found from now onwards
-            // cannot be a leading newline.
-            trimLeadingWhitespace = false
-        } else {
-            // Leading whitespace has already been handled; append text as-is.
-            textBuffer.append(source, startInclusive, endExclusive)
+        if (actualStart == endExclusive) return
+
+        val spanStart = textBuffer.length
+        textBuffer.append(source, actualStart, endExclusive)
+        recordTextFlagStateSpan(spanStart, textBuffer.length)
+    }
+
+    /**
+     * Record [activeTextFlagState] for `[startInclusive, endExclusive)` in [textFlagStateSpans]
+     * when non-empty, coalescing adjacent spans that share the same [FlagState].
+     */
+    private fun recordTextFlagStateSpan(startInclusive: Int, endExclusive: Int) {
+        val flagState = activeTextFlagState
+        if (flagState === FlagState.NONE || startInclusive >= endExclusive) return
+
+        val spans =
+            textFlagStateSpans ?: mutableListOf<FlagStateSpan>().also { textFlagStateSpans = it }
+        val lastIndex = spans.lastIndex
+        if (lastIndex >= 0) {
+            val last = spans[lastIndex]
+            if (last.endExclusive == startInclusive && last.flagState == flagState) {
+                spans[lastIndex] = last.copy(endExclusive = endExclusive)
+                return
+            }
+        }
+        spans.add(FlagStateSpan(startInclusive, endExclusive, flagState))
+    }
+
+    /**
+     * Truncate [textBuffer] to [newLength] and prune or clamp any trailing [textFlagStateSpans]
+     * past [newLength].
+     */
+    private fun truncateTextBuffer(newLength: Int) {
+        if (newLength >= textBuffer.length) return
+        textBuffer.setLength(newLength)
+
+        val spans = textFlagStateSpans ?: return
+        while (spans.isNotEmpty()) {
+            val lastIndex = spans.lastIndex
+            val last = spans[lastIndex]
+            if (last.startInclusive >= newLength) {
+                spans.removeAt(lastIndex)
+            } else {
+                if (last.endExclusive > newLength) {
+                    spans[lastIndex] = last.copy(endExclusive = newLength)
+                }
+                break
+            }
+        }
+        if (spans.isEmpty()) {
+            textFlagStateSpans = null
         }
     }
 
@@ -743,7 +809,7 @@ private constructor(
     private fun trimTrailingWhitespaceFromTextBuffer() {
         val length = textBuffer.length
         val trimmedEnd = textBuffer.skipBackwardsOverTrailingWhitespace(length - 1) + 1
-        textBuffer.setLength(trimmedEnd)
+        truncateTextBuffer(trimmedEnd)
     }
 
     /**
@@ -761,7 +827,7 @@ private constructor(
             if (c == '\n' || !c.isWhitespace()) break
             end -= 1
         }
-        textBuffer.setLength(end + 1)
+        truncateTextBuffer(end + 1)
     }
 
     /**
@@ -789,12 +855,17 @@ private constructor(
                 trimTrailingWhitespaceFromTextBuffer()
 
                 // If trimming trailing whitespace resulted in an empty buffer, nothing to emit.
-                if (textBuffer.isEmpty()) return
+                if (textBuffer.isEmpty()) {
+                    textFlagStateSpans = null
+                    return
+                }
             }
 
             val text = textBuffer.toString()
+            val spans = textFlagStateSpans?.toList()
             textBuffer.clear()
-            contentList.add(JavadocText(text))
+            textFlagStateSpans = null
+            contentList.add(JavadocText(text, spans))
         }
     }
 

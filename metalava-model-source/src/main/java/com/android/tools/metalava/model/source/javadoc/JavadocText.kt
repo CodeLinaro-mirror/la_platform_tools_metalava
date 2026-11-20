@@ -16,24 +16,91 @@
 
 package com.android.tools.metalava.model.source.javadoc
 
+import com.android.tools.metalava.model.api.flags.AdditionFlagState
+import com.android.tools.metalava.model.api.flags.FlagState
+
+/**
+ * Records that characters `[startInclusive, endExclusive)` within a [JavadocText] were emitted by
+ * an active conditional `{@if}` scope with [flagState].
+ */
+internal data class FlagStateSpan(
+    val startInclusive: Int,
+    val endExclusive: Int,
+    val flagState: FlagState,
+)
+
 /**
  * A block of text in a Javadoc comment.
  *
  * @param contents a non-empty string.
+ * @param flagStateSpans optional sorted, non-overlapping [FlagStateSpan]s for substrings emitted
+ *   inside active `{@if (flag(...))}` branches.
  */
-internal class JavadocText(val contents: String) : JavadocContent, CharSequence by contents {
+internal class JavadocText(
+    val contents: String,
+    private val flagStateSpans: List<FlagStateSpan>? = null,
+) : JavadocContent, CharSequence by contents {
     init {
         require(contents.isNotEmpty()) { "contents must contain at least one character" }
     }
 
     /**
-     * Return a [JavadocText] containing the suffix starting at [startIndex], or `null` if
-     * [startIndex] is at the end of [contents].
+     * Return the [FlagState] guarding every character in `[startInclusive, endExclusive)`, or
+     * [FlagState.NONE] if any character in the range is unguarded.
+     */
+    fun flagStateForRange(startInclusive: Int, endExclusive: Int): FlagState {
+        if (startInclusive >= endExclusive) return FlagState.NONE
+        val spans = flagStateSpans ?: return FlagState.NONE
+
+        var coveredUpTo = startInclusive
+        var commonFlags: Set<String>? = null
+        for (span in spans) {
+            if (span.endExclusive <= startInclusive) continue
+            if (span.startInclusive > coveredUpTo) return FlagState.NONE
+
+            // Fast path when a single span covers the entire requested range.
+            if (span.startInclusive <= startInclusive && span.endExclusive >= endExclusive) {
+                return span.flagState
+            }
+
+            val spanFlags =
+                (span.flagState.addition as? AdditionFlagState.Flagged)?.flags
+                    ?: return FlagState.NONE
+            commonFlags = commonFlags?.intersect(spanFlags) ?: spanFlags
+            if (commonFlags.isEmpty()) return FlagState.NONE
+
+            coveredUpTo = span.endExclusive
+            if (coveredUpTo >= endExclusive) break
+        }
+
+        if (coveredUpTo < endExclusive) return FlagState.NONE
+        val flags = commonFlags ?: return FlagState.NONE
+        return FlagState(addition = AdditionFlagState.Flagged(flags))
+    }
+
+    /**
+     * Return a [JavadocText] containing the suffix starting at [startIndex] (shifting any remaining
+     * [flagStateSpans]), or `null` if [startIndex] is at the end of [contents].
      */
     fun subSequenceFrom(startIndex: Int): JavadocContent? {
         if (startIndex >= contents.length) return null
         if (startIndex == 0) return this
-        return JavadocText(contents.substring(startIndex))
+
+        val shiftedSpans =
+            flagStateSpans
+                ?.mapNotNull { span ->
+                    if (span.endExclusive <= startIndex) {
+                        null
+                    } else {
+                        FlagStateSpan(
+                            startInclusive = (span.startInclusive - startIndex).coerceAtLeast(0),
+                            endExclusive = span.endExclusive - startIndex,
+                            flagState = span.flagState,
+                        )
+                    }
+                }
+                ?.ifEmpty { null }
+        return JavadocText(contents.substring(startIndex), shiftedSpans)
     }
 
     override fun <R> accept(visitor: JavadocContentVisitor<R>) = visitor.visit(this)

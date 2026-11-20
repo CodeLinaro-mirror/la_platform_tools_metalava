@@ -16,9 +16,13 @@
 
 package com.android.tools.metalava.model.source.javadoc
 
+import com.android.tools.metalava.model.api.flags.ApiFlagAction
+import com.android.tools.metalava.model.api.flags.FlagState
 import com.android.tools.metalava.model.source.doc.BaseDocCommentTest
 import com.android.tools.metalava.model.source.doc.TagTypes
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
+import kotlin.test.assertSame
 import org.junit.Test
 
 class JavadocContentTest : BaseDocCommentTest() {
@@ -70,5 +74,45 @@ class JavadocContentTest : BaseDocCommentTest() {
                     ),
                 ),
         )
+    }
+
+    @Test
+    fun `Test JavadocText flagStateForRange and subSequenceFrom`() {
+        val keptA = FlagState.additionFlag("Flags.FLAG_A", ApiFlagAction.KEEP)
+        val keptB = FlagState.additionFlag("Flags.FLAG_B", ApiFlagAction.KEEP)
+        val (docComment, _) =
+            createTestDocCommentAndContext(
+                input =
+                    """
+                        /**
+                         * unguarded {@if (flag(Flags.FLAG_A)) {Pkg.{@if (flag(Flags.FLAG_B)) {Sub}}}}
+                         */
+                    """,
+                flagActions =
+                    mapOf(
+                        "Flags.FLAG_A" to ApiFlagAction.KEEP,
+                        "Flags.FLAG_B" to ApiFlagAction.KEEP,
+                    ),
+            )
+
+        val text = assertIs<JavadocText>(docComment.description)
+        assertEquals("unguarded Pkg.Sub", text.contents)
+
+        // Any range touching unguarded text returns FlagState.NONE.
+        assertSame(FlagState.NONE, text.flagStateForRange(0, 9))
+        assertSame(FlagState.NONE, text.flagStateForRange(0, 17))
+        assertSame(FlagState.NONE, text.flagStateForRange(9, 17))
+
+        // Single-span and contiguous multi-span intersection queries.
+        assertEquals(keptA, text.flagStateForRange(10, 14))
+        assertEquals(keptA combineWith keptB, text.flagStateForRange(14, 17))
+        assertEquals(keptA, text.flagStateForRange(10, 17))
+
+        // Slicing shifts spans to match the suffix offsets.
+        val suffix = assertIs<JavadocText>(text.subSequenceFrom(10))
+        assertEquals("Pkg.Sub", suffix.contents)
+        assertEquals(keptA, suffix.flagStateForRange(0, 4))
+        assertEquals(keptA combineWith keptB, suffix.flagStateForRange(4, 7))
+        assertEquals(keptA, suffix.flagStateForRange(0, 7))
     }
 }
