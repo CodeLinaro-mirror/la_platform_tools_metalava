@@ -16,6 +16,9 @@
 
 package com.android.tools.metalava.model.source.javadoc
 
+import com.android.tools.metalava.model.api.flags.ApiFlagAction
+import com.android.tools.metalava.model.api.flags.FlagState
+import kotlin.test.assertEquals
 import org.junit.Test
 
 class ConditionalJavadocTest : BaseJavadocTest() {
@@ -607,6 +610,46 @@ class ConditionalJavadocTest : BaseJavadocTest() {
                 """
                     text: 'Before true after.'
                 """,
+        )
+    }
+
+    @Test
+    fun `Test if flag - conditionFlagState passed to checkReference`() {
+        val (_, context) =
+            createTestDocCommentAndContext(
+                input =
+                    """
+                        /**
+                         * {@if (flag(Flags.KEPT_FLAG)) {{@link KeptTarget}}}
+                         * {@if (flag(Flags.REVERTED_FLAG)) {{@link SkippedTarget}} else {{@link ElseTarget}}}
+                         * {@if (flag(Flags.FINALIZED_FLAG)) {{@link FinalizedTarget}}}
+                         * {@if (flag(Flags.KEPT_FLAG)) {{@if (flag(Flags.OTHER_KEPT_FLAG)) {{@link NestedTarget}}}}}
+                         * {@if (surface("public")) {{@link SurfaceTarget}}}
+                         * {@link OutsideTarget}
+                         */
+                    """,
+                includedSurfaces = setOf("public"),
+                flagActions =
+                    mapOf(
+                        "Flags.KEPT_FLAG" to ApiFlagAction.KEEP,
+                        "Flags.OTHER_KEPT_FLAG" to ApiFlagAction.KEEP,
+                        "Flags.REVERTED_FLAG" to ApiFlagAction.REVERT,
+                        "Flags.FINALIZED_FLAG" to ApiFlagAction.FINALIZE,
+                    ),
+            )
+
+        // TODO(b/568477816): Scope DocCommentContext by flag() branchFlagState in {@if} so kept
+        //  branches pass their addition FlagState to checkReference.
+        assertEquals(
+            listOf(
+                "resolved.KeptTarget" to FlagState.NONE,
+                "resolved.ElseTarget" to FlagState.NONE,
+                "resolved.FinalizedTarget" to FlagState.NONE,
+                "resolved.NestedTarget" to FlagState.NONE,
+                "resolved.SurfaceTarget" to FlagState.NONE,
+                "resolved.OutsideTarget" to FlagState.NONE,
+            ),
+            context.checkedReferences,
         )
     }
 }
