@@ -27,7 +27,7 @@ import com.android.tools.metalava.reporter.LocationSpecificReporter
  * Uses [tagType] to extract [TagData] from [JavadocContent] using [context].
  *
  * Finds the [JavadocText], if any, at the beginning of the [JavadocContent] and calls
- * [TagType.extractData] on its [JavadocText.contents] property.
+ * [TagType.extractData] on it.
  *
  * @see [extractTagData].
  */
@@ -103,15 +103,14 @@ internal class TagDataExtractor(
      * passed into [extractTagData].
      */
     override fun visit(text: JavadocText): JavadocContent? {
-        val contents = text.contents
-        var result = tagType.extractData(context, reporter = this, contents)
+        val result = tagType.extractData(context, reporter = this, text)
         tagData = result?.tagData
 
         val consumedContent = result?.consumedContent ?: 0
         return if (consumedContent == 0) {
             text
         } else {
-            contents.substring(consumedContent).toOptionalJavadocContent()
+            text.subSequenceFrom(consumedContent)
         }
     }
 }

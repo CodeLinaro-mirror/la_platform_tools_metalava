@@ -19,11 +19,21 @@ package com.android.tools.metalava.model.source.javadoc
 /**
  * A block of text in a Javadoc comment.
  *
- * @param text a non-empty string.
+ * @param contents a non-empty string.
  */
-internal class JavadocText(val contents: String) : JavadocContent {
+internal class JavadocText(val contents: String) : JavadocContent, CharSequence by contents {
     init {
         require(contents.isNotEmpty()) { "contents must contain at least one character" }
+    }
+
+    /**
+     * Return a [JavadocText] containing the suffix starting at [startIndex], or `null` if
+     * [startIndex] is at the end of [contents].
+     */
+    fun subSequenceFrom(startIndex: Int): JavadocContent? {
+        if (startIndex >= contents.length) return null
+        if (startIndex == 0) return this
+        return JavadocText(contents.substring(startIndex))
     }
 
     override fun <R> accept(visitor: JavadocContentVisitor<R>) = visitor.visit(this)
