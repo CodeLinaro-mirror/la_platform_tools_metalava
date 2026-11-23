@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.xml
 
-import com.android.utils.XmlUtils.stripBom
 import java.io.PrintWriter
 import java.io.Reader
 import java.io.StringReader
@@ -24,9 +23,18 @@ import javax.xml.parsers.DocumentBuilder
 import javax.xml.parsers.DocumentBuilderFactory
 import javax.xml.parsers.ParserConfigurationException
 import org.w3c.dom.Document
+import org.w3c.dom.Element
+import org.w3c.dom.Node
 import org.xml.sax.ErrorHandler
 import org.xml.sax.InputSource
 import org.xml.sax.SAXParseException
+
+const val AMP_ENTITY = "&amp;"
+const val APOS_ENTITY = "&apos;"
+const val GT_ENTITY = "&gt;"
+const val LT_ENTITY = "&lt;"
+const val QUOT_ENTITY = "&quot;"
+private const val NEWLINE_ENTITY = "&#xA;"
 
 // XML parser features
 private const val LOAD_EXTERNAL_DTD =
@@ -52,6 +60,10 @@ fun parseDocument(
 ): Document {
     return parseDocument(StringReader(stripBom(xml)), namespaceAware, errorWriter)
 }
+
+/** Strips a leading UTF-8 BOM (`\uFEFF`) if present. */
+private fun stripBom(xml: String): String =
+    if (xml.isNotEmpty() && xml[0] == '\uFEFF') xml.substring(1) else xml
 
 /**
  * Parses the given [Reader] as a DOM document, using the JDK parser. The parser does not validate,
@@ -100,4 +112,69 @@ private fun createDocumentBuilder(namespaceAware: Boolean): DocumentBuilder {
     } catch (e: ParserConfigurationException) {
         throw Error(e) // Impossible in the current context.
     }
+}
+
+/** Returns the list of child [Element] nodes of [node]. */
+fun getChildren(node: Node): List<Element> {
+    val childNodes = node.childNodes
+    val children = ArrayList<Element>(childNodes.length)
+    for (i in 0 until childNodes.length) {
+        val child = childNodes.item(i)
+        if (child.nodeType == Node.ELEMENT_NODE) {
+            children.add(child as Element)
+        }
+    }
+    return children
+}
+
+/** Returns the first child [Element] of [parent] with the given tag [name], or `null`. */
+fun getFirstSubTagByName(parent: Node?, name: String): Element? =
+    findTagByName(parent?.firstChild, name)
+
+/** Returns the next sibling [Element] after [node] with the given tag [name], or `null`. */
+fun getNextTagByName(node: Node?, name: String): Element? = findTagByName(node?.nextSibling, name)
+
+private fun findTagByName(start: Node?, name: String): Element? {
+    var curr = start
+    while (curr != null) {
+        if (curr.nodeType == Node.ELEMENT_NODE) {
+            val currName = curr.localName ?: curr.nodeName
+            if (currName == name) {
+                return curr as Element
+            }
+        }
+        curr = curr.nextSibling
+    }
+    return null
+}
+
+/** Escapes an attribute value for inclusion inside a double-quoted XML attribute. */
+fun toXmlAttributeValue(attrValue: String): String {
+    var prev = 0.toChar()
+    for (i in attrValue.indices) {
+        val c = attrValue[i]
+        if (
+            c == '"' || c == '\'' || c == '<' || c == '&' || c == '\n' || (c == '>' && prev == ']')
+        ) {
+            return buildString(attrValue.length * 2) {
+                append(attrValue, 0, i)
+                prev = if (i > 0) attrValue[i - 1] else 0.toChar()
+                for (j in i until attrValue.length) {
+                    val ch = attrValue[j]
+                    when {
+                        ch == '"' -> append(QUOT_ENTITY)
+                        ch == '<' -> append(LT_ENTITY)
+                        ch == '\'' -> append(APOS_ENTITY)
+                        ch == '&' -> append(AMP_ENTITY)
+                        ch == '\n' -> append(NEWLINE_ENTITY)
+                        ch == '>' && prev == ']' -> append(GT_ENTITY)
+                        else -> append(ch)
+                    }
+                    prev = ch
+                }
+            }
+        }
+        prev = c
+    }
+    return attrValue
 }

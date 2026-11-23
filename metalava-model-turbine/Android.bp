@@ -25,14 +25,15 @@ java_library_host {
     ],
     java_resource_dirs: ["src/main/resources/"],
     libs: [
-        "kotlin-reflect",
-
         "metalava-model",
         "metalava-reporter",
         "metalava-model-source",
 
-        "prebuilts-metalava-guava",
         "prebuilts-metalava-tracing",
-        "prebuilts-metalava-turbine",
+    ],
+    static_libs: [
+        // turbine-core (in external/turbine) statically links and exports guava
+        // and jspecify via exported_static_libs.
+        "turbine-core",
     ],
 }

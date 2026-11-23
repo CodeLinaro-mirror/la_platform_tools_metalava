@@ -21,9 +21,8 @@ import com.android.tools.metalava.cli.common.CheckerContext
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.ItemVisitor
+import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
 import com.android.tools.metalava.model.snapshot.CodebaseSnapshotTaker
-import com.android.tools.metalava.model.visitors.ApiFilters
-import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.model.visitors.FilteringApiVisitor
 import com.android.tools.metalava.testing.KnownSourceFiles
@@ -34,16 +33,10 @@ import org.junit.Test
 /** Test [CodebaseSnapshotTaker] use within the main metalava code. */
 class SnapshotTest : DriverTest() {
     private fun CheckerContext.takeSnapshotOfPublicApi(): Codebase {
-        val apiPredicateConfig = ApiPredicate.Config()
-        val apiFilters =
-            ApiFilters(
-                ApiType.PUBLIC_API.getEmitFilter(apiPredicateConfig),
-                ApiType.PUBLIC_API.getReferenceFilter(apiPredicateConfig)
-            )
+        val apiFilters = ApiSurfacePredicate.apiFilters(ApiType.CORE, codebase!!.apiSurfaces.main)
         val factory: (DelegatedVisitor) -> ItemVisitor = {
             FilteringApiVisitor(
                 delegate = it,
-                preFiltered = false,
                 apiFilters = apiFilters,
             )
         }

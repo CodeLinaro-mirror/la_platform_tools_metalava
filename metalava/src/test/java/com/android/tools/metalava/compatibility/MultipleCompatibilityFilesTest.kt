@@ -129,7 +129,7 @@ class MultipleCompatibilityFilesTest : DriverTest() {
             signatureSource = currentCompleteSystemApi,
             expectedFail =
                 """
-                    Aborting: Unable to parse signature file: TESTROOT/project/released-api.txt:2: expected package got Invalid
+                    Aborting: Unable to parse signature file: TESTROOT/released-api.txt:2: expected package got Invalid
                 """
         )
     }
@@ -144,7 +144,7 @@ class MultipleCompatibilityFilesTest : DriverTest() {
             // This reports a real issue that exists in the public API.
             expectedFail =
                 """
-                    Aborting: Unable to parse signature file: TESTROOT/project/removed-released-api.txt:2: expected package got Invalid
+                    Aborting: Unable to parse signature file: TESTROOT/removed-released-api.txt:2: expected package got Invalid
                 """,
         )
     }

@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_STRING
 import com.android.tools.metalava.model.ModifierKeyword
 import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.TypeComparator
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.SupportedInputFormats
@@ -55,14 +56,28 @@ class CommonRecordClassTest : BaseModelTest() {
         )
 
         // Extract the components and check against the expected components.
-        val components = recordComponents.map { RecordComponentInfo(it.name, it.type) }
-        assertEquals(expectedComponents.toList(), components, message = "components")
+        assertEquals(
+            expectedComponents.map { it.name },
+            recordComponents.map { it.name },
+            message = "components"
+        )
+        for ((expected, actual) in expectedComponents.zip(recordComponents)) {
+            // Ignore nullability when comparing types because expected record component types
+            // created by test helpers do not specify nullability, while actual types from the
+            // codebase may have model-specific nullability.
+            assertTypeComparison(
+                expected.type,
+                actual.type,
+                TypeComparator.IGNORE_NULLABILITY,
+                message = "component ${expected.name} type",
+            )
+        }
 
         // Find the canonical constructor.
         val canonicalConstructor =
             constructors().find {
                 it.parameters().zip(expectedComponents).all { (parameter, component) ->
-                    parameter.type() == component.type
+                    TypeComparator.IGNORE_NULLABILITY.compare(parameter.type(), component.type)
                 }
             }
         assertNotNull(canonicalConstructor, message = "canonical constructor")
@@ -72,10 +87,14 @@ class CommonRecordClassTest : BaseModelTest() {
         for (expectedComponent in expectedComponents) {
             val name = expectedComponent.name
             val method = assertMethod(name, emptyList())
-            assertEquals(
+            // Ignore nullability when comparing types because expected record component types
+            // created by test helpers do not specify nullability, while actual method return types
+            // from the codebase may have model-specific nullability.
+            assertTypeComparison(
                 expectedComponent.type,
                 method.returnType(),
-                message = "method $name return type"
+                TypeComparator.IGNORE_NULLABILITY,
+                message = "method $name return type",
             )
 
             assertTrue(method.isRecordComponentGetter)
@@ -125,7 +144,10 @@ class CommonRecordClassTest : BaseModelTest() {
                 """
                     package test.pkg;
 
-                    public record Test(int a, String b) {
+                    public record Test(
+                        int a,
+                        String b
+                    ) {
                     }
                 """
             ),
@@ -159,6 +181,13 @@ class CommonRecordClassTest : BaseModelTest() {
             assertEquals(
                 "record component test.pkg.Test.a",
                 testClass.recordComponents["a"]!!.describe()
+            )
+
+            assertEquals(
+                listOf(1, 2),
+                testClass.recordComponents.map {
+                    it.fileLocation.line - testClass.fileLocation.line
+                },
             )
         }
     }

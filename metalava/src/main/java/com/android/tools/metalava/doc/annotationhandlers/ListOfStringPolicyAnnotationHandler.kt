@@ -17,27 +17,21 @@
 package com.android.tools.metalava.doc.annotationhandlers
 
 import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.annotation.binding.bindTo
-import com.android.tools.metalava.reporter.Reporter
-import java.util.function.Predicate
 
 /** Handles @android.processor.devicepolicy.ListOfStringPolicyDefinition annotation. */
 class ListOfStringPolicyAnnotationHandler(
-    codebase: Codebase,
-    reporter: Reporter,
-    filterReference: Predicate<SelectableItem>
-) : BaseDevicePolicyAnnotationHandler(codebase, reporter, filterReference) {
+    context: DevicePolicyContext,
+) : BaseDevicePolicyAnnotationHandler(context) {
 
     /**
      * Processes the [ListOfStringPolicyDefinitionProxy] and returns the documentation for the
      * policy.
      */
     override fun processPolicyAnnotation(annotation: AnnotationItem, item: Item): String {
-        val proxy = annotation.bindTo<ListOfStringPolicyDefinitionProxy>(item)
-        return proxy?.generateDocs() ?: ""
+        val proxy = annotation.bindTo<ListOfStringPolicyDefinitionProxy>(item) ?: return ""
+        return generateDocs(proxy, item)
     }
 }
 
@@ -54,24 +48,23 @@ data class ListOfStringPolicyDefinitionProxy(
     val emptyStringAllowed: Boolean,
     val unprintableCharactersAllowed: Boolean,
     val pureWhitespaceAllowed: Boolean,
-) {
-    fun generateDocs() = buildString {
-        append("\n<p>Policy Type: List Of String</p>\n <ul>\n")
-        append(base.generateDocs())
+    val unstrippedStringAllowed: Boolean,
+    val maxListLength: Int,
+) : DevicePolicy {
+    override fun generateDocRows(context: DevicePolicyContext): List<TableRow> = buildList {
+        addAll(base.generateDocRows())
         val resMechDocs = resolutionMechanism.generateDocs(base.item)
         if (resMechDocs.isNotEmpty()) {
-            append("   <li>Resolution Mechanism: $resMechDocs</li>\n")
+            add(TableRow("Conflict resolution mechanism", resMechDocs))
         }
-        append("   <li>Empty list: ${if (emptyListAllowed) "Allowed" else "Not allowed"}</li>\n")
-        append(
-            "   <li>Empty string: ${if (emptyStringAllowed) "Allowed" else "Not allowed"}</li>\n"
-        )
-        append(
-            "   <li>Unprintable characters: ${if (unprintableCharactersAllowed) "Allowed" else "Not allowed"}</li>\n"
-        )
-        append(
-            "   <li>Pure whitespace: ${if (pureWhitespaceAllowed) "Allowed" else "Not allowed"}</li>\n"
-        )
-        append(" </ul>\n")
+        val policyValueValidations = buildList {
+            if (maxListLength != Int.MAX_VALUE) add("Length max $maxListLength items")
+            if (!emptyListAllowed) add("No empty list allowed")
+            if (!emptyStringAllowed) add("No empty string allowed")
+            if (!unprintableCharactersAllowed) add("No unprintable characters allowed")
+            if (!pureWhitespaceAllowed) add("No pure whitespace allowed")
+            if (!unstrippedStringAllowed) add("No unstripped string allowed")
+        }
+        add(TableRow("Policy value", renderPolicyValue("List<String>", policyValueValidations)))
     }
 }

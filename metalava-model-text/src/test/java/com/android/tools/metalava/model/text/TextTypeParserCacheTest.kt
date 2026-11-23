@@ -73,21 +73,22 @@ class TextTypeParserCacheTest : BaseTextCodebaseTest() {
     fun `Test load Android public API to measure cache behavior for kotlinStyleNulls=no`() {
         val androidTxtFiles =
             listOf("public", "system", "module-lib").map { surface -> getAndroidTxt(34, surface) }
-        ApiFile.parseApi(
-            SignatureFile.fromFiles(androidTxtFiles),
-            apiStatsConsumer = { stats ->
-                assertThat(stats)
-                    .isEqualTo(
-                        ApiFile.Stats(
-                            totalClasses = 7315,
-                            typeCacheRequests = 170884,
-                            typeCacheSkip = 0,
-                            typeCacheHit = 159367,
-                            typeCacheSize = 11517,
+        val codebase =
+            ApiFile.parseApi(
+                SignatureFile.fromFiles(androidTxtFiles),
+                apiStatsConsumer = { stats ->
+                    assertThat(stats)
+                        .isEqualTo(
+                            TextTypeParser.Stats(
+                                typeCacheRequests = 170884,
+                                typeCacheSkip = 0,
+                                typeCacheHit = 159387,
+                                typeCacheSize = 11497,
+                            )
                         )
-                    )
-            }
-        )
+                }
+            )
+        assertThat(codebase.getPackages().allClasses().count()).isEqualTo(7315)
     }
 
     @Test
@@ -99,21 +100,22 @@ class TextTypeParserCacheTest : BaseTextCodebaseTest() {
                 ?: error("Cannot load resource $resourceName")
         }
 
-        ApiFile.parseApi(
-            SignatureFile.fromFiles(testFile),
-            apiStatsConsumer = { stats ->
-                assertThat(stats)
-                    .isEqualTo(
-                        ApiFile.Stats(
-                            totalClasses = 306,
-                            typeCacheRequests = 6401,
-                            typeCacheSkip = 0,
-                            typeCacheHit = 5691,
-                            typeCacheSize = 710,
+        val codebase =
+            ApiFile.parseApi(
+                SignatureFile.fromFiles(testFile),
+                apiStatsConsumer = { stats ->
+                    assertThat(stats)
+                        .isEqualTo(
+                            TextTypeParser.Stats(
+                                typeCacheRequests = 6401,
+                                typeCacheSkip = 0,
+                                typeCacheHit = 5691,
+                                typeCacheSize = 710,
+                            )
                         )
-                    )
-            }
-        )
+                }
+            )
+        assertThat(codebase.getPackages().allClasses().count()).isEqualTo(306)
     }
 
     @Test

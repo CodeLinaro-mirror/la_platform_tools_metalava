@@ -17,11 +17,14 @@
 package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
-import com.android.tools.metalava.cli.common.ARG_ERROR
-import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.KnownSourceFiles
+import com.android.tools.metalava.testing.createAndroidModuleDescription
+import com.android.tools.metalava.testing.createCommonModuleDescription
+import com.android.tools.metalava.testing.createNativeModuleDescription
+import com.android.tools.metalava.testing.createProjectDescription
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
@@ -141,13 +144,10 @@ class KotlinInteropChecksTest : DriverTest() {
         check(
             apiLint = "",
             extraArguments =
-                arrayOf(
-                    ARG_HIDE,
-                    "AllUpper",
-                    ARG_HIDE,
-                    "AcronymName",
-                    ARG_HIDE,
-                    "CompileTimeConstant"
+                hiddenIssues(
+                    Issues.ALL_UPPER,
+                    Issues.ACRONYM_NAME,
+                    Issues.COMPILE_TIME_CONSTANT,
                 ),
             expectedIssues =
                 """
@@ -296,7 +296,10 @@ class KotlinInteropChecksTest : DriverTest() {
         check(
             apiLint = "",
             expectedIssues = "",
-            extraArguments = arrayOf(ARG_HIDE, "StaticUtils"),
+            extraArguments =
+                hiddenIssues(
+                    Issues.STATIC_UTILS,
+                ),
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -323,7 +326,10 @@ class KotlinInteropChecksTest : DriverTest() {
             apiLint = "",
             expectedIssues =
                 "src/test/pkg/IntValue.kt:13: warning: Companion object methods like getValueClassTypePropertyJvmNameNoStatic should be marked @JvmStatic for Java interoperability; see https://developer.android.com/kotlin/interop#companion_functions [MissingJvmstatic]",
-            extraArguments = arrayOf(ARG_HIDE, "ValueClassDefinition"),
+            extraArguments =
+                hiddenIssues(
+                    Issues.VALUE_CLASS_DEFINITION,
+                ),
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -355,7 +361,10 @@ class KotlinInteropChecksTest : DriverTest() {
         check(
             apiLint = "",
             expectedIssues = "",
-            extraArguments = arrayOf(ARG_HIDE, "StaticUtils"),
+            extraArguments =
+                hiddenIssues(
+                    Issues.STATIC_UTILS,
+                ),
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -418,7 +427,10 @@ class KotlinInteropChecksTest : DriverTest() {
             apiLint = "",
             expectedIssues =
                 "src/test/pkg/Foo.kt:11: warning: Companion object methods like getUnannotatedPropertyWithoutBackingField should be marked @JvmStatic for Java interoperability; see https://developer.android.com/kotlin/interop#companion_functions [MissingJvmstatic]",
-            extraArguments = arrayOf(ARG_HIDE, "StaticUtils"),
+            extraArguments =
+                hiddenIssues(
+                    Issues.STATIC_UTILS,
+                ),
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -498,7 +510,10 @@ class KotlinInteropChecksTest : DriverTest() {
                 test/pkg/ErrorNeedsJvmName.kt:1: error: Use `@file:JvmName` to provide a name for this file facade class for Java callers [FacadeClassJvmName]
                 """,
             hideAnnotations = arrayOf("test.pkg.Hide"),
-            extraArguments = arrayOf(ARG_ERROR, "FacadeClassJvmName"),
+            extraArguments =
+                errorIssues(
+                    Issues.FACADE_CLASS_JVM_NAME,
+                ),
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -663,12 +678,12 @@ class KotlinInteropChecksTest : DriverTest() {
                 src/test/pkg/IntValue.kt:4: error: Method withoutJvmName returning value class type should use JvmName to be usable for Java clients [ValueClassUsageWithoutJvmName]
                 """,
             extraArguments =
-                arrayOf(
-                    ARG_HIDE,
-                    "ValueClassDefinition",
-                    ARG_ERROR,
-                    "ValueClassUsageWithoutJvmName",
-                ),
+                hiddenIssues(
+                    Issues.VALUE_CLASS_DEFINITION,
+                ) +
+                    errorIssues(
+                        Issues.VALUE_CLASS_USAGE_WITHOUT_JVM_NAME,
+                    ),
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -697,12 +712,12 @@ class KotlinInteropChecksTest : DriverTest() {
                 src/test/pkg/IntValue.kt:7: error: Method manyParamsWithoutJvmName with parameter arg1 of value class type should use JvmName to be usable for Java clients [ValueClassUsageWithoutJvmName]
                 """,
             extraArguments =
-                arrayOf(
-                    ARG_HIDE,
-                    "ValueClassDefinition",
-                    ARG_ERROR,
-                    "ValueClassUsageWithoutJvmName",
-                ),
+                hiddenIssues(
+                    Issues.VALUE_CLASS_DEFINITION,
+                ) +
+                    errorIssues(
+                        Issues.VALUE_CLASS_USAGE_WITHOUT_JVM_NAME,
+                    ),
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -734,12 +749,12 @@ class KotlinInteropChecksTest : DriverTest() {
                 src/test/pkg/IntValue.kt:6: error: Property withoutJvmName with value class type should use `@set:JvmName` to have a usable setter for Java clients [ValueClassUsageWithoutJvmName]
                 """,
             extraArguments =
-                arrayOf(
-                    ARG_HIDE,
-                    "ValueClassDefinition",
-                    ARG_ERROR,
-                    "ValueClassUsageWithoutJvmName",
-                ),
+                hiddenIssues(
+                    Issues.VALUE_CLASS_DEFINITION,
+                ) +
+                    errorIssues(
+                        Issues.VALUE_CLASS_USAGE_WITHOUT_JVM_NAME,
+                    ),
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -844,12 +859,12 @@ class KotlinInteropChecksTest : DriverTest() {
                 src/test/pkg/IntValue.kt:9: error: Property withoutJvmName with value class receiver type should use `@set:JvmName` to have a usable setter for Java clients [ValueClassUsageWithoutJvmName]
                 """,
             extraArguments =
-                arrayOf(
-                    ARG_HIDE,
-                    "ValueClassDefinition",
-                    ARG_ERROR,
-                    "ValueClassUsageWithoutJvmName",
-                ),
+                hiddenIssues(
+                    Issues.VALUE_CLASS_DEFINITION,
+                ) +
+                    errorIssues(
+                        Issues.VALUE_CLASS_USAGE_WITHOUT_JVM_NAME,
+                    ),
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -941,12 +956,12 @@ class KotlinInteropChecksTest : DriverTest() {
                 src/test/pkg/IntValue.kt:8: error: Property valNoJvmName with value class context parameter type `test.pkg.IntValue` should use `@get:JvmName` to have a usable getter for Java clients [ValueClassUsageWithoutJvmName]
                 """,
             extraArguments =
-                arrayOf(
-                    ARG_HIDE,
-                    "ValueClassDefinition",
-                    ARG_ERROR,
-                    "ValueClassUsageWithoutJvmName",
-                ),
+                hiddenIssues(
+                    Issues.VALUE_CLASS_DEFINITION,
+                ) +
+                    errorIssues(
+                        Issues.VALUE_CLASS_USAGE_WITHOUT_JVM_NAME,
+                    ),
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -1037,15 +1052,14 @@ class KotlinInteropChecksTest : DriverTest() {
                 src/test/pkg/IntValue.kt:6: error: Constructor of class WithValueClassAndAdditional has parameter arg1 of value class type which makes it unusable for Java clients [ValueClassUsageFromConstructor]
                 """,
             extraArguments =
-                arrayOf(
-                    ARG_HIDE,
-                    "ValueClassDefinition",
-                    ARG_ERROR,
-                    "ValueClassUsageFromConstructor",
-                    // Enable lint for methods to make sure it doesn't appear here.
-                    ARG_ERROR,
-                    "ValueClassUsageWithoutJvmName",
-                ),
+                hiddenIssues(
+                    Issues.VALUE_CLASS_DEFINITION,
+                ) +
+                    errorIssues(
+                        Issues.VALUE_CLASS_USAGE_FROM_CONSTRUCTOR,
+                        // Enable lint for methods to make sure it doesn't appear here.
+                        Issues.VALUE_CLASS_USAGE_WITHOUT_JVM_NAME,
+                    ),
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -1135,6 +1149,59 @@ class KotlinInteropChecksTest : DriverTest() {
                         "fKX5h6f8V9SPt0PyJ9Rp+v/H33/l/pglwZ+4VEz/fNN+pf2YF76faP3Mf8wz" +
                         "0pCW7ttvdIfz9eFxZFi+ff0Lt3GMRggOAAA="
                 )
+        )
+    }
+
+    @RequiresCapabilities(Capability.MULTIPLATFORM)
+    @Test
+    fun `Check interop checks for a multiplatform codebase`() {
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Common.kt",
+                """
+                package test.pkg
+                class Common {
+                    fun common(s: String = "", i: Int = 0) = Unit
+                }
+                """
+            )
+        val androidSource =
+            kotlin(
+                "androidMain/src/test/pkg/Android.kt",
+                """
+                package test.pkg
+                class Android {
+                    fun android(s: String = "", i: Int = 0) = Unit
+                }
+                """
+            )
+        val nativeSource =
+            kotlin(
+                "nativeMain/src/test/pkg/Native.kt",
+                """
+                package test.pkg
+                class Native {
+                    fun native(s: String = "", i: Int = 0) = Unit
+                }
+                """
+            )
+        check(
+            sourceFiles = arrayOf(commonSource, androidSource, nativeSource),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                    createAndroidModuleDescription(arrayOf(androidSource)),
+                    createNativeModuleDescription(arrayOf(nativeSource))
+                ),
+            apiLint = "",
+            enableMultiplatform = true,
+            // Interop issues should only be reported for source sets included in the android/jvm
+            // compilation (here commonMain and androidMain), which can be used by Java clients.
+            expectedIssues =
+                """
+                androidMain/src/test/pkg/Android.kt:3: warning: A Kotlin method with default parameter values should be annotated with @JvmOverloads for better Java interoperability; see https://android.github.io/kotlin-guides/interop.html#function-overloads-for-defaults [MissingJvmstatic]
+                commonMain/src/test/pkg/Common.kt:3: warning: A Kotlin method with default parameter values should be annotated with @JvmOverloads for better Java interoperability; see https://android.github.io/kotlin-guides/interop.html#function-overloads-for-defaults [MissingJvmstatic]
+                """,
         )
     }
 }

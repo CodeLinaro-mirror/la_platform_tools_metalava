@@ -24,13 +24,21 @@ abstract class BaseJavadocTest : BaseDocCommentTest() {
     internal fun checkParse(
         text: String,
         contentGetter: (DocComment) -> JavadocContent? = { docComment -> docComment.description },
+        flagToEnabledStatus: Map<String, Boolean> = emptyMap(),
+        includedSurfaces: Set<String> = emptySet(),
         expectedStructure: String,
         expectedJavadocIssues: String = "",
     ) {
-        val docComment = createTestDocComment(text, expectedJavadocIssues)
+        val (docComment, _) =
+            createTestDocCommentAndContext(
+                text,
+                expectedJavadocIssues,
+                flagToEnabledStatus = flagToEnabledStatus,
+                includedSurfaces = includedSurfaces,
+            )
 
         // Parse the main description
-        var content = contentGetter(docComment)
+        val content = contentGetter(docComment)
 
         // Check the model structure.
         content.assertStructure(expectedStructure.trimIndent())

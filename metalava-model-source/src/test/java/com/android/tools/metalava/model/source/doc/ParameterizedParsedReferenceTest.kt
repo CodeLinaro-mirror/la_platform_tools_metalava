@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.source.doc
 
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeParameterScope
+import com.android.tools.metalava.model.parser.LineMap
 import com.android.tools.metalava.model.source.doc.CallableSourceReference.SourceParameter
 import com.android.tools.metalava.model.testing.arrayTypeItem
 import com.android.tools.metalava.model.testing.classTypeItem
@@ -36,7 +37,7 @@ import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 @RunWith(Parameterized::class)
-class ParameterizedParsedReferenceTest {
+class ParameterizedParsedReferenceTest : BaseDocCommentTest() {
 
     @Parameterized.Parameter(0) internal lateinit var params: TestParams
 
@@ -327,6 +328,59 @@ class ParameterizedParsedReferenceTest {
                         ),
                     expectedNormalized = "#bar(int[],List<String>)",
                 ),
+                TestParams(
+                    name = "#foo(String...)",
+                    expectedParsed =
+                        CurrentClassSourceReference(
+                            member =
+                                methodSourceReference(
+                                    name = "foo",
+                                    SourceParameter(
+                                        arrayTypeItem(
+                                            classTypeItem("String"),
+                                            isVarargs = true,
+                                        ),
+                                    ),
+                                ),
+                        ),
+                    expectedNormalized = "#foo(String...)",
+                ),
+                TestParams(
+                    name = "#foo(String... args)",
+                    expectedParsed =
+                        CurrentClassSourceReference(
+                            member =
+                                methodSourceReference(
+                                    name = "foo",
+                                    SourceParameter(
+                                        arrayTypeItem(
+                                            classTypeItem("String"),
+                                            isVarargs = true,
+                                        ),
+                                        "args",
+                                    ),
+                                ),
+                        ),
+                    expectedNormalized = "#foo(String...)",
+                ),
+                TestParams(
+                    name = "#foo(String...args)",
+                    expectedParsed =
+                        CurrentClassSourceReference(
+                            member =
+                                methodSourceReference(
+                                    name = "foo",
+                                    SourceParameter(
+                                        arrayTypeItem(
+                                            classTypeItem("String"),
+                                            isVarargs = true,
+                                        ),
+                                        "args",
+                                    ),
+                                ),
+                        ),
+                    expectedNormalized = "#foo(String...)",
+                ),
 
                 // Methods with generic parameter types.
                 TestParams(
@@ -380,9 +434,6 @@ class ParameterizedParsedReferenceTest {
                     name = "complex",
                     reference =
                         "Class#foo(   Collection<? extends Bar> [  ]   param   ,   Map< Integer  , List <String > >   )",
-                    // TODO(b/447588621): This should not be reported.
-                    expectedIssues =
-                        "1:1: Could not parse type `Collection<? extends Bar> [  ]`. Found unexpected string after type parameters:  [  ] [TypeParseError]",
                     expectedParsed =
                         QualifyingClassSourceReference(
                             className = "Class",
@@ -390,10 +441,12 @@ class ParameterizedParsedReferenceTest {
                                 methodSourceReference(
                                     name = "foo",
                                     SourceParameter(
-                                        classTypeItem(
-                                            "Collection",
-                                            arguments =
-                                                listOf(wildcardTypeItem(classTypeItem("Bar"))),
+                                        arrayTypeItem(
+                                            classTypeItem(
+                                                "Collection",
+                                                arguments =
+                                                    listOf(wildcardTypeItem(classTypeItem("Bar"))),
+                                            ),
                                         ),
                                         "param"
                                     ),
@@ -404,9 +457,7 @@ class ParameterizedParsedReferenceTest {
                                                 listOf(
                                                     classTypeItem("Integer"),
                                                     classTypeItem(
-                                                        // TODO(b/447588621): This should not have
-                                                        //  a trailing whitespace.
-                                                        "List ",
+                                                        "List",
                                                         arguments =
                                                             listOf(
                                                                 classTypeItem("String"),
@@ -418,8 +469,7 @@ class ParameterizedParsedReferenceTest {
                                 ),
                         ),
                     expectedNormalized =
-                        // TODO(b/447588621): The [] is missing.
-                        "Class#foo(Collection<? extends Bar>,Map<Integer,List <String>>)",
+                        "Class#foo(Collection<? extends Bar>[],Map<Integer,List<String>>)",
                 ),
                 TestParams(
                     name = "qualified type with spaces",
@@ -430,10 +480,10 @@ class ParameterizedParsedReferenceTest {
                             member =
                                 methodSourceReference(
                                     name = "foo",
-                                    SourceParameter(classTypeItem("java . lang . String")),
+                                    SourceParameter(classTypeItem("java.lang.String")),
                                 ),
                         ),
-                    expectedNormalized = "Class#foo(java . lang . String)",
+                    expectedNormalized = "Class#foo(java.lang.String)",
                 ),
 
                 // Fragment reference
@@ -487,6 +537,46 @@ class ParameterizedParsedReferenceTest {
                     name = "just-parentheses",
                     reference = "(blah)",
                 ),
+                TestParams(
+                    name = "just-hash",
+                    reference = "#",
+                ),
+                TestParams(
+                    name = "just-double-hash",
+                    reference = "##",
+                ),
+                TestParams(
+                    name = "triple-hash-fragment",
+                    reference = "###frag",
+                ),
+                TestParams(
+                    name = "trailing-dot",
+                    reference = "java.util.",
+                ),
+                TestParams(
+                    name = "trailing-hash",
+                    reference = "Class#",
+                ),
+                TestParams(
+                    name = "trailing-double-hash",
+                    reference = "Class##",
+                ),
+                TestParams(
+                    name = "space-in-qualified-name",
+                    reference = "java . util",
+                ),
+                TestParams(
+                    name = "space-before-hash",
+                    reference = "Class #member",
+                ),
+                TestParams(
+                    name = "space-after-hash",
+                    reference = "Class# member",
+                ),
+                TestParams(
+                    name = "space-before-parentheses",
+                    reference = "Class#method ()",
+                ),
             )
 
         @JvmStatic @Parameterized.Parameters(name = "{0}") internal fun params() = params
@@ -503,19 +593,23 @@ class ParameterizedParsedReferenceTest {
             )
     }
 
-    internal val reporter = CollatingDocumentationIssueReporter()
-
-    val docTypeParser = DocTypeParser.create(reporter, typeParameterScope)
+    private fun createDocTypeParser(): DocTypeParser {
+        val lineMap = LineMap.create(params.reference)
+        val reporter = TestDocumentationIssueReporter(reporter, lineMap)
+        return DocTypeParser.create(reporter, typeParameterScope)
+    }
 
     @Test
     fun `Test parsing`() {
+        val docTypeParser = createDocTypeParser()
         val parsed = LabeledRefTagType.parseReference(params.reference, docTypeParser)
-        reporter.assertJavadocParserIssues(params.expectedIssues)
+        assertJavadocParserIssues(params.expectedIssues)
         assertEquals(params.expectedParsed, parsed)
     }
 
     @Test
     fun `Test normalized form`() {
+        val docTypeParser = createDocTypeParser()
         assumeNotNull(params.expectedParsed)
 
         val parsed = LabeledRefTagType.parseReference(params.reference, docTypeParser)

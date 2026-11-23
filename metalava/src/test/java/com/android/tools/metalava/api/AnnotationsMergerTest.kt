@@ -16,11 +16,8 @@
 
 package com.android.tools.metalava.api
 
-import com.android.tools.metalava.ARG_HIDE_ANNOTATION
-import com.android.tools.metalava.ARG_SHOW_SINGLE_ANNOTATION
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.KnownApiSurface
-import com.android.tools.metalava.cli.common.ARG_WARNING
 import com.android.tools.metalava.intRangeAnnotationSource
 import com.android.tools.metalava.libcoreNonNullSource
 import com.android.tools.metalava.libcoreNullableSource
@@ -284,7 +281,10 @@ class AnnotationsMergerTest : DriverTest() {
                 merged-annotations.txt:6: warning: qualifier annotations were given for method test.pkg.Appendable.reverse(String) but no matching item was found [UnmatchedMergeAnnotation]
                 merged-annotations.txt:8: warning: qualifier annotations were given for class test.pkg.RandomClass but no matching item was found [UnmatchedMergeAnnotation]
             """,
-            extraArguments = arrayOf(ARG_WARNING, Issues.UNMATCHED_MERGE_ANNOTATION.name)
+            extraArguments =
+                warningIssues(
+                    Issues.UNMATCHED_MERGE_ANNOTATION,
+                )
         )
     }
 
@@ -328,9 +328,8 @@ class AnnotationsMergerTest : DriverTest() {
                 }
                 """,
             extraArguments =
-                arrayOf(
-                    ARG_WARNING,
-                    Issues.UNMATCHED_MERGE_ANNOTATION.name,
+                warningIssues(
+                    Issues.UNMATCHED_MERGE_ANNOTATION,
                 ),
             expectedIssues =
                 """
@@ -571,7 +570,10 @@ class AnnotationsMergerTest : DriverTest() {
                   }
                 }
                 """,
-            extraArguments = arrayOf(ARG_WARNING, Issues.UNMATCHED_MERGE_ANNOTATION.name),
+            extraArguments =
+                warningIssues(
+                    Issues.UNMATCHED_MERGE_ANNOTATION,
+                ),
         )
     }
 
@@ -712,8 +714,9 @@ class AnnotationsMergerTest : DriverTest() {
     }
 
     @Test
-    fun `Merge inclusion annotations from Java stub files using --show-single-annotation`() {
+    fun `Merge inclusion annotations from Java stub files using non-recursive show annotation`() {
         check(
+            apiSurface = KnownApiSurface.NON_RECURSIVE_SHOW_WITH_UNANNOTATED,
             format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
@@ -729,14 +732,6 @@ class AnnotationsMergerTest : DriverTest() {
                     """
                     )
                 ),
-            extraArguments =
-                arrayOf(
-                    ARG_HIDE_ANNOTATION,
-                    "test.annotation.Hide",
-                    ARG_SHOW_SINGLE_ANNOTATION,
-                    "test.annotation.Show"
-                ),
-            showUnannotated = true,
             mergeInclusionAnnotations =
                 arrayOf(
                     java(
@@ -766,6 +761,7 @@ class AnnotationsMergerTest : DriverTest() {
     @Test
     fun `Merge inclusion annotations on api in java namespace`() {
         check(
+            apiSurface = KnownApiSurface.NON_RECURSIVE_SHOW_WITHOUT_UNANNOTATED,
             format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
@@ -781,13 +777,13 @@ class AnnotationsMergerTest : DriverTest() {
                     """
                     )
                 ),
-            extraArguments = arrayOf(ARG_SHOW_SINGLE_ANNOTATION, "test.annotation.Show"),
             mergeInclusionAnnotations =
                 arrayOf(
                     java(
                         """
                             package java.net;
 
+                            @test.annotation.Show
                             public class Example {
                                 void aNotAnnotated();
                                 @test.annotation.Show void bShown();
@@ -809,6 +805,7 @@ class AnnotationsMergerTest : DriverTest() {
     @Test
     fun `Redefining java lang object plus using some internal classes`() {
         check(
+            apiSurface = KnownApiSurface.NON_RECURSIVE_SHOW_WITHOUT_UNANNOTATED,
             sourceFiles =
                 arrayOf(
                     java(
@@ -846,7 +843,6 @@ class AnnotationsMergerTest : DriverTest() {
                     """
                     )
                 ),
-            extraArguments = arrayOf(ARG_SHOW_SINGLE_ANNOTATION, "libcore.api.CorePlatformApi"),
             mergeInclusionAnnotations =
                 arrayOf(
                     java(

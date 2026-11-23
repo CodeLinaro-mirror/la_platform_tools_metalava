@@ -44,6 +44,7 @@ class SealedClassTest : DriverTest() {
                 """,
             expectedIssues =
                 "src/test/pkg/Test.java:3: error: `sealed` is not currently supported, see b/482391240 for more details. [AddedSealed]",
+            javaLanguageLevel = "17", // required for sealed classes
         )
     }
 
@@ -71,6 +72,7 @@ class SealedClassTest : DriverTest() {
                 """,
             expectedIssues =
                 "src/test/pkg/Test.java:3: error: `sealed` is not currently supported, see b/482391240 for more details. [AddedSealed]",
+            javaLanguageLevel = "17", // required for sealed classes
         )
     }
 }

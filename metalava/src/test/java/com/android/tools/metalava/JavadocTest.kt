@@ -635,8 +635,8 @@ class JavadocTest : DriverTest() {
                          * Called if the task was canceled before it was completed.  Gives the class a chance
                          * to clean up post-cancellation and to properly dispose of the result.
                          *
-                         * @param data The value that was returned by {@link #loadInBackground}, or null
-                         * if the task threw {@link OperationCanceledException}.
+                         * @param data the value that was returned by {@link #loadInBackground}, or null
+                         * if the task threw {@link OperationCanceledException}
                          */
                         public void onCanceled(D data) {
                         }
@@ -655,7 +655,7 @@ class JavadocTest : DriverTest() {
                          * call {@link #onCanceled} to perform post-cancellation cleanup and to dispose of the
                          * result object, if any.
                          *
-                         * @return The result of the load operation.
+                         * @return the result of the load operation
                          *
                          * @throws OperationCanceledException if the load is canceled during execution.
                          *
@@ -724,7 +724,7 @@ class JavadocTest : DriverTest() {
                  * call {@link #onCanceled} to perform post-cancellation cleanup and to dispose of the
                  * result object, if any.
                  *
-                 * @return The result of the load operation.
+                 * @return the result of the load operation
                  * @throws android.os.OperationCanceledException if the load is canceled during execution.
                  * @see #onCanceled
                  */
@@ -733,8 +733,8 @@ class JavadocTest : DriverTest() {
                  * Called if the task was canceled before it was completed.  Gives the class a chance
                  * to clean up post-cancellation and to properly dispose of the result.
                  *
-                 * @param data The value that was returned by {@link #loadInBackground}, or null
-                 * if the task threw {@link android.os.OperationCanceledException OperationCanceledException}.
+                 * @param data the value that was returned by {@link #loadInBackground}, or null
+                 * if the task threw {@link android.os.OperationCanceledException OperationCanceledException}
                  */
                 public void onCanceled(D data) { throw new RuntimeException("Stub!"); }
                 }
@@ -888,7 +888,14 @@ class JavadocTest : DriverTest() {
     fun `Rewrite parameter list`() {
         checkStubs(
             docStubs = true,
-            warnings = "",
+
+            // `test.pkg2.OtherClass1` is package-private, so `{@link OtherClass1#myMethod(...)}`
+            // from public `Test` reports `HiddenDocReference`.
+            warnings =
+                """
+                    src/test/pkg1/Test.java:6: warning: Class test.pkg2.OtherClass1 is not public (ErrorWhenNew) [HiddenDocReference]
+                    src/test/pkg1/Test.java:11: warning: Class test.pkg2.OtherClass1 is not public (ErrorWhenNew) [HiddenDocReference]
+                """,
             sourceFiles =
                 arrayOf(
                     java(
@@ -933,11 +940,11 @@ class JavadocTest : DriverTest() {
             source =
                 """
                 package test.pkg1;
-                /** Reference to {@link test.pkg2.OtherClass1#myMethod(test.pkg2.OtherClass2,int,test.pkg2.OtherClass2[]) OtherClass1.myMethod(OtherClass2,int,OtherClass2[])}, */
+                /** Reference to ERROR[not public: OtherClass1#myMethod(OtherClass2,int,OtherClass2[])], */
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class Test<E extends test.pkg2.OtherClass2> {
                 public Test() { throw new RuntimeException("Stub!"); }
-                /** Reference to {@link test.pkg2.OtherClass1#myMethod(test.pkg2.OtherClass2,int,test.pkg2.OtherClass2[]) OtherClass1.myMethod(E,int,OtherClass2[])}, */
+                /** Reference to ERROR[not public: OtherClass1#myMethod(E,int,OtherClass2[])], */
                 public void test() { throw new RuntimeException("Stub!"); }
                 }
                 """
@@ -1050,11 +1057,11 @@ class JavadocTest : DriverTest() {
                          * Returns a copy of this WindowInsets with selected system window insets replaced
                          * with new values.
                          *
-                         * @param left New left inset in pixels
-                         * @param top New top inset in pixels
-                         * @param right New right inset in pixels
-                         * @param bottom New bottom inset in pixels
-                         * @return A modified copy of this WindowInsets
+                         * @param left new left inset in pixels
+                         * @param top new top inset in pixels
+                         * @param right new right inset in pixels
+                         * @param bottom new bottom inset in pixels
+                         * @return a modified copy of this WindowInsets
                          * @deprecated use {@link Builder#Builder(WindowInsets)} with
                          *             {@link Builder#setSystemWindowInsets(Insets)} instead.
                          */
@@ -1098,11 +1105,11 @@ class JavadocTest : DriverTest() {
                      * Returns a copy of this WindowInsets with selected system window insets replaced
                      * with new values.
                      *
-                     * @param left New left inset in pixels
-                     * @param top New top inset in pixels
-                     * @param right New right inset in pixels
-                     * @param bottom New bottom inset in pixels
-                     * @return A modified copy of this WindowInsets
+                     * @param left new left inset in pixels
+                     * @param top new top inset in pixels
+                     * @param right new right inset in pixels
+                     * @param bottom new bottom inset in pixels
+                     * @return a modified copy of this WindowInsets
                      * @deprecated use {@link android.view.WindowInsets.Builder#Builder(android.view.WindowInsets) Builder.Builder(WindowInsets)} with
                      *             {@link android.view.WindowInsets.Builder#setSystemWindowInsets(android.graphics.Insets) Builder.setSystemWindowInsets(Insets)} instead.
                      */
@@ -1245,7 +1252,9 @@ class JavadocTest : DriverTest() {
                     src/test/pkg/Foo.java:4: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
                     src/test/pkg/Foo.java:9: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
                     src/test/pkg/Foo.java:14: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:15: warning: Cannot use 'hide' as an inline tag (ErrorWhenNew) [InvalidTagForm]
                     src/test/pkg/Foo.java:19: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:21: warning: Cannot use 'hide' as an inline tag (ErrorWhenNew) [InvalidTagForm]
                 """,
             expectedApiSignature =
                 """
@@ -1319,7 +1328,7 @@ class JavadocTest : DriverTest() {
                             public class Foo {
                             Foo() { throw new RuntimeException("Stub!"); }
                             /**
-                             * Does not use @hide correctly; {@link android.annotation.Nullable Nullable}.
+                             * Does not use @hide correctly; {@link androidx.annotation.Nullable Nullable}.
                              * @return This value may be {@code null}.
                              */
                             @androidx.annotation.Nullable
@@ -1379,6 +1388,8 @@ class JavadocTest : DriverTest() {
                                 Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream.
                             InvalidBlockTagUse: test.pkg.Foo#qux():
                                 Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream.
+                            InvalidTagForm: test/pkg/Foo.java:
+                                Cannot use 'hide' as an inline tag
                         """,
                     silentUpdate = false,
                 ),
@@ -1387,7 +1398,9 @@ class JavadocTest : DriverTest() {
                     src/test/pkg/Foo.java:4: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
                     src/test/pkg/Foo.java:9: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
                     src/test/pkg/Foo.java:14: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:15: warning: Cannot use 'hide' as an inline tag (ErrorWhenNew) [InvalidTagForm]
                     src/test/pkg/Foo.java:19: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:21: warning: Cannot use 'hide' as an inline tag (ErrorWhenNew) [InvalidTagForm]
                 """,
             expectedApiSignature =
                 """

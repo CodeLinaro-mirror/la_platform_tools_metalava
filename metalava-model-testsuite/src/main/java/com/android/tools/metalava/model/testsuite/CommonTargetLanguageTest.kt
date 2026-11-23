@@ -892,19 +892,9 @@ class CommonTargetLanguageTest : BaseModelTest() {
                 assertThat(modifiers.isNonNull).isTrue()
             }
 
-            val internalNonMangledMethod =
-                fooClass.assertMethod("internalValueClassFunction", emptyList())
-            assertThat(internalNonMangledMethod.targetLanguages)
-                .containsExactly(TargetLanguage.KOTLIN)
-            assertThat(internalNonMangledMethod.modifiers.getVisibilityLevel())
-                .isEqualTo(VisibilityLevel.INTERNAL)
-            internalNonMangledMethod.returnType().assertClassTypeItem {
-                assertThat(qualifiedName).isEqualTo("test.pkg.IntValue")
-                assertThat(modifiers.isNonNull).isTrue()
-            }
-
-            // The private method is not generated since it can't be part of the API surface.
-            assertThat(fooClass.methods()).hasSize(6)
+            // The private method and source version of the internal method are not generated since
+            // they can't be part of the API surface.
+            assertThat(fooClass.methods()).hasSize(5)
         }
     }
 
@@ -1630,9 +1620,8 @@ class CommonTargetLanguageTest : BaseModelTest() {
                 )
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
-            val property = fooClass.assertProperty("foo")
-            assertThat(property.modifiers.getVisibilityLevel()).isEqualTo(VisibilityLevel.INTERNAL)
-            assertThat(property.annotationNames()).contains("kotlin.PublishedApi")
+            // No property is created, because it cannot be used from source
+            assertThat(fooClass.properties()).isEmpty()
 
             val getter = fooClass.assertMethod("getFoo-RVb1_dM", emptyList())
             assertThat(getter.modifiers.getVisibilityLevel()).isEqualTo(VisibilityLevel.INTERNAL)
@@ -3322,7 +3311,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
             val sourceFooFunction = fooClass.assertMethod("foo", listOf("int", "java.lang.String"))
-            assertThat(sourceFooFunction.targetLanguages).isEqualTo(TargetLanguageSet.ALL)
+            assertThat(sourceFooFunction.targetLanguages).isEqualTo(TargetLanguageSet.BYTECODE_ONLY)
             assertThat(sourceFooFunction.modifiers.getVisibilityLevel())
                 .isEqualTo(VisibilityLevel.INTERNAL)
 
@@ -3340,7 +3329,8 @@ class CommonTargetLanguageTest : BaseModelTest() {
 
             val sourceFooKtFunction =
                 fooKtClass.assertMethod("foo", listOf("int", "java.lang.String"))
-            assertThat(sourceFooKtFunction.targetLanguages).isEqualTo(TargetLanguageSet.ALL)
+            assertThat(sourceFooKtFunction.targetLanguages)
+                .isEqualTo(TargetLanguageSet.BYTECODE_ONLY)
             assertThat(sourceFooKtFunction.modifiers.getVisibilityLevel())
                 .isEqualTo(VisibilityLevel.INTERNAL)
 

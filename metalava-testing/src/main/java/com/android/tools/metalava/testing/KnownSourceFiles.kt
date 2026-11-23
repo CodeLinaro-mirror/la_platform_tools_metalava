@@ -249,6 +249,55 @@ object KnownSourceFiles {
             """
         )
 
+    val docOnlyAnnotation =
+        TestFiles.java(
+            """
+                package android.annotation;
+
+                import static java.lang.annotation.ElementType.TYPE;
+
+                import java.lang.annotation.Retention;
+                import java.lang.annotation.RetentionPolicy;
+                import java.lang.annotation.Target;
+
+                /**
+                 * Indicates that a class should only be considered part of the API when
+                 * generating documentation.
+                 *
+                 * Should only be used on the {@code R.styleable} class.
+                 */
+                @Hide
+                @Target({TYPE})
+                @Retention(RetentionPolicy.SOURCE)
+                public @interface DocOnly {
+                }
+            """
+        )
+
+    val removedFromApiAnnotation =
+        TestFiles.java(
+            """
+                package android.annotation;
+
+                import static java.lang.annotation.ElementType.ANNOTATION_TYPE;
+                import static java.lang.annotation.ElementType.CONSTRUCTOR;
+                import static java.lang.annotation.ElementType.FIELD;
+                import static java.lang.annotation.ElementType.METHOD;
+                import static java.lang.annotation.ElementType.PACKAGE;
+                import static java.lang.annotation.ElementType.TYPE;
+
+                import java.lang.annotation.Retention;
+                import java.lang.annotation.RetentionPolicy;
+                import java.lang.annotation.Target;
+
+                @Hide
+                @Target({TYPE, FIELD, METHOD, CONSTRUCTOR, ANNOTATION_TYPE, PACKAGE})
+                @Retention(RetentionPolicy.SOURCE)
+                public @interface RemovedFromApi {
+                }
+            """
+        )
+
     val systemApiSource: TestFile =
         TestFiles.java(
             """
@@ -285,6 +334,19 @@ object KnownSourceFiles {
                      * The intended client of this SystemAPI.
                      */
                     Client client() default android.annotation.SystemApi.Client.PRIVILEGED_APPS;
+                }
+            """
+        )
+
+    val testApiSource: TestFile =
+        java(
+            """
+                package android.annotation;
+                import static java.lang.annotation.ElementType.*;
+                import java.lang.annotation.*;
+                @Target({TYPE, FIELD, METHOD, CONSTRUCTOR, ANNOTATION_TYPE, PACKAGE})
+                @Retention(RetentionPolicy.SOURCE)
+                public @interface TestApi {
                 }
             """
         )
@@ -416,4 +478,92 @@ object KnownSourceFiles {
                 """
             )
             .indented()
+
+    val flaggedApiSource: TestFile =
+        java(
+            """
+                package android.annotation;
+                import static java.lang.annotation.ElementType.ANNOTATION_TYPE;
+                import static java.lang.annotation.ElementType.CONSTRUCTOR;
+                import static java.lang.annotation.ElementType.FIELD;
+                import static java.lang.annotation.ElementType.METHOD;
+                import static java.lang.annotation.ElementType.TYPE;
+
+                import java.lang.annotation.Retention;
+                import java.lang.annotation.RetentionPolicy;
+                import java.lang.annotation.Target;
+                @Hide
+                @Target({TYPE, METHOD, CONSTRUCTOR, FIELD, ANNOTATION_TYPE})
+                @Retention(RetentionPolicy.CLASS)
+                public @interface FlaggedApi {
+                    String value();
+                }
+            """
+        )
+
+    val requiresFlagSource: TestFile =
+        java(
+            """
+                package android.annotation;
+                import static java.lang.annotation.ElementType.ANNOTATION_TYPE;
+                import static java.lang.annotation.ElementType.CONSTRUCTOR;
+                import static java.lang.annotation.ElementType.FIELD;
+                import static java.lang.annotation.ElementType.METHOD;
+                import static java.lang.annotation.ElementType.TYPE;
+
+                import java.lang.annotation.Retention;
+                import java.lang.annotation.RetentionPolicy;
+                import java.lang.annotation.Target;
+
+                @Hide
+                @Target({TYPE, METHOD, CONSTRUCTOR, FIELD, ANNOTATION_TYPE})
+                @Retention(RetentionPolicy.CLASS)
+                public @interface RequiresFlag {
+                    String value();
+                }
+            """
+        )
+
+    val checksFlagSource: TestFile =
+        java(
+            """
+                package android.annotation;
+                import static java.lang.annotation.ElementType.FIELD;
+                import static java.lang.annotation.ElementType.METHOD;
+
+                import java.lang.annotation.Retention;
+                import java.lang.annotation.RetentionPolicy;
+                import java.lang.annotation.Target;
+
+                @Hide
+                @Target({METHOD, FIELD})
+                @Retention(RetentionPolicy.CLASS)
+                public @interface ChecksFlag {
+                    String value() default "";
+                }
+            """
+        )
+
+    val sdkExtensionApiSource: TestFile =
+        java(
+            """
+                package android.annotation;
+                import static java.lang.annotation.ElementType.ANNOTATION_TYPE;
+                import static java.lang.annotation.ElementType.CONSTRUCTOR;
+                import static java.lang.annotation.ElementType.FIELD;
+                import static java.lang.annotation.ElementType.METHOD;
+                import static java.lang.annotation.ElementType.TYPE;
+
+                import java.lang.annotation.Retention;
+                import java.lang.annotation.RetentionPolicy;
+                import java.lang.annotation.Target;
+
+                @Hide
+                @Target({TYPE, METHOD, CONSTRUCTOR, FIELD, ANNOTATION_TYPE})
+                @Retention(RetentionPolicy.CLASS)
+                public @interface SdkExtensionApi {
+                    int value();
+                }
+            """
+        )
 }

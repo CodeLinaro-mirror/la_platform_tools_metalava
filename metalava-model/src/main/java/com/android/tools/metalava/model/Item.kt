@@ -18,6 +18,7 @@ package com.android.tools.metalava.model
 
 import com.android.tools.metalava.model.doc.DocContent
 import com.android.tools.metalava.model.doc.DocContentOwner
+import com.android.tools.metalava.model.item.FileLocationSource
 import com.android.tools.metalava.reporter.BaselineKey
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Reportable
@@ -126,7 +127,7 @@ interface Item : Reportable {
     fun hashCodeForItem(): Int
 
     /** Provides a string representation of the item, suitable for use while debugging. */
-    fun toStringForItem(): String
+    fun toStringForItem(): String = describe()
 
     /**
      * The language in which this was written, or [SourceLanguage.UNKNOWN] if not known, e.g. when
@@ -163,6 +164,14 @@ interface Item : Reportable {
     fun hasSuppressCompatibilityMetaAnnotation(): Boolean =
         codebase.annotationManager.hasSuppressCompatibilityMetaAnnotations(modifiers)
 
+    /** The [FileLocationSource] for this [Item]. */
+    val fileLocationSource: FileLocationSource
+        get() = FileLocationSource.NONE
+
+    /** The [SourcePosition] for this [Item]. */
+    val sourcePosition: SourcePosition
+        get() = SourcePosition.UNKNOWN
+
     override val fileLocation: FileLocation
         get() = FileLocation.UNKNOWN
 
@@ -170,13 +179,16 @@ interface Item : Reportable {
      * Produces a user visible description of this item, including a label such as "class" or
      * "field"
      */
-    fun describe(capitalize: Boolean = false) = toString().capitalizeIfNeeded(capitalize)
+    fun describe(capitalize: Boolean = false): String
 
     /** Returns the package that contains this item. */
     fun containingPackage(): PackageItem?
 
     /** Returns the class that contains this item. */
     fun containingClass(): ClassItem?
+
+    /** Returns the corresponding source file, if any. */
+    fun sourceFile(): SourceFile? = containingClass()?.sourceFile()
 
     /**
      * Returns the associated type, if any.
@@ -259,12 +271,3 @@ interface Item : Reportable {
     /** The languages from which this [Item] can be used. */
     val targetLanguages: Set<TargetLanguage>
 }
-
-/**
- * Capitalize this [String] if [capitalize] is `true`, otherwise return this unchanged.
- *
- * Capitalize means replace the first, assumed to be lower case character, with its uppercase
- * version.
- */
-internal fun String.capitalizeIfNeeded(capitalize: Boolean) =
-    if (capitalize) "${this[0].uppercase()}${substring(1)}" else this

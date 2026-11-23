@@ -160,7 +160,7 @@ internal class PsiTypeItemFactory(
     ): TypeItem {
         val kotlinTypeInfo =
             if (context != null && isKotlin(context)) {
-                KotlinTypeInfo.fromContext(context)
+                KotlinTypeInfo.fromContext(context, codebase.mainAnalysisModule)
             } else {
                 null
             }
@@ -212,8 +212,8 @@ internal class PsiTypeItemFactory(
      * Create a [TypeItem].
      *
      * If a [PrimitiveTypeItem] is not valid for the caller then it must set [mustBoxPrimitives] to
-     * `true`. In that case if the type is an alias for a primitive type it will be replaced with
-     * its boxed type.
+     * `true`. In that case if the type is a primitive type (or an alias for a primitive type) it
+     * will be replaced with its boxed type.
      */
     private fun createTypeItem(
         psiType: PsiType,
@@ -224,9 +224,10 @@ internal class PsiTypeItemFactory(
         return when (psiType) {
             is PsiPrimitiveType ->
                 createPrimitiveTypeItem(
-                    psiType = psiType,
-                    kotlinType = kotlinType,
-                )
+                        psiType = psiType,
+                        kotlinType = kotlinType,
+                    )
+                    .let { if (mustBoxPrimitives) boxType(it) else it }
             is PsiArrayType ->
                 createArrayTypeItem(
                     psiType = psiType,
@@ -474,23 +475,27 @@ internal class PsiTypeItemFactory(
         psiType: PsiClassType,
         kotlinType: KotlinTypeInfo?,
     ): List<TypeArgumentTypeItem> {
+        val psiTypeParameters = psiType.parameters.toList()
         // Get the type arguments of PsiClassType as List<PsiType>.
         val psiTypeArguments =
-            psiType.parameters.toList().takeIf { it.isNotEmpty() }
-                ?: let {
-                    // Workaround for b/505052012: If a lambda type uses the type Nothing as a
+            if (kotlinType is KotlinTypeInfo.LambdaType) {
+                val overrideTypeArguments = kotlinType.overrideTypeArguments
+                val missingCount = overrideTypeArguments.size - psiTypeParameters.size
+                if (missingCount > 0) {
+                    // Workaround for b/505052012 (if a lambda type uses the type Nothing as a
                     // return type then hasNothingInNonContravariantPosition(...) in
-                    // FirJvmTypeMapper returns true. That causes it to get converted into a raw
-                    // PsiClassType without any tupe arguments.
-                    if (kotlinType is KotlinTypeInfo.LambdaType) {
-                        // Convert each individual type argument into a PsiType and use that
-                        // instead.
-                        kotlinType.overrideTypeArguments.map { it.asPsiType() }
-                    } else {
-                        // The type has no type arguments so just return an empty list.
-                        return emptyList()
-                    }
+                    // FirJvmTypeMapper returns true, causing it to get converted into a raw
+                    // PsiClassType without any type arguments) and high-arity lambdas using
+                    // FunctionN (which only has a single type argument for the return type):
+                    // convert each missing leading type argument into a PsiType and prepend them.
+                    overrideTypeArguments.take(missingCount).map { it.asPsiType() } +
+                        psiTypeParameters
+                } else {
+                    psiTypeParameters
                 }
+            } else {
+                psiTypeParameters
+            }
 
         return psiTypeArguments.mapIndexed { i, param ->
             val forTypeArgument = kotlinType?.forTypeArgument(i)
@@ -583,18 +588,18 @@ internal class PsiTypeItemFactory(
     }
 
     /** Support mapping from boxed types back to their primitive type. */
-    private val boxedToPsiPrimitiveType =
+    private val boxedToPrimitive =
         mapOf(
-            "java.lang.Byte" to PsiTypes.byteType(),
-            "java.lang.Double" to PsiTypes.doubleType(),
-            "java.lang.Float" to PsiTypes.floatType(),
-            "java.lang.Integer" to PsiTypes.intType(),
-            "java.lang.Long" to PsiTypes.longType(),
-            "java.lang.Short" to PsiTypes.shortType(),
-            "java.lang.Boolean" to PsiTypes.booleanType(),
+            "java.lang.Byte" to PrimitiveTypeItem.Primitive.BYTE,
+            "java.lang.Double" to PrimitiveTypeItem.Primitive.DOUBLE,
+            "java.lang.Float" to PrimitiveTypeItem.Primitive.FLOAT,
+            "java.lang.Integer" to PrimitiveTypeItem.Primitive.INT,
+            "java.lang.Long" to PrimitiveTypeItem.Primitive.LONG,
+            "java.lang.Short" to PrimitiveTypeItem.Primitive.SHORT,
+            "java.lang.Boolean" to PrimitiveTypeItem.Primitive.BOOLEAN,
             // This is not strictly speaking a boxed -> unboxed mapping, but it fits in nicely
             // with the others.
-            "kotlin.Unit" to PsiTypes.voidType(),
+            "kotlin.Unit" to PrimitiveTypeItem.Primitive.VOID,
         )
 
     /** If the type item is not nullable and is a boxed type then map it to the unboxed type. */
@@ -602,8 +607,12 @@ internal class PsiTypeItemFactory(
         if (
             typeItem is ClassTypeItem && typeItem.modifiers.nullability == TypeNullability.NONNULL
         ) {
-            boxedToPsiPrimitiveType[typeItem.qualifiedName]?.let { psiPrimitiveType ->
-                return createPrimitiveTypeItem(psiPrimitiveType, null)
+            boxedToPrimitive[typeItem.qualifiedName]?.let { kind ->
+                return TypeItem.createPrimitiveType(
+                    modifiers = typeItem.modifiers,
+                    kind = kind,
+                    isValueClassType = typeItem.isValueClassType,
+                )
             }
         }
         return typeItem
@@ -655,7 +664,8 @@ internal class PsiTypeItemFactory(
             }
 
         // The last type argument is always the return type.
-        val returnType = unwrapOutputType(typeArguments.last())
+        val returnTypeArgument = typeArguments.last()
+        val returnType = unwrapOutputType(returnTypeArgument)
         val lastParameterTypeIndex = typeArguments.size - 1
 
         // Get the parameter types, excluding the optional receiver and the return type.
@@ -673,10 +683,18 @@ internal class PsiTypeItemFactory(
             "internal error: Kotlin lambda implemented using unexpected class '$qualifiedName'."
         }
 
+        val classTypeArguments =
+            if (qualifiedName == KOTLIN_FUNCTION_N || qualifiedName == KOTLIN_REFLECT_FUNCTION) {
+                // FunctionN and KFunction only have a single type argument for the return type.
+                listOf(returnTypeArgument)
+            } else {
+                typeArguments
+            }
+
         return TypeItem.createLambdaType(
             modifiers = createTypeModifiers(psiType, actualKotlinType, contextNullability),
             qualifiedName = qualifiedName,
-            arguments = typeArguments,
+            arguments = classTypeArguments,
             // Lambdas are implemented using a number of top level classes so never have an outer
             // class.
             outerClassType = null,
@@ -731,7 +749,6 @@ internal class PsiTypeItemFactory(
                     // only pass it through if this has an explicit `super` bound.
                     kotlinType.takeIf { psiType.isSuper },
                 ),
-            isValueClassType = kotlinType.isValueClassTypeIfAvailable,
         )
 
     /**
@@ -771,6 +788,9 @@ internal fun PsiClassType.computeQualifiedName(): String {
 
 /** Prefix of Kotlin JVM function types, used for lambdas. */
 private const val KOTLIN_FUNCTION_PREFIX = "kotlin.jvm.functions.Function"
+
+/** High-arity Kotlin JVM function type, used for lambdas with more than 22 input parameters. */
+private const val KOTLIN_FUNCTION_N = "kotlin.jvm.functions.FunctionN"
 
 /** Prefix of Kotlin reflect function types, used for lambdas. */
 private const val KOTLIN_REFLECT_FUNCTION = "kotlin.reflect.KFunction"

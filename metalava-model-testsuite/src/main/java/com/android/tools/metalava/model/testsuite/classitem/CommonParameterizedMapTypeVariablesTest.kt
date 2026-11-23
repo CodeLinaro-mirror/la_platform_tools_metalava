@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.testsuite.classitem
 import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
+import com.android.tools.metalava.model.TypeComparator
 import com.android.tools.metalava.model.TypeParameterBindings
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
@@ -562,7 +563,22 @@ class CommonParameterizedMapTypeVariablesTest : BaseModelTest() {
             builderContext.expectedBindingsBuilder()
             val expectedBindings = builderContext.bindings()
             val actualBindings = descendantClass.mapTypeVariables(ancestorClass)
-            assertEquals(expectedBindings, actualBindings)
+            assertEquals(
+                expectedBindings.keys,
+                actualBindings.keys,
+                message = "bound type parameter keys"
+            )
+            for (key in expectedBindings.keys) {
+                // Ignore nullability when comparing types because the expected types created by
+                // test helpers do not specify nullability, while the actual types from the codebase
+                // may have model-specific nullability.
+                assertTypeComparison(
+                    expectedBindings[key],
+                    actualBindings[key],
+                    TypeComparator.IGNORE_NULLABILITY,
+                    message = "binding for $key",
+                )
+            }
         }
     }
 }

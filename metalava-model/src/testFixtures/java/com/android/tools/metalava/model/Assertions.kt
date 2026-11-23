@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.item.ClassMemberMask
+import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.multiplatform.MultiplatformClassItem
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.multiplatform.MultiplatformConstructorItem
@@ -24,6 +26,7 @@ import com.android.tools.metalava.model.multiplatform.MultiplatformMethodItem
 import com.android.tools.metalava.model.multiplatform.MultiplatformPackageItem
 import com.android.tools.metalava.model.multiplatform.MultiplatformPropertyItem
 import com.android.tools.metalava.model.multiplatform.SourceSetDependent
+import com.android.tools.metalava.model.testing.surfaces.initializeSelectedApiInstances
 import com.android.tools.metalava.model.testing.testTypeString
 import com.google.common.truth.Truth.assertThat
 import java.io.PrintWriter
@@ -31,6 +34,7 @@ import java.io.StringWriter
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
+import kotlin.test.fail
 
 interface Assertions {
 
@@ -108,10 +112,16 @@ interface Assertions {
         return typeAliasItem
     }
 
-    /**
-     * Return a dump of the state of [SelectableItem.selectedApiVariants] across this [Codebase].
-     */
+    /** Return a dump of the state of [SelectedApi] variants across this [Codebase]. */
     private fun Codebase.dumpSelectedApiVariants() = buildString {
+        // SelectedApi instances are initialized on demand and initializing child SelectedApi
+        // instances can change the variants for the parent. That means that dumping the
+        // SelectedApi variants immediately after initializing the parent and before the child will
+        // produce an invalid result. So, to avoid that this initializes all the SelectedApi
+        // instances first before dumping any of them.
+        initializeSelectedApiInstances()
+
+        val apiSurfaces = apiSurfaces
         accept(
             object :
                 BaseItemVisitor(
@@ -121,7 +131,29 @@ interface Assertions {
                 private var indent = ""
 
                 override fun visitSelectableItem(item: SelectableItem) {
-                    append("$indent${item.describe()} - ${item.selectedApiVariants}\n")
+                    append("$indent${item.describe()}\n")
+                    if (!item.emit) {
+                        append("$indent       emit - false\n")
+                    }
+                    val selectedApi = item.selectedApi
+                    append(
+                        "$indent       self - ${selectedApi.itemApiVariants.formatFor(apiSurfaces)}\n"
+                    )
+                    if (selectedApi.contentApiVariants.isNotEmpty()) {
+                        append(
+                            "$indent    content - ${selectedApi.contentApiVariants.formatFor(apiSurfaces)}\n"
+                        )
+                    }
+                    if (selectedApi.superClassApiVariants.isNotEmpty()) {
+                        append(
+                            "$indent superClass - ${selectedApi.superClassApiVariants.formatFor(apiSurfaces)}\n"
+                        )
+                    }
+                    if (selectedApi.elidableApiVariants.isNotEmpty()) {
+                        append(
+                            "$indent   elidable - ${selectedApi.elidableApiVariants.formatFor(apiSurfaces)}\n"
+                        )
+                    }
                     indent += "  "
                 }
 
@@ -134,8 +166,19 @@ interface Assertions {
 
     /** Assert that the [dumpSelectedApiVariants] matches [expected]. */
     fun Codebase.assertSelectedApiVariants(expected: String, message: String? = null) {
+        dumpSelectedApiVariants()
         val actual = dumpSelectedApiVariants()
         assertEquals(expected.trimIndent(), actual.trimEnd(), message)
+    }
+
+    /**
+     * Assert that the [SelectedApi.itemApiVariants] of this [SelectableItem], formatted for
+     * [Codebase.apiSurfaces], matches [expected].
+     */
+    fun SelectableItem.assertItemApiVariants(expected: String, message: String? = null) {
+        val apiSurfaces = codebase.apiSurfaces
+        val actual = selectedApi.itemApiVariants.formatFor(apiSurfaces)
+        assertEquals(expected, actual, message)
     }
 
     /** Get the field from the [ClassItem], failing if it does not exist. */
@@ -439,6 +482,19 @@ interface Assertions {
         assertIsInstanceOf(body ?: {})
     }
 
+    /** Assert that [expected] and [actual] are equal according to [comparator]. */
+    fun assertTypeComparison(
+        expected: TypeItem?,
+        actual: TypeItem?,
+        comparator: TypeComparator,
+        message: String? = null,
+    ) {
+        if (!comparator.compare(expected, actual)) {
+            val prefix = if (message == null) "" else "$message: "
+            fail("${prefix}Expected <$expected> but was <$actual> (compared using $comparator)")
+        }
+    }
+
     /** Checks that the element exists in exactly the source sets of [expectedSourceSets]. */
     fun MultiplatformElement<*>.assertSourceSets(vararg expectedSourceSets: String) {
         assertThat(sourceSets).containsExactly(*expectedSourceSets)
@@ -472,13 +528,20 @@ interface Assertions {
      */
     fun MultiplatformClassItem.assertProperty(
         name: String,
-        receiverType: String? = null
+        receiverType: String? = null,
+        contextParameterTypeStrings: List<String> = emptyList(),
     ): MultiplatformPropertyItem {
         val propertyItem =
             properties.singleOrNull { property ->
                 property.name == name &&
                     property.receiver?.toTypeString(TypeStringConfiguration.DEFAULT_KOTLIN_NULLS) ==
-                        receiverType
+                        receiverType &&
+                    contextParameterTypeStrings ==
+                        property.contextParameterTypes.map { contextParameter ->
+                            contextParameter.toTypeString(
+                                TypeStringConfiguration.DEFAULT_KOTLIN_NULLS
+                            )
+                        }
             }
         assertNotNull(
             propertyItem,
@@ -488,7 +551,7 @@ interface Assertions {
     }
 
     /**
-     * Finds the property by [name] and [receiverType] in the [MultiplatformClassItem], failing if
+     * Finds the property by [name] and [receiverType] in the [MultiplatformPackageItem], failing if
      * it does not exist.
      *
      * [receiverType] is expected to be formatted according to
@@ -496,13 +559,20 @@ interface Assertions {
      */
     fun MultiplatformPackageItem.assertProperty(
         name: String,
-        receiverType: String? = null
+        receiverType: String? = null,
+        contextParameterTypeStrings: List<String> = emptyList(),
     ): MultiplatformPropertyItem {
         val propertyItem =
             topLevelProperties.singleOrNull { property ->
                 property.name == name &&
                     property.receiver?.toTypeString(TypeStringConfiguration.DEFAULT_KOTLIN_NULLS) ==
-                        receiverType
+                        receiverType &&
+                    contextParameterTypeStrings ==
+                        property.contextParameterTypes.map { contextParameter ->
+                            contextParameter.toTypeString(
+                                TypeStringConfiguration.DEFAULT_KOTLIN_NULLS
+                            )
+                        }
             }
         assertNotNull(
             propertyItem,
@@ -584,7 +654,14 @@ interface Assertions {
         return methodItem
     }
 
-    companion object : Assertions {}
+    /**
+     * Return the [ClassMemberMask] of member kinds that have not yet been initialized on this
+     * [ClassItem].
+     */
+    val ClassItem.uninitializedMembers: ClassMemberMask
+        get() = (this as DefaultClassItem).uninitializedMembers
+
+    companion object : Assertions
 }
 
 private inline fun <reified T> Any?.assertIsInstanceOf(body: (T).() -> Unit) {

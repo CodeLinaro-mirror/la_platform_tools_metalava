@@ -35,16 +35,6 @@ import java.lang.StringBuilder
  *       method public <M, X> M method(O o, I i);
  *     }
  * ```
- *
- * This does not implement [equals] and [hashCode] as the identity comparison is sufficient and
- * necessary.
- *
- * It is sufficient because [TypeParameterScope]s have a one-to-one correspondence with a type
- * parameter list owner.
- *
- * It is necessary because [TypeParameterItem.equals] is currently only based on the name. So,
- * unless great care is taken to use identity comparison for [MapWrapper.nameToTypeParameterItem]
- * contents it would break caching and have every type `T` reference the same type parameter.
  */
 sealed class TypeParameterScope private constructor() {
 
@@ -123,12 +113,20 @@ sealed class TypeParameterScope private constructor() {
         }
     }
 
+    /**
+     * A [TypeParameterScope] implementation that is enclosed within an [enclosingScope] and
+     * contains a list of [TypeParameterItem]s.
+     *
+     * The key information in this scope is all contained within [nameToTypeParameterItem]. That is
+     * a map from [TypeParameterItem.name] to [TypeParameterItem] for every [TypeParameterItem] in
+     * [list] plus any additional ones from [enclosingScope] whose names are not shadowed by one in
+     * [list]. Consequently, [equals] and [hashCode] only need to use [nameToTypeParameterItem].
+     */
     private class MapWrapper(
         private val description: String,
         list: List<TypeParameterItem>,
         private val enclosingScope: TypeParameterScope
     ) : TypeParameterScope() {
-
         /**
          * A mapping from name to [TypeParameterItem].
          *
@@ -141,11 +139,12 @@ sealed class TypeParameterScope private constructor() {
          * The set of type parameter names added by this scope; does not include names from
          * enclosing scopes but does include any shadows of those names added in this scope.
          */
-        private val namesAddedInThisScope: Set<String>
+        private val namesAddedInThisScope = list.map { it.name() }.toSet()
+
+        /** Cached hash code to avoid recomputing and to speed up [equals]. */
+        private val cachedHashCode: Int
 
         init {
-            namesAddedInThisScope = list.map { it.name() }.toSet()
-
             // Construct a map by taking a mutable copy of the map from the enclosing scope, if
             // available, otherwise creating an empty map. Then adding all the type parameters that
             // are part of this, replacing (i.e. shadowing) any type parameters with the same name
@@ -156,6 +155,9 @@ sealed class TypeParameterScope private constructor() {
                 else mutableMapOf()
             list.associateByTo(mutableMap) { it.name() }
             nameToTypeParameterItem = mutableMap.toMap()
+
+            // Pre-compute the hash code to improve equals/hashCode performance.
+            cachedHashCode = computeHashCode()
         }
 
         override fun findTypeParameter(name: String) = nameToTypeParameterItem[name]
@@ -170,6 +172,26 @@ sealed class TypeParameterScope private constructor() {
             // Otherwise, check the enclosing scope.
             return enclosingScope.findSignificantScope(names)
         }
+
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (other !is MapWrapper) return false
+
+            // Fast path to avoid map equality.
+            if (cachedHashCode != other.cachedHashCode) return false
+
+            // Compare the mappings from name to TypeParameterItem.
+            if (nameToTypeParameterItem != other.nameToTypeParameterItem) return false
+            return true
+        }
+
+        /**
+         * Compute the hash code such that [equals] will only return `true` iff this object and the
+         * other object both had the same hash code.
+         */
+        private fun computeHashCode() = nameToTypeParameterItem.hashCode()
+
+        override fun hashCode(): Int = cachedHashCode
 
         override fun toString(): String {
             return buildString {

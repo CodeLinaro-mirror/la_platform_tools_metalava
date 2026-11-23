@@ -10,7 +10,7 @@ commonly used ones are:
 * Allows extracting the API (into signature text files, into stub API files
   which in turn get compiled into android.jar, the Android SDK library) and
   more importantly to hide code intended to be implementation only, driven by
-  javadoc comments like @hide, @doconly, @removed, etc, as well as various
+  javadoc comments like @hide, @removed, etc, as well as various
   annotations.
 
 * Extracting source level annotations into external annotations file (such as
@@ -51,24 +51,16 @@ First build it with:
 
 Then run it with:
 
-    $ ../../out/metalava/metalava/build/install/metalava/bin/metalava
-                    _        _
-     _ __ ___   ___| |_ __ _| | __ ___   ____ _
-    | '_ ` _ \ / _ \ __/ _` | |/ _` \ \ / / _` |
-    | | | | | |  __/ || (_| | | (_| |\ V / (_| |
-    |_| |_| |_|\___|\__\__,_|_|\__,_| \_/ \__,_|
+    $ ../../out/metalava/metalava/build/install/metalava/bin/metalava --help
+    Usage: metalava [options] [flags]... <sub-command>? ...
 
-    metalava extracts metadata from source code to generate artifacts such as the
-    signature files, the SDK stub files, external annotations etc.
+    Extracts metadata from source code to generate artifacts such as the signature files, the SDK stub files, external
+    annotations etc.
 
-    Usage: metalava <flags>
-
-    Flags:
-
-    --help                                This message.
-    --quiet                               Only include vital output
-    --verbose                             Include extra diagnostic output
-
+    Options:
+    --version                                  Show the version and exit
+    ...
+    -h, --help                                 Show this message and exit
     ...
 
 (*output truncated*)
@@ -96,11 +88,6 @@ It can also be run for repeated measurement using [gradle-profiler](https://gith
 
 ## Features
 
-* Ability to read in an existing android.jar file instead of from source, which
-  means we can regenerate signature files etc for older versions according to
-  new formats (e.g. to fix past errors in doclava, such as annotation instance
-  methods which were accidentally not included.)
-
 * Ability to merge in data (annotations etc) from external sources, such as
   IntelliJ external annotations data as well as signature files containing
   annotations. This isn't just merged at export time, it's merged at codebase
@@ -116,7 +103,7 @@ It can also be run for repeated measurement using [gradle-profiler](https://gith
     "@interface" instead of "abstract class extends java.lang.Annotation", sorts
     modifiers in the canonical modifier order, using "extends" instead of
     "implements" for the superclass of an interface, and many other similar
-    tweaks outlined in the `Compatibility` class. (Metalava also allows (and
+    tweaks outlined in the `FileFormat` class. (Metalava also allows (and
     ignores) block comments in the signature files.)
 
   * Add support for writing (and reading) annotations into the signature
@@ -219,80 +206,6 @@ It can also be run for repeated measurement using [gradle-profiler](https://gith
   Lint, being able to check in the set of accepted or verified false positives
   is quite important.
 
-* Metalava can generate reports about nullness annotation coverage (which helps
-  target efforts since we plan to annotate the entire API). First, it can
-  generate a raw count:
-
-        Nullness Annotation Coverage Statistics:
-        1279 out of 46900 methods were annotated (2%)
-        2 out of 21683 fields were annotated (0%)
-        2770 out of 47492 parameters were annotated (5%)
-
-  More importantly, you can also point it to some existing compiled applications
-  (.class or .jar files) and it will then measure the annotation coverage of the
-  APIs used by those applications. This lets us target the most important APIs
-  that are currently used by a corpus of apps and target our annotation efforts
-  in a targeted way. For example, running the analysis on the current version of
-  framework, and pointing it to the
-  [Plaid](https://github.com/nickbutcher/plaid) app's compiled output with
-
-      ... --annotation-coverage-of ~/plaid/app/build/intermediates/classes/debug
-
-  This produces the following output:
-
-    324 methods and fields were missing nullness annotations out of 650 total
-    API references.  API nullness coverage is 50%
-
-    ```
-    | Qualified Class Name                                         |      Usage Count |
-    |--------------------------------------------------------------|-----------------:|
-    | android.os.Parcel                                            |              146 |
-    | android.view.View                                            |              119 |
-    | android.view.ViewPropertyAnimator                            |              114 |
-    | android.content.Intent                                       |              104 |
-    | android.graphics.Rect                                        |               79 |
-    | android.content.Context                                      |               61 |
-    | android.widget.TextView                                      |               53 |
-    | android.transition.TransitionValues                          |               49 |
-    | android.animation.Animator                                   |               34 |
-    | android.app.ActivityOptions                                  |               34 |
-    | android.view.LayoutInflater                                  |               31 |
-    | android.app.Activity                                         |               28 |
-    | android.content.SharedPreferences                            |               26 |
-    | android.content.SharedPreferences.Editor                     |               26 |
-    | android.text.SpannableStringBuilder                          |               23 |
-    | android.view.ViewGroup.MarginLayoutParams                    |               21 |
-    | ... (99 more items                                           |                  |
-    ```
-
-Top referenced un-annotated members:
-
-    ```
-    | Member                                                       |      Usage Count |
-    |--------------------------------------------------------------|-----------------:|
-    | Parcel.readString()                                          |               62 |
-    | Parcel.writeString(String)                                   |               62 |
-    | TextView.setText(CharSequence)                               |               34 |
-    | TransitionValues.values                                      |               28 |
-    | View.getContext()                                            |               28 |
-    | ViewPropertyAnimator.setDuration(long)                       |               26 |
-    | ViewPropertyAnimator.setInterpolator(android.animation.Ti... |               26 |
-    | LayoutInflater.inflate(int, android.view.ViewGroup, boole... |               23 |
-    | Rect.left                                                    |               22 |
-    | Rect.top                                                     |               22 |
-    | Intent.Intent(android.content.Context, Class<?>)             |               21 |
-    | Rect.bottom                                                  |               21 |
-    | TransitionValues.view                                        |               21 |
-    | VERSION.SDK_INT                                              |               18 |
-    | Context.getResources()                                       |               18 |
-    | EditText.getText()                                           |               18 |
-    | ... (309 more items                                          |                  |
-    ```
-
-  From this it's clear that it would be useful to start annotating
-  android.os.Parcel and android.view.View for example where there are
-  unannotated APIs that are frequently used, at least by this app.
-
 * Built on top of a full, type-resolved AST. Doclava1 was integrated with
   javadoc, which meant that most of the source tree was opaque. Therefore, as
   just one example, the code which generated documentation for typedef constants
@@ -317,11 +230,7 @@ Top referenced un-annotated members:
   android.jar files themselves to ensure that it computes the exact available
   SDK data for each API level.)
 
-* Misc other features. For example, if you use the @VisibleForTesting annotation
-  from the support library, where you can express the intended visibility if the
-  method had not required visibility for testing, then metalava will treat that
-  method using the intended visibility instead when generating signature files
-  and stubs.
+* Misc other features.
 
 ## Architecture & Implementation
 
@@ -333,12 +242,10 @@ modifier lists (including annotations).
 This is done for multiple reasons:
 
 (1) It allows us to have multiple "back-ends": for example, metalava can read in
-    a model not just from parsing source code, but from reading older SDK
-    android.jar files (e.g. backed by bytecode) or reading previous signature
-    files.  Reading in multiple versions of an API lets doclava perform
-    "diffing", such as warning if an API is changing in an incompatible way. It
-    can also generate signature files in the new format (including data that was
-    missing in older signature files, such as annotation methods) without having
+    a model not just from parsing source code, but from reading previous
+    signature files.  Reading in multiple versions of an API lets doclava
+    perform "diffing", such as warning if an API is changing in an incompatible
+    way. It can also generate signature files in the new format without having
     to parse older source code which may no longer be easy to parse.
 
 (2) There's a lot of logic for deciding whether code found in the source tree
@@ -351,19 +258,18 @@ This is done for multiple reasons:
 
 The basic API element class is "Item". (In doclava1 this was called a
 "DocInfo".)  There are several sub interfaces of Item: PackageItem, ClassItem,
-MemberItem, MethodItem, FieldItem, ParameterItem, etc. And then there are
-several implementation hierarchies: One is PSI based, where you point metalava
-to a source tree or a .jar file, and it constructs Items built on top of PSI:
-PsiPackageItem, PsiClassItem, PsiMethodItem, etc. Another is textual, based on
-signature files: TextPackageItem, TextClassItem, and so on.
+MemberItem, MethodItem, FieldItem, ParameterItem, etc., with a shared default
+implementation hierarchy (DefaultPackageItem, DefaultClassItem,
+DefaultMethodItem, etc.) populated by the different back-ends (such as PSI,
+Turbine, or signature files).
 
 The "Codebase" class captures a complete API snapshot (including classes that
 are hidden, which is why it's called a "Codebase" rather than an "API").
 
-There are methods to load codebases - from source folders, from a .jar file,
-from a signature file. That's how API diffing is performed: you load two
-codebases (from whatever source you want, typically a previous API signature
-file and the current set of source folders), and then you "diff" the two.
+There are methods to load codebases - from source folders, or from a signature
+file. That's how API diffing is performed: you load two codebases (from whatever
+source you want, typically a previous API signature file and the current set of
+source folders), and then you "diff" the two.
 
 There are several key helpers that help with the implementation, detailed next.
 

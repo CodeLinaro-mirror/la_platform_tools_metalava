@@ -29,34 +29,42 @@ import com.android.tools.metalava.model.TypeVisitor
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.text.TextTypeParser.CacheEntry
 import com.android.tools.metalava.model.type.ContextNullability
-import com.android.tools.metalava.model.type.TypeItemParser
+import com.android.tools.metalava.model.type.DefaultTypeItemParser
 import com.android.tools.metalava.model.type.TypeItemParserErrorReporter
 import com.android.tools.metalava.model.type.UnqualifiedClassHandler
 import com.android.tools.metalava.reporter.Issues
 
 /** Parses and caches types within a [annotationContext]. */
-internal class TextTypeParser
+class TextTypeParser
 private constructor(
     annotationContext: AnnotationContext,
     kotlinStyleNulls: Boolean,
     private val countingErrorReporter: CountingErrorReporter,
+    unshortenAnnotations: Boolean,
 ) :
-    TypeItemParser(
+    DefaultTypeItemParser(
         annotationContext,
         UnqualifiedClassHandler.PREFIX_WITH_JAVA_LANG_OR_REPORT_ERROR,
         kotlinStyleNulls,
         countingErrorReporter,
+        unshortenAnnotations = unshortenAnnotations,
     ) {
 
     /**
      * Secondary constructor that will wrap the [errorReporter] it is given in a
      * [CountingErrorReporter] before calling the primary constructor.
      */
-    constructor(
+    internal constructor(
         annotationContext: AnnotationContext,
         kotlinStyleNulls: Boolean = false,
         errorReporter: TypeItemParserErrorReporter = TypeItemParserErrorReporter.THROWING,
-    ) : this(annotationContext, kotlinStyleNulls, CountingErrorReporter(errorReporter))
+        unshortenAnnotations: Boolean = true,
+    ) : this(
+        annotationContext,
+        kotlinStyleNulls,
+        CountingErrorReporter(errorReporter),
+        unshortenAnnotations,
+    )
 
     /**
      * The cache key, incorporates some information from [ContextNullability] and [kotlinStyleNulls]
@@ -76,10 +84,34 @@ private constructor(
     /** The cache from [Key] to [CacheEntry]. */
     private val typeCache = HashMap<Key, CacheEntry>()
 
-    internal var requests = 0
-    internal var cacheSkip = 0
-    internal var cacheHit = 0
-    internal var cacheSize = 0
+    private var requests = 0
+    private var cacheSkip = 0
+    private var cacheHit = 0
+    private var cacheSize = 0
+
+    /** Get the cache statistics for this [TextTypeParser]. */
+    fun stats() =
+        Stats(
+            typeCacheRequests = requests,
+            typeCacheSkip = cacheSkip,
+            typeCacheHit = cacheHit,
+            typeCacheSize = cacheSize,
+        )
+
+    /** Statistics about the cache behavior of [TextTypeParser]. */
+    data class Stats(
+        /** The total number of requests made to [parseType]. */
+        val typeCacheRequests: Int,
+
+        /** The number of requests that skipped the cache due to type-use annotations. */
+        val typeCacheSkip: Int,
+
+        /** The number of requests that resulted in a cache hit. */
+        val typeCacheHit: Int,
+
+        /** The total number of [TypeItem]s stored in the cache. */
+        val typeCacheSize: Int,
+    )
 
     /** Override [parseType] to cache the result, if possible. */
     override fun parseType(
@@ -87,6 +119,7 @@ private constructor(
         typeParameterScope: TypeParameterScope,
         annotations: List<AnnotationItem>,
         forceClassToBeNonNull: Boolean,
+        offset: Int,
     ): TypeItem {
         requests++
         // Don't use the cache when there are type-use annotations not contained in the string.
@@ -98,10 +131,10 @@ private constructor(
                 typeCache.computeIfAbsent(key) { CacheEntry(it.type, it.forceClassToBeNonNull) }
 
             // Get the appropriate [TypeItem], creating one if necessary.
-            result.getTypeItem(typeParameterScope)
+            result.getTypeItem(typeParameterScope, offset)
         } else {
             cacheSkip++
-            unCachedParseType(type, typeParameterScope, annotations, forceClassToBeNonNull)
+            unCachedParseType(type, typeParameterScope, annotations, forceClassToBeNonNull, offset)
         }
     }
 
@@ -111,7 +144,8 @@ private constructor(
         typeParameterScope: TypeParameterScope,
         annotations: List<AnnotationItem>,
         forceClassToBeNonNull: Boolean,
-    ) = super.parseType(type, typeParameterScope, annotations, forceClassToBeNonNull)
+        offset: Int,
+    ) = super.parseType(type, typeParameterScope, annotations, forceClassToBeNonNull, offset)
 
     /**
      * The cache entry, that contains the [TypeItem] that has been produced from the [type] and
@@ -153,7 +187,7 @@ private constructor(
         private lateinit var unqualifiedNamesInType: Set<String>
 
         /** Get the [TypeItem] for this type depending on the setting of [forceClassToBeNonNull]. */
-        fun getTypeItem(typeParameterScope: TypeParameterScope): TypeItem {
+        fun getTypeItem(typeParameterScope: TypeParameterScope, offset: Int): TypeItem {
             // If this is not the first time through then check to see if anything suitable has been
             // cached.
             val scopeForCachingOrNull =
@@ -178,7 +212,7 @@ private constructor(
             val startErrorCount = countingErrorReporter.errorCount
 
             // Parse the [type] to produce a [TypeItem]. This may report errors.
-            val typeItem = createTypeItem(typeParameterScope)
+            val typeItem = createTypeItem(typeParameterScope, offset)
 
             // If the error count is different then do not cache this.
             if (countingErrorReporter.errorCount != startErrorCount) {
@@ -211,8 +245,14 @@ private constructor(
          * Create a new [TypeItem] for [type] with the given [forceClassToBeNonNull] setting and for
          * the requested [typeParameterScope].
          */
-        private fun createTypeItem(typeParameterScope: TypeParameterScope): TypeItem {
-            return unCachedParseType(type, typeParameterScope, emptyList(), forceClassToBeNonNull)
+        private fun createTypeItem(typeParameterScope: TypeParameterScope, offset: Int): TypeItem {
+            return unCachedParseType(
+                type,
+                typeParameterScope,
+                emptyList(),
+                forceClassToBeNonNull,
+                offset,
+            )
         }
     }
 
@@ -288,8 +328,9 @@ private class CountingErrorReporter(
     override fun report(
         issue: Issues.Issue,
         message: String,
+        charOffset: Int,
     ) {
-        delegateErrorReporter.report(issue, message)
+        delegateErrorReporter.report(issue, message, charOffset)
         errorCount += 1
     }
 }

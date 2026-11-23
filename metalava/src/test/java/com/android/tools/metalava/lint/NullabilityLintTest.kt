@@ -17,13 +17,12 @@
 package com.android.tools.metalava.lint
 
 import com.android.tools.metalava.DriverTest
-import com.android.tools.metalava.cli.common.ARG_ERROR
-import com.android.tools.metalava.cli.common.ARG_HIDE
-import com.android.tools.metalava.cli.lint.ARG_API_LINT
+import com.android.tools.metalava.KnownApiSurface
 import com.android.tools.metalava.libcoreNonNullSource
 import com.android.tools.metalava.libcoreNullableSource
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.nonNullSource
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
@@ -83,7 +82,10 @@ class NullabilityLintTest : DriverTest() {
     fun `Test no missing nullability errors for enums`() {
         check(
             apiLint = "", // enabled
-            extraArguments = arrayOf(ARG_HIDE, "Enum"),
+            extraArguments =
+                hiddenIssues(
+                    Issues.ENUM,
+                ),
             sourceFiles =
                 arrayOf(
                     java(
@@ -113,7 +115,10 @@ class NullabilityLintTest : DriverTest() {
     fun `Test no missing nullability errors for kotlin constructs`() {
         check(
             apiLint = "", // enabled
-            extraArguments = arrayOf(ARG_HIDE, "StaticUtils"),
+            extraArguments =
+                hiddenIssues(
+                    Issues.STATIC_UTILS,
+                ),
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -144,7 +149,10 @@ class NullabilityLintTest : DriverTest() {
     fun `Test type variable array requires nullability`() {
         check(
             apiLint = "", // enabled
-            extraArguments = arrayOf(ARG_API_LINT, ARG_HIDE, "ArrayReturn"),
+            extraArguments =
+                hiddenIssues(
+                    Issues.ARRAY_RETURN,
+                ),
             expectedIssues =
                 """
                 src/test/pkg/Foo.java:4: error: Missing nullability on method `badTypeVarArrayReturn` return [MissingNullability]
@@ -253,7 +261,10 @@ class NullabilityLintTest : DriverTest() {
                     KnownSourceFiles.androidxNullableJavaSource,
                     KnownSourceFiles.androidxNonNullJavaSource
                 ),
-            extraArguments = arrayOf(ARG_HIDE, Issues.INHERIT_CHANGES_SIGNATURE.name),
+            extraArguments =
+                hiddenIssues(
+                    Issues.INHERIT_CHANGES_SIGNATURE,
+                ),
         )
     }
 
@@ -666,7 +677,10 @@ class NullabilityLintTest : DriverTest() {
     fun `Missing inner nullability`() {
         check(
             apiLint = "",
-            extraArguments = arrayOf(ARG_ERROR, "MissingInnerNullability"),
+            extraArguments =
+                errorIssues(
+                    Issues.MISSING_INNER_NULLABILITY,
+                ),
             expectedIssues =
                 """
                     src/test/pkg/Foo.java:5: error: Missing nullability on inner type java.lang.String in method `getArray` return [MissingInnerNullability]
@@ -700,7 +714,10 @@ class NullabilityLintTest : DriverTest() {
     fun `Test inner type nullness overrides of defined nullness`() {
         check(
             apiLint = "",
-            extraArguments = arrayOf(ARG_HIDE, "NullableCollectionElement"),
+            extraArguments =
+                hiddenIssues(
+                    Issues.NULLABLE_COLLECTION_ELEMENT,
+                ),
             expectedIssues =
                 """
                     src/test/pkg/Foo.java:7: error: Invalid nullability on type java.lang.String in parameter `arg` in method `foo`. Parameter in method override cannot use a non-null type when the corresponding type from the super method is nullable. [InvalidNullabilityOverride]
@@ -742,7 +759,10 @@ class NullabilityLintTest : DriverTest() {
         // TODO (b/344859664): this case is ignored for now
         check(
             apiLint = "",
-            extraArguments = arrayOf(ARG_HIDE, "NullableCollectionElement"),
+            extraArguments =
+                hiddenIssues(
+                    Issues.NULLABLE_COLLECTION_ELEMENT,
+                ),
             sourceFiles =
                 arrayOf(
                     java(
@@ -769,6 +789,47 @@ class NullabilityLintTest : DriverTest() {
                     libcoreNonNullSource,
                     libcoreNullableSource,
                 )
+        )
+    }
+
+    @Test
+    fun `Test overriding method marked with @Hide is checked for nullability`() {
+        check(
+            apiLint = "",
+            expectedIssues =
+                """
+                    src/test/pkg/Sub.java:8: error: Attempting to hide method test.pkg.Sub.method(String) which overrides method test.pkg.Base.method(String) which is already part of the API [HidingApiMethodOverride]
+                    src/test/pkg/Sub.java:8: error: Missing nullability on parameter `str` in method `method` [MissingNullability]
+                """,
+            apiSurface = KnownApiSurface.PUBLIC,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            import android.annotation.NonNull;
+
+                            public class Base {
+                                public void method(@NonNull String str) {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+
+                            import android.annotation.Hide;
+
+                            public class Sub extends Base {
+                                @Override
+                                @Hide
+                                public void method(String str) {}
+                            }
+                        """
+                    ),
+                    nonNullSource,
+                ),
         )
     }
 }

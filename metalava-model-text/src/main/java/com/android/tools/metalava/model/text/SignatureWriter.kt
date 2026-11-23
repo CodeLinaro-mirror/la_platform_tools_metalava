@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.ANDROID_FLAGGED_API
+import com.android.tools.metalava.model.ANDROID_SDK_EXTENSION_API
 import com.android.tools.metalava.model.AnnotationFormatter
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationTarget
@@ -44,7 +46,6 @@ import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeStringConfiguration
-import com.android.tools.metalava.model.text.CustomizableProperty.Companion.FLAGGED_API_INHERITANCE
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.INCLUDE_DEFAULT_PARAMETER_VALUES
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.INCLUDE_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.JAVA_RECORD_CLASSES
@@ -58,8 +59,7 @@ import com.android.tools.metalava.model.text.CustomizableProperty.Companion.SORT
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.STRIP_JAVA_LANG_PREFIX
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.TYPE_ARGUMENT_SPACING
 import com.android.tools.metalava.model.text.FileFormat.TypeArgumentSpacing
-import com.android.tools.metalava.model.visitors.ApiPredicate
-import com.android.tools.metalava.model.visitors.ApiType
+import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.model.visitors.FilteringApiVisitor
 import java.io.PrintWriter
@@ -70,6 +70,12 @@ class SignatureWriter(
     private val fileFormat: FileFormat,
     private val writeTargetLanguages: Boolean = true,
 ) : DelegatedVisitor {
+    /**
+     * Signature files require classes to be visited in deterministic, alphabetical order by
+     * qualified name (with typealiases last) for stable signature generation and diffing.
+     */
+    override val requiresSortedClasses: Boolean
+        get() = true
 
     init {
         // If a header must always be written out (even if the file is empty) then write it here.
@@ -106,7 +112,6 @@ class SignatureWriter(
                     skipNullnessAnnotations = fileFormat[KOTLIN_STYLE_NULLS],
                     normalizeFinal = fileFormat[NORMALIZE_FINAL_MODIFIER],
                     normalizeAbstract = fileFormat[NORMALIZE_ABSTRACT_MODIFIER],
-                    flaggedApiInheritance = fileFormat[FLAGGED_API_INHERITANCE],
                     javaRecordClasses = javaRecordClasses,
                     javaSealedClasses = javaSealedClasses,
                 ),
@@ -325,9 +330,75 @@ class SignatureWriter(
         }
     }
 
+    /**
+     * Find the [ANDROID_FLAGGED_API] in this list of [AnnotationItem]s that has not been reverted,
+     * if there is one.
+     */
+    private fun List<AnnotationItem>.findFlaggedApiAnnotation(): AnnotationItem? {
+        return find { it.apiFlag?.let { flag -> !flag.revert } == true }
+    }
+
+    /**
+     * Get the enclosing [ClassItem] and its [ANDROID_FLAGGED_API] [AnnotationItem] to add to
+     * [item]'s [annotations], if any.
+     */
+    private fun flaggedApiAnnotationToInherit(
+        item: SelectableItem,
+    ): Pair<ClassItem, AnnotationItem>? {
+        // If the item is not a nested class then return null.
+        if (item !is ClassItem) return null
+        var containingClassItem: ClassItem? = item.containingClass() ?: return null
+
+        // Find the closest enclosing [ANDROID_FLAGGED_API] annotation in [item]'s containing
+        // [ClassItem], if there is one.
+        while (containingClassItem != null) {
+            containingClassItem.modifiers.annotations().findFlaggedApiAnnotation()?.let {
+                return containingClassItem to it
+            }
+            containingClassItem = containingClassItem.containingClass()
+        }
+
+        // Otherwise, no flagged api annotation needs adding.
+        return null
+    }
+
     private fun writeModifiers(item: Item) {
-        (item as? SelectableItem)?.let { writeTargetLanguage(it) }
-        modifierListWriter.write(item)
+        var annotations = item.modifiers.annotations()
+
+        // Target language modifiers and @FlaggedApi / @SdkExtensionApi inheritance only apply to
+        // SelectableItems (not parameters or record components).
+        if (item is SelectableItem) {
+            writeTargetLanguage(item)
+
+            // Find the item supplying the active @FlaggedApi annotation: either this item itself,
+            // or an enclosing class from which @FlaggedApi is inherited onto this item's
+            // annotations.
+            val flaggedItemAndAnnotation =
+                annotations.findFlaggedApiAnnotation()?.let { item to it }
+                    ?: flaggedApiAnnotationToInherit(item)?.also { (_, inheritedAnnotation) ->
+                        annotations = annotations + inheritedAnnotation
+                    }
+
+            sdkExtensionApiAnnotationToInherit(item, annotations)?.let { inheritedAnnotation ->
+                annotations = annotations + inheritedAnnotation
+            }
+
+            // If the item has an active @FlaggedApi annotation that will be written to the
+            // signature file and the item supplying that @FlaggedApi annotation has a removed
+            // annotation, emit the synthetic @ForRemoval annotation before the item's other
+            // annotations.
+            if (
+                flaggedItemAndAnnotation != null &&
+                    flaggedItemAndAnnotation.let { (flaggedItem, flaggedApiAnnotation) ->
+                        flaggedItem.selectedApi.hasRemovedAnnotation() &&
+                            AnnotationTarget.SIGNATURE_FILE in flaggedApiAnnotation.targets
+                    }
+            ) {
+                write("@$FOR_REMOVAL_ANNOTATION ")
+            }
+        }
+
+        modifierListWriter.write(item, annotations)
     }
 
     private fun writeAnnotations(item: Item) {
@@ -513,11 +584,38 @@ class SignatureWriter(
         private val SIGNATURE_FILE_MODIFIER_LIST_WRITER_CONFIG =
             ModifierListWriter.Config(
                 target = AnnotationTarget.SIGNATURE_FILE,
-                annotationFormatter =
-                    AnnotationFormatter.legacyAnnotationFormatter(AnnotationTarget.SIGNATURE_FILE),
+                annotationFormatter = AnnotationFormatter.legacyAnnotationFormatter(),
                 runtimeAnnotationsOnly = false,
                 skipNullnessAnnotations = false,
             )
+
+        /**
+         * Get the [ANDROID_SDK_EXTENSION_API] [AnnotationItem] from an enclosing [ClassItem] to
+         * inherit onto [item]'s [annotations], if any.
+         */
+        fun sdkExtensionApiAnnotationToInherit(
+            item: Item,
+            annotations: List<AnnotationItem>,
+        ): AnnotationItem? {
+            // If the item is not a nested class then return null.
+            if (item !is ClassItem) return null
+            var containingClassItem: ClassItem? = item.containingClass() ?: return null
+
+            // If this already has an [ANDROID_SDK_EXTENSION_API] annotation then return null.
+            if (annotations.any { it.qualifiedName == ANDROID_SDK_EXTENSION_API }) return null
+
+            // Find the closest enclosing [ANDROID_SDK_EXTENSION_API] annotation in [item]'s
+            // containing [ClassItem], if there is one.
+            while (containingClassItem != null) {
+                containingClassItem.modifiers.findAnnotation(ANDROID_SDK_EXTENSION_API)?.let {
+                    return it
+                }
+                containingClassItem = containingClassItem.containingClass()
+            }
+
+            // Otherwise, no sdk extension api annotation needs adding.
+            return null
+        }
     }
 }
 
@@ -575,10 +673,7 @@ private fun getInterfacesInOrder(
 fun createCodebaseFragmentForSignatureFile(
     codebase: Codebase,
     fileFormat: FileFormat,
-    apiType: ApiType,
-    preFiltered: Boolean,
-    showUnannotated: Boolean,
-    apiPredicateConfig: ApiPredicate.Config,
+    apiFilters: ApiFilters?,
 ) =
     CodebaseFragment.create(
         codebase,
@@ -587,10 +682,7 @@ fun createCodebaseFragmentForSignatureFile(
         createFilteringVisitorForSignatures(
             delegate,
             fileFormat,
-            apiType,
-            preFiltered,
-            showUnannotated,
-            apiPredicateConfig,
+            apiFilters,
         )
     }
 
@@ -602,23 +694,15 @@ fun createCodebaseFragmentForSignatureFile(
 private fun createFilteringVisitorForSignatures(
     delegate: DelegatedVisitor,
     fileFormat: FileFormat,
-    apiType: ApiType,
-    preFiltered: Boolean,
-    showUnannotated: Boolean,
-    apiPredicateConfig: ApiPredicate.Config,
+    apiFilters: ApiFilters?,
 ): ApiVisitor {
-    val apiFilters = apiType.getApiFilters(apiPredicateConfig)
-
     val (interfaceListSorter, interfaceListComparator) =
         if (fileFormat[SORT_WHOLE_EXTENDS_LIST]) Pair(null, TypeItem.totalComparator)
         else Pair(::getInterfacesInOrder, null)
     return FilteringApiVisitor(
         delegate = delegate,
-        inlineInheritedFields = true,
         interfaceListSorter = interfaceListSorter,
         interfaceListComparator = interfaceListComparator,
         apiFilters = apiFilters,
-        preFiltered = preFiltered,
-        showUnannotated = showUnannotated,
     )
 }

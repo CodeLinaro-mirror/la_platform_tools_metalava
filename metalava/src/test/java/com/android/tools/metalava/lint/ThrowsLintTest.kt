@@ -17,8 +17,8 @@
 package com.android.tools.metalava.lint
 
 import com.android.tools.metalava.DriverTest
-import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.cli.lint.ARG_API_LINT
+import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -30,10 +30,11 @@ class ThrowsLintTest : DriverTest() {
             extraArguments =
                 arrayOf(
                     ARG_API_LINT,
-                    // Conflicting advice:
-                    ARG_HIDE,
-                    "BannedThrow"
-                ),
+                ) +
+                    hiddenIssues(
+                        // Conflicting advice:
+                        Issues.BANNED_THROW,
+                    ),
             expectedIssues =
                 """
                 src/android/pkg/MyClass.java:6: error: Methods must not throw generic exceptions (`java.lang.Exception`) [GenericException]

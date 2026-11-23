@@ -66,7 +66,9 @@ object KnownConfigFiles {
                     xsi:schemaLocation="http://www.google.com/tools/metalava/config ../../../../../resources/schemas/config.xsd">
                     <api-surfaces>
                         <api-surface name="public">
-                            <selection-criteria unannotated="show"/>
+                            <selection-criteria unannotated="show">
+                                <annotation-rule pattern="android.annotation.Hide" effect="hide"/>
+                            </selection-criteria>
                         </api-surface>
                         <api-surface name="system" extends="public">
                             <selection-criteria>
@@ -83,6 +85,12 @@ object KnownConfigFiles {
                                 <annotation-rule pattern="android.annotation.SystemApi(client=android.annotation.SystemApi.Client.MODULE_LIBRARIES)"/>
                             </selection-criteria>
                         </api-surface>
+                        <doc-only>
+                            <annotation-rule pattern="android.annotation.DocOnly"/>
+                        </doc-only>
+                        <removed>
+                            <annotation-rule pattern="android.annotation.RemovedFromApi"/>
+                        </removed>
                     </api-surfaces>
                 </config>
             """
@@ -100,6 +108,7 @@ object KnownConfigFiles {
                         <api-surface name="system-with-public">
                             <selection-criteria unannotated="show">
                                 <annotation-rule pattern="android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS)"/>
+                                <annotation-rule pattern="android.annotation.Hide" effect="hide"/>
                             </selection-criteria>
                         </api-surface>
                     </api-surfaces>

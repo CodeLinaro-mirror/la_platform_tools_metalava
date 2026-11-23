@@ -78,7 +78,7 @@ class IssueReportingOptionsTest :
             "--error",
             "ArrayReturn"
         ) {
-            val issueConfiguration = options.issueConfiguration
+            val issueConfiguration = options.compute().issueConfiguration
 
             issueConfiguration.assertSeverity(
                 Issues.START_WITH_LOWER,
@@ -99,7 +99,7 @@ class IssueReportingOptionsTest :
     fun `Test multiple issue severity options`() {
         // Purposely includes some whitespace as that is something callers of metalava do.
         runTest("--hide", "StartWithLower ,StartWithUpper, ArrayReturn") {
-            val issueConfiguration = options.issueConfiguration
+            val issueConfiguration = options.compute().issueConfiguration
             issueConfiguration.assertSeverity(
                 Issues.START_WITH_LOWER,
                 expectedSeverity = Severity.HIDDEN,
@@ -118,7 +118,7 @@ class IssueReportingOptionsTest :
     @Test
     fun `Test issue severity options with inheriting issues`() {
         runTest("--error", "RemovedClass") {
-            val issueConfiguration = options.issueConfiguration
+            val issueConfiguration = options.compute().issueConfiguration
             issueConfiguration.assertSeverity(
                 Issues.REMOVED_CLASS,
                 expectedSeverity = Severity.ERROR,
@@ -136,7 +136,7 @@ class IssueReportingOptionsTest :
             assertEquals("Unknown issue id: '--hide' 'arrayreturn'", stderr)
 
             // Make sure that the ARRAY_RETURN severity was not changed.
-            val issueConfiguration = options.issueConfiguration
+            val issueConfiguration = options.compute().issueConfiguration
             issueConfiguration.assertSeverity(
                 Issues.ARRAY_RETURN,
                 expectedSeverity = Issues.ARRAY_RETURN.defaultLevel,
@@ -157,13 +157,13 @@ class IssueReportingOptionsTest :
         // the error options (or vice versa) they would result in different behavior.
         runTest(
             "--hide",
-            "UnavailableSymbol",
+            "PrivateSuperclass",
             "--error",
             "HiddenSuperclass",
             "--hide",
             "HiddenSuperclass",
             "--error",
-            "UnavailableSymbol",
+            "PrivateSuperclass",
         ) {
 
             // Make sure the two issues both default to warning.
@@ -173,18 +173,18 @@ class IssueReportingOptionsTest :
                 expectedSeverity = Severity.WARNING,
             )
             baseConfiguration.assertSeverity(
-                Issues.UNAVAILABLE_SYMBOL,
+                Issues.PRIVATE_SUPERCLASS,
                 expectedSeverity = Severity.WARNING,
             )
 
             // Now make sure the issues fine.
-            val issueConfiguration = options.issueConfiguration
+            val issueConfiguration = options.compute().issueConfiguration
             issueConfiguration.assertSeverity(
                 Issues.HIDDEN_SUPERCLASS,
                 expectedSeverity = Severity.HIDDEN,
             )
             issueConfiguration.assertSeverity(
-                Issues.UNAVAILABLE_SYMBOL,
+                Issues.PRIVATE_SUPERCLASS,
                 expectedSeverity = Severity.ERROR,
             )
         }
@@ -208,7 +208,7 @@ class IssueReportingOptionsTest :
             )
 
             // Now make sure the issues are hidden.
-            val issueConfiguration = options.issueConfiguration
+            val issueConfiguration = options.compute().issueConfiguration
             issueConfiguration.assertSeverity(
                 Issues.ADDED_SEALED,
                 expectedSeverity = Severity.HIDDEN,
@@ -235,7 +235,7 @@ class IssueReportingOptionsTest :
     @Test
     fun `Test --warnings-as-errors for issue with warning as default level`() {
         runTest(ARG_WARNINGS_AS_ERRORS) {
-            val issueConfiguration = options.issueConfiguration
+            val issueConfiguration = options.compute().issueConfiguration
             // If the default level of this issue is changed and this test fails, the test should
             // just be updated to use a different issue with default level WARNING
             assertEquals(Severity.WARNING, Issues.ACRONYM_NAME.defaultLevel)
@@ -249,7 +249,7 @@ class IssueReportingOptionsTest :
     @Test
     fun `Test --warnings-as-errors for issue set to warning level`() {
         runTest(ARG_WARNINGS_AS_ERRORS, ARG_WARNING, "StartWithLower") {
-            val issueConfiguration = options.issueConfiguration
+            val issueConfiguration = options.compute().issueConfiguration
             issueConfiguration.assertSeverity(
                 Issues.START_WITH_LOWER,
                 expectedSeverity = Severity.ERROR,
@@ -260,7 +260,7 @@ class IssueReportingOptionsTest :
     @Test
     fun `Test --warnings-as-errors for issue with inherited severity`() {
         runTest(ARG_WARNINGS_AS_ERRORS, "--warning", "RemovedClass") {
-            val issueConfiguration = options.issueConfiguration
+            val issueConfiguration = options.compute().issueConfiguration
             issueConfiguration.assertSeverity(
                 Issues.REMOVED_CLASS,
                 expectedSeverity = Severity.ERROR,
@@ -278,7 +278,7 @@ class IssueReportingOptionsTest :
     @Test
     fun `Test --warnings-as-errors for issue with warning_error_when_new as default level`() {
         runTest(ARG_WARNINGS_AS_ERRORS) {
-            val issueConfiguration = options.issueConfiguration
+            val issueConfiguration = options.compute().issueConfiguration
             // If the default level of this issue is changed and this test fails, the test should
             // just be updated to use a different issue with default level WARNING_ERROR_WHEN_NEW
             assertEquals(
@@ -295,7 +295,7 @@ class IssueReportingOptionsTest :
     @Test
     fun `Test --treat-as-error for issue set to hidden severity`() {
         runTest(ARG_TREAT_AS_ERROR, "hidden", ARG_HIDE, "ParseError") {
-            val issueConfiguration = options.issueConfiguration
+            val issueConfiguration = options.compute().issueConfiguration
             issueConfiguration.assertSeverity(
                 Issues.PARSE_ERROR,
                 expectedSeverity = Severity.ERROR,
@@ -310,19 +310,20 @@ class IssueReportingOptionsTest :
             Issues.REMOVED_METHOD.name,
             ARG_HIDE,
             Issues.REMOVED_CLASS.name,
-            optionGroup =
-                IssueReportingOptions(
-                    issuesConfigProvider = {
-                        IssuesConfig(
-                            listOf(
-                                IssueConfig(Issues.REMOVED_FIELD.name, SeverityConfig.WARNING),
-                                IssueConfig(Issues.REMOVED_CLASS.name, SeverityConfig.WARNING)
-                            ),
-                        )
-                    }
-                )
+            optionGroup = IssueReportingOptions()
         ) {
-            val issueConfiguration = options.issueConfiguration
+            val issueConfiguration =
+                options
+                    .compute(
+                        issuesConfig =
+                            IssuesConfig(
+                                listOf(
+                                    IssueConfig(Issues.REMOVED_FIELD.name, SeverityConfig.WARNING),
+                                    IssueConfig(Issues.REMOVED_CLASS.name, SeverityConfig.WARNING)
+                                ),
+                            )
+                    )
+                    .issueConfiguration
 
             // Conflict between options and config file is resolved in favor of options.
             issueConfiguration.assertSeverity(
@@ -340,6 +341,27 @@ class IssueReportingOptionsTest :
             issueConfiguration.assertSeverity(
                 Issues.REMOVED_METHOD,
                 expectedSeverity = Severity.HIDDEN,
+            )
+        }
+    }
+
+    @Test
+    fun `Test resetting issue configuration`() {
+        runTest(
+            "--hide",
+            "StartWithLower",
+        ) {
+            val issueConfiguration = options.compute().issueConfiguration
+            issueConfiguration.assertSeverity(
+                Issues.START_WITH_LOWER,
+                expectedSeverity = Severity.HIDDEN,
+            )
+
+            // Recompute the configuration, using a cleared state
+            val resetIssueConfiguration = options.compute().issueConfiguration
+            resetIssueConfiguration.assertSeverity(
+                Issues.START_WITH_LOWER,
+                expectedSeverity = Severity.ERROR,
             )
         }
     }

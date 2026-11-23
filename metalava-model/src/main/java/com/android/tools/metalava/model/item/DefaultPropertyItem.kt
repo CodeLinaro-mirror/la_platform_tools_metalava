@@ -16,17 +16,16 @@
 
 package com.android.tools.metalava.model.item
 
-import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
-import com.android.tools.metalava.model.InheritableItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceLanguage
+import com.android.tools.metalava.model.SourcePosition
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
@@ -34,14 +33,13 @@ import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.duplicatingFactory
 import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.scope.ReferencableNameScope
-import com.android.tools.metalava.reporter.FileLocation
 
 internal class DefaultPropertyItem(
     codebase: Codebase,
-    fileLocation: FileLocation,
+    fileLocationSource: FileLocationSource,
+    sourcePosition: SourcePosition,
     sourceLanguage: SourceLanguage,
     documentationFactory: ItemDocumentationFactory,
-    variantSelectorsFactory: ApiVariantSelectorsFactory,
     modifiers: BaseModifierList,
     val name: String,
     containingClass: ClassItem,
@@ -57,14 +55,14 @@ internal class DefaultPropertyItem(
 ) :
     DefaultMemberItem(
         codebase,
-        fileLocation,
+        fileLocationSource,
+        sourcePosition,
         sourceLanguage,
         // Properties can only be used directly from Kotlin. They are used from Java through their
         // accessors and/or backing field.
         targetLanguages = TargetLanguageSet.KOTLIN_ONLY,
         modifiers,
         documentationFactory,
-        variantSelectorsFactory,
         name,
         containingClass,
     ),
@@ -93,13 +91,14 @@ internal class DefaultPropertyItem(
 
     override var inheritedFrom: ClassItem? = null
 
-    override fun duplicate(targetContainingClass: ClassItem): InheritableItem {
+    override fun duplicate(targetContainingClass: ClassItem): PropertyItem {
         return DefaultPropertyItem(
-                codebase = codebase,
-                fileLocation = fileLocation,
+                // Create it in the same codebase as targetContainingClass.
+                codebase = targetContainingClass.codebase,
+                fileLocationSource = duplicateFileLocationSource(),
+                sourcePosition = sourcePosition,
                 sourceLanguage = sourceLanguage,
                 documentationFactory = documentation.duplicatingFactory(),
-                variantSelectorsFactory = variantSelectors::duplicate,
                 modifiers = modifiers,
                 name = name(),
                 containingClass = targetContainingClass,

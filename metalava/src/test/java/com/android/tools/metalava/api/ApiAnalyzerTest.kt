@@ -18,14 +18,13 @@ package com.android.tools.metalava.api
 
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.KnownApiSurface
-import com.android.tools.metalava.cli.common.ARG_ERROR
-import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.cli.common.ARG_SKIP_READING_COMMENTS
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.KnownSourceFiles
+import com.android.tools.metalava.testing.KnownSourceFiles.hideAnnotation
 import com.android.tools.metalava.testing.KnownSourceFiles.systemApiSource
 import com.android.tools.metalava.testing.createAndroidModuleDescription
 import com.android.tools.metalava.testing.createCommonModuleDescription
@@ -44,7 +43,7 @@ class ApiAnalyzerTest : DriverTest() {
                 """
                     src/test/pkg/PublicClass.java:5: error: badAbstractHiddenMethod cannot be hidden and abstract when PublicClass has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
                     src/test/pkg/PublicClass.java:6: error: badPackagePrivateMethod cannot be hidden and abstract when PublicClass has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
-                    src/test/pkg/SystemApiClass.java:7: error: badAbstractHiddenMethod cannot be hidden and abstract when SystemApiClass has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
+                    src/test/pkg/SystemApiClass.java:6: error: badAbstractHiddenMethod cannot be hidden and abstract when SystemApiClass has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
                 """,
             sourceFiles =
                 arrayOf(
@@ -59,7 +58,6 @@ class ApiAnalyzerTest : DriverTest() {
                                 /**
                                  * This method does not fail because it is visible due to showAnnotations,
                                  * instead it will fail when running analysis on public API. See test below.
-                                 * @hide
                                  */
                                 @SystemApi
                                 public abstract boolean goodAbstractSystemHiddenMethod() { return true; }
@@ -81,14 +79,12 @@ class ApiAnalyzerTest : DriverTest() {
                         """
                            package test.pkg;
                            import android.annotation.SystemApi;
-                           /** @hide */
                            @SystemApi
                            public abstract class SystemApiClass {
                                 /** @hide */
                                 public abstract boolean badAbstractHiddenMethod() { return true; }
                                 /**
                                  * This method is OK, because it matches visibility of the class
-                                 * @hide
                                  */
                                 @SystemApi
                                 public abstract boolean goodAbstractSystemHiddenMethod() { return true; }
@@ -141,6 +137,69 @@ class ApiAnalyzerTest : DriverTest() {
                     ),
                     systemApiSource
                 )
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Hidden abstract method in interface for public API`() {
+        check(
+            extraArguments = errorIssues(Issues.HIDDEN_ABSTRACT_METHOD_IN_INTERFACE),
+            hideAnnotations = arrayOf("android.annotation.Hide"),
+            expectedIssues =
+                """
+                src/test/pkg/Interface.kt:6: error: errorAbstract cannot be hidden and abstract when Interface is a non-sealed interface, in case a third-party attempts to subclass it. [HiddenAbstractMethodInInterface]
+                """,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg;
+                        import android.annotation.Hide;
+
+                        interface Interface {
+                            @Hide
+                            fun errorAbstract(): Int
+                            @Hide
+                            fun okDefault(): Int = 0
+                        }
+
+                        sealed interface SealedInterface {
+                            @Hide
+                            fun okAbstract(): Int
+                        }
+                        """
+                    ),
+                    hideAnnotation
+                ),
+        )
+    }
+
+    @Test
+    fun `Hidden abstract method in non-API interface referenced by public API`() {
+        check(
+            extraArguments = errorIssues(Issues.HIDDEN_ABSTRACT_METHOD_IN_INTERFACE),
+            expectedIssues =
+                """
+                    src/test/pkg/PublicClass.java:4: error: Class test.pkg.PackagePrivateInterface is not public but was referenced (in parameter type) from public parameter p in test.pkg.PublicClass.foo(test.pkg.PackagePrivateInterface p) [ReferencesHidden]
+                """,
+            sourceFiles =
+                @Suppress("ClassEscapesDefinedScope") // For PackagePrivateInterface
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            public class PublicClass {
+                                public void foo(PackagePrivateInterface p) {}
+                            }
+
+                            interface PackagePrivateInterface {
+                                void hiddenAbstractMethod();
+                            }
+                        """
+                    ),
+                ),
         )
     }
 
@@ -206,6 +265,78 @@ class ApiAnalyzerTest : DriverTest() {
                         """
                     )
                 )
+        )
+    }
+
+    @Test
+    fun `Test that DeprecationMismatch is not reported when comments are ignored`() {
+        check(
+            expectedIssues = "",
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package test.pkg;
+                        @Deprecated
+                        public class MissingDeprecatedDoc {}
+                        """
+                    ),
+                    java(
+                        """
+                        package test.pkg;
+                        /** @deprecated reason */
+                        public class MissingDeprecatedAnno {}
+                        """
+                    ),
+                    java(
+                        """
+                        package test.pkg;
+                        /** @deprecated reason */
+                        @Deprecated
+                        public class CorrectDeprecation {}
+                        """
+                    )
+                ),
+            extraArguments = arrayOf(ARG_SKIP_READING_COMMENTS),
+        )
+    }
+
+    @Test
+    fun `Test that DeprecationMismatch is not reported when containing class is deprecated`() {
+        check(
+            expectedIssues = "",
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            /** @deprecated Use something else. */
+                            @Deprecated
+                            public class DeprecatedClass {
+                                @Deprecated
+                                public DeprecatedClass() {}
+
+                                @Deprecated
+                                public int field;
+
+                                @Deprecated
+                                public void method() {}
+
+                                @Deprecated
+                                public static class NestedClass {
+                                    @Deprecated
+                                    public void nestedMethod() {}
+                                }
+
+                                public static class UndeprecatedNestedClass {
+                                    @Deprecated
+                                    public void nestedMethod() {}
+                                }
+                            }
+                        """
+                    ),
+                ),
         )
     }
 
@@ -335,7 +466,10 @@ class ApiAnalyzerTest : DriverTest() {
                         """
                     ),
                 ),
-            extraArguments = arrayOf(ARG_HIDE, Issues.INHERIT_CHANGES_SIGNATURE.name),
+            extraArguments =
+                hiddenIssues(
+                    Issues.INHERIT_CHANGES_SIGNATURE,
+                ),
         )
     }
 
@@ -379,7 +513,11 @@ class ApiAnalyzerTest : DriverTest() {
     @Test
     fun `Deprecation when ignoring comments`() {
         check(
-            extraArguments = arrayOf(ARG_SKIP_READING_COMMENTS, ARG_ERROR, "ReferencesDeprecated"),
+            extraArguments =
+                arrayOf(ARG_SKIP_READING_COMMENTS) +
+                    errorIssues(
+                        Issues.REFERENCES_DEPRECATED,
+                    ),
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -514,7 +652,10 @@ class ApiAnalyzerTest : DriverTest() {
                     }
                 """,
             extraArguments =
-                arrayOf(ARG_ERROR, "ReferencesDeprecated", ARG_ERROR, "ExtendsDeprecated"),
+                errorIssues(
+                    Issues.REFERENCES_DEPRECATED,
+                    Issues.EXTENDS_DEPRECATED,
+                ),
             expectedIssues =
                 """
                     src/test/pkg/NotDeprecatedClass.java:2: error: Extending deprecated super class class test.pkg.DeprecatedOuterClass from test.pkg.NotDeprecatedClass: this class should also be deprecated [ExtendsDeprecated]
@@ -563,7 +704,10 @@ class ApiAnalyzerTest : DriverTest() {
                     }
                 """,
             extraArguments =
-                arrayOf(ARG_ERROR, "ReferencesDeprecated", ARG_ERROR, "ExtendsDeprecated"),
+                errorIssues(
+                    Issues.REFERENCES_DEPRECATED,
+                    Issues.EXTENDS_DEPRECATED,
+                ),
             expectedIssues =
                 """
                     src/test/pkg/NotDeprecatedClass.java:2: error: Extending deprecated super class class test.pkg.DeprecatedOuterClass.EffectivelyDeprecatedInnerClass from test.pkg.NotDeprecatedClass: this class should also be deprecated [ExtendsDeprecated]
@@ -610,7 +754,10 @@ class ApiAnalyzerTest : DriverTest() {
                       }
                     }
                 """,
-            extraArguments = arrayOf(ARG_ERROR, "ReferencesDeprecated"),
+            extraArguments =
+                errorIssues(
+                    Issues.REFERENCES_DEPRECATED,
+                ),
             expectedIssues =
                 """
                     src/test/pkg/NotDeprecatedClass.java:4: error: Parameter references deprecated type test.pkg.DeprecatedClass in test.pkg.NotDeprecatedClass.usesDeprecated(): this method should also be deprecated [ReferencesDeprecated]
@@ -628,12 +775,13 @@ class ApiAnalyzerTest : DriverTest() {
             apiSurface = KnownApiSurface.SYSTEM_WITH_PUBLIC,
             sourceFiles =
                 arrayOf(
+                    KnownSourceFiles.hideAnnotation,
                     // Package "test.a" is hidden but "test.a.B" os marked with a show annotation so
                     // that should cause "test.a" to be unhidden. However, "test.a.C" should still
                     // be hidden as it inherits that from "test.a".
                     java(
                         """
-                            /** @hide */
+                            @android.annotation.Hide
                             package test.a;
                         """
                     ),
@@ -680,7 +828,6 @@ class ApiAnalyzerTest : DriverTest() {
                             public class C {}
                         """
                     ),
-                    KnownSourceFiles.systemApiSource,
                 ),
             expectedApiSignature =
                 """
@@ -750,7 +897,10 @@ class ApiAnalyzerTest : DriverTest() {
                         """
                     )
                 ),
-            extraArguments = arrayOf(ARG_ERROR, Issues.INHERIT_CHANGES_SIGNATURE.name)
+            extraArguments =
+                errorIssues(
+                    Issues.INHERIT_CHANGES_SIGNATURE,
+                )
         )
     }
 
@@ -869,6 +1019,78 @@ class ApiAnalyzerTest : DriverTest() {
                 """
                 // Signature format: 5.0
                 """
+        )
+    }
+
+    @Test
+    fun `Non-emitted source-path class in emitted package is not traversed for hidden propagation`() {
+        check(
+            showAnnotations = arrayOf("android.annotation.SystemApi"),
+            additionalSourcePathFiles =
+                arrayOf(
+                    java(
+                        """
+                            package b.pkg;
+                            import android.annotation.SystemApi;
+                            public class SuperClass {
+                                /** @hide */
+                                @SystemApi
+                                public void internalHelper() {}
+                            }
+                        """
+                    ),
+                ),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package a.pkg;
+                            public class Child extends b.pkg.SuperClass {
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package b.pkg;
+                            public class OtherEmitted {
+                            }
+                        """
+                    ),
+                    systemApiSource,
+                ),
+            expectedIssues = "",
+        )
+    }
+
+    @Test
+    fun `Inaccessible command-line class is not traversed for hidden propagation`() {
+        check(
+            hideAnnotations = arrayOf("android.annotation.Hide", "test.pkg.HideComponent"),
+            sourceFiles =
+                arrayOf(
+                    hideAnnotation,
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.Hide;
+                            import java.lang.annotation.ElementType;
+                            import java.lang.annotation.Target;
+
+                            @Target(ElementType.RECORD_COMPONENT)
+                            @Hide
+                            public @interface HideComponent {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            record PackagePrivateRecord(@HideComponent int a) {
+                            }
+                        """
+                    ),
+                ),
+            javaLanguageLevel = "16",
+            expectedIssues = "",
         )
     }
 }

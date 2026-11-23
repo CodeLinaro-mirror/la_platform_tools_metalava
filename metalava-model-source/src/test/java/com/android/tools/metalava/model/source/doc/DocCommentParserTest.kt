@@ -37,7 +37,7 @@ class DocCommentParserTest : BaseDocCommentTest() {
         expectedIssues: String = "",
         checker: DocCommentContext.() -> Unit = {},
     ) {
-        val docComment = createTestDocComment(input, expectedIssues)
+        val (docComment, _) = createTestDocCommentAndContext(input, expectedIssues)
         if (expectedString != null) {
             assertEquals(expectedString.trimIndent(), docComment.toString())
         }
@@ -213,6 +213,10 @@ class DocCommentParserTest : BaseDocCommentTest() {
                 """
                     /** @hide */
                 """,
+            expectedIssues =
+                """
+                    1:6: Use of '@hide' to affect the API surface is deprecated [DeprecatedSurfaceDocTag]
+                """,
         )
     }
 
@@ -239,6 +243,10 @@ class DocCommentParserTest : BaseDocCommentTest() {
                      * @hide
                      */
                 """,
+            expectedIssues =
+                """
+                    2:5: Use of '@hide' to affect the API surface is deprecated [DeprecatedSurfaceDocTag]
+                """,
         )
     }
 
@@ -264,6 +272,10 @@ class DocCommentParserTest : BaseDocCommentTest() {
                      * A block @hide tag.
                      * @hide
                      */
+                """,
+            expectedIssues =
+                """
+                    4:5: Use of '@hide' to affect the API surface is deprecated [DeprecatedSurfaceDocTag]
                 """,
         )
     }
@@ -315,6 +327,10 @@ class DocCommentParserTest : BaseDocCommentTest() {
                      * An unbalanced open {
                      * @hide
                      */
+                """,
+            expectedIssues =
+                """
+                    4:5: Use of '@hide' to affect the API surface is deprecated [DeprecatedSurfaceDocTag]
                 """,
         )
     }
@@ -381,6 +397,10 @@ class DocCommentParserTest : BaseDocCommentTest() {
                 """
                     /** An inline tag at the end of some text {@hide reason why hidden} */
                 """,
+            expectedIssues =
+                """
+                    2:44: Cannot use 'hide' as an inline tag [InvalidTagForm]
+                """,
         )
     }
 
@@ -407,6 +427,10 @@ class DocCommentParserTest : BaseDocCommentTest() {
                      * @see resolved.Something {@hide}
                      */
                 """,
+            expectedIssues =
+                """
+                    4:6: Cannot use 'hide' as an inline tag [InvalidTagForm]
+                """,
         )
     }
 
@@ -417,7 +441,6 @@ class DocCommentParserTest : BaseDocCommentTest() {
                 """
                     /**
                      * @serial some reason
-                     * @hide
                      * @throws
                      * @version current
                      * @author me
@@ -446,7 +469,6 @@ class DocCommentParserTest : BaseDocCommentTest() {
                 """
                     description: <<>>
                     @serial <<some reason>>
-                    @hide <<>>
                     @throws <<>>
                     @version <<current>>
                     @author <<me>>
@@ -492,14 +514,16 @@ class DocCommentParserTest : BaseDocCommentTest() {
                      * @serialData some other reason
                      * @serialField field name and type and explanation
                      * @deprecated
-                     * @hide
                      * @apiSince 12
                      * @sdkExtSince 7
                      * @mysterious
                      * @unknown
                      */
                 """,
-            expectedIssues = "11:5: Cannot use 'inheritDoc' as a block tag [InvalidTagForm]",
+            expectedIssues =
+                """
+                    10:5: Cannot use 'inheritDoc' as a block tag [InvalidTagForm]
+                """,
         )
     }
 
@@ -700,8 +724,8 @@ class DocCommentParserTest : BaseDocCommentTest() {
                 """,
         ) {
             val text = JavadocText("appended")
-            docComment.append(text)
-            checkPrintOutput(docComment, "/** appended */")
+            val updatedComment = docComment.append(text)
+            checkPrintOutput(updatedComment, "/** appended */")
         }
     }
 
@@ -722,9 +746,9 @@ class DocCommentParserTest : BaseDocCommentTest() {
                 """,
         ) {
             val text = JavadocText("appended")
-            docComment.append(text)
+            val updatedComment = docComment.append(text)
             checkPrintOutput(
-                docComment,
+                updatedComment,
                 """
                     /**
                      * existing.
@@ -752,14 +776,14 @@ class DocCommentParserTest : BaseDocCommentTest() {
                     /** */
                 """,
         ) {
-            docComment.append("some {@code text} to append")
+            val updatedComment = docComment.append("some {@code text} to append")
             checkPrintOutput(
-                docComment,
+                updatedComment,
                 """
                     /** some {@code text} to append */
                 """,
             )
-            docComment.assertStructure(
+            updatedComment.assertStructure(
                 """
                     text: 'some '
                     inlineTag: code
@@ -786,9 +810,9 @@ class DocCommentParserTest : BaseDocCommentTest() {
                     /** existing */
                 """,
         ) {
-            docComment.append("some {@code text} to append")
+            val updatedComment = docComment.append("some {@code text} to append")
             checkPrintOutput(
-                docComment,
+                updatedComment,
                 """
                     /**
                      * existing.
@@ -797,7 +821,7 @@ class DocCommentParserTest : BaseDocCommentTest() {
                      */
                 """,
             )
-            docComment.assertStructure(
+            updatedComment.assertStructure(
                 """
                     text: 'existing'
                     text: '.'

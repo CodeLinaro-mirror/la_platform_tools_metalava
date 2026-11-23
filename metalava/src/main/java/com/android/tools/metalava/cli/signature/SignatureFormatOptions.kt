@@ -17,10 +17,11 @@
 package com.android.tools.metalava.cli.signature
 
 import com.android.tools.metalava.cli.common.HARD_NEWLINE
+import com.android.tools.metalava.cli.common.MetalavaOptionGroup
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.map
 import com.android.tools.metalava.model.text.FileFormat
-import com.github.ajalt.clikt.parameters.groups.OptionGroup
+import com.android.tools.metalava.model.text.PropertyMap
 import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
@@ -37,7 +38,7 @@ class SignatureFormatOptions(
     /** The default [FileFormat]. */
     defaultFileFormat: FileFormat = FileFormat.V2,
 ) :
-    OptionGroup(
+    MetalavaOptionGroup(
         name = SIGNATURE_FORMAT_OUTPUT_GROUP,
         help =
             """
@@ -72,9 +73,6 @@ class SignatureFormatOptions(
                         ),
             )
             .convert { defaults -> FileFormat.parseDefaults(defaults) }
-
-    /** Apply optional defaults specified in [formatDefaults] to [base]. */
-    fun applyDefaultsTo(base: FileFormat) = base.copy(formatDefaults = formatDefaults)
 
     /** The output format version being used */
     private val formatSpecifier by
@@ -147,10 +145,29 @@ class SignatureFormatOptions(
                 """,
         )
 
-    /** Apply optional overrides specified in [formatOverrides] to [base]. */
-    private fun applyOverridesTo(base: FileFormat) =
-        formatOverrides?.let { overrides -> FileFormat.parseOverrides(base, overrides) } ?: base
+    /**
+     * Returns a [ComputedSignatureFormatOptions] instance based on the current state of the
+     * options.
+     */
+    fun compute(): ComputedSignatureFormatOptions {
+        return ComputedSignatureFormatOptions(
+            formatDefaults,
+            formatSpecifier,
+            useSameFormatAs,
+            formatOverrides,
+        )
+    }
+}
 
+/**
+ * Options related to signature file format and additional values computed based on those options.
+ */
+class ComputedSignatureFormatOptions(
+    private val formatDefaults: PropertyMap?,
+    formatSpecifier: FileFormat,
+    useSameFormatAs: FileFormat?,
+    private val formatOverrides: String?
+) {
     /**
      * The [FileFormat] produced by merging all the format related options into one cohesive set of
      * format related properties. It combines the defaults
@@ -167,4 +184,11 @@ class SignatureFormatOptions(
             // Apply any additional defaults.
             applyDefaultsTo(withOverrides)
         }
+
+    /** Apply optional defaults specified in [formatDefaults] to [base]. */
+    fun applyDefaultsTo(base: FileFormat) = base.copy(formatDefaults = formatDefaults)
+
+    /** Apply optional overrides specified in [formatOverrides] to [base]. */
+    private fun applyOverridesTo(base: FileFormat) =
+        formatOverrides?.let { overrides -> FileFormat.parseOverrides(base, overrides) } ?: base
 }

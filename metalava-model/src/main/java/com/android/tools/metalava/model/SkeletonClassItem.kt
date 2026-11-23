@@ -66,4 +66,10 @@ interface SkeletonClassItem : ClassItem {
      * the list of methods.
      */
     fun replaceOrAddMethod(method: MethodItem)
+
+    /**
+     * Replace an existing field with [field], if no such field exists then just add [field] to the
+     * list of fields.
+     */
+    fun replaceOrAddField(field: FieldItem)
 }

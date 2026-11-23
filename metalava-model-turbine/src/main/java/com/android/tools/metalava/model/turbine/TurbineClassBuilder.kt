@@ -23,8 +23,6 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrVariableTypeItem
 import com.android.tools.metalava.model.ClassOrigin
-import com.android.tools.metalava.model.ConstructorItem
-import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemKind
 import com.android.tools.metalava.model.ModifierContext
 import com.android.tools.metalava.model.ModifierFlags
@@ -57,10 +55,11 @@ import com.android.tools.metalava.model.WellKnownTypes
 import com.android.tools.metalava.model.addDefaultRetentionPolicyAnnotation
 import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.hasAnnotation
+import com.android.tools.metalava.model.item.ClassMemberInitializer
+import com.android.tools.metalava.model.item.ClassMemberMask
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.model.type.TypeParameterListAndFactory
 import com.android.tools.metalava.model.value.ValueUseSite
-import com.android.tools.metalava.reporter.FileLocation
 import com.google.common.collect.ImmutableList
 import com.google.common.collect.ImmutableMap
 import com.google.turbine.binder.bound.SourceTypeBoundClass
@@ -103,7 +102,7 @@ internal class TurbineClassBuilder(
     private val sourceTypeBoundClass = typeBoundClass as? SourceTypeBoundClass
 
     /** The [FieldResolver] used for resolving [Tree.ConstVarName] to [TypeBoundClass.FieldInfo]. */
-    private var fieldResolver = createFieldResolver(classSymbol, typeBoundClass)
+    private val fieldResolver = createFieldResolver(classSymbol, typeBoundClass)
 
     /**
      * Create a [ClassItem] for the [classSymbol]/[typeBoundClass] pair.
@@ -133,16 +132,9 @@ internal class TurbineClassBuilder(
             if (sourceTypeBoundClass != null) {
                 sourceFileCache.turbineSourceFile(sourceTypeBoundClass.source())
             } else null
-        val fileLocation =
-            when {
-                sourceFile != null -> TurbineFileLocation.forTree(sourceFile, decl)
-                containingClassItem != null ->
-                    TurbineFileLocation.forTree(containingClassItem, decl)
-                else -> FileLocation.UNKNOWN
-            }
 
         // Create class
-        val qualifiedName = classSymbol.qualifiedName
+        val qualifiedName = qualifiedName(classSymbol)
         val classKind = getClassKind(typeBoundClass.kind())
         val modifiers =
             createModifiers(
@@ -150,10 +142,12 @@ internal class TurbineClassBuilder(
                 typeBoundClass.access(),
                 typeBoundClass.annotations(),
             )
+        val classEnclosingTypeItemFactory =
+            enclosingClassTypeItemFactory.withFieldResolver(fieldResolver)
         val (typeParameters, classTypeItemFactory) =
             createTypeParameters(
                 typeBoundClass.typeParameterTypes(),
-                enclosingClassTypeItemFactory,
+                classEnclosingTypeItemFactory,
                 "class $qualifiedName",
             )
 
@@ -189,11 +183,19 @@ internal class TurbineClassBuilder(
                 }
                 .sortedWith(TypeItem.qualifiedComparator)
 
+        // Only populate members eagerly for classes specified on the command line that have API
+        // visibility; classes resolved from the classpath or source path, or command line classes
+        // without API visibility, will populate their members lazily on demand.
+        val createEagerly =
+            origin == ClassOrigin.COMMAND_LINE &&
+                modifiers.hasApiVisibility() &&
+                containingClassItem?.hasApiVisibility() != false
+
         val classItem =
             itemFactory.createClassItem(
-                fileLocation = fileLocation,
+                sourcePosition = decl.sourcePosition,
                 modifiers = modifiers,
-                documentationFactory = itemDocumentationFactoryForDecl(sourceFile, decl),
+                documentationFactory = itemDocumentationFactoryForDecl(decl),
                 source = sourceFile,
                 classKind = classKind,
                 containingClass = containingClassItem,
@@ -216,22 +218,57 @@ internal class TurbineClassBuilder(
                     else {
                         null
                     },
+                memberInitializer =
+                    if (createEagerly) null else LazyMemberInitializer(classTypeItemFactory),
             )
 
-        // Create fields
-        createFields(classItem, typeBoundClass.fields(), classTypeItemFactory)
+        if (createEagerly) {
+            // Create fields
+            createFields(classItem, typeBoundClass.fields(), classTypeItemFactory)
 
-        // Create methods
-        createMethods(classItem, typeBoundClass.methods(), classTypeItemFactory)
+            // Create methods
+            createMethods(classItem, typeBoundClass.methods(), classTypeItemFactory)
 
-        // Create constructors
-        createConstructors(classItem, typeBoundClass.methods(), classTypeItemFactory)
+            // Create constructors
+            createConstructors(classItem, typeBoundClass.methods(), classTypeItemFactory)
+        }
 
         // Create InnerClasses.
         val children = typeBoundClass.children()
         createNestedClasses(classItem, children.values.asList(), classTypeItemFactory)
 
         return classItem
+    }
+
+    /**
+     * Lazily populates fields, methods, and constructors of a non-[ClassOrigin.COMMAND_LINE] class
+     * on demand.
+     *
+     * @param classTypeItemFactory the [TurbineTypeItemFactory] scoped to the class being
+     *   initialized.
+     */
+    private inner class LazyMemberInitializer(
+        private val classTypeItemFactory: TurbineTypeItemFactory,
+    ) :
+        ClassMemberInitializer(
+            // Turbine only models Java sources and bytecode and never creates PropertyItems, so
+            // ClassMemberMask.PROPERTIES does not need to be initialized.
+            ClassMemberMask.CONSTRUCTORS or ClassMemberMask.METHODS or ClassMemberMask.FIELDS
+        ) {
+        override fun initializeMembers(
+            classItem: SkeletonClassItem,
+            mask: ClassMemberMask,
+        ) {
+            if (ClassMemberMask.FIELDS in mask) {
+                createFields(classItem, typeBoundClass.fields(), classTypeItemFactory)
+            }
+            if (ClassMemberMask.METHODS in mask) {
+                createMethods(classItem, typeBoundClass.methods(), classTypeItemFactory)
+            }
+            if (ClassMemberMask.CONSTRUCTORS in mask) {
+                createConstructors(classItem, typeBoundClass.methods(), classTypeItemFactory)
+            }
+        }
     }
 
     /**
@@ -479,9 +516,9 @@ internal class TurbineClassBuilder(
 
             val fieldItem =
                 itemFactory.createFieldItem(
-                    fileLocation = TurbineFileLocation.forTree(classItem, decl),
+                    sourcePosition = decl.sourcePosition,
                     modifiers = fieldmodifiers,
-                    documentationFactory = itemDocumentationFactoryForDecl(classItem, decl),
+                    documentationFactory = itemDocumentationFactoryForDecl(decl),
                     name = field.name(),
                     containingClass = classItem,
                     type = type,
@@ -534,6 +571,15 @@ internal class TurbineClassBuilder(
                 methodmodifiers.setFinal(false)
             }
 
+            // Interface methods cannot be protected or package-private; promote to public to match
+            // PSI.
+            if (
+                (classItem.isInterface() || classItem.isAnnotationType()) &&
+                    !methodmodifiers.isPrivate()
+            ) {
+                methodmodifiers.setVisibilityLevel(VisibilityLevel.PUBLIC)
+            }
+
             val name = method.name()
             val (typeParams, methodTypeItemFactory) =
                 createTypeParameters(
@@ -565,9 +611,9 @@ internal class TurbineClassBuilder(
 
             val methodItem =
                 itemFactory.createMethodItem(
-                    fileLocation = TurbineFileLocation.forTree(classItem, decl),
+                    sourcePosition = decl.sourcePosition,
                     modifiers = methodmodifiers,
-                    documentationFactory = itemDocumentationFactoryForDecl(classItem, decl),
+                    documentationFactory = itemDocumentationFactoryForDecl(decl),
                     name = name,
                     containingClass = classItem,
                     typeParameterList = typeParams,
@@ -575,6 +621,7 @@ internal class TurbineClassBuilder(
                     parameterItemsFactory = { containingCallable ->
                         createParameters(
                             containingCallable,
+                            method.access(),
                             decl?.params(),
                             parameters,
                             methodTypeItemFactory,
@@ -594,26 +641,29 @@ internal class TurbineClassBuilder(
 
     private fun createParameters(
         containingCallable: CallableItem,
+        callableAccess: Int,
         parameterDecls: List<VarDecl>?,
         parameters: List<ParamInfo>,
         typeItemFactory: TurbineTypeItemFactory,
     ): List<ParameterItem> {
         val fingerprint = MethodFingerprint(containingCallable.name(), parameters.size)
-        // Some parameters in [parameters] are implicit parameters that do not have a corresponding
-        // entry in the [parameterDecls] list. The number of implicit parameters is the total
-        // number of [parameters] minus the number of declared parameters [parameterDecls]. The
-        // implicit parameters are always at the beginning so the offset from the declared parameter
-        // in [parameterDecls] to the corresponding parameter in [parameters] is simply the number
-        // of the implicit parameters.
-        val ignoreSynthetic = containingCallable is ConstructorItem
         return buildList {
             var parameterIndex = 0
-            for (parameter in parameters) {
-                if (ignoreSynthetic && parameter.synthetic()) continue
+            for ((idx, parameter) in parameters.withIndex()) {
+                if (parameter.synthetic()) continue
+                // Bytecode does not store the varargs flag on the parameter, it stores it on the
+                // method, so if the callable has the varargs flag set then make sure it is also set
+                // on the last parameter.
+                val flags =
+                    if (idx == parameters.lastIndex) {
+                        parameter.access() or (callableAccess and TurbineFlag.ACC_VARARGS)
+                    } else {
+                        parameter.access()
+                    }
                 val parametermodifiers =
                     createModifiers(
                             ModifierContext.forItemKind(ItemKind.PARAMETER),
-                            parameter.access(),
+                            flags,
                             parameter.annotations(),
                         )
                         .toImmutable()
@@ -633,13 +683,14 @@ internal class TurbineClassBuilder(
                         parameterDecls.get(parameterIndex)
                     else null
 
-                val fileLocation =
-                    TurbineFileLocation.forTree(containingCallable.containingClass(), decl)
+                // Bytecode without a MethodParameters attribute has a null name; synthesize
+                // Metalava's default parameter names ("p", "p1", "p2", ...) to match PSI.
+                val name = parameter.name() ?: if (parameterIndex == 0) "p" else "p$parameterIndex"
                 val parameterItem =
                     itemFactory.createParameterItem(
-                        fileLocation = fileLocation,
+                        sourcePosition = decl.sourcePosition,
                         modifiers = parametermodifiers,
-                        name = parameter.name(),
+                        name = name,
                         publicName = null,
                         containingItem = containingCallable,
                         parameterIndex = parameterIndex,
@@ -669,7 +720,10 @@ internal class TurbineClassBuilder(
             // Skip real methods.
             if (constructor.sym().name() != "<init>") continue
 
+            // Get the source declaration for the constructor. Will be null for constructors loaded
+            // from the class path.
             val decl: MethDecl? = constructor.decl()
+
             val modifiers =
                 createModifiers(
                     ModifierContext.forItemKind(ItemKind.CONSTRUCTOR),
@@ -688,11 +742,12 @@ internal class TurbineClassBuilder(
             val isImplicitDefaultConstructor =
                 (constructor.access() and TurbineFlag.ACC_SYNTH_CTOR) != 0
             val name = classItem.simpleName()
+
             val constructorItem =
                 itemFactory.createConstructorItem(
-                    fileLocation = TurbineFileLocation.forTree(classItem, decl),
+                    sourcePosition = decl.sourcePosition,
                     modifiers = modifiers,
-                    documentationFactory = itemDocumentationFactoryForDecl(classItem, decl),
+                    documentationFactory = itemDocumentationFactoryForDecl(decl),
                     // Turbine's Binder gives return type of constructors as void but the
                     // model expects it to the type of object being created. So, use the
                     // containing [ClassItem]'s type as the constructor return type.
@@ -703,6 +758,7 @@ internal class TurbineClassBuilder(
                     parameterItemsFactory = { constructorItem ->
                         createParameters(
                             constructorItem,
+                            constructor.access(),
                             decl?.params(),
                             constructor.parameters(),
                             constructorTypeItemFactory,
@@ -751,7 +807,7 @@ internal class TurbineClassBuilder(
             val type = classTypeItemFactory.getGeneralType(componentInfo.type())
 
             itemFactory.createRecordComponentItem(
-                fileLocation = classItem.fileLocation,
+                sourcePosition = componentInfo.decl()?.name().sourcePosition,
                 modifiers = modifiers,
                 name = componentInfo.name(),
                 containingClass = classItem,
@@ -760,10 +816,6 @@ internal class TurbineClassBuilder(
             )
         }
 
-    /** Get an [ItemDocumentationFactory] for [decl] in [classItem]. */
-    private fun itemDocumentationFactoryForDecl(classItem: ClassItem, decl: Tree?) =
-        itemDocumentationFactoryForDecl(classItem.sourceFile() as? TurbineSourceFile, decl)
-
     /**
      * Check to see whether the initial value for [field] is non-null.
      *
@@ -771,8 +823,7 @@ internal class TurbineClassBuilder(
      * had an `@NonNull` annotation.
      */
     private fun isInitialValueNonNull(field: FieldInfo): Boolean {
-        val optExpr = field.decl()?.init()
-        val expr = if (optExpr != null && optExpr.isPresent) optExpr.get() else null
+        val expr = field.decl()?.init()?.getOrNull()
         val constantValue = field.value()?.value
 
         val initialValueWithoutRequiredConstant =
@@ -780,17 +831,11 @@ internal class TurbineClassBuilder(
                 constantValue != null -> constantValue
                 expr == null -> null
                 else ->
-                    when (expr.kind()) {
-                        Tree.Kind.LITERAL -> {
-                            (expr as Literal).value().underlyingValue
-                        }
+                    when (expr) {
+                        is Literal -> underlyingValue(expr.value())
                         // Class Type
-                        Tree.Kind.CLASS_LITERAL -> {
-                            expr
-                        }
-                        else -> {
-                            null
-                        }
+                        is Tree.ClassLiteral -> expr
+                        else -> null
                     }
             }
 

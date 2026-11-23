@@ -18,13 +18,9 @@ package com.android.tools.metalava.config
 
 import com.android.tools.metalava.config.ApiFlagActionConfig.Mutability
 import com.android.tools.metalava.config.ApiFlagActionConfig.Status
-import com.fasterxml.jackson.annotation.JsonValue
-import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty
 
 data class ApiFlagsConfig(
-    @field:JacksonXmlProperty(localName = "unknown-flags", namespace = CONFIG_NAMESPACE)
     val unknownFlags: UnknownApiFlagsConfig? = null,
-    @field:JacksonXmlProperty(localName = "api-flag", namespace = CONFIG_NAMESPACE)
     val flags: List<ApiFlagConfig> = emptyList(),
 ) : CombinableConfig<ApiFlagsConfig> {
 
@@ -43,6 +39,16 @@ data class ApiFlagsConfig(
 
     /** Validate this object, i.e. check to make sure that the contained objects are consistent. */
     fun validate() {}
+
+    /** Write this [ApiFlagsConfig] to [writer]. */
+    internal fun writeTo(writer: ConfigWriter) {
+        writer.element("api-flags") {
+            unknownFlags?.writeTo(this)
+            for (flag in flags) {
+                flag.writeTo(this)
+            }
+        }
+    }
 }
 
 interface ApiFlagActionConfig {
@@ -65,8 +71,7 @@ interface ApiFlagActionConfig {
         IMMUTABLE,
         ;
 
-        /** Name to use when serializing and deserializing this [Mutability] instance. */
-        @JsonValue fun forJackson() = name.lowercase()
+        val configFileValue: String = name.lowercase()
     }
 
     enum class Status {
@@ -74,26 +79,49 @@ interface ApiFlagActionConfig {
         DISABLED,
         ;
 
-        /** Name to use when serializing and deserializing this [Status] instance. */
-        @JsonValue fun forJackson() = name.lowercase()
+        val configFileValue: String = name.lowercase()
     }
 }
 
 data class UnknownApiFlagsConfig(
-    @field:JacksonXmlProperty(isAttribute = true) override val mutability: Mutability,
-    @field:JacksonXmlProperty(isAttribute = true) override val status: Status,
-) : ApiFlagActionConfig
+    override val mutability: Mutability,
+    override val status: Status,
+) : ApiFlagActionConfig {
+    /** Write this [UnknownApiFlagsConfig] to [writer]. */
+    internal fun writeTo(writer: ConfigWriter) {
+        writer.element(
+            "unknown-flags",
+            attributes = {
+                attribute("mutability", mutability.configFileValue)
+                attribute("status", status.configFileValue)
+            },
+        )
+    }
+}
 
 data class ApiFlagConfig(
     /** The flag package name. */
-    @field:JacksonXmlProperty(isAttribute = true, localName = "package") val pkg: String,
+    val pkg: String,
 
     /** The flag name, within [pkg]. */
-    @field:JacksonXmlProperty(isAttribute = true) val name: String,
-    @field:JacksonXmlProperty(isAttribute = true) override val mutability: Mutability,
-    @field:JacksonXmlProperty(isAttribute = true) override val status: Status,
+    val name: String,
+    override val mutability: Mutability,
+    override val status: Status,
 
     /** Whether the flag is exported */
-    @field:JacksonXmlProperty(isAttribute = true, localName = "is-exported")
     val isExported: Boolean,
-) : ApiFlagActionConfig
+) : ApiFlagActionConfig {
+    /** Write this [ApiFlagConfig] to [writer]. */
+    internal fun writeTo(writer: ConfigWriter) {
+        writer.element(
+            "api-flag",
+            attributes = {
+                attribute("package", pkg)
+                attribute("name", name)
+                attribute("mutability", mutability.configFileValue)
+                attribute("status", status.configFileValue)
+                attribute("is-exported", isExported)
+            },
+        )
+    }
+}

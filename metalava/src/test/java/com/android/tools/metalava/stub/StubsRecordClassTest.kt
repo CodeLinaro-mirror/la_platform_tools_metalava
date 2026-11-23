@@ -63,6 +63,7 @@ class StubsRecordClassTest : AbstractStubsTest() {
                         """
                     ),
                 ),
+            javaLanguageLevel = "16", // required for records
         )
     }
 
@@ -116,6 +117,7 @@ class StubsRecordClassTest : AbstractStubsTest() {
                         """
                     ),
                 ),
+            javaLanguageLevel = "16", // required for records
         )
     }
 
@@ -172,6 +174,7 @@ class StubsRecordClassTest : AbstractStubsTest() {
                         """
                     ),
                 ),
+            javaLanguageLevel = "16", // required for records
         )
     }
 
@@ -231,6 +234,7 @@ class StubsRecordClassTest : AbstractStubsTest() {
                         """
                     ),
                 ),
+            javaLanguageLevel = "16", // required for records
         )
     }
 
@@ -270,6 +274,7 @@ class StubsRecordClassTest : AbstractStubsTest() {
                         """
                     ),
                 ),
+            javaLanguageLevel = "16", // required for records
         )
     }
 
@@ -321,6 +326,7 @@ class StubsRecordClassTest : AbstractStubsTest() {
                         """
                     ),
                 ),
+            javaLanguageLevel = "16", // required for records
         )
     }
 }

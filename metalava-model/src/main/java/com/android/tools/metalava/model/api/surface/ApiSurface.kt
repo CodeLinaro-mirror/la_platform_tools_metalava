@@ -21,42 +21,60 @@ package com.android.tools.metalava.model.api.surface
  *
  * Their natural ordering is determined by the order in which they were created in [surfaces].
  */
-sealed interface ApiSurface : Comparable<ApiSurface> {
+sealed class ApiSurface : Comparable<ApiSurface> {
     /** The set of [ApiSurface]s to which this belongs. */
-    val surfaces: ApiSurfaces
+    abstract val surfaces: ApiSurfaces
 
     /** The name of the surface. */
-    val name: String
+    abstract val name: String
 
     /** The optional [ApiSurface] that this extends. */
-    val extends: ApiSurface?
-
-    /**
-     * Specifies the contents of this surface.
-     *
-     * This is only of significance if [extends] is set to non-null. Defaults to [Contents.DELTA] if
-     * unspecified.
-     */
-    val contents: Contents
+    abstract val extends: ApiSurface?
 
     /** True if this is the main [ApiSurface] being generated. */
-    val isMain: Boolean
+    abstract val isMain: Boolean
 
     /** The list of [ApiVariant]s, in the same order as [ApiVariantType]s. */
-    val variants: List<ApiVariant>
+    abstract val variants: List<ApiVariant>
 
     /** The set of all [ApiVariant]s in this [ApiSurface]. */
-    val variantSet: ApiVariantSet
+    abstract val variantSet: ApiVariantSet
+
+    /**
+     * The default [ApiVariant]s that will be included in this surface.
+     *
+     * @see ApiVariantType.isDefault
+     */
+    abstract val defaultVariantSet: ApiVariantSet
+
+    /**
+     * The set of all [ApiSurface]s narrower than this one, i.e. the set of all [ApiSurface]s that
+     * this one extends, either directly or indirectly.
+     *
+     * Does not include this [ApiSurface].
+     */
+    abstract val narrowerSurfaces: Set<ApiSurface>
+
+    /**
+     * The set of all [ApiSurface]s included in this one, including this one.
+     *
+     * Is basically [narrowerSurfaces] + this.
+     */
+    abstract val includedSurfaces: Set<ApiSurface>
+
+    /**
+     * The names of all API surfaces included in this one, including this surface's [name], the
+     * names of all [narrowerSurfaces], and the names of any extended surfaces folded into a
+     * standalone surface.
+     */
+    abstract val includedSurfaceNames: Set<String>
+
+    /**
+     * The index of the bit within [ApiVariantSet.bits] that contains the first [ApiVariant] in
+     * [variants].
+     */
+    internal abstract val variantStartBitIndex: Int
 
     /** Get the [ApiVariant] for [ApiVariantType] in this [ApiSurface]. */
-    fun variantFor(type: ApiVariantType): ApiVariant
-
-    /** Specifies how a surface relates to the one it extends. */
-    enum class Contents {
-        /** A delta on top of the extended surface. */
-        DELTA,
-
-        /** A standalone API that incorporates everything from its extended surface(s). */
-        STANDALONE,
-    }
+    abstract fun variantFor(type: ApiVariantType): ApiVariant
 }

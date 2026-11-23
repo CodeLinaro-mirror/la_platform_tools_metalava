@@ -18,15 +18,12 @@ package com.android.tools.metalava.model.visitors
 
 import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SelectableItem
-import com.android.tools.metalava.model.TargetLanguage
-import com.android.tools.metalava.model.TargetLanguageSet
-import java.util.function.Predicate
+import com.android.tools.metalava.model.testOrTrue
 
 open class ApiVisitor(
     /** @see BaseItemVisitor.preserveClassNesting */
@@ -35,129 +32,83 @@ open class ApiVisitor(
     /** @see BaseItemVisitor.visitParameterItems */
     visitParameterItems: Boolean = true,
 
-    /** Whether to visit typealiases in a package after all other [ClassItem]s have been visited. */
-    private val sortTypeAliasesLast: Boolean = true,
-
-    /** Whether to include inherited fields too */
-    private val inlineInheritedFields: Boolean = true,
-
     /** The filters to use to determine what parts of the API will be visited. */
-    private val apiFilters: ApiFilters,
+    apiFilters: ApiFilters?,
 
-    /**
-     * Whether this visitor should visit elements that have not been annotated with one of the
-     * annotations passed in using the --show-annotation flag. This is normally true, but signature
-     * files sometimes sets this to false so the signature file only contains the "diff" of the
-     * annotated API relative to the base API.
-     */
-    protected val showUnannotated: Boolean = true,
-
-    /**
-     * The target languages to consider. If an item's target languages do not include any of these
-     * languages, it will be skipped.
-     */
-    targetLanguages: Set<TargetLanguage> = TargetLanguageSet.ALL,
-) : BaseItemVisitor(preserveClassNesting, visitParameterItems) {
-
-    constructor(
-        /** @see BaseItemVisitor.visitParameterItems */
-        visitParameterItems: Boolean = true,
-
-        /** Configuration that may come from the command line. */
-        apiPredicateConfig: ApiPredicate.Config,
-
-        /** The target languages to consider. */
-        targetLanguages: Set<TargetLanguage> = TargetLanguageSet.ALL,
-    ) : this(
+    /** @see BaseItemVisitor.orderClassesByName */
+    orderClassesByName: Boolean = true,
+) :
+    BaseItemVisitor(
+        preserveClassNesting = preserveClassNesting,
         visitParameterItems = visitParameterItems,
-        apiFilters = defaultFilters(apiPredicateConfig),
-        targetLanguages = targetLanguages,
-    )
+        orderClassesByName = orderClassesByName,
+    ) {
 
     /** The filter to use to determine if we should emit an item */
-    protected val filterEmit = addTargetLanguageCheck(apiFilters.emit, targetLanguages)
+    protected val filterEmit: FilterPredicate? = apiFilters?.emit
 
     /** The filter to use to determine if we should emit a reference to an item */
-    protected val filterReference = addTargetLanguageCheck(apiFilters.reference, targetLanguages)
+    protected val filterReference: FilterPredicate? = apiFilters?.reference
 
-    companion object {
-        /** Get the default [ApiFilters] to use with [ApiVisitor]. */
-        fun defaultFilters(
-            apiPredicateConfig: ApiPredicate.Config,
-        ): ApiFilters {
-            return ApiFilters(
-                emit = defaultEmitFilter(apiPredicateConfig),
-                reference =
-                    ApiPredicate(
-                        ignoreRemoved = false,
-                        config = apiPredicateConfig.copy(ignoreShown = true),
-                    ),
-            )
-        }
-
-        /** Get the default emit filter to use with [ApiVisitor]. */
-        fun defaultEmitFilter(apiPredicateConfig: ApiPredicate.Config) =
-            ApiPredicate(
-                matchRemoved = false,
-                includeApisForStubPurposes = true,
-                config = apiPredicateConfig.copy(ignoreShown = true),
-            )
-
-        /**
-         * Updates the [filter] to also check that the [SelectableItem] has at least one of the
-         * [targetLanguages].
-         */
-        fun addTargetLanguageCheck(
-            filter: FilterPredicate,
-            targetLanguages: Set<TargetLanguage>
-        ): FilterPredicate {
-            return Predicate { item: SelectableItem ->
-                filter.test(item) && item.targetLanguages.intersect(targetLanguages).isNotEmpty()
-            }
-        }
-    }
+    /** The filter to use to determine if an item should be visited during traversal */
+    private val traversalPredicate = apiFilters?.traversal
 
     /**
-     * Visit a [List] of [ClassItem]s after sorting it into order defined by
-     * [ClassItem.classNameSorter]. If [sortTypeAliasesLast] is true, type aliases are after all
-     * other classes.
+     * If a [traversalPredicate] is configured, skip any [SelectableItem] that does not match it.
+     * Otherwise, do not skip any items here.
      */
-    private fun visitClassList(classes: List<ClassItem>) {
-        val sortedByName = classes.sortedWith(ClassItem.classNameSorter())
-        if (sortTypeAliasesLast) {
-                // [sortedBy] is a stable sort, so the name order will be preserved within the
-                // non-typealias classes and within the typealiases.
-                sortedByName.sortedBy { it.classKind == ClassKind.TYPEALIAS }
-            } else {
-                sortedByName
-            }
-            .forEach { it.accept(this) }
+    override fun skip(item: SelectableItem): Boolean {
+        if (traversalPredicate != null) {
+            return !traversalPredicate.test(item)
+        }
+
+        return false
     }
 
     /**
-     * Implement to redirect to [VisitCandidate.accept] if necessary,
+     * Implement to redirect to [VisitCandidate.accept] if necessary, or delegate to
+     * [BaseItemVisitor.visit] when [traversalPredicate] is set.
      *
-     * This is not called by this [ApiVisitor]. Instead, it calls [VisitCandidate.accept] which does
-     * not delegate to this method but visits the class and its members itself so that it can access
-     * the filtered and sorted members. However, this may be called by some other code calling
+     * When [traversalPredicate] is null, this is not called during normal codebase traversal by
+     * this [ApiVisitor]. Instead, [visit(PackageItem)] calls [VisitCandidate.accept] which does not
+     * delegate to this method but visits the class and its members itself so that it can access the
+     * filtered and sorted members. However, this may be called by some other code calling
      * [ClassItem.accept] directly on this [ApiVisitor]. In that case this creates and then
-     * delegates through to the [VisitCandidate.visitWrappedClassAndFilteredMembers]
+     * delegates through to [VisitCandidate.visitWrappedClassAndFilteredMembers].
+     *
+     * When [traversalPredicate] is set, [visit(PackageItem)] delegates to [BaseItemVisitor.visit],
+     * which calls this method to traverse the class and its members directly while respecting
+     * [skip].
      */
     override fun visit(cls: ClassItem) {
+        // When [traversalPredicate] is set, delegate directly to [BaseItemVisitor.visit] to
+        // traverse the class and its members directly while respecting [skip].
+        if (traversalPredicate != null) {
+            super.visit(cls)
+            return
+        }
+
         // Get a VisitCandidate and visit it, if needed.
         getVisitCandidateIfNeeded(cls)?.visitWrappedClassAndFilteredMembers()
     }
 
     override fun visit(pkg: PackageItem) {
+        // When [traversalPredicate] is set, bypass [VisitCandidate] creation and delegate directly
+        // to [BaseItemVisitor.visit] to traverse the package and its classes directly while
+        // respecting [skip].
+        if (traversalPredicate != null) {
+            super.visit(pkg)
+            return
+        }
+
         if (!pkg.emit) {
             return
         }
 
         // Get the list of classes to visit directly. If nested classes are to appear as nested
         // then just visit the top level classes directly and then the nested classes will be
-        // visited
-        // by their containing classes. Otherwise, flatten the nested classes and treat them all as
-        // top level classes.
+        // visited by their containing classes. Otherwise, flatten the nested classes and treat
+        // them all as top level classes.
         val classesToVisitDirectly: List<ClassItem> =
             packageClassesAsSequence(pkg).mapNotNull { getVisitCandidateIfNeeded(it) }.toList()
 
@@ -175,7 +126,7 @@ open class ApiVisitor(
     }
 
     /** @return Whether this class is generally one that we want to recurse into */
-    open fun include(cls: ClassItem): Boolean {
+    private fun include(cls: ClassItem): Boolean {
         if (skip(cls)) {
             return false
         }
@@ -195,7 +146,7 @@ open class ApiVisitor(
 
         // Check to see whether this class should be emitted in its entirety. If not then it may
         // still be emitted if it contains emittable members.
-        val emit = filterEmit.test(cls)
+        val emit = filterEmit.testOrTrue(cls)
 
         // If the class is emitted then create a VisitCandidate immediately.
         if (emit) return VisitCandidate(cls)
@@ -203,7 +154,7 @@ open class ApiVisitor(
         // Check to see if the class could be emitted if it contains emittable members. If not then
         // return `null` to ignore this class. This will happen for a hidden class, e.g. package
         // private, that implements/overrides methods from the API.
-        if (!filterReference.test(cls)) return null
+        if (!filterReference.testOrTrue(cls)) return null
 
         // Create a VisitCandidate to encapsulate the emittable members, if any.
         val vc = VisitCandidate(cls)
@@ -239,15 +190,10 @@ open class ApiVisitor(
                 if (!::_members.isInitialized) {
                     // Construct a single list of all members.
                     _members = buildList {
-                        cls.constructors().filterTo(this) { filterEmit.test(it) }
-                        cls.methods().filterTo(this) { filterEmit.test(it) }
-                        cls.properties().filterTo(this) { filterEmit.test(it) }
-
-                        if (inlineInheritedFields) {
-                            addAll(cls.filteredFields(filterEmit, showUnannotated))
-                        } else {
-                            cls.fields().filterTo(this) { filterEmit.test(it) }
-                        }
+                        cls.constructors().filterTo(this) { filterEmit.testOrTrue(it) }
+                        cls.methods().filterTo(this) { filterEmit.testOrTrue(it) }
+                        cls.properties().filterTo(this) { filterEmit.testOrTrue(it) }
+                        cls.fields().filterTo(this) { filterEmit.testOrTrue(it) }
                     }
                 }
 

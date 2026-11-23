@@ -17,7 +17,6 @@
 package com.android.tools.metalava.lint
 
 import com.android.tools.metalava.DriverTest
-import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.reporter.Issues
@@ -223,15 +222,11 @@ class ApiLintBaselineTest : DriverTest() {
                     "androidx.annotation.RestrictTo(androidx.annotation.RestrictTo.Scope.LIBRARY)"
                 ),
             extraArguments =
-                arrayOf(
-                    ARG_HIDE,
-                    "HiddenSuperclass",
-                    ARG_HIDE,
-                    "ProtectedMember",
-                    ARG_HIDE,
-                    "GetterOnBuilder",
-                    ARG_HIDE,
-                    Issues.INHERIT_CHANGES_SIGNATURE.name,
+                hiddenIssues(
+                    Issues.HIDDEN_SUPERCLASS,
+                    Issues.PROTECTED_MEMBER,
+                    Issues.GETTER_ON_BUILDER,
+                    Issues.INHERIT_CHANGES_SIGNATURE,
                 ),
             sourceFiles =
                 arrayOf(

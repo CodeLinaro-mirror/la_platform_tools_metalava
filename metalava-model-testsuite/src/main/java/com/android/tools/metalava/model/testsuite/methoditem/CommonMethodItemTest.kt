@@ -28,6 +28,7 @@ import com.android.tools.metalava.model.testing.value.classObjectValue
 import com.android.tools.metalava.model.testing.value.fieldReferenceValue
 import com.android.tools.metalava.model.testing.value.literalValue
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.model.testsuite.assertHasNonNullNullability
 import com.android.tools.metalava.testing.createAndroidModuleDescription
 import com.android.tools.metalava.testing.createCommonModuleDescription
 import com.android.tools.metalava.testing.createProjectDescription
@@ -247,6 +248,47 @@ class CommonMethodItemTest : BaseModelTest() {
             val strBounds = methods[1]
             // These methods look the same besides their type parameter bounds
             assertNotEquals(numBounds, strBounds)
+        }
+    }
+
+    @Test
+    fun `Test throws type nullability`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    public final class Test {
+                        private Test() {}
+                        public void throwsException() throws IllegalStateException {
+                        }
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    class Test private constructor() {
+                        @Throws(IllegalStateException::class)
+                        fun throwsException() {}
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public final class Test {
+                        method public void throwsException() throws java.lang.IllegalStateException;
+                      }
+                    }
+                """
+            ),
+        ) {
+            val methodItem = codebase.assertClass("test.pkg.Test").methods().single()
+            val throwsType = methodItem.throwsTypes().single()
+            throwsType.assertHasNonNullNullability()
         }
     }
 

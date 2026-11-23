@@ -18,13 +18,14 @@ package com.android.tools.metalava.model.psi
 
 import androidx.tracing.Tracer
 import com.android.tools.lint.UastEnvironment
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ModelOptions
+import com.android.tools.metalava.model.source.Environment
 import com.android.tools.metalava.model.source.EnvironmentManager
+import com.android.tools.metalava.model.source.SourceSet
+import com.android.tools.metalava.reporter.Reporter
 import com.intellij.core.CoreApplicationEnvironment
 import com.intellij.openapi.diagnostic.DefaultLogger
 import com.intellij.openapi.util.Disposer
-import com.intellij.pom.java.LanguageLevel
 import com.intellij.psi.javadoc.CustomJavadocTagProvider
 import com.intellij.psi.javadoc.JavadocTagInfo
 import java.io.File
@@ -58,10 +59,6 @@ internal class PsiEnvironmentManager(
      */
     private var closed = false
 
-    /** The first environment created by the manager. */
-    var initialEnvironment: UastEnvironment? = null
-        private set
-
     /** The list of available environments. */
     private val uastEnvironments = mutableListOf<UastEnvironment>()
 
@@ -91,9 +88,6 @@ internal class PsiEnvironmentManager(
 
         val environment = UastEnvironment.create(config)
         uastEnvironments.add(environment)
-        if (initialEnvironment == null) {
-            initialEnvironment = environment
-        }
 
         if (disableStderrDumping) {
             DefaultLogger.disableStderrDumping(environment.ideaProject)
@@ -125,23 +119,28 @@ internal class PsiEnvironmentManager(
         }
     }
 
-    override fun createSourceParser(
-        codebaseConfig: Codebase.Config,
-        tracer: Tracer,
+    override fun createEnvironment(
+        sourceSet: SourceSet,
+        classPath: List<File>,
+        projectDescription: File?,
         javaLanguageLevel: String,
         kotlinLanguageLevel: String,
         modelOptions: ModelOptions,
         jdkHome: File?,
-    ): PsiSourceParser {
-        return PsiSourceParser(
-            psiEnvironmentManager = this,
-            codebaseConfig = codebaseConfig,
-            tracer = tracer,
-            javaLanguageLevel = javaLanguageLevelFromString(javaLanguageLevel),
-            kotlinLanguageLevel = kotlinLanguageVersionSettings(kotlinLanguageLevel),
+        reporter: Reporter,
+        tracer: Tracer,
+    ): Environment =
+        PsiEnvironment(
+            environmentManager = this,
+            rawSourceSet = sourceSet,
+            rawClassPath = classPath,
+            projectDescription = projectDescription,
+            javaLanguageLevel = javaLanguageLevel,
+            kotlinLanguageLevel = kotlinLanguageLevel,
             jdkHome = jdkHome,
+            reporter = reporter,
+            tracer = tracer,
         )
-    }
 
     override fun close() {
         closed = true
@@ -153,7 +152,6 @@ internal class PsiEnvironmentManager(
             }
         }
         uastEnvironments.clear()
-        initialEnvironment = null
 
         // Only dispose of the application environment if this is the final environment to close.
         // If it was not then there is no point in checking to make sure that [Disposer] is empty
@@ -178,14 +176,3 @@ internal class PsiEnvironmentManager(
 }
 
 private const val METALAVA_SYNTHETIC_SUFFIX = "metalava_module"
-
-private fun javaLanguageLevelFromString(value: String): LanguageLevel {
-    val level = LanguageLevel.parse(value)
-    when {
-        level == null ->
-            throw IllegalStateException("$value is not a valid or supported Java language level")
-        level.isLessThan(LanguageLevel.JDK_1_7) ->
-            throw IllegalStateException("$value must be at least 1.7")
-        else -> return level
-    }
-}

@@ -17,17 +17,70 @@
 package com.android.tools.metalava.api
 
 import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
+import com.android.tools.lint.checks.infrastructure.TestFiles.source
 import com.android.tools.metalava.ARG_HIDE_ANNOTATION
 import com.android.tools.metalava.DriverTest
+import com.android.tools.metalava.KnownApiSurface
+import com.android.tools.metalava.cli.common.ARG_SOURCE_PATH
+import com.android.tools.metalava.config.ApiFlagActionConfig.Mutability.IMMUTABLE
+import com.android.tools.metalava.config.ApiFlagActionConfig.Mutability.MUTABLE
+import com.android.tools.metalava.config.ApiFlagActionConfig.Status.DISABLED
+import com.android.tools.metalava.config.ApiFlagActionConfig.Status.ENABLED
+import com.android.tools.metalava.config.ApiFlagConfig
+import com.android.tools.metalava.config.ApiFlagsConfig
+import com.android.tools.metalava.config.Config
+import com.android.tools.metalava.config.toTestFile
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.testing.KnownSourceFiles.flaggedApiSource
 import com.android.tools.metalava.testing.KnownSourceFiles.restrictToSource
+import com.android.tools.metalava.testing.createCommonModuleDescription
+import com.android.tools.metalava.testing.createNativeModuleDescription
+import com.android.tools.metalava.testing.createProjectDescription
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
+import java.io.File
 import org.junit.Test
 
 /** Integration tests for [ApiContents]. */
 class ApiContentsTest : DriverTest() {
+    @Test
+    fun `Test hidden nested class`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            public interface Outer {
+                                /** @hide */
+                                interface Nested {}
+                            }
+                        """
+                    ),
+                ),
+            expectedIssues = "",
+        )
+    }
+
+    @Test
+    fun `Accessible nested class inside inaccessible class`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            interface Outer {
+                                interface Nested {}
+                            }
+                        """
+                    ),
+                ),
+            expectedIssues = "",
+        )
+    }
+
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Don't flag indirect implementor of super-interface marked with RestrictTo(LIBRARY_GROUP_PREFIX)`() {
@@ -131,13 +184,9 @@ class ApiContentsTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                    src/test/pkg/Foo.java:3: warning: Field Foo.fieldReferencesHidden1 references hidden type test.pkg.Hidden. [HiddenTypeParameter]
                     src/test/pkg/Foo.java:3: error: Class test.pkg.Hidden is hidden but was referenced (in field type) from public field test.pkg.Foo.fieldReferencesHidden1 [ReferencesHidden]
-                    src/test/pkg/Foo.java:4: warning: Field Foo.fieldReferencesHidden2 references hidden type test.pkg.Hidden. [HiddenTypeParameter]
                     src/test/pkg/Foo.java:4: error: Class test.pkg.Hidden is hidden but was referenced (in field type) from public field test.pkg.Foo.fieldReferencesHidden2 [ReferencesHidden]
-                    src/test/pkg/Foo.java:5: warning: Field Foo.fieldReferencesHidden3 references hidden type test.pkg.Hidden. [HiddenTypeParameter]
                     src/test/pkg/Foo.java:5: error: Class test.pkg.Hidden is hidden but was referenced (in field type) from public field test.pkg.Foo.fieldReferencesHidden3 [ReferencesHidden]
-                    src/test/pkg/Foo.java:6: warning: Field Foo.fieldReferencesHidden4 references hidden type test.pkg.Hidden. [HiddenTypeParameter]
                     src/test/pkg/Foo.java:6: error: Class test.pkg.Hidden is hidden but was referenced (in field type) from public field test.pkg.Foo.fieldReferencesHidden4 [ReferencesHidden]
                 """,
             sourceFiles =
@@ -201,8 +250,6 @@ class ApiContentsTest : DriverTest() {
                 """,
             expectedIssues =
                 """
-                    src/test/pkg/HiddenInterface.kt:5: warning: Method test.pkg.PublicClass.returnsHiddenInterface() references hidden type test.pkg.HiddenInterface. [HiddenTypeParameter]
-                    src/test/pkg/HiddenInterface.kt:5: warning: Return type of unavailable type test.pkg.HiddenInterface in test.pkg.PublicClass.returnsHiddenInterface() [UnavailableSymbol]
                     src/test/pkg/HiddenInterface.kt:5: error: Class test.pkg.HiddenInterface is hidden but was referenced (in return type) from public method test.pkg.PublicClass.returnsHiddenInterface() [ReferencesHidden]
                 """,
         )
@@ -245,8 +292,6 @@ class ApiContentsTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                    src/test/pkg/IntValue.kt:8: warning: Method test.pkg.Foo.usesHiddenTypeAndValueClass(test.pkg.IntValue) references hidden type test.pkg.HiddenClass. [HiddenTypeParameter]
-                    src/test/pkg/IntValue.kt:8: warning: Return type of unavailable type test.pkg.HiddenClass in test.pkg.Foo.usesHiddenTypeAndValueClass() [UnavailableSymbol]
                     src/test/pkg/IntValue.kt:8: error: Class test.pkg.HiddenClass is hidden but was referenced (in return type) from public method test.pkg.Foo.usesHiddenTypeAndValueClass(test.pkg.IntValue) [ReferencesHidden]
                 """,
             sourceFiles =
@@ -345,15 +390,667 @@ class ApiContentsTest : DriverTest() {
                     ),
                 ),
             expectedIssues =
-                // One `HiddenTypeParameter` error is for the property, one is for the getter.
-                // The `ReferencesHidden` and `UnavailableSymbol` checks look specifically at
-                // methods so the errors are for the getter.
+                // The `ReferencesHidden` check looks specifically at methods so the error is for
+                // the getter.
                 """
-                    src/test/pkg/HiddenType.kt:5: warning: Parameter hidden references hidden type test.pkg.HiddenType. [HiddenTypeParameter]
-                    src/test/pkg/HiddenType.kt:5: warning: Parameter hidden references hidden type test.pkg.HiddenType. [HiddenTypeParameter]
                     src/test/pkg/HiddenType.kt:5: error: Class test.pkg.HiddenType is hidden but was referenced (in parameter type) from public parameter hidden in test.pkg.Foo.getPropertyWithContext(test.pkg.HiddenType hidden) [ReferencesHidden]
-                    src/test/pkg/HiddenType.kt:6: warning: Parameter of unavailable type test.pkg.HiddenType in test.pkg.Foo.getPropertyWithContext() [UnavailableSymbol]
                 """,
+        )
+    }
+
+    @Test
+    fun `Reference to hidden nested class from source path`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            public interface Test<T extends Outer.Hidden> {
+                            }
+                        """
+                    ),
+                ),
+            additionalSourcePathFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /** @hide */
+                            public interface Outer {
+                                interface Hidden {}
+                            }
+                        """
+                    ),
+                ),
+            expectedIssues =
+                """
+                    src/test/pkg/Test.java:2: error: Class test.pkg.Outer is hidden but was referenced (as type parameter) from public class test.pkg.Test [ReferencesHidden]
+                    src/test/pkg/Test.java:2: error: Class test.pkg.Outer.Hidden is hidden but was referenced (as type parameter) from public class test.pkg.Test [ReferencesHidden]
+                """,
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Reference to hidden class from public typealias`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        /** @hide */
+                        class Hidden
+                        typealias Public = Hidden
+                        """
+                    )
+                ),
+            expectedIssues =
+                """
+                src/test/pkg/Hidden.kt:4: error: Class test.pkg.Hidden is hidden but was referenced (aliased type) from public typealias test.pkg.Public [ReferencesHidden]
+                """
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Reference to hidden class from public typealias for multiplatform codebase`() {
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Common.kt",
+                """
+                package test.pkg
+                annotation class Hide
+                @Hide class Hidden
+                expect class Public
+                """
+            )
+        val nativeSource =
+            kotlin(
+                "nativeMain/src/test/pkg/Native.kt",
+                """
+                package test.pkg
+                actual typealias Public = Hidden
+                """
+            )
+        check(
+            enableMultiplatform = true,
+            skipSourceArgs = true,
+            sourceFiles = arrayOf(commonSource, nativeSource),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                    createNativeModuleDescription(arrayOf(nativeSource)),
+                ),
+            hideAnnotations = arrayOf("test.pkg.Hide"),
+            expectedIssues =
+                """
+                nativeMain/src/test/pkg/Native.kt:2: error: Class test.pkg.Hidden is hidden but was referenced (aliased type) from public typealias test.pkg.Public [ReferencesHidden]
+                """
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Reference to internal class from public API`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                            package test.pkg
+
+                            internal interface InternalInterface
+
+                            class PublicClass {
+                                @Suppress("EXPOSED_TYPE_PARAMETER_BOUND_DEPRECATION_WARNING")
+                                fun <T : InternalInterface> method(t: T) {}
+                            }
+                        """
+                    ),
+                ),
+            expectedIssues =
+                """
+                    src/test/pkg/InternalInterface.kt:7: error: Class test.pkg.InternalInterface is not public but was referenced (as type parameter) from public method test.pkg.PublicClass.method(T) [ReferencesHidden]
+                """,
+        )
+    }
+
+    @RequiresCapabilities(Capability.EMPTY_SOURCE_PATH)
+    @Test
+    fun `Test empty source-path does not scan source roots`() {
+        check(
+            projectSetup = { dir ->
+                // Write an undeclared Java file with invalid syntax in the same source root.
+                // With --source-path "", this file must not be scanned or parsed.
+                File(dir, "src/test/pkg/Undeclared.java")
+                    .apply { parentFile.mkdirs() }
+                    .writeText("package test.pkg; public class Undeclared { INVALID SYNTAX")
+            },
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            public class Foo {}
+                        """
+                    ),
+                    source(
+                            "src/test/pkg/package.html",
+                            """
+                                <html><body>Package docs</body></html>
+                            """
+                        )
+                        .indented(),
+                    source(
+                            "src/test/pkg/sub/package.html",
+                            """
+                                <html><body>Subpackage docs</body></html>
+                            """
+                        )
+                        .indented(),
+                ),
+            extraArguments = arrayOf(ARG_SOURCE_PATH, ""),
+            checkCompilation = false,
+            expectedApiSignature =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Foo {
+                        ctor public Foo();
+                      }
+                    }
+                """,
+        )
+    }
+
+    @Test
+    fun `Reference to @DocOnly class from public API`() {
+        check(
+            apiSurface = KnownApiSurface.PUBLIC,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.DocOnly;
+                            @DocOnly
+                            public class DocOnlySuper {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.DocOnly;
+                            @DocOnly
+                            public class DocOnlyType {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            public class PublicClass extends DocOnlySuper {
+                                public DocOnlyType getDocOnly() { return null; }
+                            }
+                        """
+                    ),
+                ),
+            // `@DocOnly` classes are excluded from normal stubs and signature files, so extending
+            // a `@DocOnly` superclass reports `HiddenSuperclass` and returning a `@DocOnly` class
+            // reports `ReferencesHidden` with reason `doconly`.
+            expectedIssues =
+                """
+                    src/test/pkg/PublicClass.java:2: warning: Public class test.pkg.PublicClass stripped of unavailable superclass test.pkg.DocOnlySuper [HiddenSuperclass]
+                    src/test/pkg/PublicClass.java:3: error: Class test.pkg.DocOnlyType is doconly but was referenced (in return type) from public method test.pkg.PublicClass.getDocOnly() [ReferencesHidden]
+                """,
+        )
+    }
+
+    /**
+     * Verify how `ApiContents` reports a public API method whose return type is an unflagged
+     * `@RemovedFromApi` class.
+     */
+    @Test
+    fun `Reference to @RemovedFromApi class from public API`() {
+        check(
+            apiSurface = KnownApiSurface.PUBLIC,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.RemovedFromApi;
+                            @RemovedFromApi
+                            public class RemovedType {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            public class PublicClass {
+                                public RemovedType getRemoved() { return null; }
+                            }
+                        """
+                    ),
+                ),
+            // `@RemovedFromApi` classes are in the `REMOVED` variant rather than `CORE`, so
+            // referencing them from a `CORE` public method reports `ReferencesHidden` with reason
+            // `removed`.
+            expectedIssues =
+                """
+                    src/test/pkg/PublicClass.java:3: error: Class test.pkg.RemovedType is removed but was referenced (in return type) from public method test.pkg.PublicClass.getRemoved() [ReferencesHidden]
+                """,
+        )
+    }
+
+    /**
+     * Verify how `ApiContents` checks public API references to an unfinalized `@FlaggedApi` class
+     * from unguarded, same-flag, other-kept-flag, and finalized-flag methods.
+     */
+    @Test
+    fun `Reference to @FlaggedApi class from public API`() {
+        check(
+            apiSurface = KnownApiSurface.PUBLIC,
+            configFiles =
+                arrayOf(
+                    Config(
+                            apiFlags =
+                                ApiFlagsConfig(
+                                    flags =
+                                        listOf(
+                                            // `MUTABLE` + `ENABLED` -> `ApiFlagAction.KEEP`
+                                            // (unfinalized).
+                                            ApiFlagConfig(
+                                                pkg = "test.pkg",
+                                                name = "my_flag",
+                                                mutability = MUTABLE,
+                                                status = ENABLED,
+                                                isExported = true,
+                                            ),
+                                            ApiFlagConfig(
+                                                pkg = "test.pkg",
+                                                name = "other_kept_flag",
+                                                mutability = MUTABLE,
+                                                status = ENABLED,
+                                                isExported = true,
+                                            ),
+
+                                            // `IMMUTABLE` + `ENABLED` -> `ApiFlagAction.FINALIZE`.
+                                            ApiFlagConfig(
+                                                pkg = "test.pkg",
+                                                name = "finalized_flag",
+                                                mutability = IMMUTABLE,
+                                                status = ENABLED,
+                                                isExported = true,
+                                            ),
+                                        )
+                                )
+                        )
+                        .toTestFile("flags-config.xml")
+                ),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.FlaggedApi;
+                            @FlaggedApi("test.pkg.my_flag")
+                            public class FlaggedType {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.FlaggedApi;
+                            public class PublicClass {
+                                public FlaggedType getUnguarded() { return null; }
+                                @FlaggedApi("test.pkg.my_flag")
+                                public FlaggedType getGuarded() { return null; }
+                                @FlaggedApi("test.pkg.other_kept_flag")
+                                public FlaggedType getGuardedByOtherKeptFlag() { return null; }
+                                @FlaggedApi("test.pkg.finalized_flag")
+                                public FlaggedType getGuardedByFinalizedFlag() { return null; }
+                            }
+                        """
+                    ),
+                    flaggedApiSource,
+                ),
+
+            // Referencing an unfinalized `@FlaggedApi` class from an unflagged method or a method
+            // whose `@FlaggedApi` flag is already finalized reports `ReferencesHidden` with reason
+            // `guarded by @FlaggedApi(...)`, whereas referencing it from a method guarded by the
+            // same or another unfinalized flag is valid.
+            expectedIssues =
+                """
+                    src/test/pkg/PublicClass.java:4: error: Class test.pkg.FlaggedType is guarded by @FlaggedApi(test.pkg.my_flag) but was referenced (in return type) from public method test.pkg.PublicClass.getUnguarded() [ReferencesHidden]
+                    src/test/pkg/PublicClass.java:10: error: Class test.pkg.FlaggedType is guarded by @FlaggedApi(test.pkg.my_flag) but was referenced (in return type) from public method test.pkg.PublicClass.getGuardedByFinalizedFlag() [ReferencesHidden]
+                """,
+        )
+    }
+
+    /**
+     * Verify how `ApiContents` checks public API references to a `@RemovedFromApi @FlaggedApi`
+     * class scheduled for removal from unguarded, same-flag, other-removal-flag, and
+     * reverted-removal-flag methods.
+     */
+    @Test
+    fun `Reference to @RemovedFromApi @FlaggedApi class from public API`() {
+        check(
+            apiSurface = KnownApiSurface.PUBLIC,
+            configFiles =
+                arrayOf(
+                    Config(
+                            apiFlags =
+                                ApiFlagsConfig(
+                                    flags =
+                                        listOf(
+                                            // `MUTABLE` + `ENABLED` -> `ApiFlagAction.KEEP`
+                                            // (active removal flag).
+                                            ApiFlagConfig(
+                                                pkg = "test.pkg",
+                                                name = "remove_flag",
+                                                mutability = MUTABLE,
+                                                status = ENABLED,
+                                                isExported = true,
+                                            ),
+                                            ApiFlagConfig(
+                                                pkg = "test.pkg",
+                                                name = "other_remove_flag",
+                                                mutability = MUTABLE,
+                                                status = ENABLED,
+                                                isExported = true,
+                                            ),
+
+                                            // `IMMUTABLE` + `DISABLED` -> `ApiFlagAction.REVERT`
+                                            // (cancels removal).
+                                            ApiFlagConfig(
+                                                pkg = "test.pkg",
+                                                name = "reverted_remove_flag",
+                                                mutability = IMMUTABLE,
+                                                status = DISABLED,
+                                                isExported = true,
+                                            ),
+                                        )
+                                )
+                        )
+                        .toTestFile("flags-config.xml")
+                ),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.FlaggedApi;
+                            import android.annotation.RemovedFromApi;
+                            @RemovedFromApi
+                            @FlaggedApi("test.pkg.remove_flag")
+                            public class FlaggedRemovedType {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.FlaggedApi;
+                            import android.annotation.RemovedFromApi;
+                            public class PublicClass {
+                                public FlaggedRemovedType getUnguarded() { return null; }
+                                @RemovedFromApi
+                                @FlaggedApi("test.pkg.remove_flag")
+                                public FlaggedRemovedType getGuardedRemoval() { return null; }
+                                @RemovedFromApi
+                                @FlaggedApi("test.pkg.other_remove_flag")
+                                public FlaggedRemovedType getGuardedByOtherRemovalFlag() { return null; }
+                                @RemovedFromApi
+                                @FlaggedApi("test.pkg.reverted_remove_flag")
+                                public FlaggedRemovedType getGuardedByRevertedRemovalFlag() { return null; }
+                            }
+                        """
+                    ),
+                    flaggedApiSource,
+                ),
+
+            // Referencing a class scheduled for removal by `@RemovedFromApi @FlaggedApi(...)` from
+            // a method that is not scheduled for removal (unannotated or whose removal flag is
+            // reverted) reports `ReferencesHidden` with reason
+            // `scheduled for removal by @FlaggedApi(...)`, whereas referencing it from a method
+            // scheduled for removal under the same or another unfinalized flag is valid.
+            expectedIssues =
+                """
+                    src/test/pkg/PublicClass.java:5: error: Class test.pkg.FlaggedRemovedType is scheduled for removal by @FlaggedApi(test.pkg.remove_flag) but was referenced (in return type) from public method test.pkg.PublicClass.getUnguarded() [ReferencesHidden]
+                    src/test/pkg/PublicClass.java:14: error: Class test.pkg.FlaggedRemovedType is scheduled for removal by @FlaggedApi(test.pkg.remove_flag) but was referenced (in return type) from public method test.pkg.PublicClass.getGuardedByRevertedRemovalFlag() [ReferencesHidden]
+                """,
+        )
+    }
+
+    /**
+     * Verify that referencing a new `@FlaggedApi` class from a newly added unflagged member of a
+     * previously released `@FlaggedApi` class is allowed because the new member inherits its
+     * enclosing class's `@FlaggedApi`.
+     */
+    @Test
+    fun `Reference to @FlaggedApi class from new member of previously released @FlaggedApi class`() {
+        check(
+            apiSurface = KnownApiSurface.PUBLIC,
+            configFiles =
+                arrayOf(
+                    Config(
+                            apiFlags =
+                                ApiFlagsConfig(
+                                    flags =
+                                        listOf(
+                                            ApiFlagConfig(
+                                                pkg = "test.pkg",
+                                                name = "my_flag",
+                                                mutability = MUTABLE,
+                                                status = ENABLED,
+                                                isExported = true,
+                                            ),
+                                        ),
+                                ),
+                        )
+                        .toTestFile("flags-config.xml"),
+                ),
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class ReleasedClass {
+                        method public void existing();
+                      }
+                    }
+                """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.FlaggedApi;
+                            @FlaggedApi("test.pkg.my_flag")
+                            public class FlaggedType {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.FlaggedApi;
+                            @FlaggedApi("test.pkg.my_flag")
+                            public class ReleasedClass {
+                                private ReleasedClass() {}
+                                public void existing() {}
+                                public FlaggedType getNew() { return null; }
+                            }
+                        """
+                    ),
+                    flaggedApiSource,
+                ),
+            expectedIssues = "",
+        )
+    }
+
+    /**
+     * Verify that newly added unflagged `@SystemApi` members and nested classes inside a previously
+     * released `public` `@FlaggedApi` class inherit its `@FlaggedApi` across extending API
+     * surfaces: they may reference `@FlaggedApi` types guarded by the same flag, and unflagged
+     * `@SystemApi` callers referencing the new nested class report `ReferencesHidden`.
+     */
+    @Test
+    fun `Reference to and from new @SystemApi items in previously released public @FlaggedApi class`() {
+        check(
+            apiSurface = KnownApiSurface.SYSTEM,
+            configFiles =
+                arrayOf(
+                    Config(
+                            apiFlags =
+                                ApiFlagsConfig(
+                                    flags =
+                                        listOf(
+                                            ApiFlagConfig(
+                                                pkg = "test.pkg",
+                                                name = "my_flag",
+                                                mutability = MUTABLE,
+                                                status = ENABLED,
+                                                isExported = true,
+                                            ),
+                                        ),
+                                ),
+                        )
+                        .toTestFile("flags-config.xml"),
+                ),
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class ReleasedClass {
+                        method public void existing();
+                      }
+                    }
+                """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.FlaggedApi;
+                            import android.annotation.SystemApi;
+                            @FlaggedApi("test.pkg.my_flag")
+                            @SystemApi
+                            public class FlaggedType {
+                                private FlaggedType() {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.FlaggedApi;
+                            import android.annotation.SystemApi;
+                            @FlaggedApi("test.pkg.my_flag")
+                            public class ReleasedClass {
+                                private ReleasedClass() {}
+                                public void existing() {}
+                                @SystemApi
+                                public FlaggedType getNewSystem() { return null; }
+                                @SystemApi
+                                public static class NewSystemNested {
+                                    private NewSystemNested() {}
+                                    public FlaggedType getFlagged() { return null; }
+                                }
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.SystemApi;
+                            @SystemApi
+                            public class UnflaggedSystemCaller {
+                                private UnflaggedSystemCaller() {}
+                                public ReleasedClass.NewSystemNested getUnguarded() { return null; }
+                            }
+                        """
+                    ),
+                    flaggedApiSource,
+                ),
+            expectedIssues =
+                """
+                    src/test/pkg/UnflaggedSystemCaller.java:6: error: Class test.pkg.ReleasedClass.NewSystemNested is guarded by @FlaggedApi(test.pkg.my_flag) but was referenced (in return type) from public method test.pkg.UnflaggedSystemCaller.getUnguarded() [ReferencesHidden]
+                """,
+        )
+    }
+
+    /**
+     * Verify that referencing a `@FlaggedApi` class from an unflagged method override of a
+     * `@FlaggedApi` super method is allowed because the override inherits the overridden method's
+     * `@FlaggedApi`.
+     */
+    @Test
+    fun `Reference to @FlaggedApi class from unflagged override of @FlaggedApi method`() {
+        check(
+            apiSurface = KnownApiSurface.PUBLIC,
+            configFiles =
+                arrayOf(
+                    Config(
+                            apiFlags =
+                                ApiFlagsConfig(
+                                    flags =
+                                        listOf(
+                                            ApiFlagConfig(
+                                                pkg = "test.pkg",
+                                                name = "my_flag",
+                                                mutability = MUTABLE,
+                                                status = ENABLED,
+                                                isExported = true,
+                                            ),
+                                        ),
+                                ),
+                        )
+                        .toTestFile("flags-config.xml"),
+                ),
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Base {
+                        ctor public Base();
+                      }
+                      public class Sub extends test.pkg.Base {
+                        ctor public Sub();
+                      }
+                    }
+                """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.FlaggedApi;
+                            @FlaggedApi("test.pkg.my_flag")
+                            public class FlaggedType {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.FlaggedApi;
+                            public class Base {
+                                @FlaggedApi("test.pkg.my_flag")
+                                public void onProvide(FlaggedType value) {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            public class Sub extends Base {
+                                @Override
+                                public void onProvide(FlaggedType value) {}
+                            }
+                        """
+                    ),
+                    flaggedApiSource,
+                ),
+            expectedIssues = "",
         )
     }
 }

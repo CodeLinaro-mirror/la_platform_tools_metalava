@@ -19,6 +19,7 @@ package com.android.tools.metalava.reporter
 import com.android.tools.metalava.reporter.Issues.Issue
 import java.io.File
 import java.io.PrintWriter
+import java.nio.file.Path
 import kotlin.text.Charsets.UTF_8
 
 const val DEFAULT_BASELINE_NAME = "baseline.txt"
@@ -63,6 +64,12 @@ private constructor(
          * source directory.
          */
         val sourcePath: List<File>,
+
+        /**
+         * The root folder, used to convert location information for files outside [sourcePath] to
+         * be relative to the root folder.
+         */
+        val rootFolder: Path = Path.of("").toAbsolutePath(),
     )
 
     /**
@@ -166,18 +173,25 @@ private constructor(
     }
 
     /**
-     * Transform the path (which is absolute) so that it is relative to one of the source roots, and
-     * make sure that it uses `/` consistently as the file separator so that the generated files are
-     * platform independent.
+     * Transform the path (which is absolute) so that it is relative to one of the source roots, or
+     * failing that to [Config.rootFolder], and make sure that it uses `/` consistently as the file
+     * separator so that the generated files are platform independent.
      */
-    private fun transformBaselinePath(path: String): String {
+    private fun transformBaselinePath(path: Path): String {
         for (sourcePath in config.sourcePath) {
-            if (path.startsWith(sourcePath.path)) {
-                return path.substring(sourcePath.path.length).replace('\\', '/').removePrefix("/")
+            if (sourcePath.path.isEmpty()) continue
+            val sourceDirPath = sourcePath.toPath()
+            if (path.startsWith(sourceDirPath)) {
+                return sourceDirPath.relativize(path).toString().replace('\\', '/')
             }
         }
 
-        return path.replace('\\', '/')
+        val rootPath = config.rootFolder
+        if (path.startsWith(rootPath)) {
+            return rootPath.relativize(path).toString().replace('\\', '/')
+        }
+
+        return path.toString().replace('\\', '/')
     }
 
     /**

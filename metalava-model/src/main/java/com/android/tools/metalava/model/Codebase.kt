@@ -152,8 +152,23 @@ interface Codebase : ClassPathResolver, AnnotationContext {
         /** The reporter to use for issues found during processing of the [Codebase]. */
         val reporter: Reporter = ThrowingReporter.INSTANCE,
 
-        /** Whether items on the class path can be hidden, e.g. by a --hide-annotation. */
-        val hideItemsOnClassPath: Boolean = true,
+        /**
+         * Provider for the optional previously released [Codebase] to check against when reverting
+         * flagged APIs.
+         */
+        val previouslyReleasedCodebaseProvider: () -> Codebase? = { null },
+
+        /**
+         * Whether API surfaces have been configured in a config file. When true, Javadoc `@hide`
+         * block tags are ignored for hiding.
+         */
+        val apiSurfacesConfigured: Boolean = false,
+
+        /**
+         * Set of package prefixes for external packages that are not in the codebase, but may be
+         * referenced from documentation.
+         */
+        val externalPackagePrefixes: Set<String> = emptySet(),
     ) {
         companion object {
             /**
@@ -171,12 +186,23 @@ interface Codebase : ClassPathResolver, AnnotationContext {
             item: Item?,
             inherit: Boolean = true,
         ): Item? {
-            return oldCodebase?.let {
-                item?.findCorrespondingItemIn(
-                    oldCodebase,
-                    superMethods = inherit,
-                    duplicate = inherit,
-                )
+            val oldItem =
+                oldCodebase?.let {
+                    item?.findCorrespondingItemIn(
+                        oldCodebase,
+                        superMethods = inherit,
+                        duplicate = inherit,
+                    )
+                }
+            // If this is an expect in the old codebase and an actual in the new one, do not treat
+            // it as previously released because the actual definition may have a different
+            // signature from the expect with a different set of issues to report.
+            return if (
+                oldItem?.modifiers?.isExpect() == true && item?.modifiers?.isActual() == true
+            ) {
+                null
+            } else {
+                oldItem
             }
         }
 

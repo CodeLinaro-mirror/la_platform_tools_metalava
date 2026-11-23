@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.SUPPRESS_ANNOTATIONS
 import com.android.tools.metalava.model.SourceLanguage
+import com.android.tools.metalava.model.SourcePosition
 import com.android.tools.metalava.model.value.StringValue
 import com.android.tools.metalava.reporter.FileLocation
 import java.util.concurrent.atomic.AtomicInteger
@@ -30,10 +31,28 @@ import java.util.concurrent.atomic.AtomicInteger
 /** Base [com.android.tools.metalava.model.Item] implementation that is common to all models. */
 internal sealed class DefaultItem(
     final override val codebase: Codebase,
-    final override val fileLocation: FileLocation,
+    final override val fileLocationSource: FileLocationSource,
+    final override val sourcePosition: SourcePosition,
     final override val sourceLanguage: SourceLanguage,
     modifiers: BaseModifierList,
 ) : Item {
+    final override val fileLocation: FileLocation
+        get() =
+            fileLocationSource.fileLocation(sourcePosition)
+                ?: sourceFile()?.fileLocation(sourcePosition)
+                ?: FileLocation.UNKNOWN
+
+    /**
+     * Get the [FileLocationSource] to pass when duplicating this [DefaultItem] into another
+     * container whose [sourceFile] may differ from this item's [sourceFile].
+     */
+    protected fun duplicateFileLocationSource(): FileLocationSource =
+        if (fileLocationSource == FileLocationSource.NONE) {
+            FileLocationSource.fromSourceFile(sourceFile())
+        } else {
+            fileLocationSource
+        }
+
     /**
      * The immutable [modifiers].
      *

@@ -49,6 +49,7 @@ private constructor(
     fun snapshotIncludingRevertedItems(
         referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor,
         includeDocumentation: Boolean = false,
+        revertItemGetter: (SelectableItem) -> SelectableItem? = { it.selectedApi.revertItem },
     ): CodebaseFragment {
         return LazyCodebaseFragment(
             {
@@ -57,6 +58,7 @@ private constructor(
                     definitionVisitorFactory = visitorFactory,
                     referenceVisitorFactory = referenceVisitorFactory,
                     includeDocumentation,
+                    revertItemGetter,
                 )
             },
             callableComparator,
@@ -66,9 +68,14 @@ private constructor(
 
     /** Visit this fragment, delegating to [delegate]. */
     fun accept(delegate: DelegatedVisitor) {
-        val memberComparator = MemberItemComparator(callableComparator)
-        val sortingDelegate = MemberSortingDelegatedVisitor(memberComparator, delegate)
-        val visitor = visitorFactory(sortingDelegate)
+        val actualDelegate =
+            if (delegate.requiresSortedMembers) {
+                val memberComparator = MemberItemComparator(callableComparator)
+                MemberSortingDelegatedVisitor(memberComparator, delegate)
+            } else {
+                delegate
+            }
+        val visitor = visitorFactory(actualDelegate)
         codebase.accept(visitor)
     }
 

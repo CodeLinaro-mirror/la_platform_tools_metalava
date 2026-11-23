@@ -42,6 +42,17 @@ sealed interface ApiHistoryUpdater {
         deprecated: Boolean = apiElement.deprecatedIn != null,
     )
 
+    /**
+     * Updates the [ApiElement.sdkExtensionApi] of [apiElement] with the [floor] of its
+     * `@SdkExtensionApi` annotation in the version being loaded, if any.
+     *
+     * @param apiElement the [ApiElement] to update.
+     * @param floor the value of the `@SdkExtensionApi` annotation, or `null` if not annotated.
+     */
+    fun updateSdkExtensionApi(apiElement: ApiElement, floor: Int?) {
+        apiElement.updateSdkExtensionApi(floor)
+    }
+
     override fun toString(): String
 
     /** Updates the [ApiElement] by calling [ApiElement.update]. */
@@ -58,6 +69,19 @@ sealed interface ApiHistoryUpdater {
     }
 
     /**
+     * Extends [ApiVersionUpdater] to update [ApiElement.sdkExtensionApi] from the current API,
+     * which takes precedence over all other versions, see
+     * [ApiElement.updateSdkExtensionApiFromCurrent].
+     */
+    private class CurrentApiVersionUpdater(apiVersion: ApiVersion) : ApiVersionUpdater(apiVersion) {
+        override fun updateSdkExtensionApi(apiElement: ApiElement, floor: Int?) {
+            apiElement.updateSdkExtensionApiFromCurrent(floor)
+        }
+
+        override fun toString() = "CurrentApiVersionUpdater(version=$apiVersion)"
+    }
+
+    /**
      * Extends [ApiVersionUpdater] to also update the [ApiElement.sinceExtension] and
      * [ApiElement.mainlineModule] properties.
      *
@@ -71,9 +95,11 @@ sealed interface ApiHistoryUpdater {
         private val isLatestExtVersion: Boolean,
     ) : ApiVersionUpdater(nextSdkVersion) {
         override fun update(api: Api) {
-            // Do not update the Api with the next sdk version as that could cause all classes
-            // which are not provided by an extension to be treated as being removed as they
-            // may not have been recorded as being part of the next sdk version.
+            // Record the version in the Api so that it is known when computing removed versions,
+            // but do not update api.lastPresentIn with the next sdk version as that could cause
+            // all classes which are not provided by an extension to be treated as being removed as
+            // they may not have been recorded as being part of the next sdk version.
+            api.recordVersion(apiVersion)
         }
 
         override fun update(apiElement: ApiElement, deprecated: Boolean) {
@@ -95,6 +121,16 @@ sealed interface ApiHistoryUpdater {
         /** Create an [ApiHistoryUpdater] for [apiVersion]. */
         fun forApiVersion(apiVersion: ApiVersion): ApiHistoryUpdater {
             return ApiVersionUpdater(apiVersion)
+        }
+
+        /**
+         * Create an [ApiHistoryUpdater] for the current API whose version is [apiVersion].
+         *
+         * This behaves like [forApiVersion] except that an `@SdkExtensionApi` floor from the
+         * current API takes precedence over floors from all other versions.
+         */
+        fun forCurrentApiVersion(apiVersion: ApiVersion): ApiHistoryUpdater {
+            return CurrentApiVersionUpdater(apiVersion)
         }
 
         /**

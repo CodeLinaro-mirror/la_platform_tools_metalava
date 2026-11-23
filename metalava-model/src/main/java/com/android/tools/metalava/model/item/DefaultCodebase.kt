@@ -20,10 +20,12 @@ import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.annotation.AnnotationDefaults
 import com.android.tools.metalava.model.annotation.binding.AnnotationBindingCache
 import com.android.tools.metalava.model.annotation.binding.AnnotationBindingFactory
+import com.android.tools.metalava.model.api.SelectedApi
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
@@ -42,6 +44,11 @@ open class DefaultCodebase(
     private val trustedApi: Boolean,
     private val supportsDocumentation: Boolean,
     val assembler: CodebaseAssembler,
+    /**
+     * Provide a single factory for creating [SelectedApi]s for the whole [DefaultCodebase] to
+     * ensure consistent behavior.
+     */
+    internal val selectedApiFactory: (SelectableItem) -> SelectedApi,
 ) : Codebase {
 
     final override val annotationManager: AnnotationManager = config.annotationManager

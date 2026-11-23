@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ParameterKind
+import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiParameter
 import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.analyze
@@ -29,15 +30,19 @@ import org.jetbrains.kotlin.psi.KtPrimaryConstructor
 import org.jetbrains.kotlin.psi.psiUtil.containingClass
 import org.jetbrains.kotlin.psi.psiUtil.hasActualModifier
 import org.jetbrains.uast.UMethod
-import org.jetbrains.uast.getUastParentOfType
 
 internal object PsiParameterDefaultValue {
     /** Determines whether a [psiParameter] has a default value. */
     @OptIn(KaExperimentalApi::class)
-    fun compute(psiParameter: PsiParameter, parameterIndex: Int, kind: ParameterKind): Boolean {
+    fun compute(
+        psiParameter: PsiParameter,
+        parameterIndex: Int,
+        kind: ParameterKind,
+        psiMethod: PsiMethod
+    ): Boolean {
         // Only Kotlin value parameters can have a default value defined
         if (psiParameter.isKotlin() && kind == ParameterKind.VALUE) {
-            val containingUMethod = psiParameter.getUastParentOfType<UMethod>()
+            val containingUMethod = psiMethod as? UMethod ?: return false
 
             // The compiler-generated data class copy method has all optional parameters.
             if (isDataClassCopyMethod(containingUMethod)) {

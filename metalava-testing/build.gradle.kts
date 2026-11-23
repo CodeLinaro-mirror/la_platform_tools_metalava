@@ -28,4 +28,5 @@ dependencies {
     implementation(libs.androidToolsExternalKotlinCompiler)
 
     testImplementation(libs.kotlinTest)
+    testImplementation(libs.kotlinTestJUnit)
 }

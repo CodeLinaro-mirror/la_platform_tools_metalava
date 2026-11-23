@@ -31,14 +31,20 @@ class ApiSurfaceSelectorTest {
     private fun checkRules(
         apiSurfaces: ApiSurfaces = ApiSurfaces.create(),
         rulesByName: Map<String, List<SurfaceSelectionRule>>,
+        mainSurfaceName: String? = null,
         expectedMatcherState: String,
         expectedShowUnannotated: Boolean,
+        expectedUnannotatedSurfaceName: String?,
     ) {
-        val apiSurfaceRules = ApiSurfaceRules(apiSurfaces, rulesByName)
+        val apiSurfaceRules =
+            ApiSurfaceRules(apiSurfaces, rulesByName).let {
+                if (mainSurfaceName == null) it else it.retargetAt(mainSurfaceName)
+            }
         val surfaceSelector = ApiSurfaceSelector(apiSurfaceRules)
         surfaceSelector.assertState(
             expectedMatcherState = expectedMatcherState,
             expectedShowUnannotated = expectedShowUnannotated,
+            expectedUnannotatedSurfaceName = expectedUnannotatedSurfaceName,
         )
     }
 
@@ -142,6 +148,7 @@ class ApiSurfaceSelectorTest {
             rulesByName = mapOf("main" to listOf(SurfaceSelectionRule.unannotated)),
             expectedMatcherState = "AnnotationMatcher(\n)",
             expectedShowUnannotated = true,
+            expectedUnannotatedSurfaceName = "main",
         )
     }
 
@@ -167,17 +174,18 @@ class ApiSurfaceSelectorTest {
                     AnnotationMatcher(
                         android.annotation.Hide -> {
                             Entry(
-                                result: HIDE
+                                result: SurfaceAnnotationData(surface=ApiSurface(main), effect=HIDE, recursive=true)
                             )
                         }
                         android.annotation.OtherApi -> {
                             Entry(
-                                result: SHOW
+                                result: SurfaceAnnotationData(surface=ApiSurface(main), effect=SHOW, recursive=true)
                             )
                         }
                     )
                 """,
             expectedShowUnannotated = true,
+            expectedUnannotatedSurfaceName = "main",
         )
     }
 
@@ -207,73 +215,112 @@ class ApiSurfaceSelectorTest {
                     AnnotationMatcher(
                         android.annotation.Hide -> {
                             Entry(
-                                result: HIDE
+                                result: SurfaceAnnotationData(surface=ApiSurface(base), effect=HIDE, recursive=true)
                             )
                         }
                         android.annotation.OtherApi -> {
                             Entry(
-                                result: SHOW
+                                result: SurfaceAnnotationData(surface=ApiSurface(main), effect=SHOW, recursive=true)
                             )
                         }
                     )
                 """,
             expectedShowUnannotated = false,
+            expectedUnannotatedSurfaceName = "base",
         )
     }
 
     @Test
-    fun `Test create - unannotated extended by annotated twice`() {
+    fun `Test create - unannotated extended by annotated twice - main`() {
         checkRules(
-            apiSurfaces =
-                ApiSurfaces.build {
-                    createSurface("base")
-                    createSurface("intermediate", extends = "base")
-                    createSurface("main", extends = "intermediate", isMain = true)
-                },
-            rulesByName =
-                mapOf(
-                    "base" to
-                        listOf(
-                            SurfaceSelectionRule.unannotated,
-                            SurfaceSelectionRule.createAnnotationRule(
-                                "android.annotation.Hide",
-                                effect = SurfaceSelectionRule.Effect.HIDE
-                            ),
-                        ),
-                    "intermediate" to
-                        listOf(
-                            SurfaceSelectionRule.createAnnotationRule(
-                                "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS)"
-                            ),
-                        ),
-                    "main" to
-                        listOf(
-                            SurfaceSelectionRule.createAnnotationRule(
-                                "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.MODULE_LIBRARIES)"
-                            ),
-                        ),
-                ),
+            apiSurfaces = baseIntermediateMainSurfaces,
+            rulesByName = baseIntermediateMainRules,
             expectedMatcherState =
                 """
                     AnnotationMatcher(
                         android.annotation.Hide -> {
                             Entry(
-                                result: HIDE
+                                result: SurfaceAnnotationData(surface=ApiSurface(base), effect=HIDE, recursive=true)
                             )
                         }
                         android.annotation.SystemApi -> {
                             Entry(
                                 client=android.annotation.SystemApi.Client.MODULE_LIBRARIES
-                                result: SHOW
+                                result: SurfaceAnnotationData(surface=ApiSurface(main), effect=SHOW, recursive=true)
                             )
                             Entry(
                                 client=android.annotation.SystemApi.Client.PRIVILEGED_APPS
-                                result: SHOW_FOR_STUBS
+                                result: SurfaceAnnotationData(surface=ApiSurface(intermediate), effect=SHOW, recursive=true)
                             )
                         }
                     )
                 """,
             expectedShowUnannotated = false,
+            expectedUnannotatedSurfaceName = "base",
         )
+    }
+
+    @Test
+    fun `Test create - unannotated extended by annotated twice - intermediate`() {
+        checkRules(
+            apiSurfaces = baseIntermediateMainSurfaces,
+            rulesByName = baseIntermediateMainRules,
+            mainSurfaceName = "intermediate",
+            expectedMatcherState =
+                """
+                    AnnotationMatcher(
+                        android.annotation.Hide -> {
+                            Entry(
+                                result: SurfaceAnnotationData(surface=ApiSurface(base), effect=HIDE, recursive=true)
+                            )
+                        }
+                        android.annotation.SystemApi -> {
+                            Entry(
+                                client=android.annotation.SystemApi.Client.PRIVILEGED_APPS
+                                result: SurfaceAnnotationData(surface=ApiSurface(intermediate), effect=SHOW, recursive=true)
+                            )
+                            Entry(
+                                client=android.annotation.SystemApi.Client.MODULE_LIBRARIES
+                                result: SurfaceAnnotationData(surface=ApiSurface(base), effect=HIDE, recursive=true)
+                            )
+                        }
+                    )
+                """,
+            expectedShowUnannotated = false,
+            expectedUnannotatedSurfaceName = "base",
+        )
+    }
+
+    companion object {
+        private val baseIntermediateMainSurfaces =
+            ApiSurfaces.build {
+                createSurface("base")
+                createSurface("intermediate", extends = "base")
+                createSurface("main", extends = "intermediate", isMain = true)
+            }
+
+        val baseIntermediateMainRules =
+            mapOf(
+                "base" to
+                    listOf(
+                        SurfaceSelectionRule.unannotated,
+                        SurfaceSelectionRule.createAnnotationRule(
+                            "android.annotation.Hide",
+                            effect = SurfaceSelectionRule.Effect.HIDE
+                        ),
+                    ),
+                "intermediate" to
+                    listOf(
+                        SurfaceSelectionRule.createAnnotationRule(
+                            "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS)"
+                        ),
+                    ),
+                "main" to
+                    listOf(
+                        SurfaceSelectionRule.createAnnotationRule(
+                            "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.MODULE_LIBRARIES)"
+                        ),
+                    ),
+            )
     }
 }

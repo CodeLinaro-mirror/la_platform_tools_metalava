@@ -21,6 +21,7 @@ import sys
 api_annotations = "|".join([
     "SystemApi",
     "TestApi",
+    "Hide",
 ])
 
 api_annotation_group = rf"(?:{api_annotations})"
@@ -277,7 +278,7 @@ def clean_javadoc(file_path):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: ./clean_javadoc.py <file1> <file2> ...")
+        print("Usage: ./remove-hide.py <file1> <file2> ...")
         sys.exit(1)
 
     for file_path in sys.argv[1:]:

@@ -20,6 +20,7 @@ import com.android.tools.metalava.cli.common.MetalavaSubCommand
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.stderr
 import com.android.tools.metalava.cli.signature.ARG_USE_SAME_FORMAT_AS
+import com.android.tools.metalava.cli.signature.ComputedSignatureFormatOptions
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
 import com.android.tools.metalava.cli.signature.readSignatureFiles
 import com.android.tools.metalava.cli.signature.writeSignatureFile
@@ -111,13 +112,14 @@ class SignatureReformatCommand :
      */
     private fun computeOutputFormat(
         currentFormat: FileFormat,
-        targetFormat: FileFormat,
+        computedFormatOptions: ComputedSignatureFormatOptions,
         codebase: Codebase,
-    ) =
-        if (preserveStructure) {
+    ): FileFormat {
+        val targetFormat = computedFormatOptions.fileFormat
+        return if (preserveStructure) {
             // Make sure to apply any defaults provided to the current format to ensure it is the
             // same format as was used to create the current signature file.
-            val currentFormatWithDefaults = formatOptions.applyDefaultsTo(currentFormat)
+            val currentFormatWithDefaults = computedFormatOptions.applyDefaultsTo(currentFormat)
 
             // Compute structure preserving format.
             FileStructurePreserver(currentFormatWithDefaults, targetFormat, codebase)
@@ -125,10 +127,11 @@ class SignatureReformatCommand :
         } else {
             targetFormat
         }
+    }
 
     override fun run() {
         // Get the target format for the signature files.
-        val targetFormat = formatOptions.fileFormat
+        val computedFormatOptions = formatOptions.compute()
 
         for (file in files) {
             // Read the current format from the file header, if none could be found then the file is
@@ -140,7 +143,7 @@ class SignatureReformatCommand :
             val codebase = readSignatureFiles(SignatureFile.fromFiles(file), stderr)
 
             // Compute the output format to use when writing out this file.
-            val outputFormat = computeOutputFormat(currentFormat, targetFormat, codebase)
+            val outputFormat = computeOutputFormat(currentFormat, computedFormatOptions, codebase)
 
             file.printWriter().use { writer -> writeSignatureFile(codebase, outputFormat, writer) }
         }

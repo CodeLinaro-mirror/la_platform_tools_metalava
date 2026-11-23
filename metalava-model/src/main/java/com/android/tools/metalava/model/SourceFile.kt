@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.parser.LineMap
 import com.android.tools.metalava.model.scope.ReferencableNameScope
 import com.android.tools.metalava.model.snapshot.SourceFileSnapshot
 import com.android.tools.metalava.reporter.FileLocation
@@ -29,8 +30,24 @@ interface SourceFile : ReferencableNameScope {
      */
     val fileLocation: FileLocation
 
+    /** The [LineMap] for this [SourceFile]. */
+    val lineMap: LineMap
+
+    /**
+     * Create a [FileLocation] for [sourcePosition] within this [SourceFile], or return
+     * [fileLocation] if [sourcePosition] is not [SourcePosition.isKnown].
+     */
+    fun fileLocation(
+        sourcePosition: SourcePosition,
+        includeCharacterPosition: Boolean = false,
+    ): FileLocation {
+        if (!sourcePosition.isKnown) return fileLocation
+        val path = fileLocation.path ?: return FileLocation.UNKNOWN
+        return lineMap.fileLocation(path, sourcePosition.offset, includeCharacterPosition)
+    }
+
     /** The [Codebase] to which this [SourceFile] belongs. */
-    val codebase: Codebase
+    override val codebase: Codebase
 
     /** The [PackageItem] to which this [SourceFile] belongs. */
     val containingPackage: PackageItem

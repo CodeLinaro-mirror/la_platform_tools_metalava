@@ -19,6 +19,8 @@ package com.android.tools.metalava.model.testsuite.documentation
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.doc.DocContent
 import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.snapshot.CodebaseSnapshotTaker
+import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
 import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
@@ -95,6 +97,8 @@ class CommonItemDocumentationTest : BaseModelTest() {
                     package test.pkg;
 
                     /// Inline comment
+                    // Line comment
+                    /* Block comment */
                     /**
                      * Doc
                      */
@@ -117,6 +121,8 @@ class CommonItemDocumentationTest : BaseModelTest() {
                     package test.pkg
 
                     /// Inline comment
+                    // Line comment
+                    /* Block comment */
                     /**
                      * Doc
                      */
@@ -146,8 +152,9 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
-    fun `Test accessing documentation comment before inline comment - bug 391104222`() {
+    fun `Test accessing documentation comment before inline comment - bug 391104222 - java`() {
         runCodebaseTest(
             java(
                 """
@@ -156,6 +163,8 @@ class CommonItemDocumentationTest : BaseModelTest() {
                     /**
                      * Doc
                      */
+                    // Line comment
+                    /* Block comment */
                     /// Inline comment
                     public class Test {
                         /**
@@ -171,6 +180,19 @@ class CommonItemDocumentationTest : BaseModelTest() {
                     }
                 """
             ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            testClass.assertPrintedDocumentation(expectedOutput = "", message = "class")
+
+            val testMethod = testClass.methods().last()
+            testMethod.assertPrintedDocumentation(expectedOutput = "", message = "method")
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.KOTLIN)
+    @Test
+    fun `Test accessing documentation comment before inline comment - bug 391104222 - kotlin`() {
+        runCodebaseTest(
             kotlin(
                 """
                     package test.pkg
@@ -178,6 +200,8 @@ class CommonItemDocumentationTest : BaseModelTest() {
                     /**
                      * Doc
                      */
+                    // Line comment
+                    /* Block comment */
                     /// Inline comment
                     class Test {
                         /**
@@ -1777,6 +1801,119 @@ class CommonItemDocumentationTest : BaseModelTest() {
                 """
                     .trimIndent(),
                 writer.toString().trim()
+            )
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test mutating duplicated ItemDocumentation`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    public class Base {
+                        /** Summary line. */
+                        public void method() {}
+                    }
+
+                    public class Sub extends Base {}
+                """
+            ),
+        ) {
+            val baseClass = codebase.assertClass("test.pkg.Base")
+            val baseMethod = baseClass.assertMethod("method", emptyList())
+            val subClass = codebase.assertClass("test.pkg.Sub")
+
+            val duplicatedMethod = baseMethod.duplicate(subClass)
+
+            duplicatedMethod.requiredDocumentation.mainDescriptionOwner.append(
+                "Appended to duplicate."
+            )
+            duplicatedMethod.requiredDocumentation.addUniqueBlockTagSectionWithSimpleText(
+                "unique",
+                "1"
+            )
+
+            duplicatedMethod.assertPrintedDocumentation(
+                expectedOutput =
+                    """
+                        /**
+                         * Summary line.
+                         * <br>
+                         * Appended to duplicate.
+                         * @unique 1
+                         */
+                    """,
+                message = "duplicated method",
+            )
+
+            baseMethod.assertPrintedDocumentation(
+                expectedOutput =
+                    """
+                        /** Summary line. */
+                    """,
+                message = "base method",
+            )
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test mutating snapshotted ItemDocumentation`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    public class Test {
+                        /** Summary line. */
+                        public void method() {}
+                    }
+                """
+            ),
+        ) {
+            val originalMethod =
+                codebase.assertClass("test.pkg.Test").assertMethod("method", emptyList())
+
+            val snapshotCodebase =
+                CodebaseSnapshotTaker.takeSnapshot(
+                    codebase,
+                    definitionVisitorFactory = ::NonFilteringDelegatingVisitor,
+                    referenceVisitorFactory = ::NonFilteringDelegatingVisitor,
+                    includeDocumentation = true,
+                )
+            val snapshotMethod =
+                snapshotCodebase.assertClass("test.pkg.Test").assertMethod("method", emptyList())
+
+            snapshotMethod.requiredDocumentation.mainDescriptionOwner.append(
+                "Appended to snapshot."
+            )
+            snapshotMethod.requiredDocumentation.addUniqueBlockTagSectionWithSimpleText(
+                "unique",
+                "1"
+            )
+
+            snapshotMethod.assertPrintedDocumentation(
+                expectedOutput =
+                    """
+                        /**
+                         * Summary line.
+                         * <br>
+                         * Appended to snapshot.
+                         * @unique 1
+                         */
+                    """,
+                message = "snapshot method",
+            )
+
+            originalMethod.assertPrintedDocumentation(
+                expectedOutput =
+                    """
+                        /** Summary line. */
+                    """,
+                message = "original method",
             )
         }
     }

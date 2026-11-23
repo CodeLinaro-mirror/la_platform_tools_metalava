@@ -60,8 +60,6 @@ class VisibleForTestingTest : DriverTest() {
                         "androidx.annotation.VisibleForTesting(otherwise=androidx.annotation.VisibleForTesting.PROTECTED)",
                         "--show-annotation",
                         "androidx.annotation.VisibleForTesting(otherwise=4)",
-                        "--hide",
-                        "UnhiddenSystemApi",
                     )
                 } else {
                     emptyArray()

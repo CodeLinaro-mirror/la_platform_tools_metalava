@@ -18,7 +18,9 @@ package com.android.tools.metalava.model.testsuite
 
 import com.android.tools.metalava.model.api.ApiSurfaceRules
 import com.android.tools.metalava.model.api.surface.ApiVariantType
+import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
@@ -96,7 +98,8 @@ class CommonApiSurfacesTest : BaseModelTest() {
         }
     }
 
-    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
+    @RequiresCapabilities(Capability.MUTATE_SELECTED_API)
+    @SupportedInputFormats(InputFormat.SIGNATURE)
     @Test
     fun `Test mutating selectedApiVariants`() {
         runCodebaseTest(
@@ -110,34 +113,23 @@ class CommonApiSurfacesTest : BaseModelTest() {
                     }
                 """
             ),
-            java(
-                """
-                    package test.pkg;
-
-                    public class Test {
-                        public Test() {}
-                    }
-                """
-            ),
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
 
-            // Make sure that the selectedApiVariants is empty.
-            testClass.mutateSelectedApiVariants { clear() }
+            val selectedApi = testClass.selectedApi
 
             assertEquals(
-                "ApiVariantSet[]",
-                testClass.selectedApiVariants.toString(),
-                "empty selectedApiVariants"
+                "ApiVariantSet[main(C)]",
+                selectedApi.itemApiVariants.formatFor(codebase.apiSurfaces),
+                "initial itemApiVariants"
             )
 
-            val mainStubsApiVariant =
-                codebase.apiSurfaces.main.variantFor(ApiVariantType.DOCUMENTATION)
-            testClass.mutateSelectedApiVariants { add(mainStubsApiVariant) }
+            val mainDocOnlyVariant = codebase.apiSurfaces.main.variantFor(ApiVariantType.DOC_ONLY)
+            selectedApi.addItemApiVariant(mainDocOnlyVariant)
             assertEquals(
-                "ApiVariantSet[main(D)]",
-                testClass.selectedApiVariants.toString(),
-                "mutated selectedApiVariants"
+                "ApiVariantSet[main(CD)]",
+                selectedApi.itemApiVariants.formatFor(codebase.apiSurfaces),
+                "mutated itemApiVariants"
             )
         }
     }

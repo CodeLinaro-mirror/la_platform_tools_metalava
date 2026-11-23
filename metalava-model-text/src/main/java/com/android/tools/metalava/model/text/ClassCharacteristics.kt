@@ -18,20 +18,26 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
+import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ModifierList
+import com.android.tools.metalava.model.SourcePosition
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.item.FileLocationSource
 import com.android.tools.metalava.reporter.FileLocation
 
 /**
  * Characteristics of a class apart from its members.
  *
  * This is basically everything that could appear on the line defining the class in the API
- * signature file.
+ * signature file, plus the [ClassOrigin] of the signature file in which it was declared.
  */
 internal data class ClassCharacteristics(
-    /** The position of the class definition within the API signature file. */
-    val fileLocation: FileLocation,
+    /** The [FileLocationSource] of the API signature file containing the class definition. */
+    val fileLocationSource: FileLocationSource,
+
+    /** The [SourcePosition] of the class definition within the API signature file. */
+    val sourcePosition: SourcePosition,
 
     /** Name including package and full name. */
     val qualifiedName: String,
@@ -58,7 +64,14 @@ internal data class ClassCharacteristics(
 
     /** The aliased type. Should be non-null only when [classKind] is [ClassKind.TYPEALIAS]. */
     val optionalAliasedType: TypeItem?,
+
+    /** The [ClassOrigin] of the signature file from which this class definition was loaded. */
+    val classOrigin: ClassOrigin,
 ) {
+    /** The [FileLocation] of the class definition within the API signature file. */
+    val fileLocation: FileLocation
+        get() = fileLocationSource.fileLocation(sourcePosition) ?: FileLocation.UNKNOWN
+
     /**
      * Checks if the [other] from different signature file can be merged with this
      * [ClassCharacteristics]. For instance, `current.txt` and `system-current.txt` may contain
@@ -83,7 +96,8 @@ internal data class ClassCharacteristics(
     companion object {
         fun of(classItem: ClassItem): ClassCharacteristics =
             ClassCharacteristics(
-                fileLocation = classItem.fileLocation,
+                fileLocationSource = classItem.fileLocationSource,
+                sourcePosition = classItem.sourcePosition,
                 qualifiedName = classItem.qualifiedName(),
                 fullName = classItem.fullName(),
                 classKind = classItem.classKind,
@@ -91,6 +105,7 @@ internal data class ClassCharacteristics(
                 superClassType = classItem.superClassType(),
                 interfaceTypes = classItem.interfaceTypes().toSet(),
                 optionalAliasedType = classItem.optionalAliasedType,
+                classOrigin = classItem.origin,
             )
     }
 }

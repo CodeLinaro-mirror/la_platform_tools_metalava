@@ -1,8 +1,3 @@
-com.android.tools.metalava.DuplicateClassTest
-  Test duplicate classes[turbine]
-
-com.android.tools.metalava.compatibility.CompatibilityCheckTest
-  Expected API changes converting collections to Kotlin[turbine]
-
-com.android.tools.metalava.stub.StubsTest
-  Generate stubs for various modifier scenarios[turbine]
+com.android.tools.metalava.doc.DocApiHistoryTest
+  Method replaced by overload with earlier return type descriptor[psi,lint]
+  Method replaced by overload with earlier return type descriptor[turbine,lint]

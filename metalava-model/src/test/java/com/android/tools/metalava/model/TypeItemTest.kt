@@ -16,9 +16,14 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.testing.arrayTypeItem
 import com.android.tools.metalava.model.testing.primitiveTypeForKind
+import com.android.tools.metalava.model.testing.stringType
+import com.android.tools.metalava.model.testing.variableTypeItem
+import com.android.tools.metalava.model.testing.wildcardTypeItem
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNotSame
 import kotlin.test.assertSame
 import org.junit.Test
@@ -77,5 +82,44 @@ class TypeItemTest {
             assertNotSame(original, substitute)
             assertEquals(!originalVarargs, substitute.isVarargs)
         }
+    }
+
+    @Test
+    fun `Test substitute preserves isValueClassType`() {
+        val newModifiers = TypeModifiers.emptyPlatformModifiers
+
+        val primitiveType =
+            primitiveTypeForKind(PrimitiveTypeItem.Primitive.INT, isValueClassType = true)
+        assertEquals(true, primitiveType.substitute(modifiers = newModifiers).isValueClassType)
+
+        val arrayType = arrayTypeItem(primitiveType, isValueClassType = true)
+        assertEquals(true, arrayType.substitute(modifiers = newModifiers).isValueClassType)
+
+        val classType = stringType(isValueClassType = true)
+        assertEquals(true, classType.substitute(modifiers = newModifiers).isValueClassType)
+
+        val lambdaType =
+            TypeItem.createLambdaType(
+                modifiers = TypeModifiers.emptyNonNullModifiers,
+                qualifiedName = "kotlin.jvm.functions.Function0",
+                arguments = emptyList(),
+                outerClassType = null,
+                isSuspend = false,
+                receiverType = null,
+                parameterTypes = emptyList(),
+                returnType = primitiveTypeForKind(PrimitiveTypeItem.Primitive.VOID),
+                isValueClassType = true,
+            )
+        assertEquals(true, lambdaType.substitute(modifiers = newModifiers).isValueClassType)
+
+        val variableType = variableTypeItem("T", isValueClassType = true)
+        assertEquals(true, variableType.substitute(modifiers = newModifiers).isValueClassType)
+    }
+
+    @Test
+    fun `Test WildcardTypeItem isValueClassType throws`() {
+        val wildcard = wildcardTypeItem()
+        val exception = assertFailsWith<IllegalStateException> { wildcard.isValueClassType }
+        assertEquals("? cannot be a value class type", exception.message)
     }
 }

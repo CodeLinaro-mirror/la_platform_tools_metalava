@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.testsuite.typeitem
 
 import com.android.tools.lint.checks.infrastructure.TestFile
+import com.android.tools.metalava.model.TypeComparator
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.SupportedInputFormats
@@ -31,7 +32,6 @@ import com.android.tools.metalava.testing.TestFileCacheRule
 import com.android.tools.metalava.testing.cacheIn
 import com.android.tools.metalava.testing.jarFromSources
 import com.android.tools.metalava.testing.java
-import kotlin.test.assertEquals
 import org.junit.ClassRule
 import org.junit.Rule
 import org.junit.Test
@@ -436,7 +436,14 @@ class CommonParameterizedInvalidTypeTest : BaseModelTest() {
             val testClass = codebase.assertResolvedClass("test.pkg.Test")
             val testField = testClass.fields().single()
             val type = testField.type()
-            assertEquals(params.expectedBinaryType, type)
+            // Ignore nullability when comparing types because expected types created by test
+            // helpers do not specify nullability, while actual binary types from the codebase
+            // may have model-specific nullability.
+            assertTypeComparison(
+                params.expectedBinaryType,
+                type,
+                TypeComparator.IGNORE_NULLABILITY,
+            )
         }
     }
 
@@ -453,7 +460,14 @@ class CommonParameterizedInvalidTypeTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             val testField = testClass.fields().single()
             val type = testField.type()
-            assertEquals(params.expectedSourceType, type)
+            // Ignore nullability when comparing types because expected types created by test
+            // helpers do not specify nullability, while actual source types from the codebase
+            // may have model-specific nullability.
+            assertTypeComparison(
+                params.expectedSourceType,
+                type,
+                TypeComparator.IGNORE_NULLABILITY,
+            )
         }
     }
 }

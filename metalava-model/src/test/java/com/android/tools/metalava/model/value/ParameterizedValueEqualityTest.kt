@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.value
 
+import com.android.tools.metalava.model.testing.value.annotationValue
 import com.android.tools.metalava.model.testing.value.literalValue
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
@@ -79,6 +80,9 @@ class ParameterizedValueEqualityTest {
          */
         private val pairsOfUnequalValues =
             listOf(
+                annotationValue("test.pkg.Anno1") to annotationValue("test.pkg.Anno2"),
+                annotationValue("test.pkg.Anno1", "attr" to literalValue(1)) to
+                    annotationValue("test.pkg.Anno1", "attr" to literalValue(2)),
                 differentLiterals(true, false),
                 differentLiterals(Byte.MAX_VALUE, Byte.MIN_VALUE),
                 differentLiterals('a', 'b'),

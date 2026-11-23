@@ -17,9 +17,15 @@
 package com.android.tools.metalava.model
 
 import com.android.tools.metalava.model.annotation.AnnotationClass
+import com.android.tools.metalava.model.api.ApiSurfaceSelector
 
 /** Provides support for managing annotations within Metalava. */
 interface AnnotationManager {
+    /**
+     * The [ApiSurfaceSelector] used by this [AnnotationManager] to match API surface annotations
+     * and keep track of whether unannotated items are included in a surface.
+     */
+    val apiSurfaceSelector: ApiSurfaceSelector
 
     /** Get the [AnnotationInfo] for the specified [annotation]. */
     fun getAnnotationInfo(annotation: AnnotationItem): AnnotationInfo
@@ -38,30 +44,6 @@ interface AnnotationManager {
         qualifiedName: String,
         target: AnnotationTarget = AnnotationTarget.SIGNATURE_FILE
     ): String
-
-    /**
-     * Checks to see if this has any show for stubs purposes annotations.
-     *
-     * Returns true if it has, false otherwise.
-     */
-    fun hasAnyStubPurposesAnnotations(): Boolean = false
-
-    /**
-     * Get the [Showability] for the supplied [SelectableItem].
-     *
-     * This combines the [Showability] of all the annotations of this item and returns the result.
-     *
-     * If the annotations on the item conflict then this could throw an exception or report an error
-     * as appropriate.
-     */
-    fun getShowabilityForItem(item: SelectableItem): Showability = Showability.NO_EFFECT
-
-    /**
-     * Checks to see if the modifiers contain any hide annotations.
-     *
-     * See [AnnotationItem.isHideAnnotation]
-     */
-    fun hasHideAnnotations(modifiers: ModifierList): Boolean = false
 
     /**
      * Checks to see if the modifiers contain any suppress compatibility annotations.
@@ -138,6 +120,8 @@ abstract class BaseAnnotationManager : AnnotationManager {
  */
 internal class NoOpAnnotationManager : BaseAnnotationManager() {
 
+    override val apiSurfaceSelector: ApiSurfaceSelector = ApiSurfaceSelector.DEFAULT
+
     override fun getKeyForAnnotationItem(annotationItem: AnnotationItem): String {
         // Just use the qualified name as the key as [computeAnnotationInfo] does not use anything
         // else.
@@ -176,8 +160,8 @@ internal class NoOpAnnotationInfo(
 
     override val typeNullability = computeTypeNullability(qualifiedName)
 
-    override val showability
-        get() = Showability.NO_EFFECT
+    override val surfaceData
+        get() = null
 
     override val apiFlag
         get() = null

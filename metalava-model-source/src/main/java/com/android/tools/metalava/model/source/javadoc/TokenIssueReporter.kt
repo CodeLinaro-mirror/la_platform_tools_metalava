@@ -16,33 +16,32 @@
 
 package com.android.tools.metalava.model.source.javadoc
 
+import com.android.tools.metalava.model.parser.Token
+import com.android.tools.metalava.model.parser.TokenStream
+import com.android.tools.metalava.model.parser.TokenType
 import com.android.tools.metalava.model.source.doc.DocumentationFragmentIssueReporter
 import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
+import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Issues.Issue
-import org.antlr.v4.runtime.Token
 
 /** A [DocumentationIssueReporter] that reports issues for a [Token]. */
 internal class TokenIssueReporter(reporter: DocumentationIssueReporter) :
     DocumentationFragmentIssueReporter(reporter) {
-    /** The [Token] on which the issues will be reported. */
-    internal var token: Token? = null
+    /** The [Token] on which the issues will be reported, or [Token.NONE] if not set. */
+    internal var token: Token = Token.NONE
 
-    /** The line offset of [token] from the beginning of the content parsed by [JavadocParser]. */
-    override val lineOffsetFromContainer: Int
-        get() =
-            // The token's `line` property is 1-based but this is 0-based so convert the former
-            // to the latter.
-            token!!.line - 1
-
-    /** The character offset of [token] from the beginning of the line containing it. */
-    override val firstLineCharacterOffset: Int
-        get() =
-            // The token's `charPositionInLine` is already 0-based like this.
-            token!!.charPositionInLine
+    /**
+     * The character offset of [token] from the beginning of the content parsed by [JavadocParser].
+     */
+    override val charOffsetFromContainer: Int
+        get() {
+            check(token != Token.NONE) { "token is not set" }
+            return token.startOffset
+        }
 
     /** Treat any issues reported by [body] as if they were reported on [token]. */
     inline fun <R> reportAtToken(token: Token, body: () -> R): R {
-        val oldToken = token
+        val oldToken = this.token
         this.token = token
         try {
             return body()
@@ -54,5 +53,26 @@ internal class TokenIssueReporter(reporter: DocumentationIssueReporter) :
     /** Report [issue] with message for [token]. */
     fun report(token: Token, issue: Issue, message: String) {
         reportAtToken(token) { report(issue, message) }
+    }
+
+    /**
+     * Consumes and returns the current token in [tokens] if its type equals [type]. Otherwise,
+     * reports an [Issues.INVALID_JAVADOC] issue with [errorMessage] at the current token's location
+     * and returns [Token.NONE].
+     */
+    fun expect(
+        tokens: TokenStream,
+        type: TokenType,
+        errorMessage: String,
+    ): Token {
+        if (tokens.peekType() == type) {
+            return tokens.consume()
+        }
+        report(
+            tokens.peek(),
+            Issues.INVALID_JAVADOC,
+            errorMessage,
+        )
+        return Token.NONE
     }
 }

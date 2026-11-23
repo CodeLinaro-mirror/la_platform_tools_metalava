@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.item
 
-import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
@@ -24,6 +23,7 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceLanguage
+import com.android.tools.metalava.model.SourcePosition
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.duplicatingFactory
@@ -31,14 +31,13 @@ import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.scope.ReferencableNameScope
 import com.android.tools.metalava.model.value.ConstantValue
 import com.android.tools.metalava.model.value.OptionalValueProvider
-import com.android.tools.metalava.reporter.FileLocation
 
 internal class DefaultFieldItem(
     codebase: Codebase,
-    fileLocation: FileLocation,
+    fileLocationSource: FileLocationSource,
+    sourcePosition: SourcePosition,
     sourceLanguage: SourceLanguage,
     targetLanguages: Set<TargetLanguage>,
-    variantSelectorsFactory: ApiVariantSelectorsFactory,
     modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
     name: String,
@@ -49,12 +48,12 @@ internal class DefaultFieldItem(
 ) :
     DefaultMemberItem(
         codebase = codebase,
-        fileLocation = fileLocation,
+        fileLocationSource = fileLocationSource,
+        sourcePosition = sourcePosition,
         sourceLanguage = sourceLanguage,
         targetLanguages = targetLanguages,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
-        variantSelectorsFactory = variantSelectorsFactory,
         name = name,
         containingClass = containingClass,
     ),
@@ -72,11 +71,12 @@ internal class DefaultFieldItem(
 
     override fun duplicate(targetContainingClass: ClassItem) =
         DefaultFieldItem(
-                codebase = codebase,
-                fileLocation = fileLocation,
+                // Create it in the same codebase as targetContainingClass.
+                codebase = targetContainingClass.codebase,
+                fileLocationSource = duplicateFileLocationSource(),
+                sourcePosition = sourcePosition,
                 sourceLanguage = sourceLanguage,
                 targetLanguages = targetLanguages,
-                variantSelectorsFactory = variantSelectors::duplicate,
                 modifiers = modifiers,
                 documentationFactory = documentation.duplicatingFactory(),
                 name = name(),

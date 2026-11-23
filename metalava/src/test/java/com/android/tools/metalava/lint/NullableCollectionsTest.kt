@@ -17,9 +17,9 @@
 package com.android.tools.metalava.lint
 
 import com.android.tools.metalava.DriverTest
-import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
@@ -115,7 +115,10 @@ class NullableCollectionsTest : DriverTest() {
     fun `Check nullable collection on overridden method`() {
         check(
             apiLint = "", // enabled
-            extraArguments = arrayOf(ARG_HIDE, "HiddenSuperclass"),
+            extraArguments =
+                hiddenIssues(
+                    Issues.HIDDEN_SUPERCLASS,
+                ),
             expectedIssues =
                 """
                 src/android/pkg/MyClass.java:7: warning: Return type of method android.pkg.MyClass.getList(java.util.List<java.lang.String>) uses a nullable collection (`java.util.List`); must be non-null [NullableCollection]
@@ -182,7 +185,10 @@ class NullableCollectionsTest : DriverTest() {
         // Allowed for legacy reasons, b/343748165
         check(
             apiLint = "", // enabled
-            extraArguments = arrayOf(ARG_HIDE, "ArrayReturn"),
+            extraArguments =
+                hiddenIssues(
+                    Issues.ARRAY_RETURN,
+                ),
             sourceFiles =
                 arrayOf(
                     java(
@@ -209,7 +215,11 @@ class NullableCollectionsTest : DriverTest() {
     fun `Check inner nullable collections`() {
         check(
             apiLint = "", // enabled
-            extraArguments = arrayOf(ARG_HIDE, "ArrayReturn,NullableCollectionElement"),
+            extraArguments =
+                hiddenIssues(
+                    Issues.ARRAY_RETURN,
+                    Issues.NULLABLE_COLLECTION_ELEMENT,
+                ),
             expectedIssues =
                 """
                     src/test/pkg/Foo.kt:4: warning: Return type of method test.pkg.Foo.foo() uses a nullable collection (`java.util.List`); must be non-null [NullableCollection]
@@ -239,7 +249,11 @@ class NullableCollectionsTest : DriverTest() {
     fun `Check inner nullable collections matching super method`() {
         check(
             apiLint = "", // enabled
-            extraArguments = arrayOf(ARG_HIDE, "HiddenSuperclass,NullableCollectionElement"),
+            extraArguments =
+                hiddenIssues(
+                    Issues.HIDDEN_SUPERCLASS,
+                    Issues.NULLABLE_COLLECTION_ELEMENT,
+                ),
             expectedIssues =
                 """
                     src/test/pkg/Bar.kt:4: warning: Return type of method test.pkg.Bar.bar() uses a nullable collection (`java.util.List`); must be non-null [NullableCollection]
@@ -291,7 +305,10 @@ class NullableCollectionsTest : DriverTest() {
     fun `Test nullable collection elements`() {
         check(
             apiLint = "", // enabled
-            extraArguments = arrayOf(ARG_HIDE, "ArrayReturn"),
+            extraArguments =
+                hiddenIssues(
+                    Issues.ARRAY_RETURN,
+                ),
             expectedIssues =
                 """
                     src/test/pkg/Foo.kt:3: warning: Collection java.lang.String[] should not have a nullable element type (java.lang.String) in method test.pkg.Foo.foo() [NullableCollectionElement]
@@ -319,7 +336,10 @@ class NullableCollectionsTest : DriverTest() {
     fun `Test nullable collection elements matching super method`() {
         check(
             apiLint = "", // enabled
-            extraArguments = arrayOf(ARG_HIDE, "ArrayReturn"),
+            extraArguments =
+                hiddenIssues(
+                    Issues.ARRAY_RETURN,
+                ),
             expectedIssues =
                 """
                     src/test/pkg/Parent.kt:3: warning: Collection java.lang.String[] should not have a nullable element type (java.lang.String) in method test.pkg.Parent.foo() [NullableCollectionElement]

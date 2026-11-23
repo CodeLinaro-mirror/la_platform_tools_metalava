@@ -311,6 +311,11 @@ class PsiMethodItemTest : BaseModelTest() {
             val childMethodItem =
                 codebase.assertClass("ChildClass").assertMethod("bar", emptyList())
             assertEquals(true, childMethodItem.isRequiredOverridingMethodForTextStub())
+            assertAndRemoveReportedIssues(
+                """
+                    MAIN_SRC/src/SuperParentInterface.java:7: hidden: Attempting to hide method ParentInterface.bar() which overrides method SuperParentInterface.bar() which is already part of the API [HidingApiMethodOverride]
+                """
+            )
         }
     }
 

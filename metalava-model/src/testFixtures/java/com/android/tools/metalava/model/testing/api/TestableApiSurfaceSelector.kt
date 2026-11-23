@@ -24,11 +24,19 @@ import kotlin.test.assertEquals
  *
  * @param expectedMatcherState the expected toString of the underlying annotation matcher.
  * @param expectedShowUnannotated the expected value of [ApiSurfaceSelector.showUnannotated].
+ * @param expectedUnannotatedSurfaceName the expected name of
+ *   [ApiSurfaceSelector.unannotatedApiSurface].
  */
 fun ApiSurfaceSelector.assertState(
     expectedMatcherState: String,
     expectedShowUnannotated: Boolean,
+    expectedUnannotatedSurfaceName: String?,
 ) {
     assertEquals(expectedMatcherState.trimIndent(), matcher.toString(), message = "matcher state")
     assertEquals(expectedShowUnannotated, showUnannotated, message = "show unannotated")
+    assertEquals(
+        expectedUnannotatedSurfaceName,
+        unannotatedApiSurface?.name,
+        message = "unannotated surface name"
+    )
 }

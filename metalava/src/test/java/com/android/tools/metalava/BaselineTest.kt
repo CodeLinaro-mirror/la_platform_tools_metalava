@@ -17,10 +17,9 @@
 package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFiles.source
-import com.android.tools.metalava.cli.common.ARG_ERROR
-import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.cli.lint.ARG_API_LINT
 import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import java.io.File
@@ -32,16 +31,12 @@ class BaselineTest : DriverTest() {
         check(
             format = FileFormat.V2,
             extraArguments =
-                arrayOf(
-                    ARG_HIDE,
-                    "HiddenSuperclass",
-                    ARG_HIDE,
-                    "UnavailableSymbol",
-                    ARG_HIDE,
-                    "HiddenTypeParameter",
-                    ARG_ERROR,
-                    "ReferencesHidden"
-                ),
+                hiddenIssues(
+                    Issues.HIDDEN_SUPERCLASS,
+                ) +
+                    errorIssues(
+                        Issues.REFERENCES_HIDDEN,
+                    ),
             baselineTestInfo =
                 BaselineTestInfo(
                     inputContents =
@@ -234,7 +229,6 @@ class BaselineTest : DriverTest() {
                     }
                     """
                     ),
-                    testApiSource,
                     KnownSourceFiles.androidxNullableJavaSource,
                 ),
             expectedApiSignature =
@@ -248,6 +242,32 @@ class BaselineTest : DriverTest() {
                   }
                 }
                 """
+        )
+    }
+
+    @Test
+    fun `Check baseline from signature file`() {
+        check(
+            format = FileFormat.V2,
+            signatureSource =
+                """
+                // Signature format: 2.0
+                package test.pkg {
+                  public class Foo {
+                    field public int field = 1;
+                  }
+                }
+                """,
+            baselineTestInfo =
+                BaselineTestInfo(
+                    inputContents = "",
+                    expectedOutputContents =
+                        """
+                            // Baseline format: 1.0
+                            SignatureFileError: load-api.txt:
+                                Field field in class test.pkg.Foo has a value of `1` but is not `static` and `final`; ignoring value
+                        """,
+                ),
         )
     }
 }

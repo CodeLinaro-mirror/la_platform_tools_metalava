@@ -17,7 +17,6 @@
 package com.android.tools.metalava.lint
 
 import com.android.tools.metalava.model.ClassKind
-import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.multiplatform.BaseMultiplatformItemVisitor
 import com.android.tools.metalava.model.multiplatform.MultiplatformClassItem
@@ -33,7 +32,6 @@ import com.android.tools.metalava.reporter.Issues.KMP_DEPRECATION_MISMATCH
 import com.android.tools.metalava.reporter.Issues.KMP_EXPERIMENTAL_MISMATCH
 import com.android.tools.metalava.reporter.Issues.KMP_HIDE_SHOW_ANNOTATION_MISMATCH
 import com.android.tools.metalava.reporter.Issues.KMP_MODIFIER_MISMATCH
-import com.android.tools.metalava.reporter.Issues.KMP_ORIGIN_MISMATCH
 import com.android.tools.metalava.reporter.Issues.KMP_REIFIED_MISMATCH
 import com.android.tools.metalava.reporter.Issues.KMP_SIGNATURE_CLASH
 import com.android.tools.metalava.reporter.Issues.KMP_VISIBILITY_MISMATCH
@@ -42,33 +40,6 @@ import com.android.tools.metalava.reporter.Reporter
 class MultiplatformLint(val reporter: Reporter) : BaseMultiplatformItemVisitor() {
     fun check(codebase: MultiplatformCodebase) {
         codebase.accept(this)
-    }
-
-    override fun skip(item: MultiplatformItem<*>): Boolean {
-        if (item is MultiplatformClassItem) {
-            val originToSourceSet = item.origin.valueToSourceSet { it }
-            // It seems unlikely a class would be defined in sources in one source set and on the
-            // classpath in another, but if it happens, report it and run lint checks.
-            if (originToSourceSet.size > 1) {
-                val originDescriptions =
-                    originToSourceSet.entries.joinToString { (origin, sourceSets) ->
-                        "$origin in $sourceSets"
-                    }
-                reporter.report(
-                    KMP_ORIGIN_MISMATCH,
-                    item,
-                    "$item has different origins in different source sets: $originDescriptions"
-                )
-                return false
-            }
-            // Skip processing any items that were not defined in source.
-            return originToSourceSet.keys.single() != ClassOrigin.COMMAND_LINE
-        }
-
-        // For anything other than classes, always check the item. This includes items which are not
-        // part of the API surface, because several of the checks ensure that whether an element is
-        // part of the API surface is the same between source sets.
-        return false
     }
 
     /**

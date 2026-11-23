@@ -16,8 +16,13 @@
 
 package com.android.tools.metalava.model.testsuite.classitem
 
+import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
 import com.android.tools.metalava.model.SkeletonClassItem
+import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.api.ApiSurfaceRules
+import com.android.tools.metalava.model.api.SurfaceSelectionRule
+import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testing.classTypeItem
@@ -72,6 +77,10 @@ class CommonSealedClassTest : BaseModelTest() {
                     }
                 """
             ),
+            testFixture =
+                TestFixture(
+                    javaLanguageLevel = "17", // required for sealed classes
+                ),
         ) {
             val testClass = codebase.assertClass("test.pkg.SealedClass")
             assertTrue(testClass.modifiers.isSealed())
@@ -110,6 +119,10 @@ class CommonSealedClassTest : BaseModelTest() {
                     }
                """
             ),
+            testFixture =
+                TestFixture(
+                    javaLanguageLevel = "17", // required for sealed classes
+                ),
         ) {
             val testClass = codebase.assertClass("test.pkg.SealedClass")
             assertTrue(testClass.modifiers.isSealed())
@@ -225,6 +238,10 @@ class CommonSealedClassTest : BaseModelTest() {
                     """
                 ),
             ),
+            testFixture =
+                TestFixture(
+                    javaLanguageLevel = "17", // required for sealed classes
+                ),
         ) {
             val testClass = codebase.assertClass("test.pkg.SealedClass")
 
@@ -295,6 +312,10 @@ class CommonSealedClassTest : BaseModelTest() {
                     """
                 ),
             ),
+            testFixture =
+                TestFixture(
+                    javaLanguageLevel = "17", // required for sealed classes
+                ),
         ) {
             val testClass = codebase.assertClass("test.pkg.SealedClass")
 
@@ -350,6 +371,10 @@ class CommonSealedClassTest : BaseModelTest() {
                     }
                 """
             ),
+            testFixture =
+                TestFixture(
+                    javaLanguageLevel = "17", // required for sealed classes
+                ),
         ) {
             val testClass = codebase.assertClass("test.pkg.SealedClass")
 
@@ -422,6 +447,10 @@ class CommonSealedClassTest : BaseModelTest() {
                     """
                 ),
             ),
+            testFixture =
+                TestFixture(
+                    javaLanguageLevel = "17", // required for sealed classes
+                ),
         ) {
             val testClass = codebase.assertClass("test.pkg.SealedClass")
             assertFalse(testClass.modifiers.isExhaustive())
@@ -474,6 +503,10 @@ class CommonSealedClassTest : BaseModelTest() {
                     """
                 ),
             ),
+            testFixture =
+                TestFixture(
+                    javaLanguageLevel = "17", // required for sealed classes
+                ),
         ) {
             val testClass = codebase.assertClass("test.pkg.SealedClass")
             assertTrue(testClass.modifiers.isExhaustive())
@@ -531,6 +564,10 @@ class CommonSealedClassTest : BaseModelTest() {
                     """
                 ),
             ),
+            testFixture =
+                TestFixture(
+                    javaLanguageLevel = "17", // required for sealed classes
+                ),
         ) {
             val testClass = codebase.assertClass("test.pkg.SealedClass")
             assertFalse(testClass.modifiers.isExhaustive())
@@ -561,6 +598,10 @@ class CommonSealedClassTest : BaseModelTest() {
                     """
                 ),
             ),
+            testFixture =
+                TestFixture(
+                    javaLanguageLevel = "17", // required for sealed classes
+                ),
             // This does not run in Kotlin as there is no way to have a sealed concrete class in
             // Kotlin as Kotlin treats all sealed classes as abstract.
         ) {
@@ -599,6 +640,10 @@ class CommonSealedClassTest : BaseModelTest() {
                     """
                 ),
             ),
+            testFixture =
+                TestFixture(
+                    javaLanguageLevel = "17", // required for sealed classes
+                ),
             // This does not run in Kotlin as there is no way to have a sealed concrete class in
             // Kotlin as Kotlin treats all sealed classes as abstract.
         ) {
@@ -653,6 +698,10 @@ class CommonSealedClassTest : BaseModelTest() {
                     """
                 ),
             ),
+            testFixture =
+                TestFixture(
+                    javaLanguageLevel = "17", // required for sealed classes
+                ),
         ) {
             val testClass = codebase.assertClass("test.pkg.SealedClass")
 
@@ -698,10 +747,99 @@ class CommonSealedClassTest : BaseModelTest() {
                     """
                 ),
             ),
+            testFixture =
+                TestFixture(
+                    javaLanguageLevel = "17", // required for sealed classes
+                ),
         ) {
             val testClass = codebase.assertClass("test.pkg.SealedClass")
 
             testClass.assertConstructor(listOf("int")).also { constructor ->
+                assertEquals(
+                    VisibilityLevel.PRIVATE,
+                    constructor.modifiers.getVisibilityLevel(),
+                )
+            }
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.KOTLIN)
+    @Test
+    fun `class with published internal constructor`() {
+        val apiSurfaces = ApiSurfaces.create()
+        val rulesByName =
+            mapOf(
+                "main" to
+                    listOf(
+                        SurfaceSelectionRule.unannotated,
+                        SurfaceSelectionRule.createAnnotationRule("kotlin.PublishedApi"),
+                    )
+            )
+        val apiSurfaceRules = ApiSurfaceRules(apiSurfaces, rulesByName)
+
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    """
+                    package test.pkg
+
+                    open class Foo @PublishedApi internal constructor()
+                    """
+                )
+            ),
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 2.3.20 (JRE 21.0.9+10-b1163.91)
+                    "" +
+                        "H4sIAAAAAAAA/wvwZmYRYeDg4GBgYFBkQAYiDLwMvq4hjrqefm76vo5+nm6u" +
+                        "wSF6vm6hIawMjAzLzgn9O8XA8Nn3zGkfb129i7zeulrnzpzfHGRwxfjB0yI9" +
+                        "L18dT9+Lpau2BH3w0i3U8jpzRjvswzn9kyfPPH766CkTQ4A3O8d6Yc31lkCb" +
+                        "zIE4AKc7hBg4GUpSi0v0C7LT9d3y8/WScxKLi+GuSA3w9Y9yFLEtl7OZxx9y" +
+                        "IWvhlqt6s1Zwz5cSFpcSznb6JJQze1vi4awGTh6bZ5JpCno/df81r/OJkXh0" +
+                        "ST51jqPPrJLid7bp5+b+/vil5j/DA4nbLU2Ct1yuN+eFeF+W6Qh485mzX2jd" +
+                        "rov9YfFbfPnkDtpP9ppV3LR9822FnCvsKz2XdNX1RXdesb24c8e05awpD9tP" +
+                        "KCik+PhnHfL6e59tecul6KdTDfYc5t0uJe1nYy1Q/MCSoZFNb+PnDdIvNzHP" +
+                        "LuXjjE+/7HTilE7K0ZsmKYzcZqc3vxS0XpDvzWh779fMBlHbdDul7/7nvt6X" +
+                        "l7C+mHpLsOXqrpBHvytuCC223zM1InXtvG2Vlx4ov/zhtOaflLZyu1KY8Mql" +
+                        "U/WmePGaG4WWrf1QbiW31dXXKjs1MfdP+hFxg+q+o27vrKbVb9CZVaywu7x9" +
+                        "6f688hDdX8UXD7t3t4YzOz3J/bOl4uzZvfOfRxyc1qseVtoen3eoe6NQsqmb" +
+                        "4FKJ7Ij+j3zSvhOOqd0zn3jxRPYU001S/7hB0VhvvWdCHSMDAxsTvmiUBkYj" +
+                        "PDnlJmbm6WXnl+Rk5sXn5qeU5qTC4zM5ISEhDYiTGi4kLDiy4CgDOKmEy1de" +
+                        "EQKaIgFOKoxMIgwIW5CTESjRogKCSRjdOGTvgNIeAnQAMZ6UiG4QspulUQzy" +
+                        "Z2IgKiwCvFnZQOqZgfAVkN7MBOIBAJR8IpyzAwAA"
+                ),
+            testFixture = TestFixture(apiSurfaceRules = apiSurfaceRules),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val constructor = fooClass.constructors().single()
+
+            // The constructor is exposed in the main API surface because it is annotated with
+            // @PublishedApi which is configured as a show annotation.
+            assertTrue(constructor.selectedApi.itemApiVariants.isNotEmpty())
+
+            // Because the constructor is exposed in the API, the class is not effectively sealed.
+            assertFalse(fooClass.isEffectivelySealed())
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.KOTLIN)
+    @Test
+    fun `sealed abstract class constructor with value class parameter`() {
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    """
+                    package test.pkg
+                    @JvmInline value class IntValue(val value: Int)
+                    sealed class SealedClass(val iv: IntValue)
+                    """
+                )
+            )
+        ) {
+            val testClass = codebase.assertClass("test.pkg.SealedClass")
+            testClass.assertConstructor(listOf("test.pkg.IntValue")).also { constructor ->
+                assertEquals(constructor.targetLanguages, TargetLanguageSet.KOTLIN_ONLY)
                 assertEquals(
                     VisibilityLevel.PRIVATE,
                     constructor.modifiers.getVisibilityLevel(),

@@ -23,7 +23,10 @@ import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.item.ClassMemberMask
+import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testing.testTypeString
 import com.android.tools.metalava.model.testsuite.BaseModelTest
@@ -36,6 +39,7 @@ import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertSame
@@ -804,6 +808,11 @@ class CommonClassItemTest : BaseModelTest() {
             ),
         ) {
             val barClass = codebase.assertClass("test.pkg.Bar")
+            // Getting `selectedApi` lazily initializes `SourceSelectedApi`, which checks
+            // if the item is emitted and belongs to an API variant, and if so, updates
+            // its deprecated status from Javadoc. For snapshot codebases, the deprecated
+            // status was already copied from the source codebase.
+            barClass.selectedApi
             barClass.assertExplicitlyDeprecated()
         }
     }
@@ -825,6 +834,9 @@ class CommonClassItemTest : BaseModelTest() {
             ),
         ) {
             val barClass = codebase.assertClass("test.pkg.Bar")
+            // Getting `selectedApi` triggers the deprecation update from Javadoc to verify
+            // that `@deprecatedSince` does not mark it as deprecated.
+            barClass.selectedApi
             barClass.assertNotDeprecated()
         }
     }
@@ -847,6 +859,8 @@ class CommonClassItemTest : BaseModelTest() {
             ),
         ) {
             val barClass = codebase.assertClass("test.pkg.Bar")
+            // Getting `selectedApi` triggers the deprecation update from Javadoc.
+            barClass.selectedApi
             barClass.assertExplicitlyDeprecated()
         }
     }
@@ -1647,6 +1661,8 @@ class CommonClassItemTest : BaseModelTest() {
                     """
                         package test.excluded.pkg;
 
+                        import unresolved.Import;
+
                         public class Excluded {
                             private Excluded() {}
                         }
@@ -1661,6 +1677,50 @@ class CommonClassItemTest : BaseModelTest() {
             // Make sure that a class defined excluded by a package filter can be resolved but is
             // not emitted.
             codebase.assertResolvedClass("test.excluded.pkg.Excluded")
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.KOTLIN)
+    @Test
+    fun `Test multifile class excluded by package filter`() {
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    """
+                        package test.pkg
+
+                        class Test private constructor()
+                    """
+                ),
+                kotlin(
+                    "test/excluded/pkg/Part1.kt",
+                    """
+                        @file:JvmMultifileClass
+                        @file:JvmName("ExcludedMulti")
+                        package test.excluded.pkg
+
+                        fun part1() {}
+                    """
+                ),
+                kotlin(
+                    "test/excluded/pkg/Part2.kt",
+                    """
+                        @file:JvmMultifileClass
+                        @file:JvmName("ExcludedMulti")
+                        package test.excluded.pkg
+
+                        fun part2() {}
+                    """
+                ),
+            ),
+            testFixture =
+                TestFixture(
+                    apiPackages = PackageFilter.parse("test.pkg"),
+                ),
+        ) {
+            // Make sure that a multifile class excluded by a package filter does not fail during
+            // initialization and can be resolved without being emitted.
+            codebase.assertResolvedClass("test.excluded.pkg.ExcludedMulti")
         }
     }
 
@@ -1726,6 +1786,229 @@ class CommonClassItemTest : BaseModelTest() {
                 "MAIN_SRC/api.txt:3",
                 removeTestSpecificDirectories(testClass.fileLocation.toString())
             )
+        }
+    }
+
+    // Requires Capability.HIDDEN_ITEMS because this test inspects inaccessible (hidden) classes
+    // and verifies that their members are initialized lazily on demand; snapshot testing (which
+    // excludes HIDDEN_ITEMS) visits every class and member when constructing the snapshot codebase
+    // and populates all snapshot ClassItem members eagerly.
+    @RequiresCapabilities(Capability.HIDDEN_ITEMS)
+    @SupportedInputFormats(InputFormat.JAVA, InputFormat.KOTLIN)
+    @Test
+    fun `Test deferred member initialization for inaccessible command line classes`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        public class PublicClass {
+                            public int field = 1;
+                            public PublicClass() {}
+                            public void method() {}
+
+                            public static class PublicNested {
+                                public int field = 1;
+                                public PublicNested() {}
+                                public void method() {}
+                            }
+
+                            private static class PrivateNested {
+                                public int field = 1;
+                                public PrivateNested() {}
+                                public void method() {}
+                            }
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+
+                        class InaccessibleOuter {
+                            public int field = 1;
+                            public InaccessibleOuter() {}
+                            public void method() {}
+
+                            public static class PublicInInaccessible {
+                                public int field = 1;
+                                public PublicInInaccessible() {}
+                                public void method() {}
+                            }
+                        }
+                    """
+                ),
+            ),
+            inputSet(
+                kotlin(
+                    """
+                        package test.pkg
+
+                        class PublicClass {
+                            val field: Int = 1
+                            fun method() {}
+
+                            class PublicNested {
+                                val field: Int = 1
+                                fun method() {}
+                            }
+
+                            private class PrivateNested {
+                                val field: Int = 1
+                                fun method() {}
+                            }
+                        }
+
+                        internal class InaccessibleOuter {
+                            val field: Int = 1
+                            fun method() {}
+
+                            class PublicInInaccessible {
+                                val field: Int = 1
+                                fun method() {}
+                            }
+                        }
+                    """
+                ),
+            ),
+        ) {
+            // Accessible command-line classes have their members initialized eagerly.
+            val publicClass = codebase.assertClass("test.pkg.PublicClass")
+            assertTrue(publicClass.hasApiVisibility())
+            assertEquals(ClassMemberMask.NONE, publicClass.uninitializedMembers)
+
+            val publicNested = codebase.assertClass("test.pkg.PublicClass.PublicNested")
+            assertTrue(publicNested.hasApiVisibility())
+            assertEquals(ClassMemberMask.NONE, publicNested.uninitializedMembers)
+
+            // Inaccessible command-line classes (including public classes nested inside an
+            // inaccessible outer class) do not have API visibility.
+            val privateNested = codebase.assertClass("test.pkg.PublicClass.PrivateNested")
+            assertFalse(privateNested.hasApiVisibility())
+
+            val inaccessibleOuter = codebase.assertClass("test.pkg.InaccessibleOuter")
+            assertFalse(inaccessibleOuter.hasApiVisibility())
+
+            val publicInInaccessible =
+                codebase.assertClass("test.pkg.InaccessibleOuter.PublicInInaccessible")
+            assertFalse(publicInInaccessible.hasApiVisibility())
+
+            val javaMembers =
+                ClassMemberMask.CONSTRUCTORS or ClassMemberMask.METHODS or ClassMemberMask.FIELDS
+            for (inaccessibleClass in
+                listOf(privateNested, inaccessibleOuter, publicInInaccessible)) {
+                assertEquals(javaMembers, inaccessibleClass.uninitializedMembers and javaMembers)
+
+                assertEquals(listOf("field"), inaccessibleClass.fields().map { it.name() })
+                assertEquals(
+                    ClassMemberMask.CONSTRUCTORS or ClassMemberMask.METHODS,
+                    inaccessibleClass.uninitializedMembers and javaMembers,
+                )
+
+                assertTrue(inaccessibleClass.methods().any { it.name() == "method" })
+                assertEquals(
+                    ClassMemberMask.CONSTRUCTORS,
+                    inaccessibleClass.uninitializedMembers and javaMembers,
+                )
+
+                assertEquals(1, inaccessibleClass.constructors().size)
+                assertEquals(
+                    ClassMemberMask.NONE,
+                    inaccessibleClass.uninitializedMembers and javaMembers,
+                )
+
+                inaccessibleClass.properties()
+                assertEquals(ClassMemberMask.NONE, inaccessibleClass.uninitializedMembers)
+            }
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test class names containing dollar signs`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        public @interface Anno${'$'}1 {
+                            int value();
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class Outer${'$'}1 {
+                            public static final int CONST${'$'}1 = 1;
+                            public static class Inner${'$'}2 {
+                                public Foo${'$'}Bar foo() { return null; }
+                            }
+                            public Inner${'$'}2 inner() { return null; }
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        @Anno${'$'}1(Outer${'$'}1.CONST${'$'}1)
+                        public class Foo${'$'}Bar {
+                            public Outer${'$'}1.Inner${'$'}2 inner() { return null; }
+                        }
+                    """
+                ),
+            ),
+        ) {
+            val fooBar = codebase.assertClass("test.pkg.Foo\$Bar")
+            assertEquals("Foo\$Bar", fooBar.simpleName())
+            assertEquals("Foo\$Bar", fooBar.fullName())
+            assertEquals("test.pkg.Foo\$Bar", fooBar.qualifiedName())
+            assertEquals("test/pkg/Foo\$Bar", fooBar.internalName())
+            assertNull(fooBar.containingClass())
+
+            val annotation = fooBar.modifiers.annotations().single()
+            assertEquals("test.pkg.Anno\$1", annotation.qualifiedName)
+            assertEquals(
+                "test.pkg.Outer\$1.CONST\$1",
+                annotation.attributes.single().value.toValueString(),
+            )
+
+            val outer = codebase.assertClass("test.pkg.Outer\$1")
+            assertEquals("Outer\$1", outer.simpleName())
+            assertEquals("Outer\$1", outer.fullName())
+            assertEquals("test.pkg.Outer\$1", outer.qualifiedName())
+            assertEquals("test/pkg/Outer\$1", outer.internalName())
+            assertNull(outer.containingClass())
+
+            val inner = codebase.assertClass("test.pkg.Outer\$1.Inner\$2")
+            assertEquals("Inner\$2", inner.simpleName())
+            assertEquals("Outer\$1.Inner\$2", inner.fullName())
+            assertEquals("test.pkg.Outer\$1.Inner\$2", inner.qualifiedName())
+            assertEquals("test/pkg/Outer\$1\$Inner\$2", inner.internalName())
+            assertSame(outer, inner.containingClass())
+
+            // Unqualified reference to nested class Inner$2 inside Outer$1.
+            val unqualifiedInnerType =
+                outer.assertMethod("inner", emptyList()).returnType() as ClassTypeItem
+            assertEquals("test.pkg.Outer\$1.Inner\$2", unqualifiedInnerType.qualifiedName)
+            assertEquals("test.pkg.Outer\$1", unqualifiedInnerType.outerClassType?.qualifiedName)
+            assertNull(unqualifiedInnerType.outerClassType?.outerClassType)
+            assertEquals("Ltest/pkg/Outer\$1\$Inner\$2;", unqualifiedInnerType.internalName())
+
+            // Qualified reference to nested class Outer$1.Inner$2 from Foo$Bar.
+            val qualifiedInnerType =
+                fooBar.assertMethod("inner", emptyList()).returnType() as ClassTypeItem
+            assertEquals("test.pkg.Outer\$1.Inner\$2", qualifiedInnerType.qualifiedName)
+            assertEquals("test.pkg.Outer\$1", qualifiedInnerType.outerClassType?.qualifiedName)
+            assertNull(qualifiedInnerType.outerClassType?.outerClassType)
+            assertEquals("Ltest/pkg/Outer\$1\$Inner\$2;", qualifiedInnerType.internalName())
+
+            // Reference to top-level class Foo$Bar containing a literal '$'.
+            val fooBarType = inner.assertMethod("foo", emptyList()).returnType() as ClassTypeItem
+            assertEquals("test.pkg.Foo\$Bar", fooBarType.qualifiedName)
+            assertNull(fooBarType.outerClassType)
+            assertEquals("Ltest/pkg/Foo\$Bar;", fooBarType.internalName())
         }
     }
 }

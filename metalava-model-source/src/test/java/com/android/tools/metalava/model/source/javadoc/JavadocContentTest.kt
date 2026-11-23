@@ -28,7 +28,8 @@ class JavadocContentTest : BaseDocCommentTest() {
     ) {
         val result = concatJavadocContent {
             for (input in inputs) {
-                var content = createTestDocComment(input).description!!
+                val (docComment, _) = createTestDocCommentAndContext(input)
+                val content = docComment.description!!
                 add(content)
             }
         }

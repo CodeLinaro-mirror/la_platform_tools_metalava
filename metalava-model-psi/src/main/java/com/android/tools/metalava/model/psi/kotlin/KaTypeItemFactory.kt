@@ -21,6 +21,8 @@ import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.BoundsTypeItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.JAVA_LANG_ENUM
+import com.android.tools.metalava.model.JAVA_LANG_STRING
 import com.android.tools.metalava.model.KOTLIN_CONTINUATION
 import com.android.tools.metalava.model.LambdaTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
@@ -107,7 +109,9 @@ internal class KaTypeItemFactory(
 
     // Override to ensure primitives are boxed.
     override fun getHierarchicalClassType(underlyingType: KaType): ClassTypeItem {
-        return underlyingType.toTypeItem(mustBoxPrimitives = true) as ClassTypeItem
+        return underlyingType.toTypeItem(mustBoxPrimitives = true).let {
+            (it as? LambdaTypeItem)?.asJvmClassType() ?: it as ClassTypeItem
+        }
     }
 
     // Override to handle Unit returns
@@ -222,9 +226,14 @@ internal class KaTypeItemFactory(
 
         // Lambda types are still created as class types, so all arguments need to be compiled into
         // a list.
-        val arguments = listOfNotNull(receiverTypeItem) + parameterTypeItems + returnTypeItem
-        // The function arity doesn't include the return type.
-        val qualifiedName = "kotlin.jvm.functions.Function${arguments.size - 1}"
+        val arity = (if (receiverTypeItem == null) 0 else 1) + parameterTypeItems.size
+        val (qualifiedName, arguments) =
+            if (arity > LambdaTypeItem.MAX_SPECIFIC_FUNCTION_ARITY) {
+                "kotlin.jvm.functions.FunctionN" to listOf(returnTypeItem)
+            } else {
+                "kotlin.jvm.functions.Function$arity" to
+                    (listOfNotNull(receiverTypeItem) + parameterTypeItems + returnTypeItem)
+            }
 
         return TypeItem.createLambdaType(
             modifiers = modifiers,
@@ -324,11 +333,14 @@ internal class KaTypeItemFactory(
                     originalQualifiedName
                 }
 
-            // If the outer class is a primitive class, the inner class is a companion which only
-            // exists for kotlin and gets mapped to a java type without an outer class.
+            // If the outer class is a primitive class or String or Enum, the inner class is a
+            // companion which only exists for kotlin and gets mapped to a java type without an
+            // outer class.
             if (
                 mapToJvmTypes &&
-                    PrimitiveTypeItem.Primitive.forWrapperClassName(qualifiedName) != null
+                    (PrimitiveTypeItem.Primitive.forWrapperClassName(qualifiedName) != null ||
+                        qualifiedName == JAVA_LANG_STRING ||
+                        qualifiedName == JAVA_LANG_ENUM)
             )
                 return null
             outerClass =
@@ -448,29 +460,19 @@ internal class KaTypeItemFactory(
                         )
                         .factory
                 // Create a TypeItem from the inlined ka type
-                val inlineType =
-                    valueClassTypeFactory
-                        .getGeneralType(inlineKaType)
-                        .substitute(type.modifiers.nullability)
-                // Recursively inline the type, if needed
-                if (inlineType is PrimitiveTypeItem && inlineType.modifiers.isNullable) {
+                val rawInlineType = valueClassTypeFactory.getGeneralType(inlineKaType)
+                // If the inlined type is a primitive and the value class type is nullable, it
+                // cannot be inlined to a primitive in bytecode because primitives cannot be null;
+                // the boxed value class type must be used instead. This must be checked before
+                // substituting nullability onto rawInlineType because PrimitiveTypeItem forces its
+                // nullability to NONNULL.
+                if (rawInlineType is PrimitiveTypeItem && type.modifiers.isNullable) {
                     type
                 } else {
-                    val recursivelyInlinedType = inlineTypeIfNeeded(inlineKaType, inlineType)
-                    if (
-                        recursivelyInlinedType is PrimitiveTypeItem &&
-                            !recursivelyInlinedType.isValueClassType
-                    ) {
-                        // Make sure this is still listed as a value class type. This is only needed
-                        // temporarily until the original value class type is used for property
-                        // types instead of the inlined type.
-                        object : PrimitiveTypeItem by recursivelyInlinedType {
-                            override val isValueClassType
-                                get() = true
-                        }
-                    } else {
-                        recursivelyInlinedType
-                    }
+                    // Propagate the outer value class type's nullability to the inlined type and
+                    // recursively inline if it is also a value class.
+                    val inlineType = rawInlineType.substitute(type.modifiers.nullability)
+                    inlineTypeIfNeeded(inlineKaType, inlineType)
                 }
             } else {
                 type

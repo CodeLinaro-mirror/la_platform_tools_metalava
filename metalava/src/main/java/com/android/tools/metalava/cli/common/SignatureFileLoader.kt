@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.cli.common
 
+import androidx.tracing.Tracer
 import com.android.tools.metalava.model.ClassPathResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
@@ -23,6 +24,8 @@ import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.ApiParseException
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.SignatureFile
+import com.android.tools.metalava.model.text.SignatureFileConsumer
+import com.android.tools.metalava.trace
 
 /** Supports loading [SignatureFile]s into a [Codebase] using an optional [ClassPathResolver]. */
 interface SignatureFileLoader {
@@ -37,6 +40,12 @@ interface SignatureFileLoader {
         signatureFiles: List<SignatureFile>,
     ): MultiplatformCodebase
 
+    /** Parses [signatureFiles] and passes each declaration to [consumer]. */
+    fun consume(
+        signatureFiles: List<SignatureFile>,
+        consumer: SignatureFileConsumer,
+    )
+
     companion object {
         /** A [SignatureFileLoader] that will throw an exception when called. */
         val THROWING =
@@ -49,6 +58,11 @@ interface SignatureFileLoader {
                 override fun loadMultiplatform(
                     signatureFiles: List<SignatureFile>
                 ): MultiplatformCodebase = throwError()
+
+                override fun consume(
+                    signatureFiles: List<SignatureFile>,
+                    consumer: SignatureFileConsumer,
+                ) = throwError()
 
                 private fun throwError(): Nothing =
                     error("Throwing signature file loader cannot load signature files")
@@ -63,6 +77,7 @@ interface SignatureFileLoader {
 class DefaultSignatureFileLoader(
     private val codebaseConfig: Codebase.Config,
     private val formatForLegacyFiles: FileFormat? = null,
+    private val tracer: Tracer? = null,
 ) : SignatureFileLoader {
 
     override fun load(
@@ -72,12 +87,15 @@ class DefaultSignatureFileLoader(
         require(signatureFiles.isNotEmpty()) { "files must not be empty" }
 
         try {
-            return ApiFile.parseApi(
-                signatureFiles = signatureFiles,
-                codebaseConfig = codebaseConfig,
-                classPathResolver = classPathResolver,
-                formatForLegacyFiles = formatForLegacyFiles,
-            )
+            val block = {
+                ApiFile.parseApi(
+                    signatureFiles = signatureFiles,
+                    codebaseConfig = codebaseConfig,
+                    classPathResolver = classPathResolver,
+                    formatForLegacyFiles = formatForLegacyFiles,
+                )
+            }
+            return tracer?.trace("signatureFileLoader.load") { block() } ?: block()
         } catch (ex: ApiParseException) {
             cliError("Unable to parse signature file: ${ex.message}")
         }
@@ -87,12 +105,35 @@ class DefaultSignatureFileLoader(
         require(signatureFiles.isNotEmpty()) { "files must not be empty" }
 
         try {
-            return ApiFile.parseMultiplatformApi(
-                signatureFiles = signatureFiles,
-                codebaseConfig = codebaseConfig,
-            )
+            val block = {
+                ApiFile.parseMultiplatformApi(
+                    signatureFiles = signatureFiles,
+                    codebaseConfig = codebaseConfig,
+                )
+            }
+            return tracer?.trace("signatureFileLoader.loadMultiplatform") { block() } ?: block()
         } catch (ex: ApiParseException) {
             cliError("Unable to parse signature files: ${ex.message}")
+        }
+    }
+
+    override fun consume(
+        signatureFiles: List<SignatureFile>,
+        consumer: SignatureFileConsumer,
+    ) {
+        require(signatureFiles.isNotEmpty()) { "files must not be empty" }
+
+        try {
+            val block = {
+                ApiFile.consumeApi(
+                    signatureFiles = signatureFiles,
+                    consumer = consumer,
+                    formatForLegacyFiles = formatForLegacyFiles,
+                )
+            }
+            tracer?.trace("signatureFileLoader.consume") { block() } ?: block()
+        } catch (ex: ApiParseException) {
+            cliError("Unable to parse signature file: ${ex.message}")
         }
     }
 }

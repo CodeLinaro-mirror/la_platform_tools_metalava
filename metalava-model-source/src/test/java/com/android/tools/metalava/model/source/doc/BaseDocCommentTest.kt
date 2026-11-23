@@ -19,41 +19,81 @@ package com.android.tools.metalava.model.source.doc
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ReferencableItem
+import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypeParameterScope
+import com.android.tools.metalava.model.api.surface.ReferenceCheckResult
+import com.android.tools.metalava.model.parser.LineMap
 import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.source.javadoc.ExprContext
 import com.android.tools.metalava.model.source.javadoc.TestTagTypes
 import com.android.tools.metalava.model.value.Value
+import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues.Issue
+import com.android.tools.metalava.reporter.LocationSpecificReporter
+import com.android.tools.metalava.reporter.RecordingReporter
+import com.android.tools.metalava.reporter.Reportable
+import com.android.tools.metalava.reporter.Reporter
+import java.nio.file.Path
 import kotlin.test.assertEquals
 import org.junit.Before
 import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.mock
 
 abstract class BaseDocCommentTest {
-    internal val reporter = CollatingDocumentationIssueReporter()
-    internal val context = TestDocCommentContext(reporter)
+    internal val reporter =
+        RecordingReporter(
+            includeSeverity = false,
+            sortIssues = true,
+        )
+
+    /** Verify that the reported issues matches [expectedIssues]. */
+    internal fun assertJavadocParserIssues(expectedIssues: String) {
+        assertEquals(
+            expectedIssues.trimIndent(),
+            reporter.removeIssues(),
+            message = "javadoc parser issues"
+        )
+    }
+
+    /**
+     * Create a [TestDocCommentContext] using [reporter], the optional [flagToEnabledStatus] map
+     * from flag name to enabled status, and the optional [includedSurfaces] set of surface names.
+     */
+    internal fun createDocContext(
+        text: String,
+        flagToEnabledStatus: Map<String, Boolean> = emptyMap(),
+        includedSurfaces: Set<String> = emptySet(),
+    ): TestDocCommentContext =
+        TestDocCommentContext(
+            TestDocumentationIssueReporter(reporter, LineMap.create(text)),
+            flagToEnabledStatus,
+            includedSurfaces,
+        )
 
     /**
      * Create a [DocComment] from [input] for testing, verifying that [expectedIssues] were found.
      */
-    internal fun createTestDocComment(
+    internal fun createTestDocCommentAndContext(
         input: String,
         expectedIssues: String = "",
-    ): DocComment {
-        var docComment =
+        flagToEnabledStatus: Map<String, Boolean> = emptyMap(),
+        includedSurfaces: Set<String> = emptySet(),
+    ): Pair<DocComment, TestDocCommentContext> {
+        val text = input.trimIndent()
+        val context = createDocContext(text, flagToEnabledStatus, includedSurfaces)
+        val docComment =
             DocCommentParser.parseText(
                 context,
-                input.trimIndent(),
-                reporter,
+                text,
+                context.reporter,
             )
 
         // Parse all the descriptions
         docComment.description
         docComment.blockTagSections.forEach { it.description }
 
-        reporter.assertJavadocParserIssues(expectedIssues)
-        return docComment
+        assertJavadocParserIssues(expectedIssues)
+        return docComment to context
     }
 
     /**
@@ -65,63 +105,42 @@ abstract class BaseDocCommentTest {
         expectedPrintOutput: String,
         message: String? = null,
     ) {
-        var actualPrintOutput = docComment.asJavadocCommentString().trim()
+        val actualPrintOutput = docComment.asJavadocCommentString().trim()
         assertEquals(expectedPrintOutput.trimIndent(), actualPrintOutput, message)
     }
 
     @Before
+    @Suppress("UNUSED_EXPRESSION")
     fun initializeTestTagTypes() {
         // Make sure that the test tag types are registered.
         TestTagTypes
     }
 }
 
-/**
- * A [DocumentationIssueReporter] that collates any issues reported and returns them from
- * [toString].
- */
-internal class CollatingDocumentationIssueReporter : DocumentationIssueReporter {
-    private val list = mutableListOf<Report>()
-
-    private data class Report(
-        val line: Int,
-        val charPosition: Int,
-        val issue: Issue,
-        val message: String,
-    )
-
-    override fun report(issue: Issue, message: String, lineOffset: Int, charOffset: Int) {
-        list.add(Report(lineOffset + 1, charOffset + 1, issue, message))
-    }
-
-    override fun toString(): String {
-        list.sortWith(reportComparator)
-        return list.joinToString("\n") { report ->
-            "${report.line}:${report.charPosition}: ${report.message} [${report.issue.name}]"
-        }
-    }
-
-    /** Verify that the reported issues matches [expectedIssues]. */
-    fun assertJavadocParserIssues(expectedIssues: String) {
-        assertEquals(expectedIssues.trimIndent(), toString(), message = "javadoc parser issues")
-    }
-
-    companion object {
-        private val reportComparator =
-            compareBy<Report>(
-                { it.line },
-                { it.charPosition },
-                { it.issue?.name },
-                { it.message },
-            )
+/** A [DocumentationIssueReporter] that delegates any issues reported to [reporter]. */
+internal class TestDocumentationIssueReporter(
+    private val reporter: Reporter,
+    private val lineMap: LineMap,
+) : DocumentationIssueReporter {
+    override fun report(issue: Issue, message: String, charOffset: Int) {
+        val lineNumber = lineMap.lineNumber(charOffset)
+        val charPosition = lineMap.characterPosition(charOffset)
+        val reportable: Reportable? = null
+        val fileLocation = FileLocation.createLocation(Path.of(""), lineNumber, charPosition)
+        reporter.report(issue, reportable, message, fileLocation)
     }
 }
 
 /** A test [DocCommentContext] that provides basic implementations. */
-internal class TestDocCommentContext(reporter: DocumentationIssueReporter) : DocCommentContext {
+internal class TestDocCommentContext(
+    val reporter: DocumentationIssueReporter,
 
-    /** A map from flage name to enabled status. */
-    var flags: Map<String, Boolean> = emptyMap()
+    /** A map from flag name to enabled status. */
+    val flagToEnabledStatus: Map<String, Boolean> = emptyMap(),
+
+    /** The set of surface names included in the current API surface. */
+    val includedSurfaces: Set<String> = emptySet(),
+) : DocCommentContext {
 
     /** Qualify [sourceReference], if needed. */
     private fun qualifySourceReference(sourceReference: String): String =
@@ -149,8 +168,17 @@ internal class TestDocCommentContext(reporter: DocumentationIssueReporter) : Doc
                 )
         }
 
+    /** Implements [DocCommentContext.checkReference] as a no-op for parser unit tests. */
+    override fun checkReference(
+        referencedItem: SelectableItem,
+        reporter: LocationSpecificReporter,
+    ) = ReferenceCheckResult.Valid
+
     /** Implements [ExprContext.isFlagEnabled]. */
-    override fun isFlagEnabled(flagName: String) = flags[flagName] ?: false
+    override fun isFlagEnabled(flagName: String) = flagToEnabledStatus[flagName] ?: false
+
+    /** Implements [ExprContext.includesSurface]. */
+    override fun includesSurface(surfaceName: String) = surfaceName in includedSurfaces
 
     override fun ordinalInParamsList(name: String) = 0
 

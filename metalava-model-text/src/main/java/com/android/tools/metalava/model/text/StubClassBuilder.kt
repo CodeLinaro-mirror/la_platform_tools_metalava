@@ -25,7 +25,6 @@ import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.createImmutableModifiers
-import com.android.tools.metalava.reporter.FileLocation
 
 /**
  * A builder for stub classes, i.e. [SkeletonClassItem]s fabricated because [ApiFile] has no
@@ -47,7 +46,6 @@ internal class StubClassBuilder(
 
     private fun build(): SkeletonClassItem =
         assembler.itemFactory.createClassItem(
-            fileLocation = FileLocation.UNKNOWN,
             modifiers = modifiers,
             classKind = classKind,
             containingClass = containingClass,

@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.cli.common
 
-import com.android.tools.lint.detector.api.assertionsEnabled
 import com.android.tools.metalava.model.source.SourceModelProvider
 import com.android.tools.metalava.reporter.DefaultReporterEnvironment
 import com.android.tools.metalava.reporter.ReporterEnvironment
@@ -28,15 +27,20 @@ import java.io.StringWriter
 /**
  * Encapsulates information provided by the execution environment.
  *
- * This supports two environments:
+ * This supports three environments:
  * 1. The standard command line application.
- * 2. Tests.
+ * 2. The [java.util.spi.ToolProvider] SPI.
+ * 3. Tests.
  */
 data class ExecutionEnvironment(
     val stdout: PrintWriter = PrintWriter(OutputStreamWriter(System.out)),
     val stderr: PrintWriter = PrintWriter(OutputStreamWriter(System.err)),
     val stdin: InputStream = System.`in`,
-    val reporterEnvironment: ReporterEnvironment = DefaultReporterEnvironment(),
+    val reporterEnvironment: ReporterEnvironment =
+        DefaultReporterEnvironment(
+            stdout = stdout,
+            stderr = stderr,
+        ),
     val testEnvironment: TestEnvironment? = null,
 ) {
     /** Whether metalava is being invoked as part of an Android platform build */
@@ -44,7 +48,7 @@ data class ExecutionEnvironment(
 
     /** Whether to suppress dumping of information to stderr by a [SourceModelProvider]. */
     fun disableStderrDumping(): Boolean {
-        return !assertionsEnabled() && !isUnderTest()
+        return !javaClass.desiredAssertionStatus() && !isUnderTest()
     }
 
     /** Whether metalava is running unit tests */
@@ -62,11 +66,6 @@ data class ExecutionEnvironment(
                     stdout = stdout,
                     stderr = stderr,
                     stdin = stdin.byteInputStream(),
-                    reporterEnvironment =
-                        DefaultReporterEnvironment(
-                            stdout = stdout,
-                            stderr = stderr,
-                        ),
                 ),
                 stdoutString,
                 stderrString,

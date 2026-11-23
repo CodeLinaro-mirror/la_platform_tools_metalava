@@ -16,32 +16,44 @@
 
 package com.android.tools.metalava.config
 
-import com.android.tools.metalava.config.ApiFlagActionConfig.Status
 import com.android.tools.metalava.reporter.Severity
-import com.fasterxml.jackson.annotation.JsonValue
-import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty
 
 data class IssuesConfig(
-    @field:JacksonXmlProperty(localName = "issue", namespace = CONFIG_NAMESPACE)
     val issues: List<IssueConfig> = emptyList(),
 ) : CombinableConfig<IssuesConfig> {
     /** Combine with another [IssuesConfig] by concatenating the [issues]s. */
     override fun combineWith(other: IssuesConfig) = IssuesConfig(issues + other.issues)
+
+    /** Write this [IssuesConfig] to [writer]. */
+    internal fun writeTo(writer: ConfigWriter) {
+        writer.element("issues") {
+            for (issue in issues) {
+                issue.writeTo(this)
+            }
+        }
+    }
 }
 
 data class IssueConfig(
-    @field:JacksonXmlProperty(isAttribute = true) val name: String,
-    @field:JacksonXmlProperty(isAttribute = true) val severity: SeverityConfig,
+    val name: String,
+    val severity: SeverityConfig,
 ) {
-    enum class SeverityConfig(private val configFileValue: String, val issueSeverity: Severity) {
+    /** Write this [IssueConfig] to [writer]. */
+    internal fun writeTo(writer: ConfigWriter) {
+        writer.element(
+            "issue",
+            attributes = {
+                attribute("name", name)
+                attribute("severity", severity.configFileValue)
+            },
+        )
+    }
+
+    enum class SeverityConfig(internal val configFileValue: String, val issueSeverity: Severity) {
         HIDDEN("hidden", Severity.HIDDEN),
         INFO("info", Severity.INFO),
         WARNING("warning", Severity.WARNING),
         WARNING_ERROR_WHEN_NEW("error-when-new", Severity.WARNING_ERROR_WHEN_NEW),
         ERROR("error", Severity.ERROR),
-        ;
-
-        /** Name to use when serializing and deserializing this [Status] instance. */
-        @JsonValue fun forJackson() = configFileValue
     }
 }

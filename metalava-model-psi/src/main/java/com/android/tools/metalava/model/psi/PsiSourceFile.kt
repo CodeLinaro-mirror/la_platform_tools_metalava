@@ -19,7 +19,9 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.JavaImport
 import com.android.tools.metalava.model.item.AbstractSourceFile
+import com.android.tools.metalava.model.parser.LineMap
 import com.android.tools.metalava.reporter.FileLocation
+import com.intellij.openapi.editor.Document
 import com.intellij.psi.PsiClassOwner
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiImportStaticStatement
@@ -33,6 +35,8 @@ internal class PsiSourceFile(
 ) : AbstractSourceFile() {
 
     override val fileLocation: FileLocation = PsiFileLocation.fromPsiElement(file)
+
+    override fun computeLineMap(): LineMap = PsiLineMap(file.viewProvider.document!!)
 
     override fun computeContainingPackageName() = (file as PsiClassOwner).packageName
 
@@ -73,4 +77,18 @@ internal class PsiSourceFile(
     }
 
     override fun toString(): String = "file ${file.virtualFile?.path}"
+}
+
+/** A [LineMap] that wraps a PSI [Document]. */
+private class PsiLineMap(private val document: Document) : LineMap {
+    override fun lineNumber(charIndex: Int): Int = lineOffset(charIndex) + 1
+
+    override fun lineOffset(charIndex: Int): Int = document.getLineNumber(charIndex)
+
+    override fun characterPosition(charIndex: Int): Int = characterOffset(charIndex) + 1
+
+    override fun characterOffset(charIndex: Int): Int {
+        val line = document.getLineNumber(charIndex)
+        return charIndex - document.getLineStartOffset(line)
+    }
 }

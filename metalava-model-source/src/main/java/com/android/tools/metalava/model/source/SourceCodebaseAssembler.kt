@@ -19,16 +19,15 @@ package com.android.tools.metalava.model.source
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationUse
 import com.android.tools.metalava.model.BaseItemVisitor
-import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
-import com.android.tools.metalava.model.KOTLIN_PUBLISHED_API
+import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.SourceFile
-import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.item.CodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
 import com.android.tools.metalava.model.item.PackageInfo
@@ -84,7 +83,12 @@ abstract class SourceCodebaseAssembler : DefaultCodebaseAssembler() {
      */
     private fun gatherPackageJavadoc(sourceSet: SourceSet): PackageDocs {
         val packages = mutableMapOf<String, MutablePackageDoc>()
-        val sortedSourceRoots = sourceSet.sourcePath.sortedBy { -it.path.length }
+        val sortedSourceRoots by
+            lazy(LazyThreadSafetyMode.NONE) {
+                sourceSet.sourcePath
+                    .ifEmpty { SourceSet.extractRoots(codebase.reporter, sourceSet.sources) }
+                    .sortedBy { -it.path.length }
+            }
         for (file in sourceSet.sources) {
             val documentationFile =
                 when (file.name) {
@@ -100,17 +104,31 @@ abstract class SourceCodebaseAssembler : DefaultCodebaseAssembler() {
             // Figure out the package: if there is a java file in the same directory, get the
             // package
             // name from the java file. Otherwise, guess from the directory path + source roots.
-            // NOTE: This causes metalava to read files other than the ones explicitly passed to it.
+            // NOTE: When sourceSet.sourcePath is not empty, this causes metalava to read files
+            // other than the ones explicitly passed to it.
+            val parentDir = file.parentFile
+            val dirFiles =
+                if (sourceSet.sourcePath.isEmpty()) {
+                    sourceSet.sources.asSequence().filter { it.parentFile == parentDir }
+                } else {
+                    parentDir?.listFiles()?.asSequence().orEmpty()
+                }
             var pkg =
-                file.parentFile
-                    ?.listFiles()
-                    ?.filter { it.name.endsWith(DOT_JAVA) }
-                    ?.asSequence()
-                    ?.map { findPackage(it) }
-                    ?.firstOrNull()
+                dirFiles
+                    .filter { it.name.endsWith(DOT_JAVA) }
+                    .mapNotNull { findPackage(it) }
+                    .firstOrNull()
             if (pkg == null) {
                 // Strip the longest prefix source root.
-                val prefix = sortedSourceRoots.firstOrNull { file.startsWith(it) }?.path ?: ""
+                val prefix = sortedSourceRoots.firstOrNull { file.startsWith(it) }?.path
+                if (prefix == null) {
+                    codebase.reporter.report(
+                        Issues.INVALID_SOURCES,
+                        file,
+                        "Could not find source root for $file",
+                    )
+                    continue
+                }
                 pkg = file.parentFile.path.substring(prefix.length).trim('/').replace("/", ".")
             }
 
@@ -125,13 +143,16 @@ abstract class SourceCodebaseAssembler : DefaultCodebaseAssembler() {
         return PackageDocs(packages)
     }
 
-    /** Create and track [PackageItem]s for every entry in [packageDocs]. */
-    fun createInitialPackages(sourceSet: SourceSet) {
+    /**
+     * Create and track [PackageItem]s for every entry in [packageDocs] that matches [apiPackages].
+     */
+    fun createInitialPackages(sourceSet: SourceSet, apiPackages: PackageFilter?) {
         // Make the packageDocs available when creating the packages below.
         this.packageDocs = gatherPackageJavadoc(sourceSet)
 
-        // Create packages for all the documentation packages.
+        // Create packages for all the documentation packages that match apiPackages.
         for (packageName in packageDocs.packageNames) {
+            if (apiPackages != null && !apiPackages.matches(packageName)) continue
             codebase.findOrCreatePackage(packageName)
         }
 
@@ -231,10 +252,21 @@ abstract class SourceCodebaseAssembler : DefaultCodebaseAssembler() {
         codebase.accept(
             object :
                 BaseItemVisitor(
+                    preserveClassNesting = true,
                     // TODO(b/482390286): Remove once record components handles type use annotations
                     //  correctly.
                     visitRecordComponentItems = true,
                 ) {
+                // BaseItemVisitor skips packages with emit = false, but visits all classes in an
+                // emitted package regardless of ClassItem.emit. Non-emitted classes (e.g. from the
+                // source path or classpath, including custom nullness annotation classes resolved
+                // while checking isNullnessAnnotation() on earlier items) may be resolved into an
+                // emitted package before that package is visited. Skip non-emitted items and items
+                // without API visibility (e.g. private, package-private, or non-@PublishedApi
+                // internal) so that their nested classes and members are not traversed or modified.
+                override fun skip(item: SelectableItem) =
+                    !item.emit || !item.modifiers.hasApiVisibility()
+
                 override fun visitItem(item: Item) {
                     if (item is ClassItem || item is PackageItem) return
                     val type = item.type() ?: return
@@ -291,19 +323,3 @@ data class SourcePackageInfo(
             commentFactory ?: defaultCommentFactory,
         )
 }
-
-/**
- * Check if the [BaseModifierList] is accessible as part of an API.
- *
- * If this has [VisibilityLevel.INTERNAL] then it is only accessible if it is annotated with the
- * [PublishedApi] annotation.
- */
-val BaseModifierList.hasApiVisibility
-    get() =
-        when (getVisibilityLevel()) {
-            VisibilityLevel.PUBLIC,
-            VisibilityLevel.PROTECTED -> true
-            VisibilityLevel.INTERNAL ->
-                annotations().any { it.qualifiedName == KOTLIN_PUBLISHED_API }
-            else -> false
-        }

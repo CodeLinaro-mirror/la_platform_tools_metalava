@@ -238,6 +238,12 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                     expectedItemGetter = { codebase.assertClass("test.pkg.Other") }
                 ),
                 TestParams(
+                    name = "ClassItem - resolve class in same package without SourceFile",
+                    scopeGetter = { codebase.assertResolvedClass("java.util.Map") },
+                    referencableName = "Set",
+                    expectedItemGetter = { codebase.assertResolvedClass("java.util.Set") }
+                ),
+                TestParams(
                     name = "ClassItem - resolve self",
                     scopeGetter = { codebase.assertResolvedClass("java.util.Map") },
                     referencableName = "Map",

@@ -34,8 +34,6 @@ import com.android.tools.metalava.model.text.CustomizableProperty.Companion.STRI
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.TYPE_ARGUMENT_SPACING
 import com.android.tools.metalava.model.text.FileFormat.TypeArgumentSpacing
 import com.android.tools.metalava.model.value.asString
-import com.android.tools.metalava.model.visitors.ApiPredicate
-import com.android.tools.metalava.model.visitors.ApiType
 import com.google.common.truth.Truth.assertThat
 import java.io.PrintWriter
 import java.io.StringWriter
@@ -115,10 +113,8 @@ class SignatureInputOutputTest : Assertions {
             createCodebaseFragmentForSignatureFile(
                 codebase,
                 fileFormat = fileFormat,
-                apiType = ApiType.ALL,
-                preFiltered = true,
-                showUnannotated = false,
-                apiPredicateConfig = ApiPredicate.Config()
+                // Pre-filtered so does not need any filters.
+                apiFilters = null,
             )
 
         val fragment = codebaseKind.transformFragment(baseFragment)
@@ -1141,5 +1137,24 @@ class SignatureInputOutputTest : Assertions {
                 """,
             fileFormat = FileFormat.V5
         )
+    }
+
+    @Test
+    fun `Test mangled names containing hyphens`() {
+        val api =
+            """
+            // Signature format: 5.0
+            package test.pkg {
+              public final class -Foo-Bar {
+                method @BytecodeOnly public int box-impl(int);
+                method @BytecodeOnly public static int foo--bar(long, long);
+              }
+            }
+            """
+        runInputOutputTest(api, FileFormat.V5) {
+            val cls = codebase.assertClass("test.pkg.-Foo-Bar")
+            cls.assertMethod("box-impl", listOf("int"))
+            cls.assertMethod("foo--bar", listOf("long", "long"))
+        }
     }
 }

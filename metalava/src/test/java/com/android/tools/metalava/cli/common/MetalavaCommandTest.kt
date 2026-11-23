@@ -16,8 +16,8 @@
 
 package com.android.tools.metalava.cli.common
 
-import com.android.tools.metalava.ProgressTracker
-import com.android.tools.metalava.testing.getNoopTracer
+import androidx.tracing.Tracer
+import com.android.tools.metalava.Driver
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.subcommands
 import org.junit.Assert.assertEquals
@@ -29,8 +29,7 @@ class MetalavaCommandTest :
     BaseCommandTest<MetalavaCommand>({ executionEnvironment ->
         MetalavaCommand(
             executionEnvironment = executionEnvironment,
-            progressTracker = ProgressTracker(),
-            tracer = getNoopTracer(),
+            tracer = Tracer.getStubTracer(),
         )
     }) {
 
@@ -49,8 +48,7 @@ class MetalavaCommandTest :
         val command =
             MetalavaCommand(
                 executionEnvironment = executionEnvironment,
-                progressTracker = ProgressTracker(),
-                tracer = getNoopTracer(),
+                tracer = Tracer.getStubTracer(),
             )
         try {
             command.processThrowCliException(args.toTypedArray())
@@ -99,9 +97,8 @@ class MetalavaCommandTest :
         val command =
             MetalavaCommand(
                 executionEnvironment = executionEnvironment,
-                progressTracker = ProgressTracker(),
                 defaultCommandName = subCommand.commandName,
-                tracer = getNoopTracer(),
+                tracer = Tracer.getStubTracer(),
             )
         command.subcommands(subCommand)
 
@@ -132,8 +129,7 @@ class MetalavaCommandTest :
         val command =
             MetalavaCommand(
                 executionEnvironment = executionEnvironment,
-                progressTracker = ProgressTracker(),
-                tracer = getNoopTracer(),
+                tracer = Tracer.getStubTracer(),
             )
         command.subcommands(FailCommand())
         command.process(args.toTypedArray())
@@ -178,7 +174,62 @@ $separator
             args += listOf(ARG_NO_COLOR, "--version")
 
             expectedStderr = ""
-            expectedStdout = "metalava version: 1.0.0-alpha14"
+            expectedStdout = "metalava version: 1.0.0-alpha16"
         }
+    }
+
+    @Test
+    fun `Test help with no sub-command`() {
+        val (executionEnvironment, stdout, stderr) = ExecutionEnvironment.forTest()
+        val exitCode = Driver.run(executionEnvironment, arrayOf(ARG_NO_COLOR, "--help"))
+        assertEquals(0, exitCode)
+        assertEquals("", stderr.toString())
+        assertEquals(
+            """
+Usage: metalava [options] [flags]... <sub-command>? ...
+
+  Extracts metadata from source code to generate artifacts such as the signature files, the SDK stub files, external
+  annotations etc.
+
+Options:
+  --version                                  Show the version and exit
+  --print-stack-trace                        Print the stack trace of any exceptions that will cause metalava to exit.
+                                             (default: no stack trace)
+  --quiet, --verbose                         Set the verbosity of the output.
+                                             --quiet - Only include vital output.
+                                             --verbose - Include extra diagnostic output.
+                                             (default: Neither --quiet or --verbose)
+  --trace-file TEXT                          Set the location where the trace should be written to.
+  --color, --no-color                        Determine whether to use terminal capabilities to colorize and otherwise
+                                             style the output. (default: true if ${'$'}TERM starts with `xterm` or ${'$'}COLORTERM
+                                             is set)
+  --no-banner                                A banner is never output so this has no effect (deprecated: please remove)
+  -h, --help                                 Show this message and exit
+
+Arguments:
+  flags                                      See below.
+
+Sub-commands:
+  main                                       The default sub-command that is run if no sub-command is specified.
+  api-history                                Generate an API versions XML or JSON file from API signature files.
+  check-compatibility                        Check compatibility between two APIs.
+  filter-signature                           Filter signature files using configured API flags.
+  flag-report                                Generates a flag report
+  help                                       Provides help for general metalava concepts.
+  list-flags                                 List flags referenced in signature files.
+  merge-signatures                           Merge multiple signature files together into a single file.
+  signature-cat                              Cats signature files.
+  signature-migrate                          Migrates signature files to a new format.
+  signature-reformat                         Reformats signature files.
+  signature-to-dex                           Convert API signature files into a file containing a list of DEX
+                                             signatures.
+  signature-to-jdiff                         Convert an API signature file into a file in the JDiff XML format.
+  signature-to-stubs                         Generate stub source files from API signature files.
+  version                                    Show the version
+  multi-surface                              Command that sets up state to run operations for multiple API surfaces.
+            """
+                .trimIndent(),
+            stdout.toString().trim(),
+        )
     }
 }

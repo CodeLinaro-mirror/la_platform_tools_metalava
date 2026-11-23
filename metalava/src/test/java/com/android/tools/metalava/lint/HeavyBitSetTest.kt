@@ -17,7 +17,7 @@
 package com.android.tools.metalava.lint
 
 import com.android.tools.metalava.DriverTest
-import com.android.tools.metalava.cli.common.ARG_HIDE
+import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import org.junit.Test
@@ -28,7 +28,10 @@ class HeavyBitSetTest : DriverTest() {
         check(
             apiLint = "", // enabled
             // Ignore other issues.
-            extraArguments = arrayOf(ARG_HIDE, "ArrayReturn"),
+            extraArguments =
+                hiddenIssues(
+                    Issues.ARRAY_RETURN,
+                ),
             expectedIssues =
                 """
                     src/android/pkg/MyClass.java:9: error: Type must not use heavy BitSet (field android.pkg.MyClass.bitset) [HeavyBitSet]

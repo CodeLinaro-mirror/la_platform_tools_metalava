@@ -17,17 +17,18 @@
 package com.android.tools.metalava.model.type
 
 import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.DefaultTypeItem
+import com.android.tools.metalava.model.DefaultStandaloneTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
+import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeModifiers
 
-internal open class DefaultClassTypeItem(
+internal class DefaultClassTypeItem(
     modifiers: TypeModifiers,
-    final override val qualifiedName: String,
-    final override val arguments: List<TypeArgumentTypeItem>,
-    final override val outerClassType: ClassTypeItem?,
+    override val qualifiedName: String,
+    override val arguments: List<TypeArgumentTypeItem>,
+    override val outerClassType: ClassTypeItem?,
     isValueClassType: Boolean = false,
-) : ClassTypeItem, DefaultTypeItem(modifiers, isValueClassType) {
+) : ClassTypeItem, DefaultStandaloneTypeItem(modifiers, isValueClassType) {
 
     init {
         // Make sure that if an outer class type is provided that its qualified name is the outer
@@ -48,7 +49,7 @@ internal open class DefaultClassTypeItem(
      *
      * Used by [ClassTypeItem.substitute] to determine whether it needs to create a new instance.
      */
-    protected fun requiresNewInstance(
+    private fun requiresNewInstance(
         modifiers: TypeModifiers,
         outerClassType: ClassTypeItem?,
         arguments: List<TypeArgumentTypeItem>,
@@ -63,13 +64,28 @@ internal open class DefaultClassTypeItem(
         arguments: List<TypeArgumentTypeItem>,
     ): ClassTypeItem =
         if (requiresNewInstance(modifiers, outerClassType, arguments)) {
-            DefaultClassTypeItem(
+            TypeItem.createClassType(
                 modifiers,
                 qualifiedName,
                 arguments,
                 outerClassType,
+                isValueClassType,
             )
         } else this
+
+    override fun equalsImpl(other: DefaultStandaloneTypeItem): Boolean {
+        if (other !is ClassTypeItem) return false
+        return qualifiedName == other.qualifiedName &&
+            outerClassType == other.outerClassType &&
+            arguments == other.arguments
+    }
+
+    override fun hashCodeImpl(): Int {
+        var result = qualifiedName.hashCode()
+        result = 31 * result + (outerClassType?.hashCode() ?: 0)
+        result = 31 * result + arguments.hashCode()
+        return result
+    }
 }
 
 /**

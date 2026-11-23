@@ -16,14 +16,12 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.cli.common.MetalavaOptionGroup
 import com.android.tools.metalava.cli.common.newDir
 import com.android.tools.metalava.cli.common.newFile
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
-import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
-import com.android.tools.metalava.reporter.ThrowingReporter
-import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.file
 import java.io.File
@@ -37,11 +35,9 @@ const val ARG_MANIFEST = "--manifest"
 /** The name of the group, can be used in help text to refer to the options in this group. */
 const val MISCELLANEOUS_OPTIONS_GROUP = "Miscellaneous"
 
-class MiscellaneousOptions(
-    private val reporterSupplier: () -> Reporter = { ThrowingReporter.INSTANCE },
-) : OptionGroup(MISCELLANEOUS_OPTIONS_GROUP, help = "Miscellaneous options.") {
-    /** Proguard Keep list file to write */
-    val proguardFile by
+class MiscellaneousOptions() :
+    MetalavaOptionGroup(MISCELLANEOUS_OPTIONS_GROUP, help = "Miscellaneous options.") {
+    private val proguardFile by
         option(
                 ARG_PROGUARD,
                 metavar = "<file>",
@@ -49,8 +45,7 @@ class MiscellaneousOptions(
             )
             .newFile()
 
-    /** Path to directory to write SDK values to */
-    val sdkValueDir by
+    private val sdkValueDir by
         option(
                 ARG_SDK_VALUES,
                 metavar = "<dir>",
@@ -58,11 +53,7 @@ class MiscellaneousOptions(
             )
             .newDir()
 
-    /**
-     * If set, a file to write extracted annotations to. Corresponds to the --extract-annotations
-     * flag.
-     */
-    val externalAnnotationsFile by
+    private val externalAnnotationsFile by
         option(
                 ARG_EXTRACT_ANNOTATIONS,
                 metavar = "<zipfile>",
@@ -89,13 +80,34 @@ class MiscellaneousOptions(
             .file(mustExist = true, canBeDir = false, mustBeReadable = true)
 
     /**
-     * A [Manifest] object to look up available permissions and min_sdk_version.
-     *
-     * Created lazily to make sure that the [reporter] has been initialized.
+     * Returns a [ComputedMiscellaneousOptions] instance based on the current state of the options.
      */
-    val manifest by lazy { manifestFile?.let { Manifest(it, reporter) } ?: emptyManifest }
+    fun compute(reporter: Reporter): ComputedMiscellaneousOptions {
+        return ComputedMiscellaneousOptions(
+            proguardFile,
+            sdkValueDir,
+            externalAnnotationsFile,
+            manifestFile,
+            reporter,
+        )
+    }
+}
 
-    /** [Reporter] that will redirect [Issues.Issue] depending on their [Issues.Category]. */
-    private val reporter
-        get() = reporterSupplier()
+/** Miscellaneous options and additional values computed based on those options. */
+class ComputedMiscellaneousOptions
+internal constructor(
+    /** Proguard Keep list file to write */
+    val proguardFile: File?,
+    /** Path to directory to write SDK values to */
+    val sdkValueDir: File?,
+    /**
+     * If set, a file to write extracted annotations to. Corresponds to the --extract-annotations
+     * flag.
+     */
+    val externalAnnotationsFile: File?,
+    manifestFile: File?,
+    reporter: Reporter,
+) {
+    /** A [Manifest] object to look up available permissions and min_sdk_version. */
+    val manifest = manifestFile?.let { Manifest(it, reporter) } ?: emptyManifest
 }

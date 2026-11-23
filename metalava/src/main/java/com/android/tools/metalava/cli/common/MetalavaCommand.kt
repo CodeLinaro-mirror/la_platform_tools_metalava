@@ -17,7 +17,6 @@
 package com.android.tools.metalava.cli.common
 
 import androidx.tracing.Tracer
-import com.android.tools.metalava.ProgressTracker
 import com.android.tools.metalava.trace
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.NoSuchOption
@@ -51,7 +50,6 @@ open class MetalavaCommand(
      * command line arguments.
      */
     private val defaultCommandName: String? = null,
-    internal val progressTracker: ProgressTracker,
     internal val tracer: Tracer,
 ) :
     CliktCommand(
@@ -158,7 +156,7 @@ open class MetalavaCommand(
         var exitCode = 0
         try {
             tracer.trace("processThrowCliException") { processThrowCliException(args) }
-        } catch (e: PrintVersionException) {
+        } catch (_: PrintVersionException) {
             // Print the version and exit.
             stdout.println("\n$commandName version: ${Version.VERSION}")
         } catch (e: MetalavaCliException) {
@@ -330,10 +328,6 @@ val CliktCommand.commonOptions
 val CliktCommand.terminal
     // Retrieve the terminal from the CommonOptions.
     get() = commonOptions.terminal
-
-val CliktCommand.progressTracker
-    // Retrieve the ProgressTracker that is made available by the containing MetalavaCommand.
-    get() = metalavaCommand.progressTracker
 
 val CliktCommand.tracer
     // Retrieve the Tracer that is made available by the containing MetalavaCommand.

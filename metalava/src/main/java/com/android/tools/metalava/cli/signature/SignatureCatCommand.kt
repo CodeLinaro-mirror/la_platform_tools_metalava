@@ -70,7 +70,7 @@ class SignatureCatCommand :
             .newOrExistingFile()
 
     override fun run() {
-        val outputFormat = formatOptions.fileFormat
+        val outputFormat = formatOptions.compute().fileFormat
 
         val signatureFiles =
             if (files.isEmpty()) {

@@ -17,7 +17,7 @@
 package com.android.tools.metalava.compatibility
 
 import com.android.tools.metalava.DriverTest
-import com.android.tools.metalava.cli.common.ARG_HIDE
+import com.android.tools.metalava.reporter.Issues
 import org.junit.Test
 
 class TargetLanguageCompatibilityTest : DriverTest() {
@@ -330,7 +330,10 @@ class TargetLanguageCompatibilityTest : DriverTest() {
     fun `Test making a method deprecated level hidden impact on kotlin`() {
         check(
             // Impact on java source tested separately below.
-            extraArguments = arrayOf(ARG_HIDE, "RemovedFromJava"),
+            extraArguments =
+                hiddenIssues(
+                    Issues.REMOVED_FROM_JAVA,
+                ),
             expectedIssues =
                 """
                 released-api.txt:5: error: Source breaking change: method test.pkg.Foo.incompatibleOverloadDoesNotTargetKotlin(String,int) can no longer be resolved from Kotlin source [RemovedFromKotlin]
@@ -748,6 +751,41 @@ class TargetLanguageCompatibilityTest : DriverTest() {
                     method @BytecodeOnly public int changeToKotlinVersion();
                   }
                 }
+                """,
+        )
+    }
+
+    @Test
+    fun `Test erasure of type arguments when a method becomes bytecode-only`() {
+        // When a bytecode-only method is loaded from a jar, the types will be erased.
+        // Changing a return type to remove type arguments when the method isn't bytecode-only is
+        // a source-breaking change, but reported as binary-breaking here.
+        check(
+            checkCompatibilityApiReleased =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo {
+                    method public java.util.List<String> toBytecodeOnlyMethod();
+                    method public java.util.List<String> sourceMethod();
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo {
+                    method @BytecodeOnly @Deprecated public java.util.List toBytecodeOnlyMethod();
+                    method public java.util.List sourceMethod();
+                  }
+                }
+                """,
+            expectedIssues =
+                """
+                load-api.txt:5: error: Binary breaking change: Method test.pkg.Foo.sourceMethod has changed return type from java.util.List<java.lang.String> to java.util.List [ChangedType]
+                released-api.txt:4: error: Source breaking change: method test.pkg.Foo.toBytecodeOnlyMethod() can no longer be resolved from Java source [RemovedFromJava]
+                released-api.txt:4: error: Source breaking change: method test.pkg.Foo.toBytecodeOnlyMethod() can no longer be resolved from Kotlin source [RemovedFromKotlin]
                 """,
         )
     }

@@ -1915,40 +1915,40 @@ class CommonTypeModifiersTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             // () -> String
             val noParamToString = fooClass.assertMethod("noParamToString", emptyList()).returnType()
-            noParamToString.assertClassTypeItem {
+            noParamToString.assertLambdaTypeItem {
                 assertHasNonNullNullability(expectAnnotation = false)
-                assertThat(arguments).hasSize(1)
-                arguments.single().assertHasNonNullNullability(expectAnnotation = false)
+                assertThat(parameterTypes).isEmpty()
+                returnType.assertHasNonNullNullability(expectAnnotation = false)
             }
 
             // (String?) -> String
             val oneParamToString =
                 fooClass.assertMethod("oneParamToString", emptyList()).returnType()
-            oneParamToString.assertClassTypeItem {
+            oneParamToString.assertLambdaTypeItem {
                 assertHasNonNullNullability(expectAnnotation = false)
-                assertThat(arguments).hasSize(2)
-                arguments[0].assertHasNullableNullability(expectAnnotation = false)
-                arguments[1].assertHasNonNullNullability(expectAnnotation = false)
+                assertThat(parameterTypes).hasSize(1)
+                parameterTypes[0].assertHasNullableNullability(expectAnnotation = false)
+                returnType.assertHasNonNullNullability(expectAnnotation = false)
             }
 
             // (String, Int?) -> String?
             val twoParamToString =
                 fooClass.assertMethod("twoParamToString", emptyList()).returnType()
-            twoParamToString.assertClassTypeItem {
+            twoParamToString.assertLambdaTypeItem {
                 assertHasNonNullNullability(expectAnnotation = false)
-                assertThat(arguments).hasSize(3)
-                arguments[0].assertHasNonNullNullability(expectAnnotation = false)
-                arguments[1].assertHasNullableNullability(expectAnnotation = false)
-                arguments[2].assertHasNullableNullability(expectAnnotation = false)
+                assertThat(parameterTypes).hasSize(2)
+                parameterTypes[0].assertHasNonNullNullability(expectAnnotation = false)
+                parameterTypes[1].assertHasNullableNullability(expectAnnotation = false)
+                returnType.assertHasNullableNullability(expectAnnotation = false)
             }
 
             // (String) -> Unit
             val oneParamToUnit = fooClass.assertMethod("oneParamToUnit", emptyList()).returnType()
-            oneParamToUnit.assertClassTypeItem {
+            oneParamToUnit.assertLambdaTypeItem {
                 assertHasNonNullNullability(expectAnnotation = false)
-                assertThat(arguments).hasSize(2)
-                arguments[0].assertHasNonNullNullability(expectAnnotation = false)
-                arguments[1].assertHasNonNullNullability(expectAnnotation = false)
+                assertThat(parameterTypes).hasSize(1)
+                parameterTypes[0].assertHasNonNullNullability(expectAnnotation = false)
+                returnType.assertHasNonNullNullability(expectAnnotation = false)
             }
         }
     }
@@ -2100,15 +2100,14 @@ class CommonTypeModifiersTest : BaseModelTest() {
         ) {
             val extensionFunctionType =
                 codebase.assertClass("test.pkg.Foo").methods().single().returnType()
-            extensionFunctionType.assertClassTypeItem {
+            extensionFunctionType.assertLambdaTypeItem {
                 assertHasNonNullNullability(expectAnnotation = false)
-                val receiverType = arguments[0]
-                receiverType.assertHasNullableNullability(expectAnnotation = false)
-                val typeArgument1 = arguments[1]
-                typeArgument1.assertHasNonNullNullability(expectAnnotation = false)
-                val typeArgument2 = arguments[2]
-                typeArgument2.assertHasNullableNullability(expectAnnotation = false)
-                val returnType = arguments[3]
+                receiverType.assertNotNullTypeItem {
+                    assertHasNullableNullability(expectAnnotation = false)
+                }
+                assertThat(parameterTypes).hasSize(2)
+                parameterTypes[0].assertHasNonNullNullability(expectAnnotation = false)
+                parameterTypes[1].assertHasNullableNullability(expectAnnotation = false)
                 returnType.assertHasNonNullNullability(expectAnnotation = false)
             }
         }
@@ -2129,11 +2128,10 @@ class CommonTypeModifiersTest : BaseModelTest() {
             )
         ) {
             val functionType = codebase.assertClass("test.pkg.Foo").methods().single().returnType()
-            functionType.assertClassTypeItem {
+            functionType.assertLambdaTypeItem {
                 assertHasNullableNullability(expectAnnotation = false)
-                val typeArgument = arguments[0]
-                typeArgument.assertHasNonNullNullability(expectAnnotation = false)
-                val returnType = arguments[1]
+                assertThat(parameterTypes).hasSize(1)
+                parameterTypes[0].assertHasNonNullNullability(expectAnnotation = false)
                 returnType.assertHasNullableNullability(expectAnnotation = false)
             }
         }

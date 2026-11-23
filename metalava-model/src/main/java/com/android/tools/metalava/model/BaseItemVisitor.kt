@@ -43,6 +43,18 @@ open class BaseItemVisitor(
      * Defaults to `true` as that is the safest option which avoids inadvertently ignoring them.
      */
     private val visitRecordComponentItems: Boolean = false,
+
+    /**
+     * Determines whether classes will be visited in name order or not.
+     *
+     * If this is `true` then classes will be visited in the order defined by
+     * [ClassItem.classNameSorterTypeAliasesLast]. Otherwise, they will be visited in their
+     * declaration order.
+     *
+     * Defaults to `false` as most users do not care about the order in which classes are visited
+     * and so there is no point in spending time sorting them.
+     */
+    val orderClassesByName: Boolean = false,
 ) : ItemVisitor {
     /** Calls [visitItem] before invoking [body] after which it calls [afterVisitItem]. */
     protected inline fun <T : Item> wrapBodyWithCallsToVisitMethodsForItem(
@@ -100,9 +112,7 @@ open class BaseItemVisitor(
             }
 
             if (preserveClassNesting) {
-                for (nestedCls in cls.nestedClasses()) {
-                    nestedCls.accept(this)
-                }
+                visitClassList(cls.nestedClasses())
             } // otherwise done in visit(PackageItem)
 
             afterVisitClass(cls)
@@ -162,6 +172,29 @@ open class BaseItemVisitor(
     protected fun packageClassesAsSequence(pkg: PackageItem) =
         if (preserveClassNesting) pkg.topLevelClasses().asSequence() else pkg.allClasses()
 
+    /**
+     * Visit a [List] of [ClassItem]s, optionally sorting it into order defined by
+     * [ClassItem.classNameSorterTypeAliasesLast] if [orderClassesByName] is true.
+     */
+    protected fun visitClassList(classes: List<ClassItem>) {
+        val classesToVisit =
+            if (orderClassesByName) classes.sortedWith(ClassItem.classNameSorterTypeAliasesLast())
+            else classes
+        classesToVisit.forEach { it.accept(this) }
+    }
+
+    /**
+     * Visit a [Sequence] of [ClassItem]s, optionally delegating to [visitClassList] for sorting if
+     * [orderClassesByName] is true.
+     */
+    protected fun visitClassSequence(classes: Sequence<ClassItem>) {
+        if (orderClassesByName) {
+            visitClassList(classes.toList())
+        } else {
+            classes.forEach { it.accept(this) }
+        }
+    }
+
     override fun visit(codebase: Codebase) {
         visitCodebase(codebase)
         codebase.getPackages().packages.forEach { it.accept(this) }
@@ -180,9 +213,7 @@ open class BaseItemVisitor(
         wrapBodyWithCallsToVisitMethodsForSelectableItem(pkg) {
             visitPackage(pkg)
 
-            for (cls in packageClassesAsSequence(pkg)) {
-                cls.accept(this)
-            }
+            visitClassSequence(packageClassesAsSequence(pkg))
 
             afterVisitPackage(pkg)
         }
@@ -195,10 +226,6 @@ open class BaseItemVisitor(
     open fun skipPackage(pkg: PackageItem) = !pkg.emit
 
     override fun visit(parameter: ParameterItem) {
-        if (skip(parameter)) {
-            return
-        }
-
         wrapBodyWithCallsToVisitMethodsForItem(parameter) { visitParameter(parameter) }
     }
 
@@ -218,7 +245,15 @@ open class BaseItemVisitor(
         }
     }
 
-    open fun skip(item: Item): Boolean = false
+    /**
+     * Override to skip specific [SelectableItem]s.
+     *
+     * This intentionally does not support skipping [ParameterItem]s as they generally are not
+     * conditionally skipped as they are an integral part of [CallableItem]s. If [ParameterItem]s
+     * should not be visited then set [visitParameterItems] to `false`. If [ParameterItem]s are
+     * visited then filter them in their [visitParameter] method.
+     */
+    open fun skip(item: SelectableItem): Boolean = false
 
     /**
      * Visits any [Item].

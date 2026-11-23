@@ -30,10 +30,12 @@ dependencies {
     testImplementation(libs.junit4)
     testImplementation(libs.truth)
     testImplementation(libs.kotlinTest)
+    testImplementation(libs.kotlinTestJUnit)
 
     testFixturesImplementation(project(":metalava-reporter"))
     testFixturesImplementation(project(":metalava-testing"))
     testFixturesImplementation(libs.androidLintTests)
     testFixturesImplementation(libs.truth)
     testFixturesImplementation(libs.kotlinTest)
+    testFixturesImplementation(libs.kotlinTestJUnit)
 }

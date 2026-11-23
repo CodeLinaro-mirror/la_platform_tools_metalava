@@ -97,9 +97,6 @@ interface CallableItem : MemberItem, TypeParameterListOwner, PossiblyRecordCompo
     /** Types of exceptions that this callable can throw */
     fun throwsTypes(): List<ExceptionTypeItem>
 
-    /** The body of this, may not be available. */
-    val body: CallableBody
-
     /** Returns true if this callable throws the given exception */
     fun throws(qualifiedName: String): Boolean {
         for (type in throwsTypes()) {
@@ -112,11 +109,12 @@ interface CallableItem : MemberItem, TypeParameterListOwner, PossiblyRecordCompo
         return false
     }
 
-    fun filteredThrowsTypes(predicate: FilterPredicate): Collection<ExceptionTypeItem> {
+    fun filteredThrowsTypes(predicate: FilterPredicate?): Collection<ExceptionTypeItem> {
         if (throwsTypes().isEmpty()) {
             return emptyList()
         }
-        return filteredThrowsTypes(predicate, LinkedHashSet())
+        return if (predicate == null) throwsTypes()
+        else filteredThrowsTypes(predicate, LinkedHashSet())
     }
 
     private fun filteredThrowsTypes(
@@ -164,11 +162,6 @@ interface CallableItem : MemberItem, TypeParameterListOwner, PossiblyRecordCompo
         append("(")
         parameters().joinTo(this) { it.type().toSimpleTypeString() }
         append(")")
-    }
-
-    override fun toStringForItem(): String {
-        return "${if (isConstructor()) "constructor" else "method"} ${
-            containingClass().qualifiedName()}.${name()}(${parameters().joinToString { it.type().toSimpleTypeString() }})"
     }
 
     override fun equalsToItem(other: Any?): Boolean {
@@ -261,16 +254,27 @@ interface CallableItem : MemberItem, TypeParameterListOwner, PossiblyRecordCompo
             // is a Kotlin-only callable, don't accept any equivalent-erased types as equal, but
             // allow for the case that one version has wildcards that the other doesn't (common
             // when comparing types generated from PSI vs the Kotlin analysis API).
-            if (parameter1Type.toErasedTypeString() == parameter2Type.toErasedTypeString()) {
+            if (TypeComparator.ERASED.compare(parameter1Type, parameter2Type)) {
                 if (TargetLanguage.BYTECODE in targetLanguages) {
                     continue
-                } else if (equalWithFlattenedWildcards(parameter1Type, parameter2Type)) {
+                } else if (
+                    TypeComparator.FLATTENED_WILDCARDS.compare(parameter1Type, parameter2Type)
+                ) {
                     continue
                 }
             }
 
-            val convertedType =
-                parameter1Type.convertType(other.containingClass(), containingClass())
+            // Substitute any type variables in this callable's parameter type using the type
+            // arguments provided by `other`'s containing class. If `other` is from a different
+            // codebase (e.g. when searching this codebase for an inherited method matching a
+            // method from another codebase), resolve `other`'s containing class in this codebase
+            // first so that type variable mapping uses the class hierarchy in this codebase.
+            val otherContainingClass =
+                other.containingClass().let { cls ->
+                    if (cls.codebase === codebase) cls
+                    else cls.findCorrespondingItemIn(codebase) ?: return false
+                }
+            val convertedType = parameter1Type.convertType(otherContainingClass, containingClass())
             if (!equalParameterTypes(convertedType, parameter2Type)) return false
         }
         return true
@@ -284,8 +288,8 @@ interface CallableItem : MemberItem, TypeParameterListOwner, PossiblyRecordCompo
     private fun equalParameterTypes(parameterType1: TypeItem, parameterType2: TypeItem): Boolean {
         return when (targetLanguages) {
             TargetLanguageSet.KOTLIN_ONLY ->
-                parameterType1.equalToType(parameterType2, includeNullability = true)
-            else -> parameterType1 == parameterType2
+                TypeComparator.NULLABILITY_AWARE.compare(parameterType1, parameterType2)
+            else -> TypeComparator.IGNORE_NULLABILITY.compare(parameterType1, parameterType2)
         }
     }
 
@@ -334,27 +338,27 @@ interface CallableItem : MemberItem, TypeParameterListOwner, PossiblyRecordCompo
      * the method "void create(int x, int y)" the internal name of the constructor is "create" and
      * the desc is "(II)V"
      */
-    fun internalDesc(voidConstructorTypes: Boolean = false): String {
-        val sb = StringBuilder()
-        sb.append("(")
+    fun internalDesc(voidConstructorTypes: Boolean = false): String = buildString {
+        append("(")
 
         // Inner, i.e. non-static nested, classes get an implicit constructor parameter for the
         // outer type
-        if (
-            isConstructor() &&
-                containingClass().containingClass() != null &&
-                !containingClass().modifiers.isStatic()
-        ) {
-            sb.append(containingClass().containingClass()?.type()?.internalName() ?: "")
+        if (isConstructor() && !containingClass().modifiers.isStatic()) {
+            containingClass().containingClass()?.let { outerClass ->
+                appendInternalName(outerClass.type())
+            }
         }
 
         for (parameter in parameters()) {
-            sb.append(parameter.type().internalName())
+            appendInternalName(parameter.type())
         }
 
-        sb.append(")")
-        sb.append(if (voidConstructorTypes && isConstructor()) "V" else returnType().internalName())
-        return sb.toString()
+        append(")")
+        if (voidConstructorTypes && isConstructor()) {
+            append("V")
+        } else {
+            appendInternalName(returnType())
+        }
     }
 
     companion object {

@@ -44,6 +44,10 @@ class ApiSurfacesConfigTest : BaseConfigParserTest() {
                             listOf(
                                 ApiSurfaceConfig(
                                     name = "public",
+                                    selectionCriteria =
+                                        SelectionCriteriaConfig(
+                                            unannotated = EffectConfig.SHOW,
+                                        ),
                                 ),
                                 ApiSurfaceConfig(
                                     name = "system",
@@ -190,9 +194,17 @@ class ApiSurfacesConfigTest : BaseConfigParserTest() {
                                 listOf(
                                     ApiSurfaceConfig(
                                         name = "public",
+                                        selectionCriteria =
+                                            SelectionCriteriaConfig(
+                                                unannotated = EffectConfig.SHOW,
+                                            ),
                                     ),
                                     ApiSurfaceConfig(
                                         name = "other",
+                                        selectionCriteria =
+                                            SelectionCriteriaConfig(
+                                                unannotated = EffectConfig.SHOW,
+                                            ),
                                     ),
                                 ),
                         ),
@@ -203,7 +215,7 @@ class ApiSurfacesConfigTest : BaseConfigParserTest() {
     }
 
     @Test
-    fun `Duplicate api-surfaces across config files`() {
+    fun `Duplicate api-surfaces across config files - identical`() {
         runTest(
             xml(
                 "config1.xml",
@@ -229,7 +241,71 @@ class ApiSurfacesConfigTest : BaseConfigParserTest() {
                     </config>
                 """,
             ),
-            expectedFail = "Found duplicate surfaces called `public`"
+        ) {
+            assertEquals(
+                Config(
+                    apiSurfaces =
+                        ApiSurfacesConfig(
+                            apiSurfaceList =
+                                listOf(
+                                    ApiSurfaceConfig(
+                                        name = "public",
+                                        selectionCriteria =
+                                            SelectionCriteriaConfig(
+                                                unannotated = EffectConfig.SHOW,
+                                            ),
+                                    ),
+                                ),
+                        ),
+                ),
+                config
+            )
+        }
+    }
+
+    @Test
+    fun `Duplicate api-surfaces across config files - different`() {
+        runTest(
+            xml(
+                "config1.xml",
+                """
+                    <config xmlns="http://www.google.com/tools/metalava/config">
+                      <api-surfaces>
+                        <api-surface name="public">
+                            <selection-criteria unannotated="show"/>
+                        </api-surface>
+                      </api-surfaces>
+                    </config>
+                """,
+            ),
+            xml(
+                "config2.xml",
+                """
+                    <config xmlns="http://www.google.com/tools/metalava/config">
+                      <api-surfaces>
+                        <api-surface name="public">
+                            <selection-criteria unannotated="hide">
+                                <annotation-rule pattern="android.annotation.PublicApi"/>
+                            </selection-criteria>
+                        </api-surface>
+                      </api-surfaces>
+                    </config>
+                """,
+            ),
+            expectedFail =
+                """
+                    Found duplicate surfaces called `public`
+                        Definition #1:
+                            <api-surface xmlns="http://www.google.com/tools/metalava/config" name="public">
+                              <selection-criteria unannotated="show"/>
+                            </api-surface>
+                        Definition #2:
+                            <api-surface xmlns="http://www.google.com/tools/metalava/config" name="public">
+                              <selection-criteria unannotated="hide">
+                                <annotation-rule pattern="android.annotation.PublicApi" effect="show" recursive="true"/>
+                              </selection-criteria>
+                            </api-surface>
+                """,
         )
     }
 
@@ -431,6 +507,85 @@ class ApiSurfacesConfigTest : BaseConfigParserTest() {
     }
 
     /**
+     * Check that [ApiSurfacesConfig.surfacesFor] returns the expected result.
+     *
+     * @param name The name of the surface whose needed surfaces are to be checked.
+     * @param expectedSurfaces The list of expected surface names.
+     */
+    private fun ApiSurfacesConfig.assertSurfacesFor(
+        name: String,
+        expectedSurfaces: List<String>,
+    ) {
+        val surfaceConfig = getByNameOrError(name) { "unknown `$it`" }
+        assertEquals(
+            expectedSurfaces,
+            surfacesFor(surfaceConfig).map { it.name },
+            "surfaces for $name",
+        )
+    }
+
+    @Test
+    fun `Test surfacesFor`() {
+        val apiSurfacesConfig =
+            ApiSurfacesConfig(
+                apiSurfaceList =
+                    listOf(
+                        ApiSurfaceConfig(name = "public"),
+                        ApiSurfaceConfig(
+                            name = "intermediate",
+                            extends = "public",
+                            contents = ContentsConfig.STANDALONE,
+                        ),
+                        ApiSurfaceConfig(
+                            name = "restricted",
+                            extends = "intermediate",
+                            contents = ContentsConfig.STANDALONE,
+                        ),
+                        ApiSurfaceConfig(name = "other", extends = "intermediate"),
+                        ApiSurfaceConfig(name = "other-delta", extends = "other"),
+                    ),
+            )
+
+        apiSurfacesConfig.assertSurfacesFor(
+            "public",
+            listOf(
+                "public",
+            ),
+        )
+
+        apiSurfacesConfig.assertSurfacesFor(
+            "intermediate",
+            listOf(
+                "intermediate",
+            ),
+        )
+
+        apiSurfacesConfig.assertSurfacesFor(
+            "restricted",
+            listOf(
+                "restricted",
+            ),
+        )
+
+        apiSurfacesConfig.assertSurfacesFor(
+            "other",
+            listOf(
+                "intermediate",
+                "other",
+            ),
+        )
+
+        apiSurfacesConfig.assertSurfacesFor(
+            "other-delta",
+            listOf(
+                "intermediate",
+                "other",
+                "other-delta",
+            ),
+        )
+    }
+
+    /**
      * Check that [ApiSurfacesConfig.relatedTo] returns the expected result.
      *
      * @param name The name of the surface whose relation is to be checked.
@@ -575,6 +730,90 @@ class ApiSurfacesConfigTest : BaseConfigParserTest() {
                         <annotation-rule pattern="test.api.RestrictedApi" effect="show" recursive="false"/>
                       </selection-criteria>
                     </api-surface>
+                  </api-surfaces>
+                </config>
+            """
+        )
+    }
+
+    @Test
+    fun `api-surfaces doc-only`() {
+        roundTrip(
+            Config(
+                apiSurfaces =
+                    ApiSurfacesConfig(
+                        apiSurfaceList =
+                            listOf(
+                                ApiSurfaceConfig(
+                                    name = "public",
+                                    selectionCriteria =
+                                        SelectionCriteriaConfig(
+                                            unannotated = EffectConfig.SHOW,
+                                        ),
+                                ),
+                            ),
+                        docOnly =
+                            ApiVariantTypeRuleConfig(
+                                annotationRules =
+                                    listOf(
+                                        AnnotationPatternRuleConfig(
+                                            pattern = "test.api.DocOnly",
+                                        )
+                                    )
+                            ),
+                    ),
+            ),
+            """
+                <config xmlns="http://www.google.com/tools/metalava/config">
+                  <api-surfaces>
+                    <api-surface name="public">
+                      <selection-criteria unannotated="show"/>
+                    </api-surface>
+                    <doc-only>
+                      <annotation-rule pattern="test.api.DocOnly"/>
+                    </doc-only>
+                  </api-surfaces>
+                </config>
+            """
+        )
+    }
+
+    @Test
+    fun `api-surfaces removed`() {
+        roundTrip(
+            Config(
+                apiSurfaces =
+                    ApiSurfacesConfig(
+                        apiSurfaceList =
+                            listOf(
+                                ApiSurfaceConfig(
+                                    name = "public",
+                                    selectionCriteria =
+                                        SelectionCriteriaConfig(
+                                            unannotated = EffectConfig.SHOW,
+                                        ),
+                                ),
+                            ),
+                        removed =
+                            ApiVariantTypeRuleConfig(
+                                annotationRules =
+                                    listOf(
+                                        AnnotationPatternRuleConfig(
+                                            pattern = "android.annotation.RemovedFromApi",
+                                        )
+                                    )
+                            ),
+                    ),
+            ),
+            """
+                <config xmlns="http://www.google.com/tools/metalava/config">
+                  <api-surfaces>
+                    <api-surface name="public">
+                      <selection-criteria unannotated="show"/>
+                    </api-surface>
+                    <removed>
+                      <annotation-rule pattern="android.annotation.RemovedFromApi"/>
+                    </removed>
                   </api-surfaces>
                 </config>
             """

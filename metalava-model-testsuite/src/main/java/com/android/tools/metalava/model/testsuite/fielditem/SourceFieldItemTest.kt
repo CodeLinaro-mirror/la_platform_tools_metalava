@@ -243,7 +243,6 @@ class SourceFieldItemTest : BaseModelTest() {
                 """
                     package test.pkg;
 
-                    /** @doconly Some docs here */
                     public class Test {
                         public static final int Field = 7;
                     }

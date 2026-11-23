@@ -80,6 +80,7 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
      */
     @get:Rule val entryPointCallerRule = EntryPointCallerRule { params.entryPointCallerTracker }
 
+    /** Parameters for a single documentation reference test case. */
     data class TestParams
     @EntryPoint
     constructor(
@@ -91,15 +92,19 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
          */
         val reference: String = name,
 
+        /** Optional explicit label supplied after [reference] in the input comment. */
+        val linkLabel: String? = null,
+
         /** The expected resolved reference of resolving [reference]. */
         val expectedResolvedReference: String,
 
         /**
          * The expected label that will be added, `null` if it does not add a label.
          *
-         * Defaults to [reference] with `#` replaced with `.`.
+         * Defaults to [linkLabel], or [reference] with `#` replaced with `.` when [linkLabel] is
+         * `null`.
          */
-        val expectedLinkLabel: String? = reference.replace('#', '.'),
+        val expectedLinkLabel: String? = linkLabel ?: reference.replace('#', '.'),
 
         /** The expected issues that will be reported. */
         val expectedIssues: String = "",
@@ -231,8 +236,15 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                 TestParams(
                     name = "##uri-fragment",
                     expectedResolvedReference = "##uri-fragment",
-                    // TODO(b/447588621): Report an issue if no label is provided.
                     expectedLinkLabel = null,
+                    expectedIssues =
+                        "warning: Malformed reference `##uri-fragment`, URI fragment reference requires a label (ErrorWhenNew) [MalformedDocReference]",
+                ),
+                TestParams(
+                    name = "##uri-fragment label",
+                    reference = "##uri-fragment",
+                    linkLabel = "label",
+                    expectedResolvedReference = "##uri-fragment",
                 ),
 
                 // The # is optional when referencing members of the current class. The following
@@ -369,6 +381,14 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                     name = "Other##uri-fragment",
                     expectedResolvedReference = "test.pkg.Other##uri-fragment",
                     expectedLinkLabel = null,
+                    expectedIssues =
+                        "warning: Malformed reference `Other##uri-fragment`, URI fragment reference requires a label (ErrorWhenNew) [MalformedDocReference]",
+                ),
+                TestParams(
+                    name = "Other##uri-fragment label",
+                    reference = "Other##uri-fragment",
+                    linkLabel = "label",
+                    expectedResolvedReference = "test.pkg.Other##uri-fragment",
                 ),
 
                 // Reference a member of an imported class.
@@ -425,6 +445,14 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                     name = "Imported##uri-fragment",
                     expectedResolvedReference = "another.pkg.Imported##uri-fragment",
                     expectedLinkLabel = null,
+                    expectedIssues =
+                        "warning: Malformed reference `Imported##uri-fragment`, URI fragment reference requires a label (ErrorWhenNew) [MalformedDocReference]",
+                ),
+                TestParams(
+                    name = "Imported##uri-fragment label",
+                    reference = "Imported##uri-fragment",
+                    linkLabel = "label",
+                    expectedResolvedReference = "another.pkg.Imported##uri-fragment",
                 ),
 
                 // Reference a member of a fully qualified class.
@@ -490,6 +518,14 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                     name = "other.pkg.Another##uri-fragment",
                     expectedResolvedReference = "other.pkg.Another##uri-fragment",
                     expectedLinkLabel = null,
+                    expectedIssues =
+                        "warning: Malformed reference `other.pkg.Another##uri-fragment`, URI fragment reference requires a label (ErrorWhenNew) [MalformedDocReference]",
+                ),
+                TestParams(
+                    name = "other.pkg.Another##uri-fragment label",
+                    reference = "other.pkg.Another##uri-fragment",
+                    linkLabel = "label",
+                    expectedResolvedReference = "other.pkg.Another##uri-fragment",
                 ),
             )
 
@@ -502,9 +538,13 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
             }
     }
 
+    /**
+     * Verify that [params] resolves, formats its printed tag, and reports issues as expected for
+     * [testTagType].
+     */
     @Test
     fun `Documentation text`() {
-        val comment = testTagType.commentForReference(params.reference, null)
+        val comment = testTagType.commentForReference(params.reference, params.linkLabel)
         runSourceCodebaseTest(
             inputSet(
                 java(

@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.testsuite.packageitem
 
 import com.android.tools.lint.checks.infrastructure.TestFiles.source
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.RequiresCapabilities
@@ -94,7 +95,7 @@ class CommonPackageItemTest : BaseModelTest() {
             ),
         ) {
             val packageItem = codebase.assertPackage("test.pkg")
-            assertEquals(true, packageItem.originallyHidden)
+            packageItem.assertItemApiVariants("ApiVariantSet[]")
         }
     }
 
@@ -122,7 +123,7 @@ class CommonPackageItemTest : BaseModelTest() {
             ),
         ) {
             val packageItem = codebase.assertPackage("test.pkg")
-            assertEquals(true, packageItem.originallyHidden)
+            packageItem.assertItemApiVariants("ApiVariantSet[]")
         }
     }
 
@@ -150,7 +151,7 @@ class CommonPackageItemTest : BaseModelTest() {
             ),
         ) {
             val packageItem = codebase.assertPackage("test.pkg")
-            assertEquals(true, packageItem.originallyHidden)
+            packageItem.assertItemApiVariants("ApiVariantSet[]")
         }
     }
 
@@ -661,6 +662,101 @@ class CommonPackageItemTest : BaseModelTest() {
             val packageItem = codebase.assertPackage("other")
 
             packageItem.assertPrintedDocumentation(expectedOutput = "/** Some text */")
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test INVALID_SOURCES is reported for package html outside source roots`() {
+        runSourceCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        public class Test {}
+                    """
+                ),
+                html(
+                    "outside/package.html",
+                    """
+                        <HTML>
+                        <BODY>
+                        Summary.
+                        </BODY>
+                        </HTML>
+                    """
+                ),
+            ),
+        ) {
+            assertAndRemoveReportedIssues(
+                expectedIssues =
+                    """
+                        MAIN_SRC/outside/package.html: error: Could not find source root for MAIN_SRC/outside/package.html [InvalidSources]
+                    """,
+            )
+        }
+    }
+
+    @RequiresCapabilities(Capability.PACKAGE_HTML_FILES)
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test package html in excluded package`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        import test.referenced.Referenced;
+                        public class Foo extends Referenced {}
+                    """
+                ),
+                java(
+                    """
+                        package test.referenced;
+                        public class Referenced {}
+                    """
+                ),
+                html(
+                    "src/test/referenced/package.html",
+                    """
+                        <HTML>
+                        <BODY>
+                        Referenced package doc.
+                        </BODY>
+                        </HTML>
+                    """
+                ),
+                java(
+                    """
+                        /** Excluded package info. */
+                        package test.unreferenced;
+                    """
+                ),
+                html(
+                    "src/test/unreferenced/package.html",
+                    """
+                        <HTML>
+                        <BODY>
+                        Unreferenced package doc.
+                        </BODY>
+                        </HTML>
+                    """
+                ),
+            ),
+            testFixture =
+                TestFixture(
+                    apiPackages = PackageFilter.parse("test.pkg"),
+                ),
+        ) {
+            // Unreferenced excluded package with package.html (and conflicting package-info.java)
+            // should not be created and should not report BothPackageInfoAndHtml.
+            assertNull(codebase.findPackage("test.unreferenced"))
+
+            // Referenced excluded package created on demand should not receive its package.html
+            // documentation.
+            val referencedClass = codebase.assertResolvedClass("test.referenced.Referenced")
+            val referencedPackage = referencedClass.containingPackage()
+            referencedPackage.assertPrintedDocumentation(expectedOutput = "")
         }
     }
 }

@@ -17,10 +17,85 @@
 package com.android.tools.metalava.compatibility
 
 import com.android.tools.metalava.DriverTest
+import com.android.tools.metalava.cli.common.ARG_ERROR_CATEGORY
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
 class MethodCompatibilityCheckTest : DriverTest() {
+    @Test
+    fun `Incompatible method change -- abstract to concrete`() {
+        check(
+            extraArguments = arrayOf(ARG_ERROR_CATEGORY, "Compatibility"),
+            expectedIssues =
+                """
+                    src/test/pkg/MyClass.java:5: error: Method test.pkg.MyClass.myMethod has changed from abstract to concrete [ChangedAbstractToConcrete]
+                """,
+            checkCompatibilityApiReleased =
+                """
+                    package test.pkg {
+                      public abstract class MyClass {
+                          method public abstract void myMethod();
+                      }
+                    }
+                """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            public abstract class MyClass {
+                                private MyClass() {}
+                                public void myMethod() {}
+                            }
+                        """
+                    )
+                )
+        )
+    }
+
+    @Test
+    fun `Compatible method change -- subclass override of inherited abstract method`() {
+        check(
+            extraArguments = arrayOf(ARG_ERROR_CATEGORY, "Compatibility"),
+            checkCompatibilityApiReleased =
+                """
+                    package test.pkg {
+                      public abstract class Parent {
+                          ctor public Parent();
+                          method public abstract void myMethod();
+                      }
+                      public class SubClass extends test.pkg.Parent {
+                          ctor public SubClass();
+                      }
+                    }
+                """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            public abstract class Parent {
+                                public abstract void myMethod();
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+
+                            public class SubClass extends Parent {
+                                public SubClass() {}
+                                @Override
+                                public void myMethod() {}
+                            }
+                        """
+                    )
+                )
+        )
+    }
+
     @Test
     fun `Incompatible method change -- modifiers`() {
         check(

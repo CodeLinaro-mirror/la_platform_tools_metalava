@@ -560,7 +560,35 @@ class PropertyCompatibilityTest : DriverTest() {
                 """
                 load-api.txt:4: error: Source breaking change: Property test.pkg.Foo#changeToAbstract has changed 'abstract' qualifier [ChangedAbstract]
                 load-api.txt:5: error: Source breaking change: Property test.pkg.Foo#changeToFinal has added 'final' qualifier [AddedFinal]
+                load-api.txt:5: error: Property test.pkg.Foo#changeToFinal has changed from abstract to concrete [ChangedAbstractToConcrete]
                 """,
+        )
+    }
+
+    @Test
+    fun `Change abstract property to concrete`() {
+        check(
+            extraArguments = arrayOf(ARG_ERROR_CATEGORY, "Compatibility"),
+            checkCompatibilityApiReleased =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public abstract class Foo {
+                    property public abstract int changeToConcrete;
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public abstract class Foo {
+                    property public int changeToConcrete;
+                  }
+                }
+                """,
+            expectedIssues =
+                "load-api.txt:4: error: Property test.pkg.Foo#changeToConcrete has changed from abstract to concrete [ChangedAbstractToConcrete]",
         )
     }
 

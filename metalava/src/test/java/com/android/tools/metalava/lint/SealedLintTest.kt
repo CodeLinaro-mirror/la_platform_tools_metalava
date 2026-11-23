@@ -99,6 +99,7 @@ class SealedLintTest : DriverTest() {
                       }
                     }
                 """,
+            javaLanguageLevel = "17", // required for sealed classes
         )
     }
 
@@ -133,6 +134,7 @@ class SealedLintTest : DriverTest() {
                       }
                     }
                 """,
+            javaLanguageLevel = "17", // required for sealed classes
         )
     }
 
@@ -168,6 +170,7 @@ class SealedLintTest : DriverTest() {
                       }
                     }
                 """,
+            javaLanguageLevel = "17", // required for sealed classes
         )
     }
 }

@@ -16,14 +16,6 @@ package {
     default_applicable_licenses: ["Android-Apache-2.0"],
 }
 
-java_binary_host {
-    name: "metalava-antlr4-tool",
-    manifest: "antlr/MANIFEST.MF",
-    static_libs: [
-        "prebuilts-metalava-antlr4-tool",
-    ],
-}
-
 java_library_host {
     name: "metalava-signature-reader",
     static_libs: [
@@ -32,7 +24,7 @@ java_library_host {
     ],
 }
 
-// Make the version.properties file available for `metalava-main` in `metalava`
+// Make the version.properties file available for `metalava-core` in `metalava`
 // directory.
 filegroup {
     name: "metalava-version",
@@ -92,4 +84,13 @@ java_library {
 droiddoc_exported_dir {
     name: "metalava-manual",
     path: "manual",
+}
+
+// A filegroup containing the sources of stub-annotations.
+// This is used to compile stub-annotations from source in core library stubs
+// (where we cannot depend on the stub-annotations JAR due to circular dependencies).
+filegroup {
+    name: "stub-annotations-sources",
+    srcs: ["stub-annotations/src/main/java/**/*.java"],
+    visibility: ["//visibility:public"],
 }

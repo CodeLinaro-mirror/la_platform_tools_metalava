@@ -19,7 +19,10 @@ package com.android.tools.metalava.model.testsuite.typeitem
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FilterPredicate
+import com.android.tools.metalava.model.MatchAllPredicate
+import com.android.tools.metalava.model.MatchNonePredicate
 import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.StripJavaLangPrefix
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeStringConfiguration
@@ -186,7 +189,7 @@ class CommonTypeStringTest : BaseModelTest() {
             val type =
                 param.type().let { unfilteredType ->
                     val filter = parameters.filter ?: return@let unfilteredType
-                    unfilteredType.transform(typeUseAnnotationFilter(filter))
+                    unfilteredType.transform(filter.typeUseAnnotationFilter())
                 }
             val methodToTest = parameters.methodToTest
             val typeString = type.methodToTest(parameters.typeStringConfiguration)
@@ -679,7 +682,7 @@ class CommonTypeStringTest : BaseModelTest() {
                                     TypeStringConfiguration(
                                         annotations = true,
                                     ),
-                                filter = { false },
+                                filter = MatchNonePredicate,
                                 expectedTypeString = "java.util.List<java.lang.Integer>"
                             ),
                             ConfigurationTestCase(
@@ -689,7 +692,7 @@ class CommonTypeStringTest : BaseModelTest() {
                                         annotations = true,
                                         kotlinStyleNulls = true
                                     ),
-                                filter = { false },
+                                filter = MatchNonePredicate,
                                 expectedTypeString = "java.util.List<java.lang.Integer!>!"
                             ),
                             ConfigurationTestCase(
@@ -698,7 +701,7 @@ class CommonTypeStringTest : BaseModelTest() {
                                     TypeStringConfiguration(
                                         annotations = true,
                                     ),
-                                filter = { true },
+                                filter = MatchAllPredicate,
                                 expectedTypeString =
                                     "java.util.List<java.lang.@androidx.annotation.IntRange(from=5L, to=10L) Integer>"
                             )
@@ -826,11 +829,7 @@ class CommonTypeStringTest : BaseModelTest() {
                                     annotations = true,
                                 ),
                             // Filter that removes nullness annotations
-                            filter = {
-                                (it as? ClassItem)?.qualifiedName()?.let { name ->
-                                    isNullnessAnnotation(name)
-                                } != true
-                            },
+                            filter = RemoveNullnessAnnotationsPredicate,
                             expectedTypeString =
                                 "java.util.List<java.lang.@androidx.annotation.IntRange(from=5L, to=10L) Integer>"
                         ),
@@ -843,11 +842,7 @@ class CommonTypeStringTest : BaseModelTest() {
                                 ),
                             // Filter that removes nullness annotations, but Kotlin-nulls
                             // should still be present
-                            filter = {
-                                (it as? ClassItem)?.qualifiedName()?.let { name ->
-                                    isNullnessAnnotation(name)
-                                } != true
-                            },
+                            filter = RemoveNullnessAnnotationsPredicate,
                             expectedTypeString =
                                 "java.util.List<java.lang.@androidx.annotation.IntRange(from=5L, to=10L) Integer?>!"
                         ),
@@ -1126,4 +1121,10 @@ class CommonTypeStringTest : BaseModelTest() {
                         ),
                 )
     }
+}
+
+/** [FilterPredicate] that filters out nullness annotations. */
+private object RemoveNullnessAnnotationsPredicate : FilterPredicate() {
+    override fun test(t: SelectableItem): Boolean =
+        (t as? ClassItem)?.qualifiedName()?.let { name -> isNullnessAnnotation(name) } != true
 }

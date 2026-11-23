@@ -30,7 +30,6 @@ import com.android.tools.metalava.model.api.SurfaceSelectionRule
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.provider.InputFormat
-import com.android.tools.metalava.model.source.hasApiVisibility
 import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testing.classTypeItem
 import com.android.tools.metalava.model.testing.testTypeString
@@ -1646,17 +1645,17 @@ class CommonAnnotationItemTest : BaseModelTest() {
         ) {
             // This should be defined and accessible.
             codebase.assertClass("test.pkg.Foo").also { testClass ->
-                assertTrue(testClass.modifiers.hasApiVisibility, message = "Foo")
+                assertTrue(testClass.modifiers.hasApiVisibility(), message = "Foo")
             }
 
             // This should be defined but not accessible.
             codebase.assertClass("test.pkg.Bar").also { testClass ->
-                assertFalse(testClass.modifiers.hasApiVisibility, message = "Bar")
+                assertFalse(testClass.modifiers.hasApiVisibility(), message = "Bar")
             }
 
             // This should be defined but not accessible.
             codebase.assertClass("test.pkg.Baz").also { testClass ->
-                assertFalse(testClass.modifiers.hasApiVisibility, message = "Baz")
+                assertFalse(testClass.modifiers.hasApiVisibility(), message = "Baz")
             }
         }
     }
@@ -2226,6 +2225,173 @@ class CommonAnnotationItemTest : BaseModelTest() {
                         type = java.lang.@mixed.use.NonNull String @mixed.use.Nullable []
                 """
             )
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test isShowabilityAnnotation for show and hide apis`() {
+        val apiSurfaceRules =
+            ApiSurfaceRules(
+                apiSurfaces = ApiSurfaces.DEFAULT,
+                byName =
+                    mapOf(
+                        "main" to
+                            listOf(
+                                SurfaceSelectionRule.unannotated,
+                                SurfaceSelectionRule.createAnnotationRule("test.pkg.ShowAnno"),
+                                SurfaceSelectionRule.createAnnotationRule(
+                                    "test.pkg.HideAnno",
+                                    effect = SurfaceSelectionRule.Effect.HIDE,
+                                ),
+                            )
+                    ),
+            )
+
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    @interface ShowAnno {}
+                    @interface HideAnno {}
+                    @interface NormalAnno {}
+
+                    @ShowAnno
+                    public class ShowClass {}
+
+                    @HideAnno
+                    public class HideClass {}
+
+                    @NormalAnno
+                    public class NormalClass {}
+                """
+            ),
+            testFixture =
+                TestFixture(
+                    apiSurfaceRules = apiSurfaceRules,
+                ),
+        ) {
+            val showAnno =
+                codebase.assertClass("test.pkg.ShowClass").assertAnnotation("test.pkg.ShowAnno")
+            assertTrue(showAnno.isShowabilityAnnotation(), "showAnno.isShowabilityAnnotation()")
+            assertTrue(showAnno.isShowAnnotation(), "showAnno.isShowAnnotation()")
+            assertFalse(showAnno.isHideAnnotation(), "showAnno.isHideAnnotation()")
+
+            val hideAnno =
+                codebase.assertClass("test.pkg.HideClass").assertAnnotation("test.pkg.HideAnno")
+            assertTrue(hideAnno.isShowabilityAnnotation(), "hideAnno.isShowabilityAnnotation()")
+            assertFalse(hideAnno.isShowAnnotation(), "hideAnno.isShowAnnotation()")
+            assertTrue(hideAnno.isHideAnnotation(), "hideAnno.isHideAnnotation()")
+
+            val normalAnno =
+                codebase.assertClass("test.pkg.NormalClass").assertAnnotation("test.pkg.NormalAnno")
+            assertFalse(
+                normalAnno.isShowabilityAnnotation(),
+                "normalAnno.isShowabilityAnnotation()",
+            )
+            assertFalse(normalAnno.isShowAnnotation(), "normalAnno.isShowAnnotation()")
+            assertFalse(normalAnno.isHideAnnotation(), "normalAnno.isHideAnnotation()")
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `copyTypeUseOnlyNullnessAnnotationsToItems skips non-emitted classes`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package a.pkg;
+                        public class Foo {
+                            public String @b.pkg.Nullable [] bar() { return null; }
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package b.pkg;
+                        public class Emitted {}
+                    """
+                ),
+                sourcePathFiles =
+                    listOf(
+                        java(
+                            """
+                                package b.pkg;
+                                import java.lang.annotation.ElementType;
+                                import java.lang.annotation.Target;
+                                @Target(ElementType.TYPE_USE)
+                                public @interface Nullable {
+                                    String @c.pkg.Nullable [] helperMethod() default {};
+                                }
+                            """
+                        ),
+                        java(
+                            """
+                                package c.pkg;
+                                import java.lang.annotation.ElementType;
+                                import java.lang.annotation.Target;
+                                @Target(ElementType.TYPE_USE)
+                                public @interface Nullable {}
+                            """
+                        ),
+                    ),
+            ),
+            testFixture =
+                TestFixture(
+                    annotationManager = noOpAnnotationManager,
+                ),
+        ) {
+            // b.pkg.Nullable was resolved from the source path when checking Foo.bar()'s return
+            // type annotation.
+            val nullableClass = codebase.assertResolvedClass("b.pkg.Nullable")
+            assertFalse(nullableClass.emit)
+            val helperMethod = nullableClass.methods().single()
+
+            // b.pkg.Nullable is not emitted, so copyTypeUseOnlyNullnessAnnotationsToItems() should
+            // not traverse its methods or copy @c.pkg.Nullable onto helperMethod().
+            assertEquals(emptyList(), helperMethod.annotationNames())
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `copyTypeUseOnlyNullnessAnnotationsToItems skips inaccessible classes`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package a.pkg;
+                        class PackagePrivateFoo {
+                            public String @b.pkg.Nullable [] bar() { return null; }
+                        }
+                    """
+                ),
+                sourcePathFiles =
+                    listOf(
+                        java(
+                            """
+                                package b.pkg;
+                                import java.lang.annotation.ElementType;
+                                import java.lang.annotation.Target;
+                                @Target(ElementType.TYPE_USE)
+                                public @interface Nullable {}
+                            """
+                        ),
+                    ),
+            ),
+            testFixture =
+                TestFixture(
+                    annotationManager = noOpAnnotationManager,
+                ),
+        ) {
+            val barMethod = codebase.assertClass("a.pkg.PackagePrivateFoo").methods().single()
+
+            // a.pkg.PackagePrivateFoo does not have API visibility, so
+            // copyTypeUseOnlyNullnessAnnotationsToItems() should not traverse its methods or copy
+            // @b.pkg.Nullable onto bar().
+            assertEquals(emptyList(), barMethod.annotationNames())
         }
     }
 }

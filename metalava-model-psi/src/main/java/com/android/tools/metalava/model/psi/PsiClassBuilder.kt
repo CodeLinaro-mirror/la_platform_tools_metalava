@@ -30,12 +30,13 @@ import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ItemKind
 import com.android.tools.metalava.model.JVM_NAME
+import com.android.tools.metalava.model.KOTLIN_PUBLISHED_API
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierContext
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.ParameterKind
-import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.RecordComponentItem
 import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.SkeletonTypeParameterItem
 import com.android.tools.metalava.model.SourceLanguage
@@ -51,6 +52,8 @@ import com.android.tools.metalava.model.addDefaultRetentionPolicyAnnotation
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isNonNullAnnotation
 import com.android.tools.metalava.model.isRetention
+import com.android.tools.metalava.model.item.ClassMemberInitializer
+import com.android.tools.metalava.model.item.ClassMemberMask
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.model.type.TypeParameterListAndFactory
 import com.android.tools.metalava.model.value.OptionalValueProvider
@@ -71,18 +74,15 @@ import com.intellij.psi.PsiReference
 import com.intellij.psi.PsiType
 import com.intellij.psi.PsiTypeParameter
 import com.intellij.psi.PsiTypeParameterListOwner
+import com.intellij.psi.SyntheticElement
 import com.intellij.psi.impl.JavaConstantExpressionEvaluator
 import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
-import org.jetbrains.kotlin.asJava.elements.KotlinLightTypeParameterBuilder
-import org.jetbrains.kotlin.asJava.elements.KtLightDeclaration
-import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtAnnotated
 import org.jetbrains.kotlin.psi.KtClassOrObject
 import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtPrimaryConstructor
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
-import org.jetbrains.kotlin.psi.KtTypeParameter
 import org.jetbrains.kotlin.psi.KtTypeReference
 import org.jetbrains.kotlin.psi.psiUtil.isExtensionDeclaration
 import org.jetbrains.uast.UAnnotation
@@ -156,6 +156,22 @@ internal class PsiClassBuilder(
                 ModifierContext.forClassKind(classKind),
                 psiClass,
             )
+        // If the containing class is internal, this class cannot be more visible than internal
+        // (e.g. it can't be public). Correct the visibility to internal in this case.
+        if (
+            containingClassItem != null &&
+                containingClassItem.modifiers.getVisibilityLevel() == VisibilityLevel.INTERNAL &&
+                modifiers.getVisibilityLevel() > VisibilityLevel.INTERNAL
+        ) {
+            modifiers.setVisibilityLevel(VisibilityLevel.INTERNAL)
+            // With the class visibility now internal, @PublishedApi needs to be added if it was on
+            // the containing class to give this class API visibility.
+            if (containingClassItem.modifiers.isPublishedApi()) {
+                modifiers.addAnnotation(
+                    AnnotationItem.createMarkerAnnotation(codebase, KOTLIN_PUBLISHED_API)
+                )
+            }
+        }
 
         if (classKind == ClassKind.ANNOTATION_TYPE && !hasExplicitRetention(modifiers, isKotlin)) {
             modifiers.addDefaultRetentionPolicyAnnotation(codebase, isKotlin)
@@ -169,7 +185,7 @@ internal class PsiClassBuilder(
                 psiClass,
             )
         val (superClassType, interfaceTypes) =
-            computeSuperTypes(psiClass, classKind, classTypeItemFactory)
+            computeSuperTypes(psiClass, classKind, containingClassItem, classTypeItemFactory)
 
         // The sorted permits list.
         val permitTypes =
@@ -185,11 +201,27 @@ internal class PsiClassBuilder(
                 sourceFile(psiClass)
             }
 
+        // Items annotated with PublishedApi can only be used externally from bytecode.
+        val targetLanguages =
+            if (modifiers.isPublishedApi()) {
+                TargetLanguageSet.BYTECODE_ONLY
+            } else {
+                TargetLanguageSet.ALL
+            }
+
+        // Only populate members eagerly for classes specified on the command line that have API
+        // visibility; classes resolved from the classpath or source path, or command line classes
+        // without API visibility, will populate their members lazily on demand.
+        val createEagerly =
+            origin == ClassOrigin.COMMAND_LINE &&
+                modifiers.hasApiVisibility() &&
+                containingClassItem?.hasApiVisibility() != false
+
         val classItem =
             itemFactory.createClassItem(
-                fileLocation = PsiFileLocation.fromPsiElement(psiClass),
+                fileLocationSource = PsiFileLocation.fileLocationSource(psiClass),
                 sourceLanguage = psiClass.sourceLanguage,
-                targetLanguages = TargetLanguageSet.ALL,
+                targetLanguages = targetLanguages,
                 modifiers = modifiers,
                 documentationFactory = psiClass.createItemDocumentation(psiCodebase),
                 source = sourceFile,
@@ -217,19 +249,20 @@ internal class PsiClassBuilder(
                     else {
                         null
                     },
+                memberInitializer =
+                    if (createEagerly) null else LazyMemberInitializer(classTypeItemFactory),
             )
 
-        if (classKind == ClassKind.RECORD) {
-            createRecordComponents(classItem, psiClass.recordComponents, classTypeItemFactory)
+        if (createEagerly) {
+            // Add methods, constructors, fields. Classes from COMMAND_LINE have their Kotlin
+            // properties populated from Kotlin source declarations in KaCodebaseAssembler.
+            addMembersToClassItem(
+                classItem = classItem,
+                psiMethods = psiClass.methods.toList(),
+                psiFields = psiClass.fields.toList(),
+                classTypeItemFactory = classTypeItemFactory,
+            )
         }
-
-        // Add methods, constructors, fields.
-        addMembersToClassItem(
-            classItem = classItem,
-            psiMethods = psiClass.methods.toList(),
-            psiFields = psiClass.fields.toList(),
-            classTypeItemFactory = classTypeItemFactory,
-        )
 
         // This actually gets all nested classes not just inner, i.e. non-static nested,
         // classes.
@@ -250,10 +283,46 @@ internal class PsiClassBuilder(
     }
 
     /**
-     * Create the [PropertyItem]s used to model record components.
+     * Lazily populates constructors, methods, fields, and properties of a
+     * non-[ClassOrigin.COMMAND_LINE] class on demand.
      *
-     * Must be called before creating any other members of [classItem].
+     * @param classTypeItemFactory the [PsiTypeItemFactory] scoped to the class being initialized.
      */
+    private inner class LazyMemberInitializer(
+        private val classTypeItemFactory: PsiTypeItemFactory,
+    ) : ClassMemberInitializer(ClassMemberMask.ALL) {
+        override fun initializeMembers(
+            classItem: SkeletonClassItem,
+            mask: ClassMemberMask,
+        ) {
+            if (ClassMemberMask.CONSTRUCTORS in mask) {
+                addConstructorsToClassItem(
+                    classItem = classItem,
+                    psiMethods = psiClass.methods.asList(),
+                    classTypeItemFactory = classTypeItemFactory,
+                )
+            }
+            if (ClassMemberMask.METHODS in mask) {
+                addMethodsToClassItem(
+                    classItem = classItem,
+                    psiMethods = psiClass.methods.asList(),
+                    classTypeItemFactory = classTypeItemFactory,
+                )
+            }
+            if (ClassMemberMask.FIELDS in mask) {
+                addFieldsToClassItem(
+                    classItem = classItem,
+                    psiFields = psiClass.fields.asList(),
+                    classTypeItemFactory = classTypeItemFactory,
+                )
+            }
+            if (ClassMemberMask.PROPERTIES in mask) {
+                addPropertiesToClassFromClasspath(classItem)
+            }
+        }
+    }
+
+    /** Create the [RecordComponentItem]s used to model record components. */
     private fun createRecordComponents(
         classItem: ClassItem,
         components: Array<PsiRecordComponent>,
@@ -271,7 +340,7 @@ internal class PsiClassBuilder(
             val type = classTypeItemFactory.getGeneralType(PsiTypeInfo(component.type, component))
 
             itemFactory.createRecordComponentItem(
-                fileLocation = PsiFileLocation.fromPsiElement(component),
+                fileLocationSource = PsiFileLocation.fileLocationSource(component),
                 modifiers = modifiers,
                 name = component.name,
                 containingClass = classItem,
@@ -319,24 +388,21 @@ internal class PsiClassBuilder(
         psiFields: List<PsiField>,
         classTypeItemFactory: PsiTypeItemFactory,
     ) {
-        // create methods
+        addConstructorsToClassItem(classItem, psiMethods, classTypeItemFactory)
+        addMethodsToClassItem(classItem, psiMethods, classTypeItemFactory)
+        addFieldsToClassItem(classItem, psiFields, classTypeItemFactory)
+    }
+
+    /** Adds the constructors from [psiMethods] to [classItem]. */
+    private fun addConstructorsToClassItem(
+        classItem: SkeletonClassItem,
+        psiMethods: List<PsiMethod>,
+        classTypeItemFactory: PsiTypeItemFactory,
+    ) {
         for (psiMethod in psiMethods) {
-            // Skip fake UAST constructors and methods, which can't be used from java source.
-            // If this condition is updated, the one in KaCodebaseAssembler determining which
-            // methods to create needs to be updated too.
-            if (
-                (psiMethod is UastFakeSourceLightMethod ||
-                    psiMethod is KotlinUMethodWithFakeLightDelegateBase<*>)
-            ) {
-                continue
-            }
-
-            // Composable APIs will have a different signature in bytecode than in source. The
-            // source signature will be generated as kotlin-only by KaCodebaseAssembler and the
-            // bytecode signature will be generated as bytecode-only by KotlinBytecodeApis.
-            if (psiMethod.hasAnnotation(ANDROIDX_COMPOSABLE)) continue
-
             if (psiMethod.isConstructor) {
+                if (shouldSkipExecutable(psiMethod)) continue
+
                 val constructor = createConstructor(classItem, psiMethod, classTypeItemFactory)
 
                 // There will be a private version of a constructor that takes a value class
@@ -347,7 +413,28 @@ internal class PsiClassBuilder(
                 }
 
                 classItem.addConstructor(constructor)
-            } else {
+            }
+        }
+
+        val constructors = classItem.constructors()
+        val hasImplicitDefaultConstructor = hasImplicitDefaultConstructor(classItem)
+        if (hasImplicitDefaultConstructor) {
+            assert(constructors.isEmpty())
+            classItem.addConstructor(classItem.createImplicitDefaultConstructor())
+        }
+    }
+
+    /** Adds the non-constructor methods from [psiMethods] to [classItem]. */
+    private fun addMethodsToClassItem(
+        classItem: SkeletonClassItem,
+        psiMethods: List<PsiMethod>,
+        classTypeItemFactory: PsiTypeItemFactory,
+    ) {
+        // create methods
+        for (psiMethod in psiMethods) {
+            if (!psiMethod.isConstructor) {
+                if (shouldSkipExecutable(psiMethod)) continue
+
                 // Property accessors can't be resolved from kotlin, direct access is used instead.
                 val targetLanguages =
                     if (
@@ -357,6 +444,10 @@ internal class PsiClassBuilder(
                             !(classItem.modifiers.isData() &&
                                 psiMethod.name.startsWith("component"))
                     ) {
+                        TargetLanguageSet.NOT_KOTLIN
+                    } else if ((psiMethod as? UMethod)?.isMappedCollectionMethod() == true) {
+                        // The mapped versions of collection methods are for Java use only and can't
+                        // be used from Kotlin.
                         TargetLanguageSet.NOT_KOTLIN
                     } else {
                         TargetLanguageSet.ALL
@@ -401,13 +492,14 @@ internal class PsiClassBuilder(
                 }
             }
         }
+    }
 
-        val constructors = classItem.constructors()
-        val hasImplicitDefaultConstructor = hasImplicitDefaultConstructor(classItem)
-        if (hasImplicitDefaultConstructor) {
-            assert(constructors.isEmpty())
-            classItem.addConstructor(classItem.createImplicitDefaultConstructor())
-        }
+    /** Adds the fields from [psiFields] to [classItem]. */
+    private fun addFieldsToClassItem(
+        classItem: SkeletonClassItem,
+        psiFields: List<PsiField>,
+        classTypeItemFactory: PsiTypeItemFactory,
+    ) {
         if (psiFields.isNotEmpty()) {
             for (psiField in psiFields) {
                 createField(classItem, psiField, classTypeItemFactory)?.let { fieldItem ->
@@ -415,6 +507,30 @@ internal class PsiClassBuilder(
                 }
             }
         }
+    }
+
+    /** Whether [psiMethod] (a method or constructor) should be skipped when populating members. */
+    private fun shouldSkipExecutable(psiMethod: PsiMethod): Boolean {
+        // Skip fake UAST constructors and methods, which can't be used from java source.
+        // If this condition is updated, the one in KaCodebaseAssembler determining which
+        // methods to create needs to be updated too.
+        if (
+            (psiMethod is UastFakeSourceLightMethod ||
+                psiMethod is KotlinUMethodWithFakeLightDelegateBase<*>)
+        ) {
+            return true
+        }
+
+        // Composable APIs will have a different signature in bytecode than in source. The
+        // source signature will be generated as kotlin-only by KaCodebaseAssembler and the
+        // bytecode signature will be generated as bytecode-only by KotlinBytecodeApis.
+        if (psiMethod.hasAnnotation(ANDROIDX_COMPOSABLE)) return true
+
+        // Items annotated with PublishedApi can only be used externally from bytecode. The
+        // bytecode version of the method will be added by KotlinBytecodeApis.
+        if (psiMethod.hasAnnotation(KOTLIN_PUBLISHED_API)) return true
+
+        return false
     }
 
     /**
@@ -452,6 +568,7 @@ internal class PsiClassBuilder(
     private fun computeSuperTypes(
         psiClass: PsiClass,
         classKind: ClassKind,
+        containingClassItem: ClassItem?,
         classTypeItemFactory: PsiTypeItemFactory
     ): Pair<ClassTypeItem?, List<ClassTypeItem>> {
 
@@ -480,13 +597,15 @@ internal class PsiClassBuilder(
 
         // Construct the super class type if needed and available.
         val superClassType =
-            if (classKind != ClassKind.INTERFACE) {
+            if (classKind.allowsExplicitSuperClass) {
                 val superClassPsiType = psiClass.superClassType as? PsiType
                 superClassPsiType?.let { superClassType ->
                     val ktTypeRef = superClassType.ktTypeReference()
                     classTypeItemFactory.getSuperClassType(PsiTypeInfo(superClassType, ktTypeRef))
                 }
-            } else null
+            } else {
+                classKind.implicitSuperClassType(psiClass.classQualifiedName, containingClassItem)
+            }
 
         // Get the interfaces from the appropriate list.
         val interfaces =
@@ -554,19 +673,40 @@ internal class PsiClassBuilder(
 
         // Create a type for the field, taking into account the modifiers, whether it is an
         // enum constant and whether the field's initial value is non-null.
+        val isInitialValueNonNull = {
+            // The initial value is non-null if the field initializer is a method that is annotated
+            // as being non-null so would produce a non-null value, or the value is a literal which
+            // is not null.
+            psiField.isFieldInitializerNonNull()
+        }
         val fieldType =
-            enclosingClassTypeItemFactory.getFieldType(
-                underlyingType = PsiTypeInfo(psiField.type, psiField),
-                itemAnnotations = modifiers.annotations(),
-                isEnumConstant = isEnumConstant,
-                isFinal = modifiers.isFinal(),
-                isInitialValueNonNull = {
-                    // The initial value is non-null if the field initializer is a method that
-                    // is annotated as being non-null so would produce a non-null value, or the
-                    // value is a literal which is not null.
-                    psiField.isFieldInitializerNonNull()
-                },
-            )
+            try {
+                enclosingClassTypeItemFactory.getFieldType(
+                    underlyingType = PsiTypeInfo(psiField.type, psiField),
+                    itemAnnotations = modifiers.annotations(),
+                    isEnumConstant = isEnumConstant,
+                    isFinal = modifiers.isFinal(),
+                    isInitialValueNonNull = isInitialValueNonNull,
+                )
+            } catch (e: IllegalStateException) {
+                // Workaround for b/529762241: the type from the UField is missing the class name
+                // and parameters when a property is initialized through an anonymous object,
+                // without an explicit type declaration.
+                val typeFromJavaPsi =
+                    ((psiField as? UField)?.javaPsi as? PsiField)?.type
+                        ?: throw IllegalStateException(
+                            "Failed to resolve field type for `${psiField.name}` in `${containingClass.qualifiedName()}`",
+                            e
+                        )
+                @Suppress("UElementAsPsi") // Necessary to work around UAST issue.
+                enclosingClassTypeItemFactory.getFieldType(
+                    underlyingType = PsiTypeInfo(typeFromJavaPsi, psiField),
+                    itemAnnotations = modifiers.annotations(),
+                    isEnumConstant = isEnumConstant,
+                    isFinal = modifiers.isFinal(),
+                    isInitialValueNonNull = isInitialValueNonNull,
+                )
+            }
 
         // Check to see whether the field could have a constant value.
         val couldHaveConstantValue =
@@ -584,10 +724,18 @@ internal class PsiClassBuilder(
         val constantValueProvider =
             if (couldHaveConstantValue) constantValueProviderForField(psiField, fieldType) else null
 
+        // Items annotated with PublishedApi can only be used externally from bytecode.
+        val targetLanguages =
+            if (modifiers.isPublishedApi()) {
+                TargetLanguageSet.BYTECODE_ONLY
+            } else {
+                TargetLanguageSet.ALL
+            }
+
         return itemFactory.createFieldItem(
-            fileLocation = PsiFileLocation(psiField),
+            fileLocationSource = PsiFileLocation.fileLocationSource(psiField),
             sourceLanguage = psiField.sourceLanguage,
-            targetLanguages = TargetLanguageSet.ALL,
+            targetLanguages = targetLanguages,
             modifiers = modifiers,
             documentationFactory = psiField.createItemDocumentation(psiCodebase),
             name = name,
@@ -698,7 +846,7 @@ internal class PsiClassBuilder(
 
         val method =
             itemFactory.createMethodItem(
-                fileLocation = PsiFileLocation(psiMethod),
+                fileLocationSource = PsiFileLocation.fileLocationSource(psiMethod),
                 sourceLanguage = psiMethod.sourceLanguage,
                 targetLanguages = targetLanguages,
                 modifiers = modifiers,
@@ -717,7 +865,6 @@ internal class PsiClassBuilder(
                     )
                 },
                 throwsTypes = throwsTypes(psiMethod, methodTypeItemFactory),
-                callableBodyFactory = { PsiCallableBody(psiCodebase, it, psiMethod) },
                 defaultValueProvider = defaultValueProvider,
                 isExtensionMethod = isExtensionMethod,
                 isKotlinProperty = psiMethod.isKotlinProperty(),
@@ -767,7 +914,7 @@ internal class PsiClassBuilder(
             )
         val constructor =
             itemFactory.createConstructorItem(
-                fileLocation = PsiFileLocation(psiMethod),
+                fileLocationSource = PsiFileLocation.fileLocationSource(psiMethod),
                 sourceLanguage = psiMethod.sourceLanguage,
                 targetLanguages = targetLanguages,
                 modifiers = modifiers,
@@ -786,7 +933,6 @@ internal class PsiClassBuilder(
                     )
                 },
                 throwsTypes = throwsTypes(psiMethod, constructorTypeItemFactory),
-                callableBodyFactory = { PsiCallableBody(psiCodebase, it, psiMethod) },
                 implicitConstructor = false,
                 isPrimary = (psiMethod as? UMethod)?.isPrimaryConstructor == true
             )
@@ -867,7 +1013,7 @@ internal class PsiClassBuilder(
             computeParameterKind(psiParameter, containingCallable, parameterIndex, fingerprint)
         val parameter =
             itemFactory.createParameterItem(
-                fileLocation = PsiFileLocation.fromPsiElement(psiParameter),
+                fileLocationSource = PsiFileLocation.fileLocationSource(psiParameter),
                 sourceLanguage = psiParameter.sourceLanguage,
                 modifiers = modifiers,
                 name = name,
@@ -883,7 +1029,7 @@ internal class PsiClassBuilder(
                 parameterIndex = parameterIndex,
                 type = type,
                 hasDefaultValue =
-                    PsiParameterDefaultValue.compute(psiParameter, parameterIndex, kind),
+                    PsiParameterDefaultValue.compute(psiParameter, parameterIndex, kind, psiMethod),
                 kind = kind,
             )
         return parameter
@@ -1041,27 +1187,11 @@ internal class PsiClassBuilder(
         return itemFactory.createTypeParameterItem(
             modifiers = modifiers,
             name = simpleName,
-            isReified = isReified(psiTypeParameter),
+            // Functions with reified type parameters can only be used from Kotlin source, which
+            // means they are processed by KaCodebaseAssembler instead of through PsiClassBuilder
+            // because they don't exist as real UAST.
+            isReified = false,
         )
-    }
-
-    /** Check whether the [PsiTypeParameter] is reified, i.e. available in inline functions. */
-    private fun isReified(element: PsiTypeParameter?): Boolean {
-        element ?: return false
-        // TODO(jsjeon): Handle PsiElementWithOrigin<*> when available
-        if (
-            element is KtLightDeclaration<*, *> &&
-                element.kotlinOrigin is KtTypeParameter &&
-                element.kotlinOrigin?.text?.startsWith(KtTokens.REIFIED_KEYWORD.value) == true
-        ) {
-            return true
-        } else if (
-            element is KotlinLightTypeParameterBuilder &&
-                element.origin.text.startsWith(KtTokens.REIFIED_KEYWORD.value)
-        ) {
-            return true
-        }
-        return false
     }
 }
 
@@ -1135,3 +1265,36 @@ private fun PsiMethod.isKotlinProperty(): Boolean {
  */
 private val UMethod.isPrimaryConstructor: Boolean
     get() = sourcePsi is KtPrimaryConstructor || sourcePsi is KtClassOrObject
+
+/**
+ * Whether the [UMethod] is generated from a Kotlin-source collection as a mapped method for Java
+ * clients, which does not exist for Kotlin clients or in source.
+ *
+ * TODO: https://youtrack.jetbrains.com/issue/KT-89729 -- this should be replaced with a more
+ *   reliable way to tell if this is a mapped collection method.
+ */
+internal fun UMethod.isMappedCollectionMethod(): Boolean {
+    if (!isKotlin()) return false
+    if (name == "equals") return false
+    // Some generated methods have type `SymbolLightMethodForMappedJavaCollectionStubMethod` (an
+    // internal type) which is a `SyntheticElement`.
+    val isSynthetic = javaPsi is SyntheticElement
+    // Other generated methods have type `SymbolLightMethodForMappedKotlinCollectionMethod` (an
+    // internal type). These methods have an object parameter type (where the Kotlin version
+    // uses the collection element type).
+    fun hasObjectParameter() = psiParameters.any { it.type.canonicalText == "java.lang.Object" }
+    // Whether the method is an override of a base Java collection method.
+    fun overridesCollectionMethod() =
+        javaPsi.findSuperMethods().any { superMethod ->
+            superMethod.containingClass?.qualifiedName?.let {
+                it in
+                    setOf(
+                        "java.util.Collection",
+                        "java.util.Map",
+                        "java.util.List",
+                        "java.util.Set"
+                    )
+            } == true
+        }
+    return (isSynthetic || hasObjectParameter()) && overridesCollectionMethod()
+}

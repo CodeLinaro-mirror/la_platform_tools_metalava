@@ -48,7 +48,6 @@ class SourceMethodItemTest : BaseModelTest() {
 
                     import java.io.IOException;
 
-                    /** @doconly Some docs here */
                     public class Test<A,B>  {
                         public final void foo(A a, B b) throws IOException {}
 

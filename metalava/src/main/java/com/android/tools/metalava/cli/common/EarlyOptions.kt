@@ -20,7 +20,6 @@ import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.context
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.multiple
-import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.groups.provideDelegate
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
@@ -48,7 +47,7 @@ enum class Verbosity(val quiet: Boolean = false, val verbose: Boolean = false) {
  * `"--verbose"` was used as a flag value, e.g. `--hide --verbose`. But that's not a realistic
  * problem.
  */
-open class EarlyOptions : OptionGroup() {
+open class EarlyOptions : MetalavaOptionGroup() {
 
     val verbosity: Verbosity by
         option(

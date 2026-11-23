@@ -51,7 +51,7 @@ open class BaseMultiplatformItemVisitor : MultiplatformItemVisitor {
         visitSelectableItem(packageItem)
         visitPackageItem(packageItem)
 
-        for (classItem in packageItem.topLevelClasses()) {
+        for (classItem in packageItem.topLevelClassesFromSource) {
             visit(classItem)
         }
         for (methodItem in packageItem.topLevelFunctions) {

@@ -1202,4 +1202,35 @@ class CommonMultiplatformClassItemTest : BaseModelTest() {
             assertThat(fooClass.constructors).containsExactly(commonCtor, androidCtor, nativeCtor)
         }
     }
+
+    @SupportedInputFormats(InputFormat.KOTLIN)
+    @Test
+    fun `Test nested and inner classes`() {
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Outer.kt",
+                """
+                package test.pkg
+                class Outer {
+                    inner class Inner
+                    class Nested
+                }
+                """
+            )
+        runMultiplatformCodebaseTest(
+            inputSet(commonSource),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                ),
+        ) {
+            val commonCodebase = multiplatformCodebase.sourceSetToCodebase["commonMain"]
+            val outerClass = commonCodebase!!.assertClass("test.pkg.Outer")
+            assertThat(outerClass.modifiers.isStatic()).isFalse()
+            val innerClass = commonCodebase.assertClass("test.pkg.Outer.Inner")
+            assertThat(innerClass.modifiers.isStatic()).isFalse()
+            val nestedClass = commonCodebase.assertClass("test.pkg.Outer.Nested")
+            assertThat(nestedClass.modifiers.isStatic()).isTrue()
+        }
+    }
 }

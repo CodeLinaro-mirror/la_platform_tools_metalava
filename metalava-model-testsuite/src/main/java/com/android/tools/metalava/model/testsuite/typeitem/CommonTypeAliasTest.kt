@@ -351,7 +351,7 @@ class CommonTypeAliasTest : BaseModelTest() {
             val aliasContainerClass = codebase.assertClass("test.pkg.AliasContainer")
             assertThat(aliasContainerClass.interfaceTypes().joinToString { it.testTypeString() })
                 .isEqualTo(
-                    "kotlin.collections.Iterable<java.lang.Integer>, java.lang.Iterable<java.lang.Integer>, kotlin.jvm.internal.markers.KMappedMarker"
+                    "java.lang.Iterable<java.lang.Integer>, kotlin.jvm.internal.markers.KMappedMarker"
                 )
 
             val testMethod = aliasContainerClass.methods().single()

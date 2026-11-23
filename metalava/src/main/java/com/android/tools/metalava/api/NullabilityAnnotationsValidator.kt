@@ -28,8 +28,8 @@ import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.VariableTypeItem
-import com.android.tools.metalava.model.visitors.ApiPredicate
-import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
+import com.android.tools.metalava.model.visitors.ApiSurfaceVisitor
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import java.io.File
@@ -42,8 +42,6 @@ class NullabilityAnnotationsValidator(
     private val reporter: Reporter,
     private val nullabilityErrorsFatal: Boolean,
     private val nullabilityWarningsTxt: File?,
-    private val apiPredicateConfig: ApiPredicate.Config,
-
     /**
      * An optional [File] containing a list of top level classes whose contents should be checked by
      * this.
@@ -95,6 +93,7 @@ class NullabilityAnnotationsValidator(
      * classes. Violations are stored by the validator and will be reported by [report].
      */
     fun validateAll(codebase: Codebase, topLevelClassNames: List<String>) {
+        val filterEmit = ApiSurfacePredicate.wholeCoreEmittableApi(codebase.apiSurfaces.main)
         for (topLevelClassName in topLevelClassNames) {
             val topLevelClass =
                 codebase.findClass(topLevelClassName)
@@ -106,8 +105,8 @@ class NullabilityAnnotationsValidator(
             // nested classes as well.
             topLevelClass.accept(
                 object :
-                    ApiVisitor(
-                        apiPredicateConfig = apiPredicateConfig,
+                    ApiSurfaceVisitor(
+                        filterEmit = filterEmit,
                     ) {
 
                     override fun visitMethod(method: MethodItem) {

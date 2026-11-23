@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.testsuite.scope
 
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.ExternalReferencableItem
 import com.android.tools.metalava.model.InvalidReferencableItem
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.scope.NameClassification
@@ -389,6 +390,107 @@ class CommonReferencableNameScopeTest : BaseModelTest() {
                 "test.pkg.Derived.Nested",
                 "Foo",
                 expectedUnderlyingClass = "other.pkg.Base.BaseNested.Foo",
+            )
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test externalPackagePrefixes`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        public class Test {
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package androidx.annotation;
+                        public @interface Nullable {
+                        }
+                    """
+                ),
+            ),
+            testFixture = TestFixture(externalPackagePrefixes = setOf("androidx", "ext.pkg")),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val nullableClass = codebase.assertClass("androidx.annotation.Nullable")
+
+            // A reference to an external package not in the codebase at all resolves to
+            // ExternalReferencableItem.
+            assertSame(
+                ExternalReferencableItem,
+                testClass.resolveReferencableItem("ext.pkg.Foo", NameClassification.CLASS),
+            )
+            assertSame(
+                ExternalReferencableItem,
+                testClass.resolveReferencableItem(
+                    "ext.pkg.Foo.bar",
+                    NameClassification.CALLABLE_SET
+                ),
+            )
+            assertSame(
+                ExternalReferencableItem,
+                testClass.resolveReferencableItem("ext.pkg", NameClassification.AMBIGUOUS),
+            )
+
+            // Exact prefix match when packages are not allowed is an error.
+            assertEquals(
+                InvalidReferencableItem(
+                    "Could not resolve a class called 'ext.pkg' as could not find a package or class called 'ext' in 'class test.pkg.Test'"
+                ),
+                testClass.resolveReferencableItem("ext.pkg", NameClassification.CLASS),
+            )
+
+            // A reference to an external subpackage/class when part of the prefix ("androidx" and
+            // "androidx.annotation") exists in the codebase resolves to ExternalReferencableItem.
+            assertSame(
+                ExternalReferencableItem,
+                testClass.resolveReferencableItem(
+                    "androidx.core.app.NotificationCompat",
+                    NameClassification.CLASS,
+                ),
+            )
+            assertSame(
+                ExternalReferencableItem,
+                testClass.resolveReferencableItem(
+                    "androidx.annotation.NonExistent",
+                    NameClassification.CLASS,
+                ),
+            )
+
+            // A class that exists in the codebase under an external package prefix still resolves
+            // to the ClassItem.
+            assertSame(
+                nullableClass,
+                testClass.resolveReferencableItem(
+                    "androidx.annotation.Nullable",
+                    NameClassification.CLASS,
+                ),
+            )
+
+            // A non-existent member on a class that exists in the codebase under an external
+            // package prefix still returns an InvalidReferencableItem.
+            assertEquals(
+                InvalidReferencableItem(
+                    "Could not resolve a class called 'androidx.annotation.Nullable.NonExistent' as could not find a class called 'NonExistent' in 'class androidx.annotation.Nullable'"
+                ),
+                testClass.resolveReferencableItem(
+                    "androidx.annotation.Nullable.NonExistent",
+                    NameClassification.CLASS,
+                ),
+            )
+
+            // A package name that only shares a character prefix (not a dot-separated segment) does
+            // not match.
+            assertEquals(
+                InvalidReferencableItem(
+                    "Could not resolve a class called 'androidx_extra.Foo' as could not find a package or class called 'androidx_extra' in 'class test.pkg.Test'"
+                ),
+                testClass.resolveReferencableItem("androidx_extra.Foo", NameClassification.CLASS),
             )
         }
     }

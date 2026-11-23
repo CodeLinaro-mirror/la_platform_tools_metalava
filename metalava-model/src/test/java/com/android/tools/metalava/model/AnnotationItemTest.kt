@@ -46,6 +46,7 @@ class AnnotationItemTest {
         checkShortenAnnotation("TargetApi", "android.annotation.TargetApi")
         checkShortenAnnotation("SuppressLint", "android.annotation.SuppressLint")
         checkShortenAnnotation("FlaggedApi", "android.annotation.FlaggedApi")
+        checkShortenAnnotation("SdkExtensionApi", "android.annotation.SdkExtensionApi")
         checkShortenAnnotation("Unknown", "androidx.annotation.Unknown")
         checkShortenAnnotation("Unknown.Nested", "androidx.annotation.Unknown.Nested")
         checkShortenAnnotation("my.Annotation", "my.Annotation")

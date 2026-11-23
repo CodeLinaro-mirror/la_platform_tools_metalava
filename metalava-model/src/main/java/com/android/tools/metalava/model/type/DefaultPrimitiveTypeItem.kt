@@ -16,17 +16,31 @@
 
 package com.android.tools.metalava.model.type
 
-import com.android.tools.metalava.model.DefaultTypeItem
+import com.android.tools.metalava.model.DefaultStandaloneTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
+import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeModifiers
 
 internal class DefaultPrimitiveTypeItem(
     modifiers: TypeModifiers,
     override val kind: Primitive,
     isValueClassType: Boolean = false,
-) : PrimitiveTypeItem, DefaultTypeItem(modifiers, isValueClassType) {
+) : PrimitiveTypeItem, DefaultStandaloneTypeItem(modifiers, isValueClassType) {
+
+    override fun internalName(): String = kind.internalName
 
     override fun substitute(modifiers: TypeModifiers) =
-        if (modifiers !== this.modifiers) DefaultPrimitiveTypeItem(modifiers, kind) else this
+        if (modifiers !== this.modifiers)
+            TypeItem.createPrimitiveType(modifiers, kind, isValueClassType)
+        else this
+
+    override fun equalsImpl(other: DefaultStandaloneTypeItem): Boolean {
+        if (other !is PrimitiveTypeItem) return false
+        return kind == other.kind
+    }
+
+    override fun hashCodeImpl(): Int {
+        return kind.hashCode()
+    }
 }

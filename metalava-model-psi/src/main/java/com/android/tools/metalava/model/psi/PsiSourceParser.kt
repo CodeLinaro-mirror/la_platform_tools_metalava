@@ -17,85 +17,86 @@
 package com.android.tools.metalava.model.psi
 
 import androidx.tracing.Tracer
-import com.android.SdkConstants
 import com.android.tools.lint.UastEnvironment
-import com.android.tools.lint.computeMetadata
-import com.android.tools.lint.detector.api.Project
+import com.android.tools.metalava.model.ClassPathResolver
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.item.SealedClassImplicitPermitTypesUpdater
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.psi.kotlin.KaCodebaseAssembler
 import com.android.tools.metalava.model.psi.kotlin.KotlinBytecodeApis
 import com.android.tools.metalava.model.source.AbstractSourceParser
-import com.android.tools.metalava.model.source.SourceParser
-import com.intellij.pom.java.LanguageLevel
+import com.android.tools.metalava.model.source.SourceSet
 import java.io.File
 import org.jetbrains.kotlin.analysis.api.KaPlatformInterface
 import org.jetbrains.kotlin.analysis.api.platform.projectStructure.KotlinProjectStructureProvider
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaModule
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaSourceModule
 import org.jetbrains.kotlin.analysis.api.standalone.base.projectStructure.KotlinStaticProjectStructureProvider
-import org.jetbrains.kotlin.config.ApiVersion
-import org.jetbrains.kotlin.config.LanguageVersion
-import org.jetbrains.kotlin.config.LanguageVersionSettings
-import org.jetbrains.kotlin.config.LanguageVersionSettingsImpl
-
-fun kotlinLanguageVersionSettings(value: String?): LanguageVersionSettings {
-    val languageLevel =
-        LanguageVersion.fromVersionString(value)
-            ?: throw IllegalStateException(
-                "$value is not a valid or supported Kotlin language level"
-            )
-    val apiVersion = ApiVersion.createByLanguageVersion(languageLevel)
-    return LanguageVersionSettingsImpl(languageLevel, apiVersion)
-}
 
 /**
  * Parses a set of sources into a [PsiBasedCodebase].
  *
- * The codebases will use a project environment initialized according to the properties passed to
- * the constructor and the paths passed to [parseSources].
+ * The codebases will use the [UastEnvironment] from [psiEnvironment].
  */
 internal class PsiSourceParser(
-    private val psiEnvironmentManager: PsiEnvironmentManager,
-    private val codebaseConfig: Codebase.Config,
-    private val tracer: Tracer,
-    private val javaLanguageLevel: LanguageLevel,
-    private val kotlinLanguageLevel: LanguageVersionSettings,
-    private val jdkHome: File?,
-) : AbstractSourceParser(codebaseConfig.reporter) {
+    private val psiEnvironment: PsiEnvironment,
+    codebaseConfig: Codebase.Config,
+    tracer: Tracer,
+) :
+    AbstractSourceParser(
+        codebaseConfig,
+        tracer,
+    ) {
+    override fun getClassPathResolver(): ClassPathResolver =
+        createCodebase(
+            sourceSet = SourceSet.empty(),
+            description = "Codebase from classpath",
+            apiPackages = null,
+            compiledSourceJar = null,
+            // A ClassPathResolver is used when resolving references from a signature file, possibly
+            // for the previously released API, so it must not have a reference to the previously
+            // released API itself.
+            codebaseConfig = codebaseConfig.copy(previouslyReleasedCodebaseProvider = { null }),
+        )
+
+    override fun processSources(
+        description: String,
+        apiPackages: PackageFilter?,
+        compiledSourceJar: File?,
+    ): Codebase =
+        createCodebase(
+            sourceSet = psiEnvironment.sourceSet,
+            description = description,
+            apiPackages = apiPackages,
+            compiledSourceJar = compiledSourceJar,
+        )
+
+    override fun processJavaStubs(
+        javaStubFiles: List<File>,
+        apiPackages: PackageFilter?,
+    ): Codebase =
+        createCodebase(
+            sourceSet =
+                SourceSet(javaStubFiles, psiEnvironment.sourceSet.sourcePath)
+                    .extractRoots(reporter),
+            description = "Codebase loaded from stubs",
+            apiPackages = apiPackages,
+            compiledSourceJar = null,
+        )
+
     /**
-     * Returns a codebase initialized from the given Java or Kotlin source files, with the given
-     * description.
-     *
-     * All supplied [File] objects will be mapped to [File.getAbsoluteFile].
+     * Returns a codebase initialized from the given [sourceSet], with the given [description],
+     * using [PsiEnvironment.uastEnvironment].
      */
-    override fun processInputs(inputs: SourceParser.Inputs): Codebase {
-        val sourceSet = inputs.sourceSet
-
-        val config =
-            tracer.trace("UastEnvironment.Configuration.create") {
-                UastEnvironment.Configuration.create()
-            }
-        config.javaLanguageLevel = javaLanguageLevel
-
-        tracer.trace("configureUastEnvironment") {
-            when (val projectDescription = inputs.projectDescription) {
-                null -> {
-                    configureUastEnvironment(config, sourceSet.sourcePath, inputs.classPath)
-                }
-                else -> {
-                    configureUastEnvironmentFromProjectDescription(config, projectDescription)
-                }
-            }
-        }
-
-        val environment =
-            tracer.trace("psiEnvironmentManager.createEnvironment") {
-                psiEnvironmentManager.createEnvironment(config)
-            }
-        val kotlinFiles = sourceSet.sources.filter { it.path.endsWith(SdkConstants.DOT_KT) }
-        tracer.trace("environment.analyzeFiles") { environment.analyzeFiles(kotlinFiles) }
+    private fun createCodebase(
+        sourceSet: SourceSet,
+        description: String,
+        apiPackages: PackageFilter?,
+        compiledSourceJar: File?,
+        codebaseConfig: Codebase.Config = this.codebaseConfig,
+    ): PsiBasedCodebase {
+        val environment = psiEnvironment.uastEnvironment
 
         val location = sourceSet.sourcePath.firstOrNull() ?: File("").canonicalFile
         val assembler =
@@ -103,7 +104,7 @@ internal class PsiSourceParser(
                 PsiCodebaseAssembler(environment) {
                     PsiBasedCodebase(
                         location = location,
-                        description = inputs.description,
+                        description = description,
                         config = codebaseConfig,
                         assembler = it,
                         inlineTypeAliasUsages = environment.isKMP,
@@ -115,16 +116,13 @@ internal class PsiSourceParser(
         tracer.trace("assembler.initializeFromSources") {
             assembler.initializeFromSources(
                 sourceSet,
-                inputs.apiPackages,
-                inputs.includeKotlinInCodebase,
+                apiPackages,
                 tracer,
             )
         }
         val codebase = assembler.psiCodebase
 
-        inputs.compiledSourceJar?.let { compiledSourceJar ->
-            tracer.trace("mergeFromJar") { mergeFromJar(codebase, compiledSourceJar) }
-        }
+        compiledSourceJar?.let { tracer.trace("mergeFromJar") { mergeFromJar(codebase, it) } }
 
         // Update implicit permit types in any sealed class that does not have one provided.
         SealedClassImplicitPermitTypesUpdater.updateImplicitPermitTypes(codebase)
@@ -158,23 +156,10 @@ internal class PsiSourceParser(
             ?: modules.singleOrNull { it.name == "jvmMain" }
     }
 
-    private fun isJdkModular(homePath: File): Boolean {
-        return File(homePath, "jmods").isDirectory
-    }
-
-    override fun createMultiplatformCodebase(projectDescription: File): MultiplatformCodebase {
-        // If an environment was already created to create a regular Codebase, reuse it since
-        // creating an environment is expensive.
-        val environment =
-            tracer.trace("create environment") {
-                psiEnvironmentManager.initialEnvironment
-                    ?: run {
-                        val config = UastEnvironment.Configuration.create()
-                        config.javaLanguageLevel = javaLanguageLevel
-                        configureUastEnvironmentFromProjectDescription(config, projectDescription)
-                        psiEnvironmentManager.createEnvironment(config)
-                    }
-            }
+    override fun createMultiplatformCodebase(): MultiplatformCodebase {
+        val projectDescription =
+            psiEnvironment.projectDescription ?: error("No projectDescription configured")
+        val environment = tracer.trace("create environment") { psiEnvironment.uastEnvironment }
 
         return tracer.trace("KaCodebaseAssembler.assembleMultiplatform") {
             KaCodebaseAssembler.assembleMultiplatform(
@@ -191,133 +176,12 @@ internal class PsiSourceParser(
             tracer.trace("KotlinBytecodeApis") { KotlinBytecodeApis(existingCodebase.psiAssembler) }
         val rewrittenJar = tracer.trace("rewriteJar") { bytecodeApis.rewriteJar(jarFile) }
         val jarEnvironment =
-            tracer.trace("loadUastFromJars") { loadUastFromJars(listOf(rewrittenJar)) }
+            tracer.trace("loadUastFromJars") {
+                psiEnvironment.loadUastFromJars(listOf(rewrittenJar))
+            }
         tracer.trace("loadPsiFromProject") {
             bytecodeApis.loadPsiFromProject(jarEnvironment.ideaProject)
         }
         (existingCodebase.assembler as PsiCodebaseAssembler).mergedJarEnvironment = jarEnvironment
-    }
-
-    /** Initializes a UAST environment using the [apiJars] as classpath roots. */
-    private fun loadUastFromJars(apiJars: List<File>): UastEnvironment {
-        val config = UastEnvironment.Configuration.create()
-        val sourceRoots = emptyList<File>()
-        configureUastEnvironment(config, sourceRoots, apiJars)
-
-        val environment = psiEnvironmentManager.createEnvironment(config)
-        environment.analyzeFiles(sourceRoots) // Initializes PSI machinery.
-        return environment
-    }
-
-    private fun configureUastEnvironment(
-        config: UastEnvironment.Configuration,
-        sourceRoots: List<File>,
-        classpath: List<File>,
-    ) {
-        val rootDir = sourceRoots.firstOrNull() ?: psiEnvironmentManager.emptyDir
-        val lintClient = MetalavaCliClient()
-        // From ...lint.detector.api.Project, `dir` is, e.g., /tmp/foo/dev/src/project1,
-        // and `referenceDir` is /tmp/foo/. However, in many use cases, they are just same.
-        // `referenceDir` is used to adjust `lib` dir accordingly if needed,
-        // but we set `classpath` anyway below.
-        val lintProject =
-            Project.create(lintClient, /* dir= */ rootDir, /* referenceDir= */ rootDir)
-        lintProject.kotlinLanguageLevel = kotlinLanguageLevel
-        if (sourceRoots.isEmpty()) {
-            lintProject.javaSourceFolders.add(psiEnvironmentManager.emptyDir)
-        } else {
-            lintProject.javaSourceFolders.addAll(sourceRoots)
-        }
-        lintProject.javaLibraries.addAll(classpath)
-        config.addModules(
-            listOf(
-                UastEnvironment.Module(
-                    lintProject,
-                    // Building KtSdkModule for JDK
-                    jdkHome,
-                    includeTests = false,
-                    includeTestFixtureSources = false,
-                    isUnitTest = false
-                )
-            ),
-        )
-    }
-
-    /**
-     * Configures the environment based on an XML description of Lint's project model.
-     *
-     * Alas, no proper documentation is available. Please refer to examples at upstream Lint:
-     * https://cs.android.com/android-studio/platform/tools/base/+/mirror-goog-studio-main:lint/libs/lint-tests/src/test/java/com/android/tools/lint/ProjectInitializerTest.kt
-     *
-     * An ideal project structure would look like:
-     * ```
-     * <project>
-     *     <root dir="frameworks/support/compose/ui/ui"/>
-     *     <module name="commonMain" android="false">
-     *         <src file="src/commonMain/.../file1.kt" /> <!-- and so on -->
-     *         <klib file="lib/if/any.klib" />
-     *         <classpath jar="/path/to/kotlin/coroutinesCore.jar" />
-     *         ...
-     *     </module>
-     *     <module name="jvmMain" android="false">
-     *         <dep module="commonMain" kind="dependsOn" />
-     *         <src file="src/jvmMain/.../file1.kt" /> <!-- and so on -->
-     *         ...
-     *     </module>
-     *     <module name="androidMain" android="true">
-     *         <dep module="jvmMain" kind="dependsOn" />
-     *         <src file="src/androidMain/.../file1.kt" /> <!-- and so on -->
-     *         ...
-     *     </module>
-     *     ...
-     * </project>
-     * ```
-     *
-     * That is, there are common modules where `expect` declarations and common business logic
-     * reside, along with binary dependencies of several formats, including klib and jar.
-     *
-     * Then, platform-specific modules "depend" on common modules, and have their own source set and
-     * binary dependencies.
-     */
-    private fun configureUastEnvironmentFromProjectDescription(
-        config: UastEnvironment.Configuration,
-        projectDescription: File,
-    ) {
-        val lintClient = MetalavaCliClient()
-        // This will parse the description of Lint's project model and populate the module structure
-        // inside the given Lint client. We will use it to set up the project structure that
-        // [UastEnvironment] requires, which in turn uses that to set up Kotlin compiler frontend.
-        // The overall flow looks like:
-        //   project.xml -> Lint Project model -> UastEnvironment Module -> Kotlin compiler FE / AA
-        // There are a couple of limitations that force use fall into this long steps:
-        //  * Lint Project creation is not exposed at all. Only project.xml parsing is available.
-        //  * UastEnvironment Module simply reuses existing Lint Project model.
-        computeMetadata(lintClient, projectDescription)
-        config.addModules(
-            lintClient.knownProjects.mapNotNull { lintProject ->
-                // TODO(b/383457595): For the given root dir,
-                //   Lint creates a bogus, uninitialized [Project]
-                if (
-                    // The default project name, if not given, is directory name
-                    // not something we provided, like `androidMain`.
-                    lintProject.name == lintProject.dir.name &&
-                        // source folder might be still the root dir
-                        // but libraries would be empty / not computed.
-                        (lintProject.javaSourceFolders.isEmpty() ||
-                            lintProject.javaLibraries.isEmpty())
-                ) {
-                    return@mapNotNull null
-                }
-                lintProject.kotlinLanguageLevel = kotlinLanguageLevel
-                UastEnvironment.Module(
-                    lintProject,
-                    // Building KtSdkModule for JDK
-                    jdkHome,
-                    includeTests = false,
-                    includeTestFixtureSources = false,
-                    isUnitTest = false
-                )
-            }
-        )
     }
 }

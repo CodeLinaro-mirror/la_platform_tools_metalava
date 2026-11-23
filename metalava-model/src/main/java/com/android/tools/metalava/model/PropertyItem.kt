@@ -16,8 +16,6 @@
 
 package com.android.tools.metalava.model
 
-import java.util.Objects
-
 interface PropertyItem : MemberItem, TypeParameterListOwner, InheritableItem {
     /** The getter for this property, if it exists; inverse of [MethodItem.property] */
     val getter: MethodItem?
@@ -91,6 +89,13 @@ interface PropertyItem : MemberItem, TypeParameterListOwner, InheritableItem {
         append(contextString())
     }
 
+    /**
+     * Duplicates this property item.
+     *
+     * Override to specialize the return type.
+     */
+    override fun duplicate(targetContainingClass: ClassItem): PropertyItem
+
     override fun accept(visitor: ItemVisitor) {
         visitor.visit(this)
     }
@@ -106,11 +111,25 @@ interface PropertyItem : MemberItem, TypeParameterListOwner, InheritableItem {
     }
 
     override fun hashCodeForItem(): Int {
-        return Objects.hash(name(), receiver, contextParameters)
+        var result = name().hashCode()
+        result = 31 * result + TypeComparator.NULLABILITY_AWARE.hash(receiver)
+        result =
+            31 * result +
+                contextParameters.fold(1) { acc, param ->
+                    31 * acc + TypeComparator.NULLABILITY_AWARE.hash(param.type())
+                }
+        return result
     }
 
-    override fun toStringForItem() =
-        "property ${containingClass().qualifiedName()}#${receiverString()}${name()}${contextString()}"
+    override fun describe(capitalize: Boolean) = buildString {
+        append(if (capitalize) "Property" else "property")
+        append(" ")
+        append(containingClass().qualifiedName())
+        append("#")
+        append(receiverString())
+        append(name())
+        append(contextString())
+    }
 
     // Inherit deprecation from the getter
     override val effectivelyDeprecated: Boolean
@@ -130,7 +149,7 @@ interface PropertyItem : MemberItem, TypeParameterListOwner, InheritableItem {
         fun equalReceivers(receiver1: TypeItem?, receiver2: TypeItem?): Boolean {
             // Nullability is important for property receivers because kotlin allows defining
             // properties which differ only in receiver nullability.
-            return receiver1?.equalToType(receiver2, true) ?: (receiver2 == null)
+            return TypeComparator.NULLABILITY_AWARE.compare(receiver1, receiver2)
         }
 
         /** Returns whether the two lists should be considered equal context parameters. */
@@ -138,11 +157,22 @@ interface PropertyItem : MemberItem, TypeParameterListOwner, InheritableItem {
             contextParameters1: List<ParameterItem>,
             contextParameters2: List<ParameterItem>
         ): Boolean {
+            return equalContextParameterTypes(
+                contextParameters1.map { it.type() },
+                contextParameters2.map { it.type() }
+            )
+        }
+
+        /** Returns whether the two lists should be considered equal context parameter types. */
+        fun equalContextParameterTypes(
+            contextParameters1: List<TypeItem>,
+            contextParameters2: List<TypeItem>
+        ): Boolean {
             // Nullability is important for property context parameters because kotlin allows
             // defining properties which differ only in context parameter nullability.
             return contextParameters1.size == contextParameters2.size &&
                 contextParameters1.zip(contextParameters2).all { (thisParam, otherParam) ->
-                    thisParam.type().equalToType(otherParam.type(), includeNullability = true)
+                    TypeComparator.NULLABILITY_AWARE.compare(thisParam, otherParam)
                 }
         }
     }

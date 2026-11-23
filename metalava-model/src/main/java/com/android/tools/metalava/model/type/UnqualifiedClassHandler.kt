@@ -24,7 +24,7 @@ import com.android.tools.metalava.reporter.Issues
  */
 interface UnqualifiedClassHandler {
     /**
-     * Determine what to do with a type with an [unqualifiedName].
+     * Determine what to do with a type with an [unqualifiedName] at [charOffset].
      *
      * It can either throw an exception, or return a qualified name. In the latter case it can also
      * report an error to [errorReporter], if necessary.
@@ -32,6 +32,7 @@ interface UnqualifiedClassHandler {
     fun handleUnqualifiedType(
         errorReporter: TypeItemParserErrorReporter,
         unqualifiedName: String,
+        charOffset: Int,
     ): String
 
     companion object {
@@ -62,6 +63,7 @@ interface UnqualifiedClassHandler {
         override fun handleUnqualifiedType(
             errorReporter: TypeItemParserErrorReporter,
             unqualifiedName: String,
+            charOffset: Int,
         ): String {
             val javaLangName = "java.lang.$unqualifiedName"
 
@@ -72,7 +74,8 @@ interface UnqualifiedClassHandler {
                 if (reportAsError) {
                     errorReporter.report(
                         Issues.UNQUALIFIED_TYPE_ERROR,
-                        "Unqualified type '$unqualifiedName' is not in 'java.lang' and is not a type parameter in scope"
+                        "Unqualified type '$unqualifiedName' is not in 'java.lang' and is not a type parameter in scope",
+                        charOffset,
                     )
                 }
                 unqualifiedName

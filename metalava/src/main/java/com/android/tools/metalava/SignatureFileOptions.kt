@@ -16,10 +16,10 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.cli.common.MetalavaOptionGroup
 import com.android.tools.metalava.cli.common.newFile
 import com.android.tools.metalava.cli.signature.SIGNATURE_FORMAT_OUTPUT_GROUP
 import com.android.tools.metalava.model.text.EmitFileHeader
-import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 
@@ -29,7 +29,7 @@ const val ARG_REMOVED_API = "--removed-api"
 const val ARG_DELETE_EMPTY_REMOVED_SIGNATURES = "--delete-empty-removed-signatures"
 
 class SignatureFileOptions :
-    OptionGroup(
+    MetalavaOptionGroup(
         name = "Signature File Output",
         help =
             """

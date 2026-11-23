@@ -16,25 +16,23 @@
 
 package com.android.tools.metalava.apilevels
 
-import com.android.tools.metalava.ARG_ANDROID_JAR_PATTERN
+import com.android.tools.lint.checks.infrastructure.TestFile
+import com.android.tools.metalava.ARG_API
 import com.android.tools.metalava.ARG_API_SURFACE
-import com.android.tools.metalava.ARG_API_VERSION_FOR_SDK_EXTENSION
 import com.android.tools.metalava.ARG_API_VERSION_FOR_SOURCES
 import com.android.tools.metalava.ARG_API_VERSION_LABEL
 import com.android.tools.metalava.ARG_API_VERSION_SIGNATURE_FILES
 import com.android.tools.metalava.ARG_API_VERSION_SIGNATURE_PATTERN
-import com.android.tools.metalava.ARG_GENERATE_API_LEVELS
+import com.android.tools.metalava.ARG_CONFIG_FILE
 import com.android.tools.metalava.ARG_GENERATE_API_VERSION_HISTORY
-import com.android.tools.metalava.ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS
-import com.android.tools.metalava.ARG_SDK_INFO_FILE
+import com.android.tools.metalava.Driver
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.KnownConfigFiles
+import com.android.tools.metalava.cli.common.ExecutionEnvironment
+import com.android.tools.metalava.cli.signature.ARG_API_VERSION_FOR_SDK_EXTENSION
+import com.android.tools.metalava.cli.signature.ARG_SDK_INFO_FILE
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
-import com.android.tools.metalava.testing.TestFileCache
-import com.android.tools.metalava.testing.TestFileCacheRule
-import com.android.tools.metalava.testing.cacheIn
-import com.android.tools.metalava.testing.jarFromSources
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.android.tools.metalava.testing.signature
@@ -46,7 +44,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
-import org.junit.ClassRule
 import org.junit.Test
 
 // Constants to avoid having to quote $ in expected XML contents.
@@ -55,30 +52,19 @@ const val R = "${'\$'}R"
 const val S = "${'\$'}S"
 
 class ApiGeneratorTest : DriverTest() {
-    companion object {
-        /** Create a [TestFileCache] whose lifespan encompasses all the tests in this class. */
-        @ClassRule @JvmField val testFileCacheRule = TestFileCacheRule()
-
-        private val doublyNestedTestJar =
-            jarFromSources(
-                    "doubly-nested-test.jar",
-                    java(
-                        """
-                            package test.pkg;
-                            public class Test {
-                                private Test() {}
-                                public class Nested {
-                                    private Nested() {}
-                                    public class DoublyNested {
-                                        private DoublyNested() {}
-                                    }
-                                }
-                            }
-                        """
-                    ),
-                )
-                .cacheIn(testFileCacheRule)
+    /** Run the `api-history` sub-command with [args]. */
+    private fun runApiHistory(vararg args: String) {
+        val (executionEnvironment, stderr) = ExecutionEnvironment.forTest()
+        val exitCode = Driver.run(executionEnvironment, arrayOf("api-history", *args))
+        assertEquals(stderr.toString(), 0, exitCode)
     }
+
+    /** Find all `.txt` files under [dir] and return them joined by [File.pathSeparator]. */
+    private fun findTxtFiles(dir: File): String =
+        dir.walkTopDown()
+            .filter { it.isFile && it.extension == "txt" }
+            .sortedBy { it.path }
+            .joinToString(File.pathSeparator) { it.path }
 
     /** Check this `api-versions.xml` file has the correct content. */
     private fun File.checkApiVersionsXmlContent(expectedContent: String) {
@@ -104,12 +90,49 @@ class ApiGeneratorTest : DriverTest() {
         assertEquals(expectedContent.trimIndent(), prettyOutput)
     }
 
-    /** Check `--generate-api-levels` from test files in the metalava directory. */
+    /** Check `api-history` from test files in the metalava directory. */
     private fun checkGenerateFromTestFiles(
         sdkExtensionsInfo: String,
         extraArguments: Array<String>,
     ) {
         val apiVersionsXml = temporaryFolder.newFile("api-versions.xml")
+        val currentApiFile =
+            createTextFile(
+                "current.txt",
+                """
+                    // Signature format: 2.0
+                    package android.test {
+                      public class ClassAddedInApi31AndExt2 {
+                        method public void methodAddedInApi31AndExt2();
+                        method public void methodAddedInExt3();
+                        method public void methodNotFinalized();
+                        field public static final int FIELD_ADDED_IN_API_31_AND_EXT_2 = 1; // 0x1
+                        field public static final int FIELD_ADDED_IN_EXT_3 = 2; // 0x2
+                      }
+                    }
+                    package java.lang {
+                      public class Object {
+                        ctor public Object();
+                      }
+                    }
+                """
+            )
+
+        runApiHistory(
+            ARG_CONFIG_FILE,
+            KnownConfigFiles.configPublicSurface.createFile(temporaryFolder.root).path,
+            ARG_API_SURFACE,
+            "public",
+            "--output-file",
+            apiVersionsXml.path,
+            ARG_SDK_INFO_FILE,
+            sdkExtensionsInfo,
+            "--current-version",
+            "32",
+            "--current-files",
+            currentApiFile.path,
+            *extraArguments,
+        )
 
         check(
             configFiles = arrayOf(KnownConfigFiles.configPublicSurface),
@@ -117,16 +140,10 @@ class ApiGeneratorTest : DriverTest() {
                 arrayOf(
                     ARG_API_SURFACE,
                     "public",
-                    ARG_GENERATE_API_LEVELS,
-                    apiVersionsXml.path,
-                    ARG_SDK_INFO_FILE,
-                    sdkExtensionsInfo,
-                    ARG_API_VERSION_FOR_SOURCES,
-                    "32",
                     ARG_API_VERSION_LABEL,
-                    "32:Foo"
-                ) + extraArguments,
-            // Apply the api-versions.xml file that is being generated by this.
+                    "32:Foo",
+                ),
+            // Apply the api-versions.xml file that was generated above.
             applyApiLevelsXml = apiVersionsXml.path,
             // Do not prevent java.lang.Object from being included in the API.
             skipEmitPackages = emptyList(),
@@ -248,29 +265,8 @@ class ApiGeneratorTest : DriverTest() {
         apiVersionsXml.checkApiVersionsXmlContent(expected)
     }
 
-    // TODO(b/378479241): Fix this test to make it more realistic by including definitions of the
-    //  current API or stopping it from including the current API.
     @Test
-    fun `Generate API for test prebuilts`() {
-        val testPrebuiltsRoot = File(System.getenv("METALAVA_TEST_PREBUILTS_SDK_ROOT"))
-        if (!testPrebuiltsRoot.isDirectory) {
-            fail("test prebuilts not found: $testPrebuiltsRoot")
-        }
-
-        checkGenerateFromTestFiles(
-            sdkExtensionsInfo = "${testPrebuiltsRoot.path}/sdk-extensions-info.xml",
-            extraArguments =
-                arrayOf(
-                    ARG_ANDROID_JAR_PATTERN,
-                    "${testPrebuiltsRoot.path}/{version:level}/public/android.jar",
-                    ARG_ANDROID_JAR_PATTERN,
-                    "${testPrebuiltsRoot.path}/extensions/{version:extension}/*/{module}.jar",
-                ),
-        )
-    }
-
-    @Test
-    fun `Generate API from signature files using --generate-api-levels`() {
+    fun `Generate API from signature files using api-history`() {
         val testdataDir = File(System.getenv("METALAVA_TESTDATA_DIR"))
         if (!testdataDir.isDirectory) {
             fail("testdata directory not found: $testdataDir")
@@ -279,14 +275,15 @@ class ApiGeneratorTest : DriverTest() {
         val prebuiltsSdkDir = testdataDir.resolve("prebuilts/sdk")
 
         checkGenerateFromTestFiles(
-            sdkExtensionsInfo =
-                testdataDir.resolve("prebuilts-sdk-test/sdk-extensions-info.xml").path,
+            sdkExtensionsInfo = prebuiltsSdkDir.resolve("sdk-extensions-info.xml").path,
             extraArguments =
                 arrayOf(
-                    ARG_API_VERSION_SIGNATURE_PATTERN,
+                    "--pattern",
                     "$prebuiltsSdkDir/{version:level}/{surface}/api.txt",
-                    ARG_API_VERSION_SIGNATURE_PATTERN,
+                    "--pattern",
                     "$prebuiltsSdkDir/extensions/{version:extension}/{surface}/{module}.txt",
+                    "--historical-files",
+                    findTxtFiles(prebuiltsSdkDir),
                 ),
         )
     }
@@ -294,26 +291,28 @@ class ApiGeneratorTest : DriverTest() {
     @Test
     fun `Generate API while removing missing class references`() {
         val apiVersionsXml = temporaryFolder.newFile("api-versions.xml")
-
-        check(
-            extraArguments =
-                arrayOf(
-                    ARG_GENERATE_API_LEVELS,
-                    apiVersionsXml.path,
-                    ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS,
-                    ARG_API_VERSION_FOR_SOURCES,
-                    "32",
-                ),
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package android.test;
-                    public class ClassThatImplementsMethodFromApex implements ClassFromApex {
+        val currentApiFile =
+            createTextFile(
+                "current.txt",
+                """
+                    // Signature format: 2.0
+                    package android.test {
+                      public class ClassThatImplementsMethodFromApex implements ClassFromApex {
+                        ctor public ClassThatImplementsMethodFromApex();
+                      }
                     }
-                    """
-                    )
-                )
+                """
+            )
+
+        runApiHistory(
+            "--output-file",
+            apiVersionsXml.path,
+            "--missing-class-action",
+            "remove",
+            "--current-version",
+            "32",
+            "--current-files",
+            currentApiFile.path,
         )
 
         val expected =
@@ -329,23 +328,38 @@ class ApiGeneratorTest : DriverTest() {
         apiVersionsXml.checkApiVersionsXmlContent(expected)
     }
 
-    @RequiresCapabilities(Capability.LOAD_JAR)
     @Test
-    fun `Generate API for system surface from jar`() {
+    fun `Generate API for system surface from signature`() {
         val apiVersionsXml = temporaryFolder.newFile("api-versions.xml")
+        val currentApiFile =
+            createTextFile(
+                "current.txt",
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Test {
+                      }
+                      public class Test.Nested {
+                      }
+                      public class Test.Nested.DoublyNested {
+                      }
+                    }
+                """
+            )
 
-        check(
-            configFiles = arrayOf(KnownConfigFiles.configPublicAndSystemSurfaces),
-            extraArguments =
-                arrayOf(
-                    ARG_API_SURFACE,
-                    "system",
-                    ARG_GENERATE_API_LEVELS,
-                    apiVersionsXml.path,
-                    ARG_API_VERSION_FOR_SOURCES,
-                    "32",
-                ),
-            sourceFiles = arrayOf(doublyNestedTestJar),
+        runApiHistory(
+            ARG_CONFIG_FILE,
+            KnownConfigFiles.configPublicAndSystemSurfaces.createFile(temporaryFolder.root).path,
+            ARG_API_SURFACE,
+            "system",
+            "--output-file",
+            apiVersionsXml.path,
+            "--missing-class-action",
+            "remove",
+            "--current-version",
+            "32",
+            "--current-files",
+            currentApiFile.path,
         )
 
         val expected =
@@ -366,37 +380,30 @@ class ApiGeneratorTest : DriverTest() {
 
     @Test
     fun `Generate API finds missing class references`() {
-        val testPrebuiltsRoot = File(System.getenv("METALAVA_TEST_PREBUILTS_SDK_ROOT"))
-        if (!testPrebuiltsRoot.isDirectory) {
-            fail("test prebuilts not found: $testPrebuiltsRoot")
-        }
 
         val apiVersionsXml = temporaryFolder.newFile("api-versions.xml")
+        val currentApiFile =
+            createTextFile(
+                "current.txt",
+                """
+                    // Signature format: 2.0
+                    package android.test {
+                      public class ClassThatImplementsMethodFromApex {
+                        ctor public ClassThatImplementsMethodFromApex();
+                      }
+                    }
+                """
+            )
 
         var exception: IllegalStateException? = null
         try {
-            check(
-                extraArguments =
-                    arrayOf(
-                        ARG_GENERATE_API_LEVELS,
-                        apiVersionsXml.path,
-                        ARG_API_VERSION_FOR_SOURCES,
-                        "32",
-                    ),
-                sourceFiles =
-                    arrayOf(
-                        java(
-                            """
-                        package android.test;
-                        // Really this class should implement some interface that doesn't exist,
-                        // but that's hard to set up in the test harness, so just verify that
-                        // metalava complains about java/lang/Object not existing because we didn't
-                        // include the testdata prebuilt jars.
-                        public class ClassThatImplementsMethodFromApex {
-                        }
-                        """
-                        )
-                    )
+            runApiHistory(
+                "--output-file",
+                apiVersionsXml.path,
+                "--current-version",
+                "32",
+                "--current-files",
+                currentApiFile.path,
             )
         } catch (e: IllegalStateException) {
             exception = e
@@ -1025,36 +1032,35 @@ class ApiGeneratorTest : DriverTest() {
             }
 
         val apiVersionsXml = temporaryFolder.newFile("api-versions.xml")
+        val currentApiFile =
+            createTextFile(
+                "current.txt",
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      @Deprecated public class Foo {
+                      }
+                    }
+                """
+            )
 
-        check(
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                            package test.pkg;
-                            /**
-                             * @deprecated Deprecated
-                             */
-                            @Deprecated public class Foo {
-                                private Foo() {}
-                            }
-                        """
-                    ),
-                ),
-            extraArguments =
-                arrayOf(
-                    ARG_GENERATE_API_LEVELS,
-                    apiVersionsXml.path,
-                    ARG_SDK_INFO_FILE,
-                    sdkExtensionsInfoXml.path,
-                    ARG_API_VERSION_SIGNATURE_PATTERN,
-                    "$root/{version:major.minor?}/api.txt",
-                    ARG_API_VERSION_SIGNATURE_PATTERN,
-                    "$root/extensions/{version:extension}/{module}.txt",
-                    ARG_API_VERSION_FOR_SOURCES,
-                    "41",
-                    ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS,
-                ),
+        runApiHistory(
+            "--output-file",
+            apiVersionsXml.path,
+            ARG_SDK_INFO_FILE,
+            sdkExtensionsInfoXml.path,
+            "--pattern",
+            "$root/{version:major.minor?}/api.txt",
+            "--pattern",
+            "$root/extensions/{version:extension}/{module}.txt",
+            "--historical-files",
+            findTxtFiles(root),
+            "--current-version",
+            "41",
+            "--current-files",
+            currentApiFile.path,
+            "--missing-class-action",
+            "remove",
         )
 
         apiVersionsXml.checkApiVersionsXmlContent(
@@ -1128,45 +1134,47 @@ class ApiGeneratorTest : DriverTest() {
             }
 
         val apiVersionsXml = temporaryFolder.newFile("api-versions.xml")
-        // current sources are only included if --api-versions-for-sources is provided
+        // current API is only included if includeCurrentSource is true
         val prospectiveApiVersion = "40"
         val prospectiveSdkArgs =
-            if (includeCurrentSource)
-                arrayOf(
-                    ARG_API_VERSION_FOR_SOURCES,
-                    prospectiveApiVersion,
-                )
-            else arrayOf()
-
-        check(
-            sourceFiles =
-                arrayOf(
-                    java(
+            if (includeCurrentSource) {
+                val currentApiFile =
+                    createTextFile(
+                        "current.txt",
                         """
-                            package test.pkg;
-                            public class Foo {
-                                private Foo() {}
-                                public void addedInExtension102() {}
-                                public void addedInLatest() {}
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class Foo {
+                                method public void addedInExtension102();
+                                method public void addedInLatest();
+                              }
                             }
                         """
-                    ),
-                ),
-            extraArguments =
+                    )
                 arrayOf(
-                    ARG_GENERATE_API_LEVELS,
-                    apiVersionsXml.path,
-                    ARG_SDK_INFO_FILE,
-                    sdkExtensionsInfoXml.path,
-                    ARG_API_VERSION_SIGNATURE_PATTERN,
-                    "$root/{version:major.minor?}/api.txt",
-                    ARG_API_VERSION_SIGNATURE_PATTERN,
-                    "$root/extensions/{version:extension}/{module}.txt",
-                    ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS,
-                    ARG_API_VERSION_FOR_SDK_EXTENSION,
-                    apiVersionForSdkExtension,
-                    *prospectiveSdkArgs
+                    "--current-version",
+                    prospectiveApiVersion,
+                    "--current-files",
+                    currentApiFile.path,
                 )
+            } else arrayOf()
+
+        runApiHistory(
+            "--output-file",
+            apiVersionsXml.path,
+            ARG_SDK_INFO_FILE,
+            sdkExtensionsInfoXml.path,
+            "--pattern",
+            "$root/{version:major.minor?}/api.txt",
+            "--pattern",
+            "$root/extensions/{version:extension}/{module}.txt",
+            "--historical-files",
+            findTxtFiles(root),
+            "--missing-class-action",
+            "remove",
+            ARG_API_VERSION_FOR_SDK_EXTENSION,
+            apiVersionForSdkExtension,
+            *prospectiveSdkArgs,
         )
 
         return apiVersionsXml
@@ -1249,6 +1257,460 @@ class ApiGeneratorTest : DriverTest() {
                     </class>
                 </api>
             """
+        )
+    }
+
+    /**
+     * Checks consistency between historical and latest code when generating API levels and stubs.
+     *
+     * It creates an initial release (API 1.0) in a signature file (`android.txt`) from
+     * [historicalSignature] and a current release (API 2.0) from [currentVersionSourceFiles], then
+     * asserts that the generated stubs match [expectedStubs] and the generated `api-versions.xml`
+     * matches [expectedApiVersionsXml].
+     */
+    private fun checkConsistencyBetweenHistoricalAndLatestCode(
+        historicalSignature: String,
+        currentVersionSourceFiles: List<TestFile>,
+        expectedStubs: List<TestFile>,
+        expectedApiVersionsXml: String,
+    ) {
+        val root = buildFileStructure {
+            dir("1.0") {
+                signature(
+                    "android.txt",
+                    historicalSignature,
+                )
+            }
+        }
+
+        val currentVersion =
+            arrayOf(
+                *currentVersionSourceFiles.toTypedArray(),
+                java(
+                    """
+                        package java.lang;
+                        public class Object {
+                            public Object() {}
+                        }
+                    """
+                ),
+            )
+
+        val currentApiFile = temporaryFolder.newFile("current.txt")
+        check(
+            sourceFiles = currentVersion,
+            skipEmitPackages = emptyList(),
+            extraArguments = arrayOf(ARG_API, currentApiFile.path),
+        )
+
+        val apiVersionsXml = temporaryFolder.newFile("api-versions.xml")
+        runApiHistory(
+            "--output-file",
+            apiVersionsXml.path,
+            "--pattern",
+            "$root/{version:major.minor?}/android.txt",
+            "--historical-files",
+            findTxtFiles(root),
+            "--current-version",
+            "2.0",
+            "--current-files",
+            currentApiFile.path,
+        )
+
+        check(
+            sourceFiles = currentVersion,
+            docStubs = true,
+            applyApiLevelsXml = apiVersionsXml.path,
+            skipEmitPackages = emptyList(),
+            expectedStubFiles = expectedStubs.toTypedArray(),
+        )
+
+        apiVersionsXml.checkApiVersionsXmlContent(expectedApiVersionsXml)
+    }
+
+    /**
+     * Verifies the behavior when a method exists in a class in one version and is moved up to a
+     * super class in a later version. It is not marked as removed in the later version because it
+     * is still accessible through the super class.
+     */
+    @Test
+    fun `Method moved up to a super class in a later version`() {
+        checkConsistencyBetweenHistoricalAndLatestCode(
+            historicalSignature =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Foo extends test.pkg.Super {
+                        ctor public Foo();
+                        method public void foo();
+                      }
+                      public class Super {
+                        ctor public Super();
+                      }
+                    }
+                """,
+            currentVersionSourceFiles =
+                listOf(
+                    java(
+                        """
+                            package test.pkg;
+                            public class Super {
+                                public Super() {}
+                                public void foo() {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            public class Foo extends Super {
+                                public Foo() {}
+                            }
+                        """
+                    ),
+                ),
+            expectedStubs =
+                listOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Foo extends test.pkg.Super {
+                            /** @apiSince 1 */
+                            public Foo() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Super {
+                            /** @apiSince 1 */
+                            public Super() { throw new RuntimeException("Stub!"); }
+                            /** @apiSince 2 */
+                            public void foo() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
+            expectedApiVersionsXml =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="4" min="1.0">
+                        <class name="java/lang/Object" since="2.0">
+                            <method name="&lt;init>()V"/>
+                        </class>
+                        <class name="test/pkg/Foo" since="1.0">
+                            <extends name="test/pkg/Super"/>
+                            <method name="&lt;init>()V"/>
+                            <method name="foo()V"/>
+                        </class>
+                        <class name="test/pkg/Super" since="1.0">
+                            <extends name="java/lang/Object"/>
+                            <method name="&lt;init>()V"/>
+                            <method name="foo()V" since="2.0"/>
+                        </class>
+                    </api>
+                """,
+        )
+    }
+
+    @Test
+    fun `Method moved up to an interface in a later version`() {
+        checkConsistencyBetweenHistoricalAndLatestCode(
+            historicalSignature =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public interface CharSequence {
+                      }
+                      public class StringBuffer implements test.pkg.CharSequence {
+                        ctor public StringBuffer();
+                        method public void getChars(int, int, char[], int);
+                      }
+                      public class StringBuilder implements test.pkg.CharSequence {
+                        ctor public StringBuilder();
+                        method public void getChars(int, int, char[], int);
+                      }
+                    }
+                """,
+            currentVersionSourceFiles =
+                listOf(
+                    java(
+                        """
+                            package test.pkg;
+                            public interface CharSequence {
+                                public default void getChars(int srcBegin, int srcEnd, char[] dst, int dstBegin) {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            public class StringBuffer implements CharSequence {
+                                public StringBuffer() {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            public class StringBuilder implements CharSequence {
+                                public StringBuilder() {}
+                            }
+                        """
+                    ),
+                ),
+            expectedStubs =
+                listOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public interface CharSequence {
+                            /** @apiSince 2 */
+                            public default void getChars(int srcBegin, int srcEnd, char[] dst, int dstBegin) { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class StringBuffer implements test.pkg.CharSequence {
+                            /** @apiSince 1 */
+                            public StringBuffer() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class StringBuilder implements test.pkg.CharSequence {
+                            /** @apiSince 1 */
+                            public StringBuilder() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
+            expectedApiVersionsXml =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="4" min="1.0">
+                        <class name="java/lang/Object" since="2.0">
+                            <method name="&lt;init>()V"/>
+                        </class>
+                        <class name="test/pkg/CharSequence" since="1.0">
+                            <extends name="java/lang/Object"/>
+                            <method name="getChars(II[CI)V" since="2.0"/>
+                        </class>
+                        <class name="test/pkg/StringBuffer" since="1.0">
+                            <extends name="java/lang/Object"/>
+                            <implements name="test/pkg/CharSequence"/>
+                            <method name="&lt;init>()V"/>
+                            <method name="getChars(II[CI)V"/>
+                        </class>
+                        <class name="test/pkg/StringBuilder" since="1.0">
+                            <extends name="java/lang/Object"/>
+                            <implements name="test/pkg/CharSequence"/>
+                            <method name="&lt;init>()V"/>
+                            <method name="getChars(II[CI)V"/>
+                        </class>
+                    </api>
+                """,
+        )
+    }
+
+    /**
+     * Verifies that when a method is moved up to a superclass and deprecated in a later version,
+     * the subclass method's `deprecated` attribute is updated to match.
+     */
+    @Test
+    fun `Method moved up to a super class and deprecated in a later version`() {
+        checkConsistencyBetweenHistoricalAndLatestCode(
+            historicalSignature =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Foo extends test.pkg.Super {
+                        ctor public Foo();
+                        method public void foo();
+                      }
+                      public class Super {
+                        ctor public Super();
+                      }
+                    }
+                """,
+            currentVersionSourceFiles =
+                listOf(
+                    java(
+                        """
+                            package test.pkg;
+                            public class Super {
+                                public Super() {}
+                                /** @deprecated */
+                                @Deprecated
+                                public void foo() {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            public class Foo extends Super {
+                                public Foo() {}
+                            }
+                        """
+                    ),
+                ),
+            expectedStubs =
+                listOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Foo extends test.pkg.Super {
+                            /** @apiSince 1 */
+                            public Foo() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Super {
+                            /** @apiSince 1 */
+                            public Super() { throw new RuntimeException("Stub!"); }
+                            /**
+                             * @deprecated
+                             * @apiSince 2
+                             * @deprecatedSince 2
+                             */
+                            @Deprecated
+                            public void foo() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
+            expectedApiVersionsXml =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="4" min="1.0">
+                        <class name="java/lang/Object" since="2.0">
+                            <method name="&lt;init>()V"/>
+                        </class>
+                        <class name="test/pkg/Foo" since="1.0">
+                            <extends name="test/pkg/Super"/>
+                            <method name="&lt;init>()V"/>
+                            <method name="foo()V" deprecated="2.0"/>
+                        </class>
+                        <class name="test/pkg/Super" since="1.0">
+                            <extends name="java/lang/Object"/>
+                            <method name="&lt;init>()V"/>
+                            <method name="foo()V" since="2.0" deprecated="2.0"/>
+                        </class>
+                    </api>
+                """,
+        )
+    }
+
+    /**
+     * Verifies that when a superclass method is removed in a later version, a subclass method that
+     * is still present in the later version is not removed as an override.
+     */
+    @Test
+    fun `Method removed from super class in a later version is retained on subclass`() {
+        checkConsistencyBetweenHistoricalAndLatestCode(
+            historicalSignature =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Foo extends test.pkg.Super {
+                        ctor public Foo();
+                        method public void foo();
+                      }
+                      public class Super {
+                        ctor public Super();
+                        method public void foo();
+                      }
+                    }
+                """,
+            currentVersionSourceFiles =
+                listOf(
+                    java(
+                        """
+                            package test.pkg;
+                            public class Super {
+                                public Super() {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            public class Foo extends Super {
+                                public Foo() {}
+                                public void foo() {}
+                            }
+                        """
+                    ),
+                ),
+            expectedStubs =
+                listOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Foo extends test.pkg.Super {
+                            /** @apiSince 1 */
+                            public Foo() { throw new RuntimeException("Stub!"); }
+                            /** @apiSince 1 */
+                            public void foo() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Super {
+                            /** @apiSince 1 */
+                            public Super() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
+            expectedApiVersionsXml =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="4" min="1.0">
+                        <class name="java/lang/Object" since="2.0">
+                            <method name="&lt;init>()V"/>
+                        </class>
+                        <class name="test/pkg/Foo" since="1.0">
+                            <extends name="test/pkg/Super"/>
+                            <method name="&lt;init>()V"/>
+                            <method name="foo()V"/>
+                        </class>
+                        <class name="test/pkg/Super" since="1.0">
+                            <extends name="java/lang/Object"/>
+                            <method name="&lt;init>()V"/>
+                            <method name="foo()V" removed="2.0"/>
+                        </class>
+                    </api>
+                """,
         )
     }
 }

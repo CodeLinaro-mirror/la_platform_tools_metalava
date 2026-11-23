@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.lint.LintCliClient.Companion.printWriter
 import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PREFIX
 import com.android.tools.metalava.model.ANDROIDX_REQUIRES_PERMISSION_READ
 import com.android.tools.metalava.model.ANDROIDX_REQUIRES_PERMISSION_WRITE
@@ -33,20 +32,26 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_PREFIX
 import com.android.tools.metalava.model.MemberItem
-import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.api.surface.ApiSurface
+import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
 import com.android.tools.metalava.model.findAnnotation
+import com.android.tools.metalava.model.testOrTrue
 import com.android.tools.metalava.model.value.AnnotationValue
 import com.android.tools.metalava.model.value.FieldReferenceValue
 import com.android.tools.metalava.model.value.SingleArrayElementFormat
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.ValueStringConfiguration
-import com.android.tools.metalava.model.visitors.ApiPredicate
-import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.model.visitors.ApiFilters
+import com.android.tools.metalava.model.visitors.ApiFiltersVisitor
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
-import com.google.common.xml.XmlEscapers
+import com.android.tools.metalava.xml.AMP_ENTITY
+import com.android.tools.metalava.xml.APOS_ENTITY
+import com.android.tools.metalava.xml.GT_ENTITY
+import com.android.tools.metalava.xml.LT_ENTITY
+import com.android.tools.metalava.xml.QUOT_ENTITY
 import java.io.BufferedOutputStream
 import java.io.File
 import java.io.FileOutputStream
@@ -61,10 +66,10 @@ class ExtractAnnotations(
     private val codebase: Codebase,
     private val reporter: Reporter,
     private val outputFile: File,
-    apiPredicateConfig: ApiPredicate.Config,
+    apiSurface: ApiSurface,
 ) :
-    ApiVisitor(
-        apiPredicateConfig = apiPredicateConfig,
+    ApiFiltersVisitor(
+        apiFilters = ApiFilters(reference = ApiSurfacePredicate.wholeCoreApi(apiSurface)),
     ) {
     // Used linked hash map for order such that we always emit parameters after their surrounding
     // method etc
@@ -87,7 +92,7 @@ class ExtractAnnotations(
 
                 // Create a print writer to the JarOutputStream. Care must be taken not to close
                 // this until all entries have been written.
-                val printWriter = zos.printWriter()
+                val printWriter = PrintWriter(zos, true, Charsets.UTF_8)
 
                 for (pkg in sortedPackages) {
                     // Note: Using / rather than File.separator: jar lib requires it
@@ -230,21 +235,24 @@ class ExtractAnnotations(
 
                     classToAnnotationHolder[className] = typeDefAnnotation
                     addItem(item, typeDefAnnotation)
-
-                    if (
-                        item is MethodItem &&
-                            !reporter.isSuppressed(Issues.RETURNING_UNEXPECTED_CONSTANT)
-                    ) {
-                        item.body.verifyReturnedConstants(typeDefAnnotation, typeDefClass)
-                    }
                 }
             }
         }
     }
 
-    private fun escapeXml(unescaped: String): String {
-        return XmlEscapers.xmlAttributeEscaper().escape(unescaped)
-    }
+    private fun escapeXml(unescaped: String): String =
+        buildString(unescaped.length) {
+            for (ch in unescaped) {
+                when (ch) {
+                    '&' -> append(AMP_ENTITY)
+                    '<' -> append(LT_ENTITY)
+                    '>' -> append(GT_ENTITY)
+                    '"' -> append(QUOT_ENTITY)
+                    '\'' -> append(APOS_ENTITY)
+                    else -> append(ch)
+                }
+            }
+        }
 
     private fun Item.getExternalAnnotationSignature(): String? {
         when (this) {
@@ -353,7 +361,7 @@ class ExtractAnnotations(
                                 if (keepFieldReferences) {
                                     // If keeping the field then make sure it can be referenced from
                                     // the API. If not then discard it.
-                                    if (!filterReference.test(fieldItem)) {
+                                    if (!filterReference.testOrTrue(fieldItem)) {
                                         // This field is not visible: remove from typedef
                                         reporter.report(
                                             Issues.HIDDEN_TYPEDEF_CONSTANT,
@@ -487,7 +495,7 @@ class ExtractAnnotations(
          */
         private val EXTRACT_VALUE_STRING_CONFIGURATION =
             ValueStringConfiguration(
-                singleArrayElementFormat = SingleArrayElementFormat.UNWRAP,
+                singleArrayElementFormat = SingleArrayElementFormat.WRAP,
             )
     }
 }

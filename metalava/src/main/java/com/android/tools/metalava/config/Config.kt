@@ -16,24 +16,15 @@
 
 package com.android.tools.metalava.config
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties
-import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty
-import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlRootElement
-
 /** The top level configuration object. */
-@JacksonXmlRootElement(localName = "config", namespace = CONFIG_NAMESPACE)
-// Ignore the xsi:schemaLocation property if present on the root <config> element.
-@JsonIgnoreProperties("schemaLocation")
 data class Config(
-    @field:JacksonXmlProperty(localName = "api-flags", namespace = CONFIG_NAMESPACE)
     val apiFlags: ApiFlagsConfig? = null,
-    @field:JacksonXmlProperty(localName = "api-surfaces", namespace = CONFIG_NAMESPACE)
     val apiSurfaces: ApiSurfacesConfig? = null,
-    @field:JacksonXmlProperty(localName = "build-properties", namespace = CONFIG_NAMESPACE)
     val buildProperties: BuildPropertiesConfig? = null,
-    @field:JacksonXmlProperty(localName = "issues", namespace = CONFIG_NAMESPACE)
     val issues: IssuesConfig? = null,
-) : CombinableConfig<Config> {
+    val annotationClasses: AnnotationClassesConfig? = null,
+    val documentation: DocumentationConfig? = null,
+) : CombinableConfig<Config>, ConfigXmlWritable {
 
     /** Combine this [Config] with another returning a [Config] object that combines them both. */
     override fun combineWith(other: Config): Config =
@@ -42,21 +33,29 @@ data class Config(
             apiSurfaces = combine(apiSurfaces, other.apiSurfaces),
             buildProperties = combine(buildProperties, other.buildProperties),
             issues = combine(issues, other.issues),
+            annotationClasses = combine(annotationClasses, other.annotationClasses),
+            documentation = combine(documentation, other.documentation),
         )
-
-    /**
-     * Combined two possibly nullable objects, if either are null then return the other, otherwise
-     * invoke [CombinableConfig.combineWith].
-     */
-    internal fun <T : CombinableConfig<T>> combine(t1: T?, t2: T?): T? {
-        return if (t1 == null) t2 else if (t2 == null) t1 else t1.combineWith(t2)
-    }
 
     /** Validate this object, i.e. check to make sure that the contained objects are consistent. */
     internal fun validate() {
         apiFlags?.validate()
         apiSurfaces?.validate()
         buildProperties?.validate()
+        annotationClasses?.validate()
+        documentation?.validate()
+    }
+
+    /** Write this [Config] to [writer]. */
+    override fun writeTo(writer: ConfigWriter) {
+        writer.element("config") {
+            apiFlags?.writeTo(this)
+            apiSurfaces?.writeTo(this)
+            buildProperties?.writeTo(this)
+            issues?.writeTo(this)
+            annotationClasses?.writeTo(this)
+            documentation?.writeTo(this)
+        }
     }
 }
 
@@ -64,4 +63,12 @@ data class Config(
 interface CombinableConfig<T : CombinableConfig<T>> {
     /** Combine this with [other] returning a new instance. */
     fun combineWith(other: T): T
+}
+
+/**
+ * Combined two possibly nullable objects, if either are null then return the other, otherwise
+ * invoke [CombinableConfig.combineWith].
+ */
+internal fun <T : CombinableConfig<T>> combine(t1: T?, t2: T?): T? {
+    return if (t1 == null) t2 else if (t2 == null) t1 else t1.combineWith(t2)
 }

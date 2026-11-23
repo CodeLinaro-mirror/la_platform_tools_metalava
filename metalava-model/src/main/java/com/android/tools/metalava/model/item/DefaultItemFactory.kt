@@ -16,10 +16,7 @@
 
 package com.android.tools.metalava.model.item
 
-import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.BaseModifierList
-import com.android.tools.metalava.model.CallableBody
-import com.android.tools.metalava.model.CallableBodyFactory
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
@@ -42,6 +39,7 @@ import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.SkeletonTypeParameterItem
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.SourceLanguage
+import com.android.tools.metalava.model.SourcePosition
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
@@ -49,7 +47,6 @@ import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.value.OptionalValueProvider
-import com.android.tools.metalava.reporter.FileLocation
 
 /** A factory for creating [Item] instances suitable for use by many models. */
 class DefaultItemFactory(
@@ -58,13 +55,11 @@ class DefaultItemFactory(
 
     /** The default language for [Item]s created by this. */
     private val defaultSourceLanguage: SourceLanguage,
-
-    /** The default [ApiVariantSelectorsFactory] for [Item]s created by this. */
-    private val defaultVariantSelectorsFactory: ApiVariantSelectorsFactory,
 ) {
     /** Create a [PackageItem]. */
     fun createPackageItem(
-        fileLocation: FileLocation,
+        fileLocationSource: FileLocationSource = FileLocationSource.NONE,
+        sourcePosition: SourcePosition = SourcePosition.UNKNOWN,
         sourceFile: SourceFile?,
         modifiers: BaseModifierList,
         documentationFactory: ItemDocumentationFactory,
@@ -75,7 +70,8 @@ class DefaultItemFactory(
     ): PackageItem {
         return DefaultPackageItem(
             codebase,
-            fileLocation,
+            fileLocationSource,
+            sourcePosition,
             sourceFile,
             // Treat all packages as being Java as Kotlin does not currently provide an equivalent
             // to `package-info.java`.
@@ -83,7 +79,6 @@ class DefaultItemFactory(
             targetLanguages,
             modifiers,
             documentationFactory,
-            defaultVariantSelectorsFactory,
             qualifiedName,
             containingPackage,
             overviewDocumentation,
@@ -92,7 +87,8 @@ class DefaultItemFactory(
 
     /** Create a [ClassItem]. */
     fun createClassItem(
-        fileLocation: FileLocation,
+        fileLocationSource: FileLocationSource = FileLocationSource.NONE,
+        sourcePosition: SourcePosition = SourcePosition.UNKNOWN,
         sourceLanguage: SourceLanguage = defaultSourceLanguage,
         targetLanguages: Set<TargetLanguage> = TargetLanguageSet.ALL,
         modifiers: BaseModifierList,
@@ -111,15 +107,16 @@ class DefaultItemFactory(
         isFileFacade: Boolean = false,
         isMultiFileClass: Boolean = false,
         recordComponentItemsFactory: RecordComponentItemsFactory? = null,
+        memberInitializer: ClassMemberInitializer? = null,
     ): SkeletonClassItem =
         DefaultClassItem(
             codebase,
-            fileLocation,
+            fileLocationSource,
+            sourcePosition,
             sourceLanguage,
             targetLanguages,
             modifiers,
             documentationFactory,
-            defaultVariantSelectorsFactory,
             source,
             classKind,
             containingClass,
@@ -134,11 +131,13 @@ class DefaultItemFactory(
             optionalAliasedType = optionalAliasedType,
             isMultiFileClass = isMultiFileClass,
             recordComponentItemsFactory = recordComponentItemsFactory ?: { emptyList() },
+            memberInitializer = memberInitializer,
         )
 
     /** Create a [ConstructorItem]. */
     fun createConstructorItem(
-        fileLocation: FileLocation,
+        fileLocationSource: FileLocationSource = FileLocationSource.NONE,
+        sourcePosition: SourcePosition = SourcePosition.UNKNOWN,
         sourceLanguage: SourceLanguage = defaultSourceLanguage,
         targetLanguages: Set<TargetLanguage> = TargetLanguageSet.ALL,
         modifiers: BaseModifierList,
@@ -149,32 +148,31 @@ class DefaultItemFactory(
         returnType: ClassTypeItem,
         parameterItemsFactory: ParameterItemsFactory,
         throwsTypes: List<ExceptionTypeItem>,
-        callableBodyFactory: CallableBodyFactory = CallableBody.UNAVAILABLE_FACTORY,
         implicitConstructor: Boolean,
         isPrimary: Boolean = false,
     ): ConstructorItem =
         DefaultConstructorItem(
             codebase,
-            fileLocation,
+            fileLocationSource,
+            sourcePosition,
             sourceLanguage,
             targetLanguages,
             modifiers,
             documentationFactory,
-            defaultVariantSelectorsFactory,
             name,
             containingClass,
             typeParameterList,
             returnType,
             parameterItemsFactory,
             throwsTypes,
-            callableBodyFactory,
             implicitConstructor,
             isPrimary,
         )
 
     /** Create a [FieldItem]. */
     fun createFieldItem(
-        fileLocation: FileLocation,
+        fileLocationSource: FileLocationSource = FileLocationSource.NONE,
+        sourcePosition: SourcePosition = SourcePosition.UNKNOWN,
         sourceLanguage: SourceLanguage = defaultSourceLanguage,
         targetLanguages: Set<TargetLanguage> = TargetLanguageSet.ALL,
         modifiers: BaseModifierList,
@@ -187,10 +185,10 @@ class DefaultItemFactory(
     ): FieldItem =
         DefaultFieldItem(
             codebase,
-            fileLocation,
+            fileLocationSource,
+            sourcePosition,
             sourceLanguage,
             targetLanguages,
-            defaultVariantSelectorsFactory,
             modifiers,
             documentationFactory,
             name,
@@ -202,7 +200,8 @@ class DefaultItemFactory(
 
     /** Create a [MethodItem]. */
     fun createMethodItem(
-        fileLocation: FileLocation,
+        fileLocationSource: FileLocationSource = FileLocationSource.NONE,
+        sourcePosition: SourcePosition = SourcePosition.UNKNOWN,
         sourceLanguage: SourceLanguage = defaultSourceLanguage,
         targetLanguages: Set<TargetLanguage> = TargetLanguageSet.ALL,
         modifiers: BaseModifierList,
@@ -213,26 +212,24 @@ class DefaultItemFactory(
         returnType: TypeItem,
         parameterItemsFactory: ParameterItemsFactory,
         throwsTypes: List<ExceptionTypeItem>,
-        callableBodyFactory: CallableBodyFactory = CallableBody.UNAVAILABLE_FACTORY,
         defaultValueProvider: OptionalValueProvider?,
         isExtensionMethod: Boolean,
         isKotlinProperty: Boolean = false,
     ): MethodItem =
         DefaultMethodItem(
             codebase,
-            fileLocation,
+            fileLocationSource,
+            sourcePosition,
             sourceLanguage,
             targetLanguages,
             modifiers,
             documentationFactory,
-            defaultVariantSelectorsFactory,
             name,
             containingClass,
             typeParameterList,
             returnType,
             parameterItemsFactory,
             throwsTypes,
-            callableBodyFactory,
             defaultValueProvider,
             isExtensionMethod,
             isKotlinProperty,
@@ -240,7 +237,8 @@ class DefaultItemFactory(
 
     /** Create a [ParameterItem]. */
     fun createParameterItem(
-        fileLocation: FileLocation,
+        fileLocationSource: FileLocationSource = FileLocationSource.NONE,
+        sourcePosition: SourcePosition = SourcePosition.UNKNOWN,
         sourceLanguage: SourceLanguage = defaultSourceLanguage,
         modifiers: BaseModifierList,
         name: String,
@@ -253,7 +251,8 @@ class DefaultItemFactory(
     ): ParameterItem =
         DefaultParameterItem(
             codebase,
-            fileLocation,
+            fileLocationSource,
+            sourcePosition,
             sourceLanguage,
             modifiers,
             name,
@@ -267,7 +266,8 @@ class DefaultItemFactory(
 
     /** Create a [PropertyItem]. */
     fun createPropertyItem(
-        fileLocation: FileLocation,
+        fileLocationSource: FileLocationSource = FileLocationSource.NONE,
+        sourcePosition: SourcePosition = SourcePosition.UNKNOWN,
         sourceLanguage: SourceLanguage = defaultSourceLanguage,
         documentationFactory: ItemDocumentationFactory = ItemDocumentation.NONE_FACTORY,
         modifiers: BaseModifierList,
@@ -285,10 +285,10 @@ class DefaultItemFactory(
     ): PropertyItem =
         DefaultPropertyItem(
             codebase,
-            fileLocation,
+            fileLocationSource,
+            sourcePosition,
             sourceLanguage,
             documentationFactory,
-            defaultVariantSelectorsFactory,
             modifiers,
             name,
             containingClass,
@@ -303,9 +303,10 @@ class DefaultItemFactory(
             contextParameterFactory,
         )
 
-    /** Create a [PropertyItem] for use as a record component. */
+    /** Create a [RecordComponentItem]. */
     fun createRecordComponentItem(
-        fileLocation: FileLocation,
+        fileLocationSource: FileLocationSource = FileLocationSource.NONE,
+        sourcePosition: SourcePosition = SourcePosition.UNKNOWN,
         sourceLanguage: SourceLanguage = defaultSourceLanguage,
         modifiers: BaseModifierList,
         name: String,
@@ -315,7 +316,8 @@ class DefaultItemFactory(
     ): RecordComponentItem =
         DefaultRecordComponentItem(
             codebase,
-            fileLocation,
+            fileLocationSource,
+            sourcePosition,
             sourceLanguage,
             modifiers,
             name,
@@ -326,7 +328,8 @@ class DefaultItemFactory(
 
     /** Create a [ClassItem] which is a typealias. */
     fun createTypeAliasItem(
-        fileLocation: FileLocation,
+        fileLocationSource: FileLocationSource = FileLocationSource.NONE,
+        sourcePosition: SourcePosition = SourcePosition.UNKNOWN,
         modifiers: BaseModifierList,
         qualifiedName: String,
         containingPackage: PackageItem,
@@ -337,14 +340,14 @@ class DefaultItemFactory(
     ): ClassItem =
         DefaultClassItem(
             codebase,
-            fileLocation,
+            fileLocationSource,
+            sourcePosition,
             // Typealiases can only be defined in Kotlin.
             SourceLanguage.KOTLIN,
             // Typealiases can only be referenced from Kotlin source.
             TargetLanguageSet.KOTLIN_ONLY,
             modifiers,
             documentationFactory,
-            defaultVariantSelectorsFactory,
             null,
             ClassKind.TYPEALIAS,
             // Typealiases can only be defined at the top leve.

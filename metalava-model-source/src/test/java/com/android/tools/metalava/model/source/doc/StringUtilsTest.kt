@@ -98,4 +98,37 @@ class StringUtilsTest {
             message = "underscores",
         )
     }
+
+    private fun checkCollapseSpaces(
+        text: String,
+        expectedResult: String,
+        message: String,
+    ) {
+        assertEquals(expectedResult, text.collapseSpaces(), message)
+        assertEquals(expectedResult, text.replace(Regex("""\s+"""), " "), message)
+    }
+
+    @Test
+    fun collapseSpaces() {
+        checkCollapseSpaces(
+            "",
+            "",
+            message = "empty string",
+        )
+        checkCollapseSpaces(
+            "Class#foo(int, String)",
+            "Class#foo(int, String)",
+            message = "already normalized single spaces",
+        )
+        checkCollapseSpaces(
+            "Class#foo(   int  , \t\n\r  String   )",
+            "Class#foo( int , String )",
+            message = "multiple spaces, tabs, and newlines",
+        )
+        checkCollapseSpaces(
+            "\tfoo\nbar\r\nbaz",
+            " foo bar baz",
+            message = "non-space whitespace characters",
+        )
+    }
 }

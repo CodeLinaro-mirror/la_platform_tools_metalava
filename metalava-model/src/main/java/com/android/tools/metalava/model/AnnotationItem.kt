@@ -19,6 +19,8 @@ package com.android.tools.metalava.model
 import com.android.tools.metalava.model.annotation.AnnotationClass
 import com.android.tools.metalava.model.annotation.AnnotationDefaults
 import com.android.tools.metalava.model.annotation.binding.AnnotationBindingFactory
+import com.android.tools.metalava.model.api.SurfaceAnnotationData
+import com.android.tools.metalava.model.api.SurfaceSelectionRule
 import com.android.tools.metalava.model.api.flags.ApiFlag
 import com.android.tools.metalava.model.api.flags.ApiFlags
 import com.android.tools.metalava.model.type.TypeItemParser
@@ -88,16 +90,17 @@ sealed interface AnnotationItem {
     val originalName: String
 
     /**
-     * Determines the effect that this will have on whether an item annotated with this annotation
-     * will be shown as part of the API or not.
+     * The [SurfaceAnnotationData] associated with this annotation, `null` if it is not a surface
+     * annotation.
      */
-    val showability: Showability
+    val surfaceData: SurfaceAnnotationData?
 
     /**
      * The [ApiFlag] referenced by this [AnnotationItem].
      *
-     * This will be `null` if no [ApiFlags] have been provided or this [AnnotationItem]'s type is
-     * not [ANDROID_FLAGGED_API]. Otherwise, it will be an instance of [ApiFlag].
+     * This will be `null` if this [AnnotationItem]'s type is not [ANDROID_FLAGGED_API]. If no
+     * [ApiFlags] have been provided, this will be [ApiFlag.KEEP_ALL]; otherwise, it will be an
+     * instance of [ApiFlag] from [ApiFlags].
      */
     val apiFlag: ApiFlag?
 
@@ -228,22 +231,9 @@ sealed interface AnnotationItem {
     fun isShowAnnotation(): Boolean
 
     /**
-     * Returns true iff this annotation is a show for stubs purposes annotation.
-     *
-     * If `true` then an item annotated with this annotation (and any contents) which are not
-     * annotated with another [isShowAnnotation] will be added to the stubs but not the API.
-     *
-     * e.g. if a class is annotated with this then it will also apply (unless overridden by a closer
-     * annotation) to all its contents like nested classes, methods, fields, constructors,
-     * properties, etc.
-     */
-    fun isShowForStubPurposes(): Boolean
-
-    /**
      * Returns true iff this annotation is a hide annotation.
      *
-     * Hide annotations can either be explicitly specified when creating the [Codebase] or they can
-     * be any annotation that is annotated with a hide meta-annotation (see [isHideMetaAnnotation]).
+     * Hide annotations can either be explicitly specified when creating the [Codebase].
      *
      * If `true` then an item annotated with this annotation (and any contents) will be excluded
      * from the API.
@@ -254,13 +244,10 @@ sealed interface AnnotationItem {
      */
     fun isHideAnnotation(): Boolean
 
-    fun isSuppressCompatibilityAnnotation(): Boolean
-
-    /**
-     * Returns true iff this annotation is a showability annotation, i.e. one that will affect
-     * [showability].
-     */
+    /** Returns true iff [isShowAnnotation] or [isHideAnnotation] returns true. */
     fun isShowabilityAnnotation(): Boolean
+
+    fun isSuppressCompatibilityAnnotation(): Boolean
 
     /**
      * The [AnnotationClass] that provides information about the annotation class of this
@@ -315,14 +302,15 @@ sealed interface AnnotationItem {
         fun unshortenAnnotation(annotationClassName: String): String {
             return when {
                 annotationClassName == "Deprecated" -> "java.lang.Deprecated"
-                // The first 4 annotations are in the android.annotation. package, not
+                // The first 5 annotations are in the android.annotation. package, not
                 // androidx.annotation
                 // Nullability annotations are written as @NonNull and @Nullable in API text files,
                 // and these should be linked to android.annotation package when generating stubs.
                 annotationClassName == "SystemService" ||
                     annotationClassName == "TargetApi" ||
                     annotationClassName == "SuppressLint" ||
-                    annotationClassName == "FlaggedApi" ->
+                    annotationClassName == "FlaggedApi" ||
+                    annotationClassName == "SdkExtensionApi" ->
                     "$ANDROID_ANNOTATION_PREFIX$annotationClassName"
                 // If the first character of the name is lower-case, then assume it's a package
                 // name, so no need to shorten it.
@@ -547,8 +535,8 @@ internal abstract class BaseAnnotationItem(
         return info.typeNullability == TypeNullability.NONNULL
     }
 
-    override val showability: Showability
-        get() = info.showability
+    override val surfaceData
+        get() = info.surfaceData
 
     override val apiFlag: ApiFlag?
         get() = info.apiFlag
@@ -562,15 +550,18 @@ internal abstract class BaseAnnotationItem(
         return resolve()?.modifiers?.findAnnotation(AnnotationItem::isTypeDefAnnotation)
     }
 
-    override fun isShowAnnotation(): Boolean = info.showability.show()
+    override fun isShowAnnotation(): Boolean =
+        info.surfaceData?.effect == SurfaceSelectionRule.Effect.SHOW
 
-    override fun isShowForStubPurposes(): Boolean = info.showability.showForStubsOnly()
+    override fun isHideAnnotation(): Boolean =
+        info.surfaceData?.effect == SurfaceSelectionRule.Effect.HIDE
 
-    override fun isHideAnnotation(): Boolean = info.showability.hide()
+    override fun isShowabilityAnnotation(): Boolean =
+        info.surfaceData?.effect.let { effect ->
+            effect == SurfaceSelectionRule.Effect.SHOW || effect == SurfaceSelectionRule.Effect.HIDE
+        }
 
     override fun isSuppressCompatibilityAnnotation(): Boolean = info.suppressCompatibility
-
-    override fun isShowabilityAnnotation(): Boolean = info.showability != Showability.NO_EFFECT
 
     override val annotationClass
         get() = info.annotationClass

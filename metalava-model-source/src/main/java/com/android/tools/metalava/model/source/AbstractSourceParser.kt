@@ -16,151 +16,63 @@
 
 package com.android.tools.metalava.model.source
 
+import androidx.tracing.Tracer
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.ClassOrigin
-import com.android.tools.metalava.model.ClassPathResolver
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.JavaConstants
-import com.android.tools.metalava.model.SkeletonClassItem
-import com.android.tools.metalava.model.item.DefaultCodebase
-import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.reporter.Reporter
 import java.io.File
-import java.io.IOException
-import java.util.zip.ZipFile
-import kotlin.collections.iterator
 
-abstract class AbstractSourceParser(protected val reporter: Reporter) : SourceParser {
+abstract class AbstractSourceParser(
+    protected val codebaseConfig: Codebase.Config,
+    protected val tracer: Tracer,
+) : SourceParser {
+    protected val reporter: Reporter
+        get() = codebaseConfig.reporter
 
-    final override fun getClassPathResolver(classPath: List<File>): ClassPathResolver =
-        loadCodebaseFromJars(
-            classPath,
-            "Codebase from classpath",
-            includeKotlinInCodebase = true,
-        )
-
-    /** Load a [DefaultCodebase] from a set of [jars]. */
-    protected open fun loadCodebaseFromJars(
-        jars: List<File>,
+    final override fun parseSources(
         description: String,
-        includeKotlinInCodebase: Boolean,
-    ): DefaultCodebase {
-        val inputs =
-            SourceParser.Inputs(
-                sourceSet = SourceSet.empty(),
+        apiPackages: PackageFilter?,
+        compiledSourceJar: File?,
+    ): Codebase? =
+        processSources(
                 description = description,
-                classPath = jars,
-                includeKotlinInCodebase = includeKotlinInCodebase,
+                apiPackages = apiPackages,
+                compiledSourceJar = compiledSourceJar,
             )
+            ?.let { postProcessCodebase(it) }
 
-        val codebase = parseSources(inputs) ?: error("Could not create codebase from $jars")
+    /** Process the sources in [Environment] to produce a [Codebase], if possible. */
+    protected abstract fun processSources(
+        description: String,
+        apiPackages: PackageFilter?,
+        compiledSourceJar: File?,
+    ): Codebase?
 
-        return codebase as DefaultCodebase
-    }
-
-    override fun loadFromJar(apiJar: File, classPath: List<File>): Codebase {
-        val jars = buildList {
-            add(apiJar)
-            addAll(classPath)
-        }
-        val codebase =
-            loadCodebaseFromJars(
-                jars,
-                "Codebase loaded from $apiJar",
-                includeKotlinInCodebase = false,
+    final override fun parseJavaStubs(
+        javaStubFiles: List<File>,
+        apiPackages: PackageFilter?,
+    ): Codebase? =
+        processJavaStubs(
+                javaStubFiles = javaStubFiles.map { it.absoluteFile }.distinct(),
+                apiPackages = apiPackages,
             )
-        initializeFromJar(codebase, apiJar)
-        return codebase
-    }
+            ?.let { postProcessCodebase(it) }
 
-    /**
-     * Initialize [codebase] by making sure that all classes in [jarFile] are resolved and are
-     * treated as if they were added from sources.
-     */
-    internal fun initializeFromJar(codebase: DefaultCodebase, jarFile: File) {
-        // Extract the list of class names from the jar file.
-        val classNames = buildList {
-            try {
-                ZipFile(jarFile).use { jar ->
-                    for (entry in jar.entries().iterator()) {
-                        val fileName = entry.name
-                        if (fileName.contains("$")) {
-                            // skip inner classes
-                            continue
-                        }
-                        if (!fileName.endsWith(JavaConstants.DOT_CLASS)) {
-                            // skip entries that are not .class files.
-                            continue
-                        }
+    /** Process the [javaStubFiles] against [Environment] to produce a [Codebase], if possible. */
+    protected abstract fun processJavaStubs(
+        javaStubFiles: List<File>,
+        apiPackages: PackageFilter?,
+    ): Codebase?
 
-                        val qualifiedName =
-                            fileName.removeSuffix(JavaConstants.DOT_CLASS).replace('/', '.')
-                        if (qualifiedName.endsWith(".package-info")) {
-                            // skip package-info files.
-                            continue
-                        }
-
-                        add(qualifiedName)
-                    }
-                }
-            } catch (e: IOException) {
-                codebase.reporter.report(Issues.IO_ERROR, jarFile, e.message ?: e.toString())
-            }
-        }
-
-        // Iterate over all the top level classes found in the jar file.
-        for (className in classNames) {
-            val classItem =
-                codebase.resolveClass(className) ?: error("Could not resolve $className")
-
-            // Make sure it is modifiable.
-            classItem as SkeletonClassItem
-
-            // Treat the jar classes as if they were specified on the command line.
-            classItem.origin = ClassOrigin.COMMAND_LINE
-
-            // Make sure that the containing package is being emitted.
-            classItem.containingPackage().emit = true
-
-            // Make sure that the class and any nested classes are emitted.
-            classItem.markAsEmittable()
-
-            // Add it to the list of top level classes.
-            codebase.addTopLevelClassFromSource(classItem)
-        }
-    }
-
-    /**
-     * Mark this [ClassItem] and all its nested classes as being emittable, just like a class loaded
-     * from sources would be.
-     */
-    private fun ClassItem.markAsEmittable() {
-        emit = true
-        nestedClasses().forEach { it.markAsEmittable() }
-    }
-
-    /**
-     * Override to ensure that [inputs] are correctly prepared for [processInputs].
-     *
-     * Preparation includes replacing [Inputs.sourceSet] with the result of calling
-     * [SourceSet.extractRoots] on it, and making [Inputs.classPath], absolute files.
-     */
-    final override fun parseSources(inputs: SourceParser.Inputs): Codebase? {
-        val absoluteInputs =
-            inputs.copy(
-                sourceSet = inputs.sourceSet.extractRoots(reporter),
-                classPath = inputs.classPath.map { it.absoluteFile },
-            )
-
-        return processInputs(absoluteInputs)?.also { codebase ->
-
-            // Determine sealed class exhaustivity.
+    /** Perform common post-processing on a newly parsed source [codebase]. */
+    private fun postProcessCodebase(codebase: Codebase): Codebase {
+        // Determine sealed class exhaustivity.
+        tracer.trace("determineIfInaccessibleClassesMakeSuperClassesNonExhaustive") {
             codebase.determineIfInaccessibleClassesMakeSuperClassesNonExhaustive()
         }
+        return codebase
     }
-
-    /** Process the [inputs] to produce a [Codebase], if possible. */
-    protected abstract fun processInputs(inputs: SourceParser.Inputs): Codebase?
 
     /**
      * Determine if sealed classes make super classes non-exhaustive.
@@ -209,7 +121,8 @@ abstract class AbstractSourceParser(protected val reporter: Reporter) : SourcePa
         while (classItem != null) {
             val modifiers = classItem.modifiers
             val inaccessible =
-                modifiers.annotations().any { it.showability.hide() } || !modifiers.hasApiVisibility
+                modifiers.annotations().any { it.isHideAnnotation() } ||
+                    !modifiers.hasApiVisibility()
             if (inaccessible) return true
 
             classItem = classItem.containingClass()

@@ -21,19 +21,43 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.SupportedInputFormats
-import com.android.tools.metalava.model.testsuite.memberitem.CommonCopyMemberItemTest
+import com.android.tools.metalava.model.testsuite.memberitem.CommonCopyInheritableItemTest
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import org.junit.Test
 
 /** Common tests for [FieldItem.duplicate]. */
-class CommonCopyFieldItemTest : CommonCopyMemberItemTest<FieldItem>() {
+class CommonCopyFieldItemTest : CommonCopyInheritableItemTest<FieldItem>() {
 
     override fun getMember(sourceClassItem: ClassItem) = sourceClassItem.assertField("field")
 
     override fun copyMember(sourceMemberItem: FieldItem, targetClassItem: ClassItem) =
         sourceMemberItem.duplicate(targetClassItem)
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `test duplicate creates item in same codebase as target class`() {
+        checkDuplicateUsesTargetCodebase(
+            sourceFile =
+                java(
+                    """
+                        package test.pkg;
+                        public class Source {
+                            public int field;
+                        }
+                    """
+                ),
+            targetFile =
+                java(
+                    """
+                        package test.pkg;
+                        public class Target {
+                        }
+                    """
+                ),
+        )
+    }
 
     @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test

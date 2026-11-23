@@ -101,7 +101,7 @@ class SignatureFileTest : BaseTextCodebaseTest() {
                 )
             }
 
-        val message = cleanupString(exception.message!!)
+        val message = removeTestSpecificDirectories(exception.message!!)
         assertEquals(
             "TESTROOT/base-removed.txt expects a base API surface to be available but it is not",
             message

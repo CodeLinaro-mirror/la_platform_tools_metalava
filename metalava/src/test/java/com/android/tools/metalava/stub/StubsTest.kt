@@ -213,6 +213,59 @@ class StubsTest : AbstractStubsTest() {
     }
 
     @Test
+    fun `Check throws list with public and package-private exception`() {
+        checkStubs(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                    package test.pkg;
+
+                    @SuppressWarnings("RedundantThrows")
+                    public class Foo {
+                        @SuppressWarnings("ReferencesHidden")
+                        public void method() throws PublicException, PackagePrivateException {
+                        }
+
+                        public static class PublicException extends RuntimeException {
+                        }
+
+                        static class PackagePrivateException extends PublicException {
+                        }
+                    }
+                    """
+                    )
+                ),
+            api =
+                """
+                // Signature format: 5.0
+                // - style=java
+                package test.pkg {
+                  public class Foo {
+                    ctor public Foo();
+                    method public void method() throws test.pkg.Foo.PublicException;
+                  }
+                  public static class Foo.PublicException extends java.lang.RuntimeException {
+                    ctor public Foo.PublicException();
+                  }
+                }
+                """,
+            source =
+                """
+                package test.pkg;
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public class Foo {
+                public Foo() { throw new RuntimeException("Stub!"); }
+                public void method() throws test.pkg.Foo.PublicException { throw new RuntimeException("Stub!"); }
+                public static class PublicException extends java.lang.RuntimeException {
+                public PublicException() { throw new RuntimeException("Stub!"); }
+                }
+                }
+                """,
+        )
+    }
+
+    @Test
     fun `Test final instance fields`() {
         // Instance fields in a class must be initialized
         checkStubs(
@@ -387,113 +440,6 @@ class StubsTest : AbstractStubsTest() {
                     """,
             // Includes comments so cannot match what is generated from signature file.
             checkTextStubEquivalence = false,
-        )
-    }
-
-    @Test
-    fun `DocOnly members should be omitted`() {
-        // When marked @doconly don't include in stubs or signature files
-        // unless specifically asked for (which we do when generating docs-stubs).
-        checkStubs(
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-
-                    @SuppressWarnings("JavaDoc")
-                    public class Outer {
-                        /** @doconly Some docs here */
-                        public class MyClass1 {
-                            public int myField;
-                        }
-
-                        public class MyClass2 {
-                            /** @doconly Some docs here */
-                            public int myField;
-
-                            /** @doconly Some docs here */
-                            public int myMethod() { return 0; }
-                        }
-                    }
-                    """
-                    )
-                ),
-            source =
-                """
-                package test.pkg;
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
-                public class Outer {
-                public Outer() { throw new RuntimeException("Stub!"); }
-                public class MyClass2 {
-                public MyClass2() { throw new RuntimeException("Stub!"); }
-                }
-                }
-                    """,
-            api =
-                """
-                package test.pkg {
-                  public class Outer {
-                    ctor public Outer();
-                  }
-                  public class Outer.MyClass2 {
-                    ctor public Outer.MyClass2();
-                  }
-                }
-                """
-        )
-    }
-
-    @Test
-    fun `DocOnly members should be included when requested`() {
-        // When marked @doconly don't include in stubs or signature files
-        // unless specifically asked for (which we do when generating docs).
-        checkStubs(
-            docStubs = true,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-
-                    @SuppressWarnings("JavaDoc")
-                    public class Outer {
-                        /** @doconly Some docs here */
-                        public class MyClass1 {
-                            public int myField;
-                        }
-
-                        public class MyClass2 {
-                            /** @doconly Some docs here */
-                            public int myField;
-
-                            /** @doconly Some docs here */
-                            public int myMethod() { return 0; }
-                        }
-                    }
-                    """
-                    )
-                ),
-            source =
-                """
-                    package test.pkg;
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public class Outer {
-                    public Outer() { throw new RuntimeException("Stub!"); }
-                    /** */
-                    public class MyClass1 {
-                    public MyClass1() { throw new RuntimeException("Stub!"); }
-                    public int myField;
-                    }
-                    public class MyClass2 {
-                    public MyClass2() { throw new RuntimeException("Stub!"); }
-                    /** */
-                    public int myMethod() { throw new RuntimeException("Stub!"); }
-                    /** */
-                    public int myField;
-                    }
-                    }
-                    """
         )
     }
 

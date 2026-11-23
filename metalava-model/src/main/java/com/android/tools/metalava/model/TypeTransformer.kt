@@ -62,8 +62,10 @@ open class BaseTypeTransformer : TypeTransformer {
     override fun transform(typeItem: LambdaTypeItem): LambdaTypeItem {
         return typeItem.substitute(
             modifiers = transform(typeItem.modifiers),
-            outerClassType = typeItem.outerClassType?.transform(this),
-            arguments = typeItem.arguments.mapIfNotSameNotNull { it.transform(this) }
+            receiverType = typeItem.receiverType?.transform(this),
+            parameterTypes = typeItem.parameterTypes.mapIfNotSameNotNull { it.transform(this) },
+            returnType = typeItem.returnType.transform(this),
+            jvmClassType = typeItem.asJvmClassType().transform(this),
         )
     }
 

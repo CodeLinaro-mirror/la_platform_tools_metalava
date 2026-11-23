@@ -34,11 +34,22 @@ interface BaseModifierList {
 
     fun isInternal(): Boolean
 
+    /** Whether the modifiers have internal visibility and the [PublishedApi] annotation. */
+    fun isPublishedApi(): Boolean
+
     fun isPrivate(): Boolean
 
     fun isPackagePrivate(): Boolean
 
     fun isPublicOrProtected() = isPublic() || isProtected()
+
+    /**
+     * Check if the [BaseModifierList] is accessible as part of an API.
+     *
+     * If this has [VisibilityLevel.INTERNAL] then it is only accessible if it is annotated with the
+     * [PublishedApi] annotation.
+     */
+    fun hasApiVisibility(): Boolean
 
     @MetalavaApi fun isStatic(): Boolean
 
@@ -219,9 +230,18 @@ interface ModifierList : BaseModifierList {
      *
      * Creates a deep snapshot, including snapshots of each annotation for use in [targetCodebase].
      *
+     * If [revertFromModifiers] is provided then any annotations on it that are not included in
+     * signature files (such as `@SdkConstant` or `@ExportedProperty`) are also snapshotted and
+     * merged into the returned [ModifierList].
+     *
      * @param targetCodebase The [Codebase] of which the snapshot will be part.
+     * @param revertFromModifiers The [ModifierList] of the item being reverted to the item owning
+     *   this [ModifierList], or `null` if the item is not being reverted.
      */
-    fun snapshot(targetCodebase: Codebase): ModifierList
+    fun snapshot(
+        targetCodebase: Codebase,
+        revertFromModifiers: ModifierList? = null,
+    ): ModifierList
 }
 
 /**

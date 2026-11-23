@@ -23,8 +23,6 @@ import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.text.SignatureWriter
 import com.android.tools.metalava.model.text.createCodebaseFragmentForSignatureFile
-import com.android.tools.metalava.model.visitors.ApiPredicate
-import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.reporter.BasicReporter
 import java.io.PrintWriter
 
@@ -60,10 +58,8 @@ internal fun writeSignatureFile(
         createCodebaseFragmentForSignatureFile(
             codebase,
             fileFormat = outputFormat,
-            apiType = ApiType.ALL,
-            preFiltered = true,
-            showUnannotated = true,
-            apiPredicateConfig = ApiPredicate.Config(),
+            // Pre-filtered so does not need any filters.
+            apiFilters = null,
         )
 
     codebaseFragment.accept(signatureWriter)

@@ -16,11 +16,12 @@
 
 package com.android.tools.metalava.model.source.doc
 
-import com.android.tools.metalava.model.doc.DocContentOwner
+import com.android.tools.metalava.model.doc.DocContent
 import com.android.tools.metalava.model.source.javadoc.DocTag
 import com.android.tools.metalava.model.source.javadoc.ExtractorResult
 import com.android.tools.metalava.model.source.javadoc.JavadocContent
 import com.android.tools.metalava.model.source.javadoc.extractTagDataForTagType
+import java.util.Optional
 
 /**
  * A block tag section of [DocComment.blockTagSections].
@@ -30,7 +31,7 @@ import com.android.tools.metalava.model.source.javadoc.extractTagDataForTagType
  *     * @<tag-type> <description>
  * ```
  */
-internal interface BlockTagSection : DocContentOwner, DocTag {
+internal interface BlockTagSection : DocTag {
     /** The type of the block tag. */
     override val tagType: TagType<*>
 
@@ -51,6 +52,12 @@ internal interface BlockTagSection : DocContentOwner, DocTag {
      * from [TagType.extractData].
      */
     fun <D : TagData> typeSafeTagData(tagType: TagType<D>): D?
+
+    /** Return a copy of this with [other] appended to [description]. */
+    fun append(other: DocContent): BlockTagSection
+
+    /** Return a copy of this with [text] appended to [description]. */
+    fun append(text: String): BlockTagSection
 
     companion object {
         /** Sort [TagData] so that `null` comes after non-`null`. */
@@ -84,20 +91,31 @@ internal class DefaultBlockTagSection(
     context: DocCommentContext,
     override val tagType: TagType<*>,
     descriptionSupplier: ContentSupplier,
-) :
-    DescriptionOwner(
-        context,
-        descriptionSupplier,
-        noComment = false,
-    ),
-    BlockTagSection {
-
+    initializedDescription: Optional<JavadocContent>? = null,
     /**
      * Backing field for [tagData].
      *
-     * This is initialized lazily in [initializeDescription] at the same time as [description].
+     * This is initialized lazily in [initializeDescription] at the same time as [description], or
+     * passed in when copying in [withDescription].
      */
-    private var _tagData: TagData? = null
+    private var _tagData: TagData? = null,
+) :
+    DescriptionOwner<DefaultBlockTagSection>(
+        context,
+        descriptionSupplier,
+        noComment = false,
+        initializedDescription = initializedDescription,
+    ),
+    BlockTagSection {
+
+    override fun withDescription(newDescription: JavadocContent?) =
+        DefaultBlockTagSection(
+            context = context,
+            tagType = tagType,
+            descriptionSupplier = newDescription.toSupplier(),
+            initializedDescription = Optional.ofNullable(newDescription),
+            _tagData = tagData,
+        )
 
     override val tagData: TagData?
         get() {

@@ -18,12 +18,10 @@ package com.android.tools.metalava.lint
 
 import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
 import com.android.tools.metalava.DriverTest
-import com.android.tools.metalava.cli.common.ARG_ERROR
-import com.android.tools.metalava.cli.common.ARG_HIDE
-import com.android.tools.metalava.cli.lint.ARG_API_LINT
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.nonNullSource
+import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.createAndroidModuleDescription
 import com.android.tools.metalava.testing.createCommonModuleDescription
@@ -31,7 +29,6 @@ import com.android.tools.metalava.testing.createNativeModuleDescription
 import com.android.tools.metalava.testing.createProjectDescription
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
-import org.jetbrains.kotlin.cfg.pseudocode.and
 import org.junit.Test
 
 class ApiLintTest : DriverTest() {
@@ -137,7 +134,10 @@ class ApiLintTest : DriverTest() {
     @Test
     fun `Test callbacks`() {
         check(
-            extraArguments = arrayOf(ARG_ERROR, "CallbackInterface"),
+            extraArguments =
+                errorIssues(
+                    Issues.CALLBACK_INTERFACE,
+                ),
             apiLint = "", // enabled
             expectedIssues =
                 """
@@ -519,7 +519,10 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/MyClass.java:8: error: Use android.net.Uri instead of java.net.URI (parameter param in android.pkg.MyClass.bad2(java.util.List<java.net.URI> param)) [AndroidUri]
                 src/android/pkg/MyClass.java:9: error: Use android.net.Uri instead of android.net.URL (parameter param in android.pkg.MyClass.bad3(android.net.URL param)) [AndroidUri]
                 """,
-            extraArguments = arrayOf(ARG_HIDE, "AcronymName"),
+            extraArguments =
+                hiddenIssues(
+                    Issues.ACRONYM_NAME,
+                ),
             sourceFiles =
                 arrayOf(
                     java(
@@ -821,8 +824,11 @@ class ApiLintTest : DriverTest() {
     @Test
     fun `Make sure helper classes that end with the appropriate Compat suffix are not flagged`() {
         check(
-            extraArguments = arrayOf(ARG_API_LINT, ARG_HIDE, "ForbiddenSuperClass"),
             apiLint = "", // enabled
+            extraArguments =
+                hiddenIssues(
+                    Issues.FORBIDDEN_SUPER_CLASS,
+                ),
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -897,7 +903,10 @@ class ApiLintTest : DriverTest() {
     @Test
     fun `Make sure helper classes that end with a just Compat suffix are flagged`() {
         check(
-            extraArguments = arrayOf(ARG_API_LINT, ARG_HIDE, "ForbiddenSuperClass"),
+            extraArguments =
+                hiddenIssues(
+                    Issues.FORBIDDEN_SUPER_CLASS,
+                ),
             apiLint = "", // enabled
             expectedIssues =
                 """
@@ -1567,7 +1576,11 @@ class ApiLintTest : DriverTest() {
     @Test
     fun `Check listener last`() {
         check(
-            extraArguments = arrayOf(ARG_API_LINT, ARG_HIDE, "ExecutorRegistration"),
+            apiLint = "", // enabled
+            extraArguments =
+                hiddenIssues(
+                    Issues.EXECUTOR_REGISTRATION,
+                ),
             expectedIssues =
                 """
                 src/android/pkg/MyClass.java:7: warning: Listeners should always be at end of argument list (method `MyClass`) [ListenerLast]
@@ -1608,7 +1621,11 @@ class ApiLintTest : DriverTest() {
     @Test
     fun `Check listener last for suspend functions`() {
         check(
-            extraArguments = arrayOf(ARG_API_LINT, ARG_HIDE, "ExecutorRegistration"),
+            apiLint = "", // enabled
+            extraArguments =
+                hiddenIssues(
+                    Issues.EXECUTOR_REGISTRATION,
+                ),
             expectedIssues =
                 """
                 src/android/pkg/MyClass.kt:6: warning: Listeners should always be at end of argument list (method `wrong`) [ListenerLast]
@@ -1932,7 +1949,11 @@ class ApiLintTest : DriverTest() {
     @Test
     fun `Check units and method names`() {
         check(
-            extraArguments = arrayOf(ARG_API_LINT, ARG_HIDE, "NoByteOrShort"),
+            apiLint = "", // enabled
+            extraArguments =
+                hiddenIssues(
+                    Issues.NO_BYTE_OR_SHORT,
+                ),
             expectedIssues =
                 """
                 src/android/pkg/UnitNameTest.java:7: error: Expected method name units to be `Hours`, was `Hr` in `getErrorHr` [MethodNameUnits]
@@ -2610,7 +2631,10 @@ class ApiLintTest : DriverTest() {
     fun `No new setting keys`() {
         check(
             apiLint = "", // enabled
-            extraArguments = arrayOf(ARG_ERROR, "NoSettingsProvider"),
+            extraArguments =
+                errorIssues(
+                    Issues.NO_SETTINGS_PROVIDER,
+                ),
             expectedIssues =
                 """
                 src/android/provider/Settings.java:9: error: New setting keys are not allowed (Field: BAD1); use getters/setters in relevant manager class [NoSettingsProvider]
@@ -2779,7 +2803,7 @@ class ApiLintTest : DriverTest() {
                     """
                     )
                 ),
-            extraArguments = arrayOf("--error", "NoSettingsProvider")
+            extraArguments = errorIssues(Issues.NO_SETTINGS_PROVIDER)
         )
     }
 
@@ -2874,10 +2898,9 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             extraArguments =
-                arrayOf(
+                hiddenIssues(
                     // JvmOverloads warning, not what we want to test here
-                    ARG_HIDE,
-                    "MissingJvmstatic"
+                    Issues.MISSING_JVMSTATIC,
                 ),
             expectedIssues =
                 """
@@ -3133,7 +3156,10 @@ src/android/pkg/Interface.kt:158: error: Parameter `default` has a default value
                         """
                     )
                 ),
-            extraArguments = arrayOf(ARG_ERROR, "DataClassDefinition"),
+            extraArguments =
+                errorIssues(
+                    Issues.DATA_CLASS_DEFINITION,
+                ),
             expectedIssues =
                 "src/test/pkg/Foo.kt:2: error: Exposing data classes as public API is discouraged because they are difficult to update while maintaining binary compatibility. [DataClassDefinition]"
         )
@@ -3181,7 +3207,10 @@ src/android/pkg/Interface.kt:158: error: Parameter `default` has a default value
             // Error is only on the source element, not the mangled version in bytecode.
             expectedIssues =
                 "src/test/pkg/IntValue.kt:4: error: Method name must start with lowercase char: FunWithBadName [StartWithLower]",
-            extraArguments = arrayOf(ARG_HIDE, "ValueClassDefinition"),
+            extraArguments =
+                hiddenIssues(
+                    Issues.VALUE_CLASS_DEFINITION,
+                ),
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -3311,11 +3340,12 @@ src/android/pkg/Interface.kt:158: error: Parameter `default` has a default value
                     createNativeModuleDescription(arrayOf(nativeSource)),
                 ),
             enableMultiplatform = true,
-            // TODO(b/506113222): native typealias should be reported too
             expectedIssues =
                 """
                 androidMain/src/test/pkg/Android.kt:2: error: Exposing typealiases as public API is discouraged. [TypealiasDefinition]
                 androidMain/src/test/pkg/Android.kt:4: error: Exposing typealiases as public API is discouraged. [TypealiasDefinition]
+                nativeMain/src/test/pkg/Native.kt:3: error: Exposing typealiases as public API is discouraged. [TypealiasDefinition]
+                nativeMain/src/test/pkg/Native.kt:4: error: Exposing typealiases as public API is discouraged. [TypealiasDefinition]
                 """,
         )
     }

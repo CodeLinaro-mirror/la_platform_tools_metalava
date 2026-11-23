@@ -21,12 +21,13 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.RecordComponentItem
 import com.android.tools.metalava.model.SourceLanguage
+import com.android.tools.metalava.model.SourcePosition
 import com.android.tools.metalava.model.TypeItem
-import com.android.tools.metalava.reporter.FileLocation
 
 internal class DefaultRecordComponentItem(
     codebase: Codebase,
-    fileLocation: FileLocation,
+    fileLocationSource: FileLocationSource,
+    sourcePosition: SourcePosition,
     sourceLanguage: SourceLanguage,
     modifiers: BaseModifierList,
     override val name: String,
@@ -36,7 +37,8 @@ internal class DefaultRecordComponentItem(
 ) :
     DefaultItem(
         codebase,
-        fileLocation,
+        fileLocationSource,
+        sourcePosition,
         sourceLanguage,
         modifiers,
     ),

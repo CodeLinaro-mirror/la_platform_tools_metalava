@@ -22,9 +22,14 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.MergedCodebase
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
+import com.android.tools.metalava.model.api.surface.ApiSurfaces
+import com.android.tools.metalava.model.api.surface.ApiVariantType
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.SignatureFile
+import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.testing.BaseTemporaryFolderOwner
 import com.android.tools.metalava.testing.signature
 import org.junit.Assert.assertEquals
@@ -247,6 +252,329 @@ class ComparisonVisitorTest : BaseTemporaryFolderOwner(), Assertions {
             """
                 .trimIndent(),
             differences.sorted().joinToString("\n")
+        )
+    }
+
+    /**
+     * Reads a [Codebase] from a [base] and [current] signature file using [apiSurfaces].
+     *
+     * The [current] file is treated as the main API surface delta, extending the [base] surface.
+     */
+    private fun readCodebase(
+        apiSurfaces: ApiSurfaces,
+        base: TestFile,
+        current: TestFile,
+    ): Codebase {
+        val signatureFiles =
+            SignatureFile.fromFiles(
+                listOf(base.toFile(), current.toFile()),
+                forMainApiSurfacePredicate = { _, file -> file.name.endsWith("-current.txt") },
+            )
+        return ApiFile.parseApi(
+            signatureFiles,
+            codebaseConfig = Codebase.Config(apiSurfaces = apiSurfaces),
+        )
+    }
+
+    @Test
+    fun `Test surfaceFilter filters remaining items in old and new`() {
+        val apiSurfaces = ApiSurfaces.create(needsBase = true)
+
+        val oldCodebase =
+            readCodebase(
+                apiSurfaces,
+                base =
+                    signature(
+                        "old-base.txt",
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                                public class Bar {
+                                    method public void bar();
+                                }
+                                public class Foo {
+                                    method public void bar();
+                                    method public void baseMethod();
+                                }
+                            }
+                        """
+                    ),
+                current =
+                    signature(
+                        "old-current.txt",
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                                public class Bar {
+                                    method public void bar();
+                                }
+                                public class Foo {
+                                    method public void bar();
+                                }
+                            }
+                        """
+                    ),
+            )
+
+        val newCodebase =
+            readCodebase(
+                apiSurfaces,
+                base =
+                    signature(
+                        "new-base.txt",
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                                public class Bar {
+                                    method public void bar();
+                                    method public void baseMethod();
+                                }
+                                public class Foo {
+                                    method public void bar();
+                                }
+                            }
+                        """
+                    ),
+                current =
+                    signature(
+                        "new-current.txt",
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                                public class Bar {
+                                    method public void bar();
+                                }
+                                public class Foo {
+                                    method public void bar();
+                                }
+                            }
+                        """
+                    ),
+            )
+
+        val surfaceFilter =
+            ApiSurfacePredicate.forDelta(
+                ApiType.CORE,
+                apiSurfaces.main,
+            )
+        val referenceFilter =
+            ApiSurfacePredicate.referenceFilter(
+                ApiType.CORE,
+                apiSurfaces.main,
+            )
+
+        val differences = mutableListOf<String>()
+        CodebaseComparator.compare(
+            object : ComparisonVisitor() {
+                override fun addedMethodItem(new: MethodItem) {
+                    differences += "$new was added"
+                }
+
+                override fun removedMethodItem(old: MethodItem, from: ClassItem) {
+                    differences += "$old was removed"
+                }
+            },
+            old = oldCodebase,
+            new = newCodebase,
+            surfaceFilter = surfaceFilter,
+            referenceFilter = referenceFilter,
+        )
+
+        assertEquals("", differences.sorted().joinToString("\n"))
+    }
+
+    @Test
+    fun `Test items moved to base surface are not reported as removed`() {
+        val apiSurfaces = ApiSurfaces.create(needsBase = true)
+
+        val oldCodebase =
+            readCodebase(
+                apiSurfaces,
+                base =
+                    signature(
+                        "old-base.txt",
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                                public class Bar {
+                                    method public void bar();
+                                }
+                            }
+                        """
+                    ),
+                current =
+                    signature(
+                        "old-current.txt",
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                                public class Bar {
+                                    method public void bar();
+                                }
+                                public class Foo {
+                                    method public void foo();
+                                }
+                            }
+                        """
+                    ),
+            )
+
+        val newCodebase =
+            readCodebase(
+                apiSurfaces,
+                base =
+                    signature(
+                        "new-base.txt",
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                                public class Bar {
+                                    method public void bar();
+                                }
+                                public class Foo {
+                                    method public void foo();
+                                }
+                            }
+                        """
+                    ),
+                current =
+                    signature(
+                        "new-current.txt",
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                                public class Bar {
+                                    method public void bar();
+                                }
+                            }
+                        """
+                    ),
+            )
+
+        val surfaceFilter =
+            ApiSurfacePredicate.forDelta(
+                ApiType.CORE,
+                apiSurfaces.main,
+            )
+        val referenceFilter =
+            ApiSurfacePredicate.referenceFilter(
+                ApiType.CORE,
+                apiSurfaces.main,
+            )
+
+        val differences = mutableListOf<String>()
+        CodebaseComparator.compare(
+            object : ComparisonVisitor() {
+                override fun addedClassItem(new: ClassItem) {
+                    differences += "$new was added"
+                }
+
+                override fun removedClassItem(old: ClassItem, from: SelectableItem) {
+                    differences += "$old was removed"
+                }
+
+                override fun addedMethodItem(new: MethodItem) {
+                    differences += "$new was added"
+                }
+
+                override fun removedMethodItem(old: MethodItem, from: ClassItem) {
+                    differences += "$old was removed"
+                }
+            },
+            old = oldCodebase,
+            new = newCodebase,
+            surfaceFilter = surfaceFilter,
+            referenceFilter = referenceFilter,
+        )
+
+        assertEquals("", differences.sorted().joinToString("\n"))
+    }
+
+    @Test
+    fun `Test removed class present in new codebase does not report removed members`() {
+        val apiSurfaces = ApiSurfaces.create()
+        val codebaseConfig = Codebase.Config(apiSurfaces = apiSurfaces)
+
+        val oldCodebase =
+            ApiFile.parseApi(
+                SignatureFile.fromFiles(
+                    signature(
+                            "old.txt",
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                    public class Bar {
+                                    }
+                                    public class Foo {
+                                        method public void foo();
+                                    }
+                                }
+                            """
+                        )
+                        .toFile()
+                ),
+                codebaseConfig = codebaseConfig,
+            )
+
+        val newCodebase =
+            ApiFile.parseApi(
+                SignatureFile.fromFiles(
+                    listOf(
+                        signature(
+                                "current.txt",
+                                """
+                                    // Signature format: 2.0
+                                    package test.pkg {
+                                        public class Bar {
+                                        }
+                                    }
+                                """
+                            )
+                            .toFile()
+                    )
+                ) +
+                    SignatureFile.fromFiles(
+                        listOf(
+                            signature(
+                                    "removed.txt",
+                                    """
+                                        // Signature format: 2.0
+                                        package test.pkg {
+                                            public class Foo {
+                                                method public void foo();
+                                            }
+                                        }
+                                    """
+                                )
+                                .toFile()
+                        ),
+                        apiVariantTypeChooser = { ApiVariantType.REMOVED },
+                    ),
+                codebaseConfig = codebaseConfig,
+            )
+
+        val filter = ApiSurfacePredicate.wholeCoreApi(apiSurfaces.main)
+
+        val differences = mutableListOf<String>()
+        CodebaseComparator.compare(
+            object : ComparisonVisitor() {
+                override fun removedClassItem(old: ClassItem, from: SelectableItem) {
+                    differences += "$old was removed"
+                }
+
+                override fun removedMethodItem(old: MethodItem, from: ClassItem) {
+                    differences += "$old was removed"
+                }
+            },
+            old = oldCodebase,
+            new = newCodebase,
+            surfaceFilter = filter,
+            referenceFilter = filter,
+        )
+
+        assertEquals(
+            "class test.pkg.Foo was removed",
+            differences.sorted().joinToString("\n"),
         )
     }
 }

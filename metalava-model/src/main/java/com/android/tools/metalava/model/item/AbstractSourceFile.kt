@@ -22,11 +22,26 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ReferencableItem
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.imports.ImportResolver
+import com.android.tools.metalava.model.parser.LineMap
 import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.scope.ReferencableNameScope
 
 /** Base class for model implementations of [SourceFile]. */
 abstract class AbstractSourceFile() : SourceFile {
+    /** Backing field for [lineMap]. */
+    private lateinit var _lineMap: LineMap
+
+    final override val lineMap: LineMap
+        get() {
+            if (!::_lineMap.isInitialized) {
+                _lineMap = computeLineMap()
+            }
+            return _lineMap
+        }
+
+    /** Compute the [LineMap] for this. */
+    abstract fun computeLineMap(): LineMap
+
     /** Backing field for [containingPackage]. */
     private lateinit var _containingPackage: PackageItem
 

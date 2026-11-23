@@ -16,8 +16,8 @@
 
 package com.android.tools.metalava.model.testsuite
 
-import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.api.ApiSurfaceRules
+import com.android.tools.metalava.model.api.SelectedApi
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testing.surfaces.SelectedApiVariantsTestData
@@ -26,7 +26,7 @@ import org.junit.Test
 import org.junit.runners.Parameterized
 
 /**
- * Parameterized tests for [SelectableItem.selectedApiVariants] using data from
+ * Parameterized tests for [SelectedApi.itemApiVariants] using data from
  * [selectedApiVariantsTestData].
  */
 class CommonParameterizedSelectedApiVariantsTest : BaseModelTest() {

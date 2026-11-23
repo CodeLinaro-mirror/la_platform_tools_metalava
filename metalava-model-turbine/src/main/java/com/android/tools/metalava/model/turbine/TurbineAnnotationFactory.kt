@@ -135,13 +135,14 @@ internal class TurbineAnnotationFactory(globalContext: TurbineGlobalContext) :
         // An annotation that has no definition in scope has a null sym, in that case fall back
         // to use the name used in the source. The sym can only be null in sources, so if sym is
         // null then tree cannot be null.
-        val qualifiedName = annotation.sym()?.qualifiedName ?: tree!!.name().dotSeparatedName
+        val qualifiedName =
+            annotation.sym()?.let { qualifiedName(it) } ?: tree!!.name().dotSeparatedName
 
         val fileLocation =
             annotation
                 .source()
                 ?.let { sourceFile -> sourceFileCache.turbineSourceFile(sourceFile) }
-                ?.let { sourceFile -> TurbineFileLocation.forTree(sourceFile, tree) }
+                ?.let { sourceFile -> sourceFile.fileLocation(tree.sourcePosition) }
                 ?: FileLocation.UNKNOWN
 
         val annotationClass = annotation.sym()?.let { typeBoundClassForSymbol(it) }

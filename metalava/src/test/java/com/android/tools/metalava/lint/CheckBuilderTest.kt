@@ -47,7 +47,9 @@ class CheckBuilderTest : DriverTest() {
                 src/android/pkg/Bad.java:57: warning: Methods must return the builder object (return type android.pkg.Bad.BadGenericBuilder<T> instead of T): method android.pkg.Bad.BadGenericBuilder.setBoolean(boolean) [SetterReturnsThis]
                 src/android/pkg/TopLevelBuilder.java:3: warning: android.pkg.TopLevelBuilder does not declare a `build()` method, but builder classes are expected to [MissingBuildMethod]
                 src/android/pkg/TopLevelBuilder.java:3: warning: Builder should be defined as nested class: android.pkg.TopLevelBuilder [TopLevelBuilder]
+                src/test/pkg/BadClass.java:6: warning: Public API for builder class test.pkg.BadClass.Builder only contains `build` method. A public constructor on the built class should be provided instead. [EmptyBuilder]
                 src/test/pkg/BadClass.java:6: warning: Builder must be final: test.pkg.BadClass.Builder [StaticFinalBuilder]
+                src/test/pkg/BadInterface.java:6: warning: Public API for builder class test.pkg.BadInterface.Builder only contains `build` method. A public constructor on the built class should be provided instead. [EmptyBuilder]
                 src/test/pkg/BadInterface.java:6: warning: Builder must be final: test.pkg.BadInterface.Builder [StaticFinalBuilder]
                 """,
             sourceFiles =
@@ -423,6 +425,33 @@ class CheckBuilderTest : DriverTest() {
                     KnownSourceFiles.androidxNonNullJavaSource,
                     suppressLintSource,
                 ),
+        )
+    }
+
+    @Test
+    fun `Check builder only containing build method`() {
+        check(
+            apiLint = "", // enabled
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package test.pkg;
+                        import androidx.annotation.NonNull;
+                        public class Foo {
+                            public static final class FooBuilder {
+                                @NonNull
+                                public Foo build() {
+                                    return new Foo();
+                                }
+                            }
+                        }
+                        """
+                    ),
+                    KnownSourceFiles.androidxNonNullJavaSource,
+                ),
+            expectedIssues =
+                "src/test/pkg/Foo.java:4: warning: Public API for builder class test.pkg.Foo.FooBuilder only contains `build` method. A public constructor on the built class should be provided instead. [EmptyBuilder]",
         )
     }
 }

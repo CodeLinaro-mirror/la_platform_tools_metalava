@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.testsuite.typeitem
 
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.StripJavaLangPrefix
+import com.android.tools.metalava.model.TypeComparator
 import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.SupportedInputFormats
@@ -30,7 +31,6 @@ import com.android.tools.metalava.testing.jarFromSources
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
-import com.google.common.truth.Truth.assertWithMessage
 import org.junit.ClassRule
 import org.junit.Test
 
@@ -581,8 +581,13 @@ class CommonTypeParameterItemTest : BaseModelTest() {
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val typeParameterItem = fooClass.typeParameterList.single()
-            assertThat(typeParameterItem.asErasedType())
-                .isEqualTo(classTypeItem("java.lang.Object"))
+            // Ignore nullability when comparing types because classTypeItem does not specify
+            // nullability, while asErasedType() may have model-specific nullability.
+            assertTypeComparison(
+                classTypeItem("java.lang.Object"),
+                typeParameterItem.asErasedType(),
+                TypeComparator.IGNORE_NULLABILITY,
+            )
         }
     }
 
@@ -615,8 +620,13 @@ class CommonTypeParameterItemTest : BaseModelTest() {
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val typeParameterItem = fooClass.typeParameterList.single()
-            assertThat(typeParameterItem.asErasedType())
-                .isEqualTo(classTypeItem("java.lang.Exception"))
+            // Ignore nullability when comparing types because classTypeItem does not specify
+            // nullability, while asErasedType() may have model-specific nullability.
+            assertTypeComparison(
+                classTypeItem("java.lang.Exception"),
+                typeParameterItem.asErasedType(),
+                TypeComparator.IGNORE_NULLABILITY,
+            )
         }
     }
 
@@ -671,8 +681,13 @@ class CommonTypeParameterItemTest : BaseModelTest() {
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val typeParameterItem = fooClass.typeParameterList.single()
-            assertThat(typeParameterItem.asErasedType())
-                .isEqualTo(classTypeItem("test.pkg.Generic"))
+            // Ignore nullability when comparing types because classTypeItem does not specify
+            // nullability, while asErasedType() may have model-specific nullability.
+            assertTypeComparison(
+                classTypeItem("test.pkg.Generic"),
+                typeParameterItem.asErasedType(),
+                TypeComparator.IGNORE_NULLABILITY,
+            )
         }
     }
 
@@ -709,9 +724,14 @@ class CommonTypeParameterItemTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val exceptionTypeItem = classTypeItem("java.lang.Exception")
             for (typeParameterItem in fooClass.typeParameterList) {
-                assertWithMessage("type parameter ${typeParameterItem.name()}")
-                    .that(typeParameterItem.asErasedType())
-                    .isEqualTo(exceptionTypeItem)
+                // Ignore nullability when comparing types because classTypeItem does not specify
+                // nullability, while asErasedType() may have model-specific nullability.
+                assertTypeComparison(
+                    exceptionTypeItem,
+                    typeParameterItem.asErasedType(),
+                    TypeComparator.IGNORE_NULLABILITY,
+                    message = "type parameter ${typeParameterItem.name()}",
+                )
             }
         }
     }

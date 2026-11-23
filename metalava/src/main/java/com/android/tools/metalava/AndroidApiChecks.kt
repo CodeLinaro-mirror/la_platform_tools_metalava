@@ -28,16 +28,20 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.api.surface.ApiSurface
+import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
 import com.android.tools.metalava.model.doc.DocContent
 import com.android.tools.metalava.model.doc.DocContentPredicate
 import com.android.tools.metalava.model.source.doc.DocContentPredicates
+import com.android.tools.metalava.model.source.javadoc.asPlainText
 import com.android.tools.metalava.model.value.asString
-import com.android.tools.metalava.model.visitors.ApiPredicate
-import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.model.visitors.ApiSurfaceVisitor
 import com.android.tools.metalava.permission.getRequiresPermissionProxy
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.reporter.Severity
+import java.text.BreakIterator
+import java.util.Locale
 import java.util.regex.Pattern
 
 /**
@@ -49,7 +53,7 @@ import java.util.regex.Pattern
  */
 class AndroidApiChecks(
     private val reporter: Reporter,
-    private val apiPredicateConfig: ApiPredicate.Config,
+    private val apiSurface: ApiSurface,
 ) {
     fun check(codebase: Codebase) {
         for (packageItem in codebase.getPackages().packages) {
@@ -67,8 +71,9 @@ class AndroidApiChecks(
     private fun checkPackage(packageItem: PackageItem) {
         packageItem.accept(
             object :
-                ApiVisitor(
-                    apiPredicateConfig = apiPredicateConfig,
+                ApiSurfaceVisitor(
+                    // Apply checks to the whole of the core emittable API.
+                    filterEmit = ApiSurfacePredicate.wholeCoreEmittableApi(apiSurface),
                 ) {
 
                 override fun visitSelectableItem(item: SelectableItem) {
@@ -85,6 +90,7 @@ class AndroidApiChecks(
                 override fun visitMethod(method: MethodItem) {
                     val documentation = method.documentation ?: return
                     val content = documentation.blockTagDescription("return") ?: return
+                    checkSummary(method, content, "Return value of method '${method.name()}'")
                     checkVariable(
                         method,
                         content,
@@ -104,6 +110,11 @@ class AndroidApiChecks(
 
                 override fun visitParameter(parameter: ParameterItem) {
                     val content = parameter.description ?: return
+                    checkSummary(
+                        parameter,
+                        content,
+                        "Parameter '${parameter.name()}' of method '${parameter.parent().name()}'"
+                    )
                     checkVariable(
                         parameter,
                         content,
@@ -254,6 +265,64 @@ class AndroidApiChecks(
                 Issues.NULLABLE,
                 item,
                 "$ident documentation mentions 'null' without declaring @NonNull or @Nullable"
+            )
+        }
+    }
+
+    /**
+     * Checks to make sure that `@param` and `@return` summaries are single sentence fragments.
+     *
+     * Summaries MUST:
+     * - Start with a lowercase letter
+     * - Be a single sentence fragment and not end with sentence-terminal punctuation
+     * - Not contain parentheses and prefer clean rephrasings instead
+     */
+    private fun checkSummary(item: Item, content: DocContent, indent: String) {
+        val plainText = content.asPlainText()
+
+        if (plainText.isEmpty()) return
+
+        // Check that summaries start with a lowercase letter.
+        val firstLetter = plainText.firstOrNull { it.isLetter() }
+        if (firstLetter != null && !firstLetter.isLowerCase()) {
+            reporter.report(
+                Issues.INVALID_PARAM_OR_RETURN,
+                item,
+                "$indent must start with a lowercase letter: $plainText"
+            )
+        }
+
+        // Check that summaries are a single sentence fragment.
+        val iterator = BreakIterator.getSentenceInstance(Locale.US)
+        iterator.setText(plainText)
+        val firstBoundary = iterator.next()
+        if (firstBoundary != BreakIterator.DONE && firstBoundary < plainText.length) {
+            reporter.report(
+                Issues.INVALID_PARAM_OR_RETURN,
+                item,
+                "$indent must be a single sentence fragment: $plainText"
+            )
+        }
+
+        // Check that summaries do not end with sentence-terminal punctuation.
+        val endsWithSentenceTerminal =
+            (plainText.endsWith(".") && !plainText.lowercase().endsWith("etc.")) ||
+                plainText.endsWith("!") ||
+                plainText.endsWith("?")
+        if (endsWithSentenceTerminal) {
+            reporter.report(
+                Issues.INVALID_PARAM_OR_RETURN,
+                item,
+                "$indent must not end with sentence-terminal punctuation: $plainText"
+            )
+        }
+
+        // Check that summaries avoid using parentheses to encourage clean rephrasings.
+        if (plainText.contains("(") || plainText.contains(")")) {
+            reporter.report(
+                Issues.INVALID_PARAM_OR_RETURN,
+                item,
+                "$indent must avoid parentheses and prefer clean rephrasings: $plainText"
             )
         }
     }

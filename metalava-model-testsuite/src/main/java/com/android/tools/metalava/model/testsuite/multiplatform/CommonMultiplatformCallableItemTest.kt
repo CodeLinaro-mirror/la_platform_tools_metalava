@@ -461,7 +461,7 @@ class CommonMultiplatformCallableItemTest : BaseModelTest() {
             val commonMethod = fooClass.assertMethod("commonMethod", listOf("kotlin.String"))
             val commonParameter = commonMethod.parameters.single()
             commonParameter.assertSourceSets("commonMain", "androidMain", "nativeMain")
-            assertThat(commonParameter.containingCallable).isEqualTo(commonMethod)
+            assertThat(commonParameter.containingItem).isEqualTo(commonMethod)
             assertThat(commonParameter.parameterIndex).isEqualTo(0)
             assertThat(commonParameter.toString())
                 .isEqualTo(
@@ -486,7 +486,7 @@ class CommonMultiplatformCallableItemTest : BaseModelTest() {
             assertThat(nativeMethod.parameters).hasSize(3)
             for ((index, parameter) in nativeMethod.parameters.withIndex()) {
                 parameter.assertSourceSets("nativeMain")
-                assertThat(parameter.containingCallable).isEqualTo(nativeMethod)
+                assertThat(parameter.containingItem).isEqualTo(nativeMethod)
                 assertThat(parameter.parameterIndex).isEqualTo(index)
                 assertThat(parameter.toString())
                     .isEqualTo(
@@ -565,7 +565,7 @@ class CommonMultiplatformCallableItemTest : BaseModelTest() {
             val fooMethod = fooClass.assertMethod("foo", listOf("kotlin.String"))
             val stringParameter = fooMethod.parameters.single()
             stringParameter.assertSourceSets("androidMain", "commonMain")
-            assertThat(stringParameter.containingCallable).isEqualTo(fooMethod)
+            assertThat(stringParameter.containingItem).isEqualTo(fooMethod)
             assertThat(stringParameter.parameterIndex).isEqualTo(0)
             stringParameter.modifiers
                 .transformValues { modifiers ->
@@ -661,7 +661,7 @@ class CommonMultiplatformCallableItemTest : BaseModelTest() {
             val clashingMethod = fooClass.assertMethod("clashingMethod", listOf("kotlin.String"))
             val clashingParameter = clashingMethod.parameters.single()
             clashingParameter.assertSourceSets("androidMain", "nativeMain")
-            assertThat(clashingParameter.containingCallable).isEqualTo(clashingMethod)
+            assertThat(clashingParameter.containingItem).isEqualTo(clashingMethod)
             assertThat(clashingParameter.parameterIndex).isEqualTo(0)
             clashingParameter.hasDefaultValue.assertSourceSetValues(
                 "androidMain" to false,

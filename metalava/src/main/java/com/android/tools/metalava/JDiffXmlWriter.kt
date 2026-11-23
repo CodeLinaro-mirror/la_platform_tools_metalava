@@ -30,10 +30,9 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
-import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.model.visitors.FilteringApiVisitor
-import com.android.utils.XmlUtils
+import com.android.tools.metalava.xml.toXmlAttributeValue
 import java.io.PrintWriter
 
 /**
@@ -47,18 +46,22 @@ import java.io.PrintWriter
  */
 class JDiffXmlWriter(
     private val writer: PrintWriter,
-    private val apiName: String? = null,
+    private val apiName: String,
 ) : DelegatedVisitor {
+    /**
+     * JDiff XML files require classes to be visited in deterministic, alphabetical order for stable
+     * XML output that can be diffed across API versions.
+     */
+    override val requiresSortedClasses: Boolean
+        get() = true
 
     override fun visitCodebase(codebase: Codebase) {
         writer.print("<api")
 
-        if (apiName != null) {
-            // See JDiff's XMLToAPI#nameAPI
-            writer.print(" name=\"")
-            writer.print(apiName)
-            writer.print("\"")
-        }
+        // See JDiff's XMLToAPI#nameAPI
+        writer.print(" name=\"")
+        writer.print(apiName)
+        writer.print("\"")
 
         // Specify metalava schema used for metalava:enumConstant
         writer.print(" xmlns:metalava=\"http://www.android.com/metalava/\"")
@@ -158,13 +161,13 @@ class JDiffXmlWriter(
         writer.print("<field name=\"")
         writer.print(field.name())
         writer.print("\"\n type=\"")
-        writer.print(XmlUtils.toXmlAttributeValue(formatType(field.type())))
+        writer.print(toXmlAttributeValue(formatType(field.type())))
         writer.print("\"\n transient=\"")
         writer.print(modifiers.isTransient())
         writer.print("\"\n volatile=\"")
         writer.print(modifiers.isVolatile())
         field.constantValue?.asLiteralValue()?.let { literalValue ->
-            val value = XmlUtils.toXmlAttributeValue(literalValue.toValueString())
+            val value = toXmlAttributeValue(literalValue.toValueString())
 
             writer.print("\"\n value=\"")
             writer.print(value)
@@ -200,7 +203,7 @@ class JDiffXmlWriter(
         writer.print(method.name())
         method.returnType().let {
             writer.print("\"\n return=\"")
-            writer.print(XmlUtils.toXmlAttributeValue(formatType(it)))
+            writer.print(toXmlAttributeValue(formatType(it)))
         }
         writer.print("\"\n abstract=\"")
         writer.print(modifiers.isAbstract())
@@ -233,7 +236,7 @@ class JDiffXmlWriter(
                     if (!cls.isClass() && superClass.isJavaLangObject()) {
                         return
                     }
-                    XmlUtils.toXmlAttributeValue(formatType(superClass.toTypeString()))
+                    toXmlAttributeValue(formatType(superClass.toTypeString()))
                 }
                 cls.isEnum() -> JAVA_LANG_ENUM
                 else -> return
@@ -249,7 +252,7 @@ class JDiffXmlWriter(
             interfaces.forEach { item ->
                 writer.print("<implements name=\"")
                 val type = item.toTypeString()
-                writer.print(XmlUtils.toXmlAttributeValue(formatType(type)))
+                writer.print(toXmlAttributeValue(formatType(type)))
                 writer.println("\">\n</implements>")
             }
         }
@@ -260,7 +263,7 @@ class JDiffXmlWriter(
             // NOTE: We report parameter name as "null" rather than the real name to match
             // doclava's behavior
             writer.print("<parameter name=\"null\" type=\"")
-            writer.print(XmlUtils.toXmlAttributeValue(formatType(parameter.type())))
+            writer.print(toXmlAttributeValue(formatType(parameter.type())))
             writer.println("\">")
             writer.println("</parameter>")
         }
@@ -290,23 +293,16 @@ class JDiffXmlWriter(
 }
 
 /**
- * Create an [ApiVisitor] that will filter the [Item] to which is applied according to the supplied
- * parameters and in a manner appropriate for writing JDiff files, e.g. not nesting classes. It will
- * delegate any visitor calls that pass through its filter to [delegate].
+ * Create an [ApiVisitor] that will filter the [Item] to which is applied in a manner appropriate
+ * for writing JDiff files, e.g. not nesting classes. It will delegate any visitor calls that pass
+ * through its filter to [delegate].
  */
 fun createFilteringVisitorForJDiffWriter(
     delegate: DelegatedVisitor,
-    apiFilters: ApiFilters,
-    preFiltered: Boolean,
-    showUnannotated: Boolean,
-    filterSuperClassType: Boolean = true,
 ): ApiVisitor =
     FilteringApiVisitor(
         delegate,
-        inlineInheritedFields = true,
         interfaceListComparator = TypeItem.totalComparator,
-        apiFilters = apiFilters,
-        preFiltered = preFiltered,
-        filterSuperClassType = filterSuperClassType,
-        showUnannotated = showUnannotated,
+        // Signature files are always pre-filtered so require no filtering.
+        apiFilters = null,
     )

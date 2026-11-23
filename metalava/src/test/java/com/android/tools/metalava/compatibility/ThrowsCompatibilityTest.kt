@@ -16,11 +16,10 @@
 
 package com.android.tools.metalava.compatibility
 
-import com.android.tools.metalava.ARG_SHOW_ANNOTATION
 import com.android.tools.metalava.DriverTest
+import com.android.tools.metalava.KnownApiSurface
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
-import com.android.tools.metalava.systemApiSource
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
@@ -31,11 +30,10 @@ class ThrowsCompatibilityTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                    src/test/pkg/MyClass.java:7: error: Binary breaking change: Method test.pkg.MyClass.method1 added thrown exception java.io.IOException [ChangedThrows]
-                    src/test/pkg/MyClass.java:8: error: Binary breaking change: Method test.pkg.MyClass.method2 no longer throws exception java.io.IOException [ChangedThrows]
-                    src/test/pkg/MyClass.java:9: error: Binary breaking change: Method test.pkg.MyClass.method3 added thrown exception java.lang.UnsupportedOperationException [ChangedThrows]
-                    src/test/pkg/MyClass.java:9: error: Binary breaking change: Method test.pkg.MyClass.method3 no longer throws exception java.io.IOException [ChangedThrows]
-                    src/test/pkg/MyClass.java:9: error: Binary breaking change: Method test.pkg.MyClass.method3 no longer throws exception java.lang.NumberFormatException [ChangedThrows]
+                    src/test/pkg/MyClass.java:7: error: Source breaking change: Method test.pkg.MyClass.method1 added thrown exception java.io.IOException [ChangedThrows]
+                    src/test/pkg/MyClass.java:8: error: Source breaking change: Method test.pkg.MyClass.method2 no longer throws exception java.io.IOException [ChangedThrows]
+                    src/test/pkg/MyClass.java:9: error: Source breaking change: Method test.pkg.MyClass.method3 added thrown exception java.lang.UnsupportedOperationException [ChangedThrows]
+                    src/test/pkg/MyClass.java:9: error: Source breaking change: Method test.pkg.MyClass.method3 no longer throws exception java.io.IOException [ChangedThrows]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -74,10 +72,10 @@ class ThrowsCompatibilityTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                    src/test/pkg/MyClass.kt:4: error: Binary breaking change: Constructor test.pkg.MyClass added thrown exception test.pkg.MyException [ChangedThrows]
-                    src/test/pkg/MyClass.kt:9: error: Binary breaking change: Method test.pkg.MyClass.method1 added thrown exception test.pkg.MyException [ChangedThrows]
-                    src/test/pkg/MyClass.kt:12: error: Binary breaking change: Method test.pkg.MyClass.getProperty1 added thrown exception test.pkg.MyException [ChangedThrows]
-                    src/test/pkg/MyClass.kt:15: error: Binary breaking change: Method test.pkg.MyClass.getProperty2 added thrown exception test.pkg.MyException [ChangedThrows]
+                    src/test/pkg/MyClass.kt:4: error: Source breaking change: Constructor test.pkg.MyClass added thrown exception test.pkg.MyException [ChangedThrows]
+                    src/test/pkg/MyClass.kt:9: error: Source breaking change: Method test.pkg.MyClass.method1 added thrown exception test.pkg.MyException [ChangedThrows]
+                    src/test/pkg/MyClass.kt:12: error: Source breaking change: Method test.pkg.MyClass.getProperty1 added thrown exception test.pkg.MyException [ChangedThrows]
+                    src/test/pkg/MyClass.kt:15: error: Source breaking change: Method test.pkg.MyClass.getProperty2 added thrown exception test.pkg.MyException [ChangedThrows]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -129,10 +127,10 @@ class ThrowsCompatibilityTest : DriverTest() {
                 // TODO(b/481997129): The error messages seem to be backwards. e.g. Changing method4
                 //  from throwing `FileNotFoundException` to `IOException`
                 """
-                    src/test/pkg/MyClass.java:7: error: Binary breaking change: Method test.pkg.MyClass.method1 added thrown exception T (extends java.lang.Throwable)} [ChangedThrows]
-                    src/test/pkg/MyClass.java:8: error: Binary breaking change: Method test.pkg.MyClass.method2 no longer throws exception T (extends java.lang.Throwable)} [ChangedThrows]
-                    src/test/pkg/MyClass.java:9: error: Binary breaking change: Method test.pkg.MyClass.method3 added thrown exception X (extends java.io.FileNotFoundException)} [ChangedThrows]
-                    src/test/pkg/MyClass.java:10: error: Binary breaking change: Method test.pkg.MyClass.method4 no longer throws exception X (extends java.io.FileNotFoundException)} [ChangedThrows]
+                    src/test/pkg/MyClass.java:7: error: Source breaking change: Method test.pkg.MyClass.method1 added thrown exception T (extends java.lang.Throwable)} [ChangedThrows]
+                    src/test/pkg/MyClass.java:8: error: Source breaking change: Method test.pkg.MyClass.method2 no longer throws exception T (extends java.lang.Throwable)} [ChangedThrows]
+                    src/test/pkg/MyClass.java:9: error: Source breaking change: Method test.pkg.MyClass.method3 added thrown exception X (extends java.io.FileNotFoundException)} [ChangedThrows]
+                    src/test/pkg/MyClass.java:10: error: Source breaking change: Method test.pkg.MyClass.method4 no longer throws exception X (extends java.io.FileNotFoundException)} [ChangedThrows]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -172,6 +170,7 @@ class ThrowsCompatibilityTest : DriverTest() {
     @Test
     fun `Partial text file where type previously did not exist`() {
         check(
+            apiSurface = KnownApiSurface.SYSTEM,
             sourceFiles =
                 arrayOf(
                     java(
@@ -179,9 +178,6 @@ class ThrowsCompatibilityTest : DriverTest() {
                             package test.pkg;
                             import android.annotation.SystemApi;
 
-                            /**
-                             * @hide
-                             */
                             @SystemApi
                             public class SampleException1 extends java.lang.Exception {
                             }
@@ -192,9 +188,6 @@ class ThrowsCompatibilityTest : DriverTest() {
                             package test.pkg;
                             import android.annotation.SystemApi;
 
-                            /**
-                             * @hide
-                             */
                             @SystemApi
                             public class SampleException2 extends java.lang.Throwable {
                             }
@@ -205,9 +198,6 @@ class ThrowsCompatibilityTest : DriverTest() {
                             package test.pkg;
                             import android.annotation.SystemApi;
 
-                            /**
-                             * @hide
-                             */
                             @SystemApi
                             public class Utils {
                                 public void method1() throws SampleException1 { }
@@ -215,12 +205,6 @@ class ThrowsCompatibilityTest : DriverTest() {
                             }
                         """
                     ),
-                    systemApiSource,
-                ),
-            extraArguments =
-                arrayOf(
-                    ARG_SHOW_ANNOTATION,
-                    "android.annotation.SystemApi",
                 ),
             checkCompatibilityApiReleased =
                 """
@@ -232,6 +216,194 @@ class ThrowsCompatibilityTest : DriverTest() {
                         // have not been changed
                         method public void method1() throws test.pkg.SampleException1;
                         method public void method2() throws test.pkg.SampleException2;
+                      }
+                    }
+                """,
+        )
+    }
+
+    @Test
+    fun `Add checked exceptions thrown on class method - Incompatible`() {
+        check(
+            expectedIssues =
+                """
+                load-api.txt:4: error: Source breaking change: Method test.pkg.Foo.bar added thrown exception java.lang.Throwable [ChangedThrows]
+                """,
+            signatureSource =
+                """
+                package test.pkg {
+                  public class Foo {
+                    method public void bar(int) throws java.lang.Throwable;
+                  }
+                }
+            """,
+            checkCompatibilityApiReleased =
+                """
+                package test.pkg {
+                  public class Foo {
+                    method public void bar(int);
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `Delete checked exceptions thrown on class method - Incompatible`() {
+        check(
+            expectedIssues =
+                """
+                load-api.txt:4: error: Source breaking change: Method test.pkg.Foo.bar no longer throws exception java.lang.Throwable [ChangedThrows]
+                """,
+            signatureSource =
+                """
+                package test.pkg {
+                  public class Foo {
+                    method public void bar(int);
+                  }
+                }
+            """,
+            checkCompatibilityApiReleased =
+                """
+                package test.pkg {
+                  public class Foo {
+                    method public void bar(int) throws java.lang.Throwable;
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `Add checked exceptions thrown on interface method - Incompatible`() {
+        check(
+            expectedIssues =
+                """
+                load-api.txt:4: error: Source breaking change: Method test.pkg.Foo.bar added thrown exception java.lang.Throwable [ChangedThrows]
+                """,
+            signatureSource =
+                """
+                package test.pkg {
+                  public interface Foo {
+                    method public void bar(int) throws java.lang.Throwable;
+                  }
+                }
+            """,
+            checkCompatibilityApiReleased =
+                """
+                package test.pkg {
+                  public interface Foo {
+                    method public void bar(int);
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `Delete checked exceptions thrown on interface method - Incompatible`() {
+        check(
+            expectedIssues =
+                """
+                load-api.txt:4: error: Source breaking change: Method test.pkg.Foo.bar no longer throws exception java.lang.Throwable [ChangedThrows]
+                """,
+            signatureSource =
+                """
+                package test.pkg {
+                  public interface Foo {
+                    method public void bar(int);
+                  }
+                }
+            """,
+            checkCompatibilityApiReleased =
+                """
+                package test.pkg {
+                  public interface Foo {
+                    method public void bar(int) throws java.lang.Throwable;
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `Delete RuntimeException subclass thrown on class method - Compatible`() {
+        check(
+            signatureSource =
+                """
+                    package test.pkg {
+                      public class Foo {
+                        method public void bar(int);
+                      }
+                      public class MyRuntimeException extends java.lang.RuntimeException {
+                        ctor public MyRuntimeException();
+                      }
+                    }
+                """,
+            checkCompatibilityApiReleased =
+                """
+                    package test.pkg {
+                      public class Foo {
+                        method public void bar(int) throws test.pkg.MyRuntimeException;
+                      }
+                      public class MyRuntimeException extends java.lang.RuntimeException {
+                        ctor public MyRuntimeException();
+                      }
+                    }
+                """,
+        )
+    }
+
+    @Test
+    fun `Delete Error subclass thrown on class method - Compatible`() {
+        check(
+            signatureSource =
+                """
+                    package test.pkg {
+                      public class Foo {
+                        method public void bar(int);
+                      }
+                      public class MyError extends java.lang.Error {
+                        ctor public MyError();
+                      }
+                    }
+                """,
+            checkCompatibilityApiReleased =
+                """
+                    package test.pkg {
+                      public class Foo {
+                        method public void bar(int) throws test.pkg.MyError;
+                      }
+                      public class MyError extends java.lang.Error {
+                        ctor public MyError();
+                      }
+                    }
+                """,
+        )
+    }
+
+    @Test
+    fun `Delete checked exception that became RuntimeException subclass thrown on class method - Compatible`() {
+        check(
+            signatureSource =
+                """
+                    package test.pkg {
+                      public class Foo {
+                        method public void bar(int);
+                      }
+                      public class MyException extends java.lang.RuntimeException {
+                        ctor public MyException();
+                      }
+                    }
+                """,
+            checkCompatibilityApiReleased =
+                """
+                    package test.pkg {
+                      public class Foo {
+                        method public void bar(int) throws test.pkg.MyException;
+                      }
+                      public class MyException extends java.lang.Exception {
+                        ctor public MyException();
                       }
                     }
                 """,

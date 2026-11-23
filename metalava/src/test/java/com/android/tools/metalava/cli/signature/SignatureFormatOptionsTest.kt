@@ -48,7 +48,6 @@ Signature Format Output:
                                              A comma separated list of `<property>=<value>` assignments where
                                              `<property>` is one of the following:
                                              * `add-additional-overrides`
-                                             * `flagged-api-inheritance`
                                              * `java-record-classes`
                                              * `java-sealed-classes`
                                              * `normalize-abstract-modifier`
@@ -115,7 +114,7 @@ class SignatureFormatOptionsTest :
     fun `--use-same-format-as reads from a valid file and ignores --format`() {
         val path = source("api.txt", "// Signature format: 4.0\n").toFile()
         runTest("--use-same-format-as", path.path, "--format", "5.0") {
-            assertThat(options.fileFormat).isEqualTo(FileFormat.V4)
+            assertThat(options.compute().fileFormat).isEqualTo(FileFormat.V4)
         }
     }
 
@@ -123,7 +122,7 @@ class SignatureFormatOptionsTest :
     fun `--use-same-format-as ignores empty file and falls back to format`() {
         val path = source("api.txt", "").toFile()
         runTest("--use-same-format-as", path.path, "--format", "4.0") {
-            assertThat(options.fileFormat).isEqualTo(FileFormat.V4)
+            assertThat(options.compute().fileFormat).isEqualTo(FileFormat.V4)
         }
     }
 
@@ -136,7 +135,7 @@ class SignatureFormatOptionsTest :
             "--format-defaults",
             "overloaded-method-order=source"
         ) {
-            assertThat(options.fileFormat[OVERLOADED_METHOD_ORDER])
+            assertThat(options.compute().fileFormat[OVERLOADED_METHOD_ORDER])
                 .isEqualTo(FileFormat.OverloadedMethodOrder.SOURCE)
         }
     }
@@ -159,7 +158,7 @@ class SignatureFormatOptionsTest :
             assertThrows(ApiParseException::class.java) {
                 runTest("--use-same-format-as", path) {
                     // Get the file format as the file is only read when needed.
-                    options.fileFormat
+                    options.compute().fileFormat
                 }
             }
         assertEquals(
@@ -194,14 +193,14 @@ class SignatureFormatOptionsTest :
                     // - add-additional-overrides=yes
                 """
                     .trimIndent(),
-                options.fileFormat.header().trim()
+                options.compute().fileFormat.header().trim()
             )
         }
     }
 
     @Test
     fun `--format with no properties`() {
-        runTest("--format", "2.0") { assertEquals(FileFormat.V2, options.fileFormat) }
+        runTest("--format", "2.0") { assertEquals(FileFormat.V2, options.compute().fileFormat) }
     }
 
     @Test
@@ -209,7 +208,7 @@ class SignatureFormatOptionsTest :
         runTest("--format", "2.0", "--format-defaults", "overloaded-method-order=source") {
             assertEquals(
                 FileFormat.OverloadedMethodOrder.SOURCE,
-                options.fileFormat[OVERLOADED_METHOD_ORDER]
+                options.compute().fileFormat[OVERLOADED_METHOD_ORDER]
             )
         }
     }
@@ -217,7 +216,7 @@ class SignatureFormatOptionsTest :
     @Test
     fun `--format with no properties and --format-defaults add-additional-overrides=yes`() {
         runTest("--format", "2.0", "--format-defaults", "add-additional-overrides=yes") {
-            assertEquals(true, options.fileFormat[ADD_ADDITIONAL_OVERRIDES])
+            assertEquals(true, options.compute().fileFormat[ADD_ADDITIONAL_OVERRIDES])
         }
     }
 
@@ -228,7 +227,7 @@ class SignatureFormatOptionsTest :
                 FileFormat.V2.buildCopy {
                     this[OVERLOADED_METHOD_ORDER] = FileFormat.OverloadedMethodOrder.SIGNATURE
                 },
-                options.fileFormat
+                options.compute().fileFormat
             )
         }
     }
@@ -243,7 +242,7 @@ class SignatureFormatOptionsTest :
         ) {
             assertEquals(
                 FileFormat.OverloadedMethodOrder.SIGNATURE,
-                options.fileFormat[OVERLOADED_METHOD_ORDER]
+                options.compute().fileFormat[OVERLOADED_METHOD_ORDER]
             )
         }
     }
@@ -260,7 +259,7 @@ class SignatureFormatOptionsTest :
                     this[KOTLIN_STYLE_NULLS] = true
                     this[INCLUDE_DEFAULT_PARAMETER_VALUES] = true
                 },
-                options.fileFormat
+                options.compute().fileFormat
             )
         }
     }
@@ -273,7 +272,7 @@ class SignatureFormatOptionsTest :
         ) {
             assertEquals(
                 FileFormat.V2.buildCopy { this[ADD_ADDITIONAL_OVERRIDES] = true },
-                options.fileFormat
+                options.compute().fileFormat
             )
         }
     }
@@ -355,7 +354,7 @@ class SignatureFormatOptionsTest :
                     this[INCLUDE_DEFAULT_PARAMETER_VALUES] = true
                     this[MIGRATING] = "See b/295577788"
                 },
-                options.fileFormat
+                options.compute().fileFormat
             )
         }
     }
@@ -386,7 +385,7 @@ class SignatureFormatOptionsTest :
                     this[KOTLIN_STYLE_NULLS] = false
                     this[INCLUDE_DEFAULT_PARAMETER_VALUES] = false
                 },
-                options.fileFormat
+                options.compute().fileFormat
             )
         }
     }
@@ -404,7 +403,7 @@ class SignatureFormatOptionsTest :
                     this[INCLUDE_DEFAULT_PARAMETER_VALUES] = false
                     this[MIGRATING] = "See b/295577788"
                 },
-                options.fileFormat
+                options.compute().fileFormat
             )
         }
     }
@@ -440,7 +439,7 @@ class SignatureFormatOptionsTest :
                     // - include-default-parameter-values=no
                 """
                     .trimIndent(),
-                options.fileFormat.header().trim()
+                options.compute().fileFormat.header().trim()
             )
         }
     }

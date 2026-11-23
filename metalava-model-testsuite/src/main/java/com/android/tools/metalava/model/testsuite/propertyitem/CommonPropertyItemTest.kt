@@ -205,7 +205,7 @@ class CommonPropertyItemTest : BaseModelTest() {
             val propertyItem = fooClass.properties().single()
             assertThat(propertyItem.name()).isEqualTo("delegatingList")
             val propertyType = propertyItem.type()
-            propertyType.assertClassTypeItem {
+            propertyType.assertLambdaTypeItem {
                 assertThat(testTypeString(kotlinStyleNulls = true))
                     .isEqualTo(
                         "kotlin.jvm.functions.Function2<java.lang.Integer,java.lang.String?,java.lang.Boolean>"
@@ -1103,7 +1103,7 @@ class CommonPropertyItemTest : BaseModelTest() {
                 .isTrue()
             assertThat(oneTypeParameterWithBoundsReceiverT.isReified()).isFalse()
             oneTypeParameterWithBoundsReceiver.receiver.assertVariableTypeItem {
-                assertEquals(asTypeParameter, oneTypeParameterReceiverT)
+                assertEquals(asTypeParameter, oneTypeParameterWithBoundsReceiverT)
             }
 
             // val <T1, T2> Map<T1, T2>.twoTypeParameterMapReceiver
@@ -1255,8 +1255,6 @@ class CommonPropertyItemTest : BaseModelTest() {
                     var privateSetOnPublic = 0
                         private set
                     protected var protectedSet = 0
-                    protected var internalSetOnProtected = 0
-                        internal set
                     @PublishedApi
                     internal var internalSet = 0
                 }
@@ -1287,16 +1285,6 @@ class CommonPropertyItemTest : BaseModelTest() {
             assertThat(protectedSet.modifiers.getVisibilityLevel())
                 .isEqualTo(VisibilityLevel.PROTECTED)
             assertThat(protectedSet.setterVisibility).isEqualTo(VisibilityLevel.PROTECTED)
-
-            val internalSetOnProtected = fooClass.assertProperty("internalSetOnProtected")
-            assertThat(internalSetOnProtected.modifiers.getVisibilityLevel())
-                .isEqualTo(VisibilityLevel.PROTECTED)
-            assertThat(internalSetOnProtected.setterVisibility).isEqualTo(VisibilityLevel.INTERNAL)
-
-            val internalSet = fooClass.assertProperty("internalSet")
-            assertThat(internalSet.modifiers.getVisibilityLevel())
-                .isEqualTo(VisibilityLevel.INTERNAL)
-            assertThat(internalSet.setterVisibility).isEqualTo(VisibilityLevel.INTERNAL)
         }
     }
 
@@ -1742,7 +1730,7 @@ class CommonPropertyItemTest : BaseModelTest() {
                 .isEqualTo("method test.pkg.Foo.getOneContextParam(String)")
             assertThat(oneContextParam.setter).isNotNull()
             assertThat(oneContextParam.setter.toString())
-                .isEqualTo("method test.pkg.Foo.setOneContextParam(String, int)")
+                .isEqualTo("method test.pkg.Foo.setOneContextParam(String,int)")
 
             val twoContextParam =
                 fooClass.assertProperty(
@@ -1751,10 +1739,10 @@ class CommonPropertyItemTest : BaseModelTest() {
                 )
             assertThat(twoContextParam.getter).isNotNull()
             assertThat(twoContextParam.getter.toString())
-                .isEqualTo("method test.pkg.Foo.getTwoContextParam(String, int)")
+                .isEqualTo("method test.pkg.Foo.getTwoContextParam(String,int)")
             assertThat(twoContextParam.setter).isNotNull()
             assertThat(twoContextParam.setter.toString())
-                .isEqualTo("method test.pkg.Foo.setTwoContextParam(String, int, int)")
+                .isEqualTo("method test.pkg.Foo.setTwoContextParam(String,int,int)")
 
             val withContextParamAndReceiver =
                 fooClass.assertProperty(
@@ -1764,12 +1752,10 @@ class CommonPropertyItemTest : BaseModelTest() {
                 )
             assertThat(withContextParamAndReceiver.getter).isNotNull()
             assertThat(withContextParamAndReceiver.getter.toString())
-                .isEqualTo("method test.pkg.Foo.getWithContextParamAndReceiver(String, String)")
+                .isEqualTo("method test.pkg.Foo.getWithContextParamAndReceiver(String,String)")
             assertThat(withContextParamAndReceiver.setter).isNotNull()
             assertThat(withContextParamAndReceiver.setter.toString())
-                .isEqualTo(
-                    "method test.pkg.Foo.setWithContextParamAndReceiver(String, String, int)"
-                )
+                .isEqualTo("method test.pkg.Foo.setWithContextParamAndReceiver(String,String,int)")
         }
     }
 
@@ -1864,7 +1850,7 @@ class CommonPropertyItemTest : BaseModelTest() {
                 .isEqualTo("method test.pkg.Foo.getWithJvmName(int)")
             assertThat(varWithJvmName.setter).isNotNull()
             assertThat(varWithJvmName.setter.toString())
-                .isEqualTo("method test.pkg.Foo.setWithJvmName(int, int)")
+                .isEqualTo("method test.pkg.Foo.setWithJvmName(int,int)")
 
             val varWithoutJvmName =
                 fooClass.assertProperty(

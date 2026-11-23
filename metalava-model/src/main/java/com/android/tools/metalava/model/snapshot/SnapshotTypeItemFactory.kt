@@ -91,17 +91,19 @@ internal class SnapshotTypeItemFactory(
             typeItem.outerClassType?.transform(this),
         )
 
-    override fun transform(typeItem: LambdaTypeItem) =
-        TypeItem.createLambdaType(
+    override fun transform(typeItem: LambdaTypeItem): LambdaTypeItem {
+        val jvmClassType = typeItem.asJvmClassType()
+        return TypeItem.createLambdaType(
             typeItem.modifiers.snapshot(),
-            typeItem.qualifiedName,
-            typeItem.arguments.map { it.transform(this) },
-            typeItem.outerClassType?.transform(this),
+            jvmClassType.qualifiedName,
+            jvmClassType.arguments.map { it.transform(this) },
+            jvmClassType.outerClassType?.transform(this),
             typeItem.isSuspend,
             typeItem.receiverType?.transform(this),
             typeItem.parameterTypes.map { it.transform(this) },
             typeItem.returnType.transform(this),
         )
+    }
 
     override fun transform(typeItem: PrimitiveTypeItem) =
         TypeItem.createPrimitiveType(typeItem.modifiers.snapshot(), typeItem.kind)

@@ -223,6 +223,7 @@ class StubsSealedClassTest : AbstractStubsTest() {
                     ),
                 ),
             compilationChecks = compilationChecksForExhaustiveAbstractSealedClass(),
+            javaLanguageLevel = "17", // required for sealed classes
         )
     }
 
@@ -316,6 +317,7 @@ class StubsSealedClassTest : AbstractStubsTest() {
                     ),
                 ),
             compilationChecks = compilationChecksForNonExhaustiveAbstractSealedClass(),
+            javaLanguageLevel = "17", // required for sealed classes
         )
     }
 
@@ -399,6 +401,7 @@ class StubsSealedClassTest : AbstractStubsTest() {
                     ),
                 ),
             compilationChecks = compilationChecksForConcreteSealedClass(),
+            javaLanguageLevel = "17", // required for sealed classes
         )
     }
 
@@ -493,6 +496,7 @@ class StubsSealedClassTest : AbstractStubsTest() {
                     ),
                 ),
             compilationChecks = compilationChecksForConcreteSealedClass(),
+            javaLanguageLevel = "17", // required for sealed classes
         )
     }
 
@@ -569,6 +573,7 @@ class StubsSealedClassTest : AbstractStubsTest() {
                     ),
                 ),
             compilationChecks = compilationChecksForExhaustiveAbstractSealedClass(),
+            javaLanguageLevel = "17", // required for sealed classes
         )
     }
 
@@ -657,6 +662,7 @@ class StubsSealedClassTest : AbstractStubsTest() {
                     ),
                 ),
             compilationChecks = compilationChecksForNonExhaustiveAbstractSealedClass(),
+            javaLanguageLevel = "17", // required for sealed classes
         )
     }
 
@@ -717,6 +723,7 @@ class StubsSealedClassTest : AbstractStubsTest() {
                         """
                     ),
                 ),
+            javaLanguageLevel = "17", // required for sealed classes
         )
     }
 
@@ -775,6 +782,7 @@ class StubsSealedClassTest : AbstractStubsTest() {
                         """
                     ),
                 ),
+            javaLanguageLevel = "17", // required for sealed classes
         )
     }
 }

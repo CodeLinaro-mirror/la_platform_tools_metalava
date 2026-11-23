@@ -55,7 +55,7 @@ class RestrictedForEnvironmentTest : DriverTest() {
             expectedApiSignature =
                 """
                     package test.pkg {
-                      @RestrictedForEnvironment(environments=$packageName.RestrictedForEnvironment.ENVIRONMENT_SDK_RUNTIME, from=14) public class MyClass1 {
+                      @RestrictedForEnvironment(environments="SDK Runtime", from=14) public class MyClass1 {
                         ctor public MyClass1();
                       }
                     }
@@ -70,7 +70,7 @@ class RestrictedForEnvironmentTest : DriverTest() {
                             <root>
                               <item name="test.pkg.MyClass1">
                                 <annotation name="androidx.annotation.RestrictedForEnvironment">
-                                  <val name="environments" val="&quot;SDK Runtime&quot;" />
+                                  <val name="environments" val="{&quot;SDK Runtime&quot;}" />
                                   <val name="from" val="14" />
                                 </annotation>
                               </item>
@@ -163,11 +163,11 @@ class RestrictedForEnvironmentTest : DriverTest() {
                             <root>
                               <item name="test.pkg.MyClass1">
                                 <annotation name="androidx.annotation.RestrictedForEnvironment">
-                                  <val name="environments" val="&quot;SDK Runtime&quot;" />
+                                  <val name="environments" val="{&quot;SDK Runtime&quot;}" />
                                   <val name="from" val="14" />
                                 </annotation>
                                 <annotation name="androidx.annotation.RestrictedForEnvironment">
-                                  <val name="environments" val="&quot;SDK Runtime&quot;" />
+                                  <val name="environments" val="{&quot;SDK Runtime&quot;}" />
                                   <val name="from" val="16" />
                                 </annotation>
                               </item>

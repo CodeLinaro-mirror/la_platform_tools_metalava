@@ -738,6 +738,7 @@ sealed interface AnnotationValue : ArrayElementValue {
 
     override fun equalToValue(other: Value) =
         other is AnnotationValue &&
+            annotationItem.qualifiedName == other.annotationItem.qualifiedName &&
             annotationItem.attributesMap() == other.annotationItem.attributesMap()
 
     override fun hashCodeForValue() =

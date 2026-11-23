@@ -1104,4 +1104,49 @@ class ExperimentalApiFileTest : DriverTest() {
                 """
         )
     }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Annotate package as suppress compatibility when it contains an experimental file facade class and an empty file facade class`() {
+        check(
+            format = FileFormat.V4,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                            package test.pkg
+
+                            @RequiresOptIn(level = RequiresOptIn.Level.ERROR)
+                            @Retention(AnnotationRetention.BINARY)
+                            annotation class Experimental
+
+                            @Experimental
+                            fun myFunA() {}
+
+                            @Experimental
+                            fun myFunB() {}
+                        """
+                    ),
+                    kotlin(
+                        """
+                            package test.pkg
+
+                            internal fun internalFun() {}
+                        """
+                    ),
+                ),
+            expectedApiSignature =
+                """
+                    package @SuppressCompatibility test.pkg {
+                      @SuppressCompatibility @kotlin.RequiresOptIn(level=kotlin.RequiresOptIn.Level.ERROR) @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.BINARY) public @interface Experimental {
+                      }
+                      @SuppressCompatibility public final class ExperimentalKt {
+                        method @SuppressCompatibility @test.pkg.Experimental public static void myFunA();
+                        method @SuppressCompatibility @test.pkg.Experimental public static void myFunB();
+                      }
+                    }
+                """,
+            suppressCompatibilityMetaAnnotations = arrayOf("kotlin.RequiresOptIn")
+        )
+    }
 }

@@ -17,20 +17,21 @@
 package com.android.tools.metalava.model.source.doc
 
 import com.android.tools.metalava.model.doc.DocContent
-import com.android.tools.metalava.model.doc.DocContentOwner
 import com.android.tools.metalava.model.source.javadoc.JavadocContent
 import com.android.tools.metalava.model.source.javadoc.JavadocContentRewriter
+import com.android.tools.metalava.model.source.javadoc.JavadocText
 import com.android.tools.metalava.model.source.javadoc.TextContainsAnyVisitor
 import java.io.PrintWriter
 import java.io.StringWriter
+import java.util.Optional
 import kotlin.collections.plus
 
 /**
  * A Javadoc or KDoc comment associated with an API element.
  *
- * Implementations of these are mutable.
+ * Implementations of these are immutable.
  */
-internal interface DocComment : DocContentOwner {
+internal interface DocComment {
     /** The main description, i.e. the part before any block tags. */
     val description: JavadocContent?
 
@@ -44,22 +45,47 @@ internal interface DocComment : DocContentOwner {
     /** Check to see whether there are any block tags of type [tagTypeName]. */
     fun hasBlockTagOfType(tagTypeName: String): Boolean
 
-    /** Add a [BlockTagSection] of [tagTypeName] with [description] to the list. */
-    fun addBlockTagSection(tagTypeName: String, description: JavadocContent?)
+    /** Return a copy of this with [other] appended to the main [description]. */
+    fun append(other: DocContent): DocComment
+
+    /** Return a copy of this with [text] appended to the main [description]. */
+    fun append(text: String): DocComment
 
     /**
-     * Prepare a [BlockTagSection] for adding, if it has any content added.
-     *
-     * Appending content to the returned [DocContentOwner] will cause a [BlockTagSection] for
-     * [tagTypeName] with the appended content to be added to this [DocComment].
+     * Return a copy of this with a [BlockTagSection] of [tagTypeName] with [description] added to
+     * the list.
      */
-    fun pendingBlockTagSection(
-        tagTypeName: String,
-        description: JavadocContent? = null
-    ): DocContentOwner
+    fun addBlockTagSection(tagTypeName: String, description: JavadocContent?): DocComment
 
-    /** Removes any [BlockTagSection] for which [predicate] returns `true`. */
-    fun removeBlockTagSections(predicate: (BlockTagSection) -> Boolean)
+    /**
+     * Return a copy of this with [other] appended to the description of the first [BlockTagSection]
+     * of [tagTypeName], creating and adding one if none exists.
+     */
+    fun appendBlockTagDescription(tagTypeName: String, other: DocContent): DocComment
+
+    /**
+     * Return a copy of this with [text] appended to the description of the first [BlockTagSection]
+     * of [tagTypeName], creating and adding one if none exists.
+     */
+    fun appendBlockTagDescription(tagTypeName: String, text: String): DocComment
+
+    /**
+     * Return a copy of this with [other] appended to the description of the `@param`
+     * [BlockTagSection] for [name], creating and adding one if none exists.
+     */
+    fun appendParamTagDescription(name: String, other: DocContent): DocComment
+
+    /**
+     * Return a copy of this with [text] appended to the description of the `@param`
+     * [BlockTagSection] for [name], creating and adding one if none exists.
+     */
+    fun appendParamTagDescription(name: String, text: String): DocComment
+
+    /**
+     * Return a copy of this with any [BlockTagSection] for which [predicate] returns `true`
+     * removed, or `this` if no [BlockTagSection] matched [predicate].
+     */
+    fun removeBlockTagSections(predicate: (BlockTagSection) -> Boolean): DocComment
 
     /**
      * Check if [predicate] matches this documentation, checks [description] and all the
@@ -140,18 +166,36 @@ private fun JavadocContent?.requiredSpace(): RequiredSpace =
 internal class DefaultDocComment(
     context: DocCommentContext,
     descriptionSupplier: ContentSupplier,
-    blockTagSections: List<BlockTagSection>,
+    override val blockTagSections: List<BlockTagSection>,
     noComment: Boolean,
+    initializedDescription: Optional<JavadocContent>? = null,
 ) :
-    DescriptionOwner(
+    DescriptionOwner<DefaultDocComment>(
         context,
         descriptionSupplier,
         noComment,
+        initializedDescription = initializedDescription,
     ),
     DocComment {
-    /** Allow [blockTagSections] to be modified but only within this class. */
-    override var blockTagSections = blockTagSections
-        private set
+
+    override fun withDescription(newDescription: JavadocContent?) =
+        DefaultDocComment(
+            context = context,
+            descriptionSupplier = newDescription.toSupplier(),
+            blockTagSections = blockTagSections,
+            noComment = noComment,
+            initializedDescription = Optional.ofNullable(newDescription),
+        )
+
+    /** Return a copy of this with [blockTagSections] set to [newBlockTagSections]. */
+    private fun withBlockTagSections(newBlockTagSections: List<BlockTagSection>) =
+        DefaultDocComment(
+            context = context,
+            descriptionSupplier = descriptionSupplier,
+            blockTagSections = newBlockTagSections,
+            noComment = noComment,
+            initializedDescription = initializedDescription,
+        )
 
     override fun hasBlockTagOfType(tagTypeName: String) =
         blockTagSections.any { it.tagType.name == tagTypeName }
@@ -164,7 +208,7 @@ internal class DefaultDocComment(
             }
         }
 
-    override fun addBlockTagSection(tagTypeName: String, description: JavadocContent?) {
+    override fun addBlockTagSection(tagTypeName: String, description: JavadocContent?): DocComment {
         val tagType = blockTagTypeFor(tagTypeName)
         val blockTagSection =
             DefaultBlockTagSection(
@@ -173,36 +217,89 @@ internal class DefaultDocComment(
                 description.toSupplier(),
             )
 
-        addBlockTagSection(blockTagSection)
+        return addBlockTagSection(blockTagSection)
     }
 
-    /** Add [blockTagSection] to [blockTagSections]. */
-    internal fun addBlockTagSection(blockTagSection: BlockTagSection) {
-        blockTagSections = blockTagSections + blockTagSection
+    /** Return a copy of this with [blockTagSection] added to [blockTagSections]. */
+    internal fun addBlockTagSection(blockTagSection: BlockTagSection): DefaultDocComment {
+        val updated = withBlockTagSections(blockTagSections + blockTagSection)
 
-        // If this call added the first block tag section, then append`{@inheritDoc}` if necessary.
-        // If it was appended then return as it will already have notified the listener that this
-        // has changed.
+        // If this call added the first block tag section, then append `{@inheritDoc}` if necessary.
         // TODO(b/454257440): Investigate whether adding `{@inheritDoc}` to the main description of
         //  a comment in this case is necessary.
-        if (blockTagSections.size == 1 && appendInheritDocIfNeeded()) {
-            return
+        return if (updated.blockTagSections.size == 1) {
+            updated.appendInheritDocIfNeeded()
+        } else {
+            updated
         }
     }
 
-    override fun pendingBlockTagSection(
+    /**
+     * Find the first [BlockTagSection] matching [predicate], or create and add a new one of
+     * [tagTypeName] with [initialDescription] if none exists, and apply [updater] to it.
+     */
+    private inline fun updateOrAddBlockTagSection(
         tagTypeName: String,
-        description: JavadocContent?
-    ): DocContentOwner {
-        val tagType = blockTagTypeFor(tagTypeName)
-        return PendingBlockTagSection(this, context, tagType, description.toSupplier())
+        initialDescription: JavadocContent? = null,
+        predicate: (BlockTagSection) -> Boolean,
+        updater: (BlockTagSection) -> BlockTagSection,
+    ): DocComment {
+        val index = blockTagSections.indexOfFirst(predicate)
+        return if (index != -1) {
+            val existing = blockTagSections[index]
+            val updated = updater(existing)
+            if (updated === existing) {
+                this
+            } else {
+                val newSections =
+                    blockTagSections.toMutableList().apply { this[index] = updated }.toList()
+                withBlockTagSections(newSections)
+            }
+        } else {
+            val tagType = blockTagTypeFor(tagTypeName)
+            val new = DefaultBlockTagSection(context, tagType, initialDescription.toSupplier())
+            val updated = updater(new)
+            addBlockTagSection(updated)
+        }
     }
 
-    override fun removeBlockTagSections(predicate: (BlockTagSection) -> Boolean) {
+    override fun appendBlockTagDescription(tagTypeName: String, other: DocContent): DocComment =
+        updateOrAddBlockTagSection(
+            tagTypeName = tagTypeName,
+            predicate = { it.tagType.name == tagTypeName },
+            updater = { it.append(other) },
+        )
+
+    override fun appendBlockTagDescription(tagTypeName: String, text: String): DocComment =
+        updateOrAddBlockTagSection(
+            tagTypeName = tagTypeName,
+            predicate = { it.tagType.name == tagTypeName },
+            updater = { it.append(text) },
+        )
+
+    override fun appendParamTagDescription(name: String, other: DocContent): DocComment =
+        updateOrAddBlockTagSection(
+            tagTypeName = "param",
+            initialDescription = JavadocText(name),
+            predicate = { it.typeSafeTagData(TagTypes.PARAM)?.name == name },
+            updater = { it.append(other) },
+        )
+
+    override fun appendParamTagDescription(name: String, text: String): DocComment =
+        updateOrAddBlockTagSection(
+            tagTypeName = "param",
+            initialDescription = JavadocText(name),
+            predicate = { it.typeSafeTagData(TagTypes.PARAM)?.name == name },
+            updater = { it.append(text) },
+        )
+
+    override fun removeBlockTagSections(predicate: (BlockTagSection) -> Boolean): DocComment {
         val filtered = blockTagSections.filter { !predicate(it) }
-        if (filtered.size != blockTagSections.size) {
+        return if (filtered.size != blockTagSections.size) {
             // Something was removed.
-            blockTagSections = filtered
+            withBlockTagSections(filtered)
+        } else {
+            this
         }
     }
 
@@ -320,56 +417,5 @@ internal class DefaultDocComment(
             // above.
             append(section)
         }
-    }
-}
-
-/**
- * A pending [BlockTagSection].
- *
- * Implements mutators in [DocContentOwner] to create and add a [blockTagSection] to [docComment]
- * and then delegates those mutators to [blockTagSection].
- */
-internal class PendingBlockTagSection(
-    private val docComment: DefaultDocComment,
-    private val context: DocCommentContext,
-    private val tagType: TagType<*>,
-    private val description: ContentSupplier,
-) : DocContentOwner {
-    /**
-     * Backing field for [blockTagSection].
-     *
-     * Lazily initialized by [blockTagSection] getter.
-     */
-    private var _blockTagSection: BlockTagSection? = null
-
-    /**
-     * The [BlockTagSection] that was added to [docComment].
-     *
-     * On first access this will create a [BlockTagSection] and add it to [docComment].
-     */
-    private val blockTagSection
-        get() =
-            _blockTagSection
-                ?: run {
-                    val new = DefaultBlockTagSection(context, tagType, description)
-                    _blockTagSection = new
-                    docComment.addBlockTagSection(new)
-                    new
-                }
-
-    /**
-     * Delegate to [_blockTagSection].
-     *
-     * Accessing this does not create [blockTagSection].
-     */
-    override val docContent: DocContent?
-        get() = _blockTagSection?.description
-
-    override fun append(other: DocContent) {
-        blockTagSection.append(other)
-    }
-
-    override fun append(text: String) {
-        blockTagSection.append(text)
     }
 }

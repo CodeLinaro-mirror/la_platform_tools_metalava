@@ -19,8 +19,6 @@ package com.android.tools.metalava.model.text
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
-import com.android.tools.metalava.model.visitors.ApiPredicate
-import com.android.tools.metalava.model.visitors.ApiType
 import java.io.PrintWriter
 import java.io.StringWriter
 import kotlin.test.assertEquals
@@ -149,6 +147,84 @@ class SnapshotDeltaMakerTest : BaseTextCodebaseTest() {
                               public interface ExtendsInterface extends test.pkg.BaseInterface {
                               }
                               public class Foo implements test.pkg.ExtendsInterface {
+                              }
+                            }
+                        """,
+                ),
+                TestParams(
+                    name = "class - generic super class type",
+                    baseSignature =
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class BaseSuper<T> {
+                              }
+                              public class Foo<T> extends test.pkg.BaseSuper<T> {
+                              }
+                              public class Unchanged<T> extends test.pkg.BaseSuper<T> {
+                              }
+                            }
+                        """,
+                    extendsSignature =
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class ExtendsSuper<T> extends test.pkg.BaseSuper<T> {
+                              }
+                              public class Foo<T> extends test.pkg.ExtendsSuper<T> {
+                              }
+                            }
+                        """,
+                    combinedSignature =
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class BaseSuper<T> {
+                              }
+                              public class ExtendsSuper<T> extends test.pkg.BaseSuper<T> {
+                              }
+                              public class Foo<T> extends test.pkg.ExtendsSuper<T> {
+                              }
+                              public class Unchanged<T> extends test.pkg.BaseSuper<T> {
+                              }
+                            }
+                        """,
+                ),
+                TestParams(
+                    name = "class - generic interface types",
+                    baseSignature =
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public interface BaseInterface<T> {
+                              }
+                              public class Foo<T> implements test.pkg.BaseInterface<T> {
+                              }
+                              public class Unchanged<T> implements test.pkg.BaseInterface<T> {
+                              }
+                            }
+                        """,
+                    extendsSignature =
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public interface ExtendsInterface<T> extends test.pkg.BaseInterface<T> {
+                              }
+                              public class Foo<T> implements test.pkg.ExtendsInterface<T> {
+                              }
+                            }
+                        """,
+                    combinedSignature =
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public interface BaseInterface<T> {
+                              }
+                              public interface ExtendsInterface<T> extends test.pkg.BaseInterface<T> {
+                              }
+                              public class Foo<T> implements test.pkg.ExtendsInterface<T> {
+                              }
+                              public class Unchanged<T> implements test.pkg.BaseInterface<T> {
                               }
                             }
                         """,
@@ -758,6 +834,45 @@ class SnapshotDeltaMakerTest : BaseTextCodebaseTest() {
                         """,
                     checkMemberItemEquivalence = true,
                 ),
+                TestParams(
+                    name = "property context parameter modifiers",
+                    baseSignature =
+                        """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public @interface BaseAnnotation {
+                          }
+                          public class Foo {
+                            property public int foo(context @test.pkg.BaseAnnotation String s);
+                          }
+                        }
+                        """,
+                    extendsSignature =
+                        """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public @interface ExtendsAnnotation {
+                          }
+                          public class Foo {
+                            property public int foo(context @test.pkg.ExtendsAnnotation String s);
+                          }
+                        }
+                        """,
+                    combinedSignature =
+                        """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public @interface BaseAnnotation {
+                          }
+                          public @interface ExtendsAnnotation {
+                          }
+                          public class Foo {
+                            property public int foo(context @test.pkg.ExtendsAnnotation String s);
+                          }
+                        }
+                        """,
+                    checkMemberItemEquivalence = true,
+                )
             )
     }
 
@@ -777,14 +892,13 @@ class SnapshotDeltaMakerTest : BaseTextCodebaseTest() {
                     writer = printWriter,
                     fileFormat = fileFormat,
                 )
+
             val deltaFragment =
                 createCodebaseFragmentForSignatureFile(
                     deltaCodebase,
                     fileFormat,
-                    ApiType.ALL,
-                    preFiltered = true,
-                    showUnannotated = true,
-                    apiPredicateConfig = ApiPredicate.Config()
+                    // Pre-filtered so does not need any filters.
+                    apiFilters = null,
                 )
             deltaFragment.accept(signatureWriter)
         }

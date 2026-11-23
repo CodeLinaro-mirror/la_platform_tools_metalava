@@ -30,10 +30,8 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.item.ResourceFile
 import com.android.tools.metalava.model.visitors.ApiFilters
-import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.model.visitors.FilteringApiVisitor
-import com.android.tools.metalava.model.visitors.MatchOverridingMethodPredicate
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import java.io.BufferedWriter
@@ -71,6 +69,13 @@ internal class StubWriter(
      * nested inside their containing class properly.
      */
     override val requiresClassNesting: Boolean
+        get() = true
+
+    /**
+     * Stubs require nested classes to be visited in deterministic sorted order so that the contents
+     * of the generated source files are reproducible.
+     */
+    override val requiresSortedClasses: Boolean
         get() = true
 
     override fun visitPackage(pkg: PackageItem) {
@@ -300,28 +305,11 @@ internal class StubWriter(
  */
 fun createFilteringVisitorForStubs(
     delegate: DelegatedVisitor,
-    isDocStubs: Boolean,
-    preFiltered: Boolean,
-    apiPredicateConfig: ApiPredicate.Config,
-    ignoreEmit: Boolean = false,
+    apiFilters: ApiFilters?,
 ): ItemVisitor {
-    val filterReference =
-        ApiPredicate(
-            includeDocOnly = isDocStubs,
-            config = apiPredicateConfig.copy(ignoreShown = true),
-        )
-    val filterEmit = MatchOverridingMethodPredicate(filterReference)
-    val apiFilters =
-        ApiFilters(
-            emit = filterEmit,
-            reference = filterReference,
-        )
     return FilteringApiVisitor(
         delegate = delegate,
-        inlineInheritedFields = true,
         apiFilters = apiFilters,
-        preFiltered = preFiltered,
-        ignoreEmit = ignoreEmit,
     )
 }
 

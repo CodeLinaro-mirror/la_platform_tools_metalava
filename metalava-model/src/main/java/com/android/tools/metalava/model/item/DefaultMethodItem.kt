@@ -16,9 +16,7 @@
 
 package com.android.tools.metalava.model.item
 
-import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.BaseModifierList
-import com.android.tools.metalava.model.CallableBodyFactory
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ExceptionTypeItem
@@ -26,47 +24,45 @@ import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceLanguage
+import com.android.tools.metalava.model.SourcePosition
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.duplicatingFactory
 import com.android.tools.metalava.model.value.OptionalValueProvider
-import com.android.tools.metalava.reporter.FileLocation
 
 internal class DefaultMethodItem(
     codebase: Codebase,
-    fileLocation: FileLocation,
+    fileLocationSource: FileLocationSource,
+    sourcePosition: SourcePosition,
     sourceLanguage: SourceLanguage,
     targetLanguages: Set<TargetLanguage>,
     modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
-    variantSelectorsFactory: ApiVariantSelectorsFactory,
     name: String,
     containingClass: ClassItem,
     typeParameterList: TypeParameterList,
     returnType: TypeItem,
     parameterItemsFactory: ParameterItemsFactory,
     throwsTypes: List<ExceptionTypeItem>,
-    callableBodyFactory: CallableBodyFactory,
     private val defaultValueProvider: OptionalValueProvider?,
     private val isExtensionMethod: Boolean,
     override val isKotlinProperty: Boolean = false,
 ) :
     DefaultCallableItem(
         codebase,
-        fileLocation,
+        fileLocationSource,
+        sourcePosition,
         sourceLanguage,
         targetLanguages,
         modifiers,
         documentationFactory,
-        variantSelectorsFactory,
         name,
         containingClass,
         typeParameterList,
         returnType,
         parameterItemsFactory,
         throwsTypes,
-        callableBodyFactory,
     ),
     MethodItem {
 
@@ -116,14 +112,16 @@ internal class DefaultMethodItem(
         // Create a [TypeItemConverter] wrapper around `typeVariableMap`.
         val typeConverter = typeVariableMap.toTypeConverter()
 
-        return DefaultMethodItem(
-                codebase = codebase,
-                fileLocation = fileLocation,
+        val duplicate =
+            DefaultMethodItem(
+                // Create it in the same codebase as targetContainingClass.
+                codebase = targetContainingClass.codebase,
+                fileLocationSource = duplicateFileLocationSource(),
+                sourcePosition = sourcePosition,
                 sourceLanguage = sourceLanguage,
                 targetLanguages = targetLanguages,
                 modifiers = modifiers,
                 documentationFactory = documentation.duplicatingFactory(),
-                variantSelectorsFactory = variantSelectors::duplicate,
                 name = name(),
                 containingClass = targetContainingClass,
                 typeParameterList = typeParameterList,
@@ -133,16 +131,18 @@ internal class DefaultMethodItem(
                     parameters.map { it.duplicate(containingCallable, typeConverter) }
                 },
                 throwsTypes = throwsTypes,
-                callableBodyFactory = body::duplicate,
                 defaultValueProvider = defaultValueProvider,
                 isExtensionMethod = isExtensionMethod,
                 isKotlinProperty = isKotlinProperty,
             )
-            .also { duplicated ->
-                duplicated.inheritedFrom = containingClass()
 
-                duplicated.updateCopiedMethodState()
-            }
+        duplicate.inheritedFrom = containingClass()
+
+        if (duplicate.modifiers.isDefault() && !duplicate.containingClass().isInterface()) {
+            duplicate.mutateModifiers { setDefault(false) }
+        }
+
+        return duplicate
     }
 
     /**
@@ -235,19 +235,6 @@ internal class DefaultMethodItem(
             }
                 // A method could not be found in this interface so search its interfaces.
                 ?: appendSuperMethodsFromInterfaces(methods, itfClass)
-        }
-    }
-
-    /**
-     * Update the state of a [MethodItem] that has been copied from one [ClassItem] to another.
-     *
-     * This will update the [MethodItem] on which it is called to ensure that it is consistent with
-     * the [ClassItem] to which it now belongs. Called from the implementations of
-     * [MethodItem.duplicate].
-     */
-    protected fun updateCopiedMethodState() {
-        if (modifiers.isDefault() && !containingClass().isInterface()) {
-            mutateModifiers { setDefault(false) }
         }
     }
 }

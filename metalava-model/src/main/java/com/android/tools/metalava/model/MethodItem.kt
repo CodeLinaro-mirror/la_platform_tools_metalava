@@ -93,10 +93,10 @@ interface MethodItem : CallableItem, InheritableItem, PossiblyPropertyRelated {
      */
     override fun duplicate(targetContainingClass: ClassItem): MethodItem
 
-    fun findPredicateSuperMethod(predicate: FilterPredicate): MethodItem? {
+    fun findPredicateSuperMethod(predicate: FilterPredicate?): MethodItem? {
         val superMethods = superMethods()
         for (method in superMethods) {
-            if (predicate.test(method)) {
+            if (predicate.testOrTrue(method)) {
                 return method
             }
         }
@@ -117,6 +117,29 @@ interface MethodItem : CallableItem, InheritableItem, PossiblyPropertyRelated {
 
     companion object {
         /**
+         * Checks whether [method] overrides [superMethod] by checking whether their parameter
+         * counts match and their erased parameter types match.
+         */
+        fun overridesMethod(
+            method: MethodItem,
+            superMethod: MethodItem,
+        ): Boolean {
+            val parameters1 = method.parameters()
+            val parameters2 = superMethod.parameters()
+            if (parameters1.size != parameters2.size) {
+                return false
+            }
+            for (i in parameters1.indices) {
+                val pt1 = parameters1[i].type().toErasedTypeString()
+                val pt2 = parameters2[i].type().toErasedTypeString()
+                if (pt1 != pt2) {
+                    return false
+                }
+            }
+            return true
+        }
+
+        /**
          * Compare two types to see if they are considered the same.
          *
          * Same means, functionally equivalent at both compile time and runtime.
@@ -130,18 +153,18 @@ interface MethodItem : CallableItem, InheritableItem, PossiblyPropertyRelated {
             addAdditionalOverrides: Boolean,
         ): Boolean {
             // Compare the types in two ways.
-            // 1. Using `TypeItem.equals(TypeItem)` which is basically a textual comparison that
-            //    ignores type parameter bounds but includes everuthing else that is present in the
-            //    string representation of the type apart from white space differences. This is
-            //    needed to preserve methods that change annotations, e.g. adding `@NonNull`, which
-            //    are significant to the API, and also to preserver legacy behavior to reduce churn
-            //    in API signature files.
+            // 1. It should probably use `TypeComparator.STRICT` which includes everything that is
+            //    present in the type (structure, nullability, and type-use annotations) apart from
+            //    type parameter bounds. This is needed to preserve methods that change annotations,
+            //    e.g. adding `@NonNull`, which are significant to the API. However, for legacy
+            //    reasons it is using `TypeComparator.IGNORE_NULLABILITY` to preserve legacy
+            //    behavior and reduce churn in API signature files.
             // 2. Comparing their erased types which takes into account type parameter bounds but
             //    ignores annotations and generic types. Comparing erased types will retain more
             //    methods overrides in the signature file so only do it when adding additional
             //    overrides.
-            return t1 == t2 &&
-                (!addAdditionalOverrides || t1.toErasedTypeString() == t2.toErasedTypeString())
+            return TypeComparator.IGNORE_NULLABILITY.compare(t1, t2) &&
+                (!addAdditionalOverrides || TypeComparator.ERASED.compare(t1, t2))
         }
 
         fun sameSignature(
@@ -292,7 +315,7 @@ interface MethodItem : CallableItem, InheritableItem, PossiblyPropertyRelated {
     }
 
     private fun computeRequiresOverride(): Boolean {
-        val isVisible = !hidden || hasShowAnnotation()
+        val isVisible = selectedApi.itemApiVariants.isNotEmpty()
 
         // When the method is a concrete, non-default method, its overriding method is not required
         // to be shown in the signature file.

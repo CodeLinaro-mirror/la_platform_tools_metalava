@@ -39,6 +39,7 @@ class TextModelSuiteRunner : ModelSuiteRunner {
     override val capabilities: Set<Capability> =
         setOf(
             Capability.SIGNATURE,
+            Capability.MUTATE_SELECTED_API,
         )
 
     override fun createCodebaseAndRun(

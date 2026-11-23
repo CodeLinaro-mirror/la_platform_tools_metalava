@@ -36,9 +36,12 @@ then
   # Mac grep doesn't support -P, so use perl version of `grep -oP "(?<=buildVersion = ).*"`
   export LINT_VERSION=`perl -nle'print $& while m{(?<=baseVersion=).*}g' $versionProperties`
   export LINT_REPO="$(pwd)/out/repo"
-  # The `prebuilts/androidx/external` and `prebuilts/androidx/internal` is in the studio checkout and will contain the
-  # prebuilts metalava needs.
-  export METALAVA_PREBUILTS_REPOS="$(pwd)/prebuilts/androidx/external,$(pwd)/prebuilts/androidx/internal"
+  # The `prebuilts/androidx/external`, `prebuilts/androidx/internal`, `prebuilts/tools/common/m2/repository` are in the studio
+  # checkout and will contain the prebuilts metalava needs.
+  export METALAVA_PREBUILTS_REPOS="$(pwd)/prebuilts/androidx/external,$(pwd)/prebuilts/androidx/internal,$(pwd)/prebuilts/tools/common/m2/repository"
+
+  # Use Kotlin 2.4.21 for this test because AGP is using gradle 9.7.1
+  sed -i "s/\(kotlin = \).*\"/\1\"2.4.21\"/" tools/metalava/gradle/libs.versions.toml
 
   JAVA_HOME="$(pwd)/prebuilts/jdk/jdk21/linux-x86/" tools/gradlew -p tools/metalava \
     --no-daemon \

@@ -38,7 +38,6 @@ import org.junit.Test
 val DEFAULTABLE_PROPERTY_NAMES =
     listOf(
         "add-additional-overrides",
-        "flagged-api-inheritance",
         "java-record-classes",
         "java-sealed-classes",
         "normalize-abstract-modifier",
@@ -824,7 +823,6 @@ class FileFormatTest {
         assertEquals(
             """
                 add-additional-overrides=no
-                flagged-api-inheritance=none
                 include-default-parameter-values=no
                 include-type-use-annotations=no
                 java-record-classes=no

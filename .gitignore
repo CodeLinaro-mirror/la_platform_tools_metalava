@@ -17,3 +17,4 @@ stub-annotations/out
 .DS_Store
 /.attach_pid*
 /local.properties
+bin/

@@ -249,6 +249,10 @@ class CommonModifierListWriterTest : BaseModelTest() {
                     }
                 """
             ),
+            testFixture =
+                TestFixture(
+                    javaLanguageLevel = "16", // required for records
+                ),
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
 
@@ -276,6 +280,10 @@ class CommonModifierListWriterTest : BaseModelTest() {
                     }
                 """
             ),
+            testFixture =
+                TestFixture(
+                    javaLanguageLevel = "16", // required for records
+                ),
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
 
@@ -419,6 +427,10 @@ class CommonModifierListWriterTest : BaseModelTest() {
                     """
                 ),
             ),
+            testFixture =
+                TestFixture(
+                    javaLanguageLevel = "17", // required for sealed classes
+                ),
         ) {
             val testClass = codebase.assertClass(className)
 

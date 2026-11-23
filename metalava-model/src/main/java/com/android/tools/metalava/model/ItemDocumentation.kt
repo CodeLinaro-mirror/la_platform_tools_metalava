@@ -47,12 +47,6 @@ interface ItemDocumentation {
     val isHidden: Boolean
 
     /**
-     * True if the documentation contains `@doconly` which indicates that it should only be included
-     * in stubs that are generated for documentation purposes.
-     */
-    val isDocOnly: Boolean
-
-    /**
      * True if the documentation contains `@removed` which indicates that the [Item] must not be
      * included in stubs or the main signature file but will be included in the `removed` signature
      * file as it is still considered part of the API available at runtime and so cannot be removed

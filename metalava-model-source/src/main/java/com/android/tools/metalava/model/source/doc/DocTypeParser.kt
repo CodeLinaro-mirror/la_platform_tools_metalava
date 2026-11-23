@@ -25,7 +25,8 @@ import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterScope
-import com.android.tools.metalava.model.type.TypeItemParser
+import com.android.tools.metalava.model.parser.TokenStream
+import com.android.tools.metalava.model.type.DefaultTypeItemParser
 import com.android.tools.metalava.model.type.TypeItemParserErrorReporter
 import com.android.tools.metalava.model.type.UnqualifiedClassHandler
 import com.android.tools.metalava.reporter.Issues
@@ -43,38 +44,38 @@ private constructor(
     private val typeParameterScope: TypeParameterScope,
 ) : TypeItemParserErrorReporter {
 
-    /** Just return [sourceType] for now. */
-    fun parse(sourceType: String): TypeItem {
-        val annotationContext =
+    private val parser =
+        DefaultTypeItemParser(
+            ANNOTATION_CONTEXT,
+            UNQUALIFIED_CLASS_HANDLER,
+            kotlinStyleNulls = false,
+            errorReporter = this,
+        )
+
+    /** Parse the next type from [tokens] into a [TypeItem], leaving any trailing tokens. */
+    fun parseFromStream(tokens: TokenStream, sourceText: String): TypeItem =
+        parser.obtainTypeFromStream(tokens, sourceText, typeParameterScope)
+
+    override fun report(issue: Issues.Issue, message: String, charOffset: Int) {
+        reporter.report(issue, message)
+    }
+
+    companion object {
+        private val ANNOTATION_CONTEXT =
             object : AnnotationContext, ClassResolver by ClassResolver.THROWING {
                 override val annotationManager
                     get() = error("Annotations not supported")
             }
 
-        val unqualifiedClassHandler =
+        private val UNQUALIFIED_CLASS_HANDLER =
             object : UnqualifiedClassHandler {
                 override fun handleUnqualifiedType(
                     errorReporter: TypeItemParserErrorReporter,
-                    unqualifiedName: String
+                    unqualifiedName: String,
+                    charOffset: Int,
                 ) = unqualifiedName
             }
 
-        val parser =
-            TypeItemParser(
-                annotationContext,
-                unqualifiedClassHandler,
-                kotlinStyleNulls = false,
-                errorReporter = this,
-            )
-
-        return parser.obtainTypeFromString(sourceType, typeParameterScope)
-    }
-
-    override fun report(issue: Issues.Issue, message: String) {
-        reporter.report(issue, message)
-    }
-
-    companion object {
         /**
          * Create a [DocTypeParser] for [item] that reports issues to [reporter].
          *

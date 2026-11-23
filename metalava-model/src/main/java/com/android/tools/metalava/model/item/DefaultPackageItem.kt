@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.item
 
-import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
@@ -25,32 +24,32 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ReferencableItem
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.SourceLanguage
+import com.android.tools.metalava.model.SourcePosition
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.scope.ReferencableNameScope
-import com.android.tools.metalava.reporter.FileLocation
 
 internal class DefaultPackageItem(
     codebase: Codebase,
-    fileLocation: FileLocation,
+    fileLocationSource: FileLocationSource,
+    sourcePosition: SourcePosition,
     override val sourceFile: SourceFile?,
     sourceLanguage: SourceLanguage,
     targetLanguages: Set<TargetLanguage>,
     modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
-    variantSelectorsFactory: ApiVariantSelectorsFactory,
     private val qualifiedName: String,
     val containingPackage: PackageItem?,
     override val overviewDocumentation: ResourceFile?,
 ) :
     DefaultSelectableItem(
         codebase = codebase,
-        fileLocation = fileLocation,
+        fileLocationSource = fileLocationSource,
+        sourcePosition = sourcePosition,
         sourceLanguage = sourceLanguage,
         targetLanguages = targetLanguages,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
-        variantSelectorsFactory = variantSelectorsFactory,
     ),
     PackageItem {
 
@@ -69,9 +68,7 @@ internal class DefaultPackageItem(
 
     override fun qualifiedName(): String = qualifiedName
 
-    override fun topLevelClasses(): List<ClassItem> =
-        // Return a copy to avoid a ConcurrentModificationException.
-        topClasses.toList()
+    override fun topLevelClasses(): List<ClassItem> = topClasses
 
     override val containingScope: ReferencableNameScope?
         get() =
@@ -125,8 +122,14 @@ internal class DefaultPackageItem(
                 isFirstSimpleName = true,
             )
         } else {
-            // Otherwise, just look for a class in this package, if allowed.
+            // Otherwise, look for a class in this package, or if the name is unqualified in
+            // java.lang, if allowed.
             findClassIfAllowed(simpleName, nameClassification)
+                ?: if (isFirstSimpleName) {
+                    nameClassification.findClass { codebase.resolveClass("java.lang.$simpleName") }
+                } else {
+                    null
+                }
         }
 
     // N.A. a package cannot be contained in a class

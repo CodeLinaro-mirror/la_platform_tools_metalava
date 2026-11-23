@@ -22,12 +22,14 @@ class ConditionalJavadocTest : BaseJavadocTest() {
     fun checkConditionalParse(
         text: String,
         flags: Map<String, Boolean> = emptyMap(),
+        surfaces: Set<String> = emptySet(),
         expectedJavadocIssues: String = "",
         expectedStructure: String,
     ) {
-        context.flags = flags
         checkParse(
             text,
+            flagToEnabledStatus = flags,
+            includedSurfaces = surfaces,
             expectedJavadocIssues = expectedJavadocIssues,
             expectedStructure = expectedStructure,
         )
@@ -44,17 +46,11 @@ class ConditionalJavadocTest : BaseJavadocTest() {
             expectedJavadocIssues =
                 """
                     2:11: missing <expr> [InvalidIfTag]
-                    2:16: mismatched input '{' expecting '('
-                      Expected:
-                        PAREN_OPEN
-                      Found:
-                        BRACE_OPEN "{"
-                     [InvalidJavadoc]
-                    2:30: extraneous input '}' expecting {<EOF>, NEWLINE} [InvalidJavadoc]
+                    2:16: expected '(', found '{' [InvalidJavadoc]
                 """,
             expectedStructure =
                 """
-                    text: 'Before missing expr'
+                    text: 'Before after.'
                 """,
         )
     }
@@ -69,19 +65,11 @@ class ConditionalJavadocTest : BaseJavadocTest() {
             """,
             expectedJavadocIssues =
                 """
-                    2:39: token recognition error at: '{' [InvalidJavadoc]
-                    2:40: mismatched input 'unbalanced' expecting ')'
-                      Expected:
-                        PAREN_CLOSE
-                      Found:
-                        IDENTIFIER "unbalanced"
-                     [InvalidJavadoc]
-                    2:63: token recognition error at: '}' [InvalidJavadoc]
-                    2:64: token recognition error at: '}' [InvalidJavadoc]
+                    2:39: expected ')', found '{' [InvalidJavadoc]
                 """,
             expectedStructure =
                 """
-                    text: 'Before'
+                    text: 'Before after.'
                 """,
         )
     }
@@ -96,13 +84,7 @@ class ConditionalJavadocTest : BaseJavadocTest() {
             """,
             expectedJavadocIssues =
                 """
-                    2:17: unknown function 'blah', expected 'flag' [InvalidJavadocExpr]
-                    2:22: mismatched input ')' expecting IDENTIFIER
-                      Expected:
-                        IDENTIFIER
-                      Found:
-                        PAREN_CLOSE ")"
-                     [InvalidJavadoc]
+                    2:17: unknown function 'blah', expected 'flag' or 'surface' [InvalidJavadocExpr]
                 """,
             expectedStructure =
                 """
@@ -121,14 +103,7 @@ class ConditionalJavadocTest : BaseJavadocTest() {
             """,
             expectedJavadocIssues =
                 """
-                    2:39: missing BRACE_OPEN at '}' [InvalidJavadoc]
-                    2:40: mismatched input 'after.' expecting {BRACE_CLOSE, 'else'}
-                      Expected:
-                        BRACE_CLOSE
-                        IF_TAG_ELSE
-                      Found:
-                        TEXT_CONTENT "after."
-                     [InvalidJavadoc]
+                    2:39: expected '{', found '}' [InvalidJavadoc]
                 """,
             expectedStructure =
                 """
@@ -359,6 +334,278 @@ class ConditionalJavadocTest : BaseJavadocTest() {
                     inlineTag: code
                       text: 'literal content'
                     text: ' after.'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test if - containing inline tag - false`() {
+        checkConditionalParse(
+            """
+                /**
+                 * Before {@if (flag(Flags.TEST_FLAG))
+                 *   {{@code literal content} }
+                 * }after.
+                 */
+            """,
+            flags =
+                mapOf(
+                    "Flags.TEST_FLAG" to false,
+                ),
+            expectedStructure =
+                """
+                    text: 'Before after.'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test if - containing inline tag followed by text - false`() {
+        checkConditionalParse(
+            """
+                /**
+                 * Before {@if (flag(Flags.TEST_FLAG)) { text before {@link SomeClass} text after }} after.
+                 */
+            """,
+            flags =
+                mapOf(
+                    "Flags.TEST_FLAG" to false,
+                ),
+            expectedStructure =
+                """
+                    text: 'Before  after.'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test if - containing inline tag at end of branch - false`() {
+        checkConditionalParse(
+            """
+                /**
+                 * Before {@if (flag(Flags.TEST_FLAG)) { text before {@link SomeClass}}} after.
+                 */
+            """,
+            flags =
+                mapOf(
+                    "Flags.TEST_FLAG" to false,
+                ),
+            expectedStructure =
+                """
+                    text: 'Before  after.'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test if surface - matching surface`() {
+        checkConditionalParse(
+            """
+                /**
+                 * Before {@if (surface("module-lib"))
+                 *   {true }
+                 * else
+                 *   {false }
+                 * }after.
+                 */
+            """,
+            surfaces = setOf("public", "system", "module-lib"),
+            expectedStructure =
+                """
+                    text: 'Before true after.'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test if surface - non-matching surface`() {
+        checkConditionalParse(
+            """
+                /**
+                 * Before {@if (surface("test"))
+                 *   {true }
+                 * else
+                 *   {false }
+                 * }after.
+                 */
+            """,
+            surfaces = setOf("public", "system", "module-lib"),
+            expectedStructure =
+                """
+                    text: 'Before false after.'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test if surface - missing argument`() {
+        checkConditionalParse(
+            """
+                /**
+                 * Before {@if (surface()) {true }}after.
+                 */
+            """,
+            expectedJavadocIssues =
+                """
+                    2:25: expected string literal, found ')' [InvalidJavadoc]
+                """,
+            expectedStructure =
+                """
+                    text: 'Before after.'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test if surface - non-string argument`() {
+        checkConditionalParse(
+            """
+                /**
+                 * Before {@if (surface(public)) {true }}after.
+                 */
+            """,
+            expectedJavadocIssues =
+                """
+                    2:25: expected string literal, found 'public' [InvalidJavadoc]
+                """,
+            expectedStructure =
+                """
+                    text: 'Before after.'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test if surface - unclosed string literal`() {
+        checkConditionalParse(
+            """
+                /**
+                 * Before {@if (surface("public
+                 * )) {true }}after.
+                 */
+            """,
+            expectedJavadocIssues =
+                """
+                    2:25: unclosed string literal [InvalidJavadoc]
+                """,
+            expectedStructure =
+                """
+                    text: 'Before after.'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test if surface - unclosed string literal ending with escaped quote`() {
+        checkConditionalParse(
+            """
+                /**
+                 * Before {@if (surface("public\"
+                 * )) {true }}after.
+                 */
+            """,
+            expectedJavadocIssues =
+                """
+                    2:25: unclosed string literal [InvalidJavadoc]
+                """,
+            expectedStructure =
+                """
+                    text: 'Before after.'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test if surface - invalid escape sequence`() {
+        checkConditionalParse(
+            """
+                /**
+                 * Before {@if (surface("a\xb")) {true }}after.
+                 */
+            """,
+            expectedJavadocIssues =
+                """
+                    2:25: invalid escape sequence '\x' in string literal [InvalidJavadoc]
+                """,
+            expectedStructure =
+                """
+                    text: 'Before after.'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test if surface - unicode escape in surface name`() {
+        checkConditionalParse(
+            """
+                /**
+                 * Before {@if (surface("pub${'\\'}u006cic")) {true }}after.
+                 */
+            """,
+            surfaces = setOf("public"),
+            expectedStructure =
+                """
+                    text: 'Before true after.'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test if surface - empty surface name`() {
+        checkConditionalParse(
+            """
+                /**
+                 * Before {@if (surface("")) {true }}after.
+                 */
+            """,
+            surfaces = setOf(""),
+            expectedJavadocIssues =
+                """
+                    2:25: invalid surface name '', must match '[a-z-]+' [InvalidJavadocExpr]
+                """,
+            expectedStructure =
+                """
+                    text: 'Before after.'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test if surface - invalid surface name characters`() {
+        checkConditionalParse(
+            """
+                /**
+                 * Before {@if (surface("Public_2")) {true }}after.
+                 */
+            """,
+            surfaces = setOf("Public_2"),
+            expectedJavadocIssues =
+                """
+                    2:25: invalid surface name 'Public_2', must match '[a-z-]+' [InvalidJavadocExpr]
+                """,
+            expectedStructure =
+                """
+                    text: 'Before after.'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test if surface - extra token before closing paren`() {
+        checkConditionalParse(
+            """
+                /**
+                 * Before {@if (surface("public" "extra")) {true }}after.
+                 */
+            """,
+            surfaces = setOf("public"),
+            expectedJavadocIssues =
+                """
+                    2:34: expected ')' after surface name [InvalidJavadoc]
+                """,
+            expectedStructure =
+                """
+                    text: 'Before true after.'
                 """,
         )
     }

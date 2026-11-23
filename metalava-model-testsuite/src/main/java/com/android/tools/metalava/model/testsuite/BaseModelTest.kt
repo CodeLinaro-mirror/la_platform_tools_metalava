@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.api.ApiSurfaceRules
+import com.android.tools.metalava.model.api.ApiSurfaceSelector
 import com.android.tools.metalava.model.api.flags.ApiFlags
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.provider.Capability
@@ -35,6 +36,7 @@ import com.android.tools.metalava.model.testing.CodebaseCreatorConfigAware
 import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testing.inheritedSupportedInputFormats
 import com.android.tools.metalava.model.testing.testTypeString
+import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Issues.Issue
 import com.android.tools.metalava.reporter.RecordingReporter
 import com.android.tools.metalava.testing.BaseTemporaryFolderOwner
@@ -159,9 +161,6 @@ abstract class BaseModelTest :
         /** The [InputSet] from which [codebase] was created. */
         val inputSet: InputSet
 
-        /** Replace any test run specific directories in [string] with a placeholder string. */
-        fun removeTestSpecificDirectories(string: String): String
-
         /**
          * Remove any reported issues and returns them with any test specific directories replaced
          * with fixed symbols.
@@ -183,14 +182,10 @@ abstract class BaseModelTest :
         override val optionalCodebase: Codebase?,
         override val optionalMultiplatformCodebase: MultiplatformCodebase?,
         override val inputSet: InputSet,
-        private val fileToSymbol: Map<File, String>,
         private val recordingReporter: RecordingReporter,
     ) : CodebaseContext {
 
         override val inputFormat = inputSet.inputFormat
-
-        override fun removeTestSpecificDirectories(string: String) =
-            replaceFileWithSymbol(string, fileToSymbol)
 
         override fun removeReportedIssues() =
             removeTestSpecificDirectories(recordingReporter.removeIssues())
@@ -243,9 +238,29 @@ abstract class BaseModelTest :
          * [BaseModelTest.supportedInputFormatsRule].
          */
         val checkSupportedInputFormats: Boolean = true,
+
+        /** Whether to include additional overrides when matching method signatures. */
+        val addAdditionalOverrides: Boolean = false,
+
+        /**
+         * The optional previously released [Codebase] to check against when reverting flagged APIs.
+         */
+        val previouslyReleasedCodebase: Codebase? = null,
+
+        /**
+         * Set of package prefixes for external packages that are not in the codebase, but may be
+         * referenced from documentation.
+         */
+        val externalPackagePrefixes: Set<String> = emptySet(),
     ) {
         /** The [RecordingReporter] used by the test. */
-        val recordingReporter = RecordingReporter(excludedIssues)
+        val recordingReporter =
+            RecordingReporter(
+                excludedIssues
+                // Ignore DeprecatedSurfaceDocTag issues as they break too many tests.
+                // TODO(b/519195092): Remove this when tests have been migrated to use annotations.
+                + Issues.DEPRECATED_SURFACE_DOC_TAG
+            )
 
         /** The [Codebase.Config] to use when creating a [Codebase] to test. */
         val codebaseConfig
@@ -260,13 +275,20 @@ abstract class BaseModelTest :
                             // Finally, create a default manager.
                             ?: DefaultAnnotationManager(
                                 DefaultAnnotationManager.Config(
-                                    apiFlags = apiFlags,
                                     reporter = recordingReporter,
+                                    apiSurfaceSelector =
+                                        ApiSurfaceSelector(
+                                            apiSurfaceRules,
+                                            addAdditionalOverrides = addAdditionalOverrides,
+                                        ),
+                                    apiFlags = apiFlags,
                                 )
                             ),
                     apiFlags = apiFlags,
                     apiSurfaces = apiSurfaceRules.apiSurfaces,
                     reporter = recordingReporter,
+                    previouslyReleasedCodebaseProvider = { previouslyReleasedCodebase },
+                    externalPackagePrefixes = externalPackagePrefixes,
                 )
     }
 
@@ -309,10 +331,11 @@ abstract class BaseModelTest :
             )
         }
         for (inputSet in applicableInputSets) {
-            val mainSourceDir = sourceDir(inputSet)
+            val mainSourceDir = mainSourceDir(inputSet)
             val projectDescriptionFile = projectDescription?.createFile(mainSourceDir.dir)
 
-            val additionalSourceDir = inputSet.additionalTestFiles?.let { sourceDir(it) }
+            val additionalSourceDir =
+                inputSet.additionalTestFiles?.let { sourceDir(it, "ADDITIONAL_SRC") }
 
             val recordingReporter = testFixture.recordingReporter
 
@@ -333,12 +356,6 @@ abstract class BaseModelTest :
                             codebase,
                             multiplatformCodebase,
                             inputSet,
-                            buildMap {
-                                this[mainSourceDir.dir] = "MAIN_SRC"
-                                additionalSourceDir?.dir?.let { dir ->
-                                    this[dir] = "ADDITIONAL_SRC"
-                                }
-                            },
                             recordingReporter,
                         )
                     context.test()
@@ -353,12 +370,14 @@ abstract class BaseModelTest :
         }
     }
 
-    private fun sourceDir(inputSet: InputSet): ModelSuiteRunner.SourceDir {
-        return sourceDir(inputSet.testFiles)
-    }
+    private fun mainSourceDir(inputSet: InputSet) =
+        sourceDir(inputSet.testFiles, testLabel = "MAIN_SRC")
 
-    private fun sourceDir(testFiles: List<TestFile>): ModelSuiteRunner.SourceDir {
-        val tempDir = temporaryFolder.newFolder()
+    private fun sourceDir(
+        testFiles: List<TestFile>,
+        testLabel: String,
+    ): ModelSuiteRunner.SourceDir {
+        val tempDir = temporaryFolder.newFolderWithTestLabel(testLabel)
         return ModelSuiteRunner.SourceDir(dir = tempDir, contents = testFiles)
     }
 

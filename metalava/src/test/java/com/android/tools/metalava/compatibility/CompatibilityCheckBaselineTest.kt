@@ -41,7 +41,7 @@ class CompatibilityCheckBaselineTest : DriverTest() {
                 """,
             expectedFail =
                 """
-                Aborting: Found compatibility problems checking the public API (TESTROOT/project/load-api.txt) against the API in TESTROOT/project/released-api.txt
+                Aborting: Found compatibility problems checking the public API (TESTROOT/load-api.txt) against the API in TESTROOT/released-api.txt
                 *** release-api check failed ***
                 """
         )

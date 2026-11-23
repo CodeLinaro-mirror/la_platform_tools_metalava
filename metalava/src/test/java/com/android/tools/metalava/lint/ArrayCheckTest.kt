@@ -17,10 +17,9 @@
 package com.android.tools.metalava.lint
 
 import com.android.tools.metalava.DriverTest
-import com.android.tools.metalava.cli.common.ARG_HIDE
-import com.android.tools.metalava.cli.lint.ARG_API_LINT
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
@@ -30,7 +29,11 @@ class ArrayCheckTest : DriverTest() {
     @Test
     fun `Return collections instead of arrays - java`() {
         check(
-            extraArguments = arrayOf(ARG_API_LINT, ARG_HIDE, "AutoBoxing"),
+            apiLint = "", // enabled
+            extraArguments =
+                hiddenIssues(
+                    Issues.AUTO_BOXING,
+                ),
             expectedIssues =
                 """
                     src/android/pkg/ArrayTest.java:8: warning: Method should return Collection<Object> (or subclass) instead of raw array; was `java.lang.Object[]` [ArrayReturn]

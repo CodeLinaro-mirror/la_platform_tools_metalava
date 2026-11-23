@@ -18,8 +18,6 @@ package com.android.tools.metalava.model.testsuite.sourcefile
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.lint.checks.infrastructure.TestFiles
-import com.android.tools.metalava.model.FilterPredicate
-import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.SupportedInputFormats
@@ -32,10 +30,6 @@ import org.junit.Test
 
 /** Common tests for implementations of [SourceFile]. */
 class CommonSourceFileTest : BaseModelTest() {
-    internal class FilterHidden : FilterPredicate {
-        override fun test(item: SelectableItem): Boolean = !item.isHiddenOrRemoved()
-    }
-
     @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test location of class file - java`() {
@@ -260,6 +254,77 @@ class CommonSourceFileTest : BaseModelTest() {
                 sourceFile.containingPackage,
                 message = "containingPackage"
             )
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA, InputFormat.KOTLIN)
+    @Test
+    fun `Test lineMap`() {
+        val javaSource =
+            """
+                package test.pkg;
+
+                /** Doc comment. */
+                public class Test {
+                    public void foo() {}
+                }
+            """
+                .trimIndent()
+        val kotlinSource =
+            """
+                package test.pkg
+
+                /** Doc comment. */
+                class Test {
+                    fun foo() {}
+                }
+            """
+                .trimIndent()
+        runSourceCodebaseTest(
+            java(javaSource),
+            kotlin(kotlinSource),
+        ) {
+            val classItem = codebase.assertClass("test.pkg.Test")
+            val sourceFile = classItem.sourceFile()!!
+            val lineMap = sourceFile.lineMap
+            assertSame(lineMap, sourceFile.lineMap, message = "lineMap should be cached")
+
+            val source =
+                when (inputFormat) {
+                    InputFormat.JAVA -> javaSource
+                    InputFormat.KOTLIN -> kotlinSource
+                    else -> error("Unsupported input format: $inputFormat")
+                }
+
+            var offset = 0
+            source.split("\n").forEachIndexed { lineOffset, line ->
+                val lineNumber = lineOffset + 1
+                for (charOffset in 0..line.length) {
+                    if (offset == source.length) break
+                    val charPosition = charOffset + 1
+                    assertEquals(
+                        lineNumber,
+                        lineMap.lineNumber(offset),
+                        message = "lineNumber($offset)",
+                    )
+                    assertEquals(
+                        lineOffset,
+                        lineMap.lineOffset(offset),
+                        message = "lineOffset($offset)",
+                    )
+                    assertEquals(
+                        charPosition,
+                        lineMap.characterPosition(offset),
+                        message = "characterPosition($offset)",
+                    )
+                    assertEquals(
+                        charOffset,
+                        lineMap.characterOffset(offset),
+                        message = "characterOffset($offset)",
+                    )
+                    offset++
+                }
+            }
         }
     }
 }

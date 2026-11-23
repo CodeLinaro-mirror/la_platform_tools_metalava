@@ -154,14 +154,24 @@ enum class ClassKind(
         }
     }
 
-    companion object {
-        /** Map from [ClassKind.signatureKeyword] to [ClassKind]. */
-        private val bySignatureKeyword = ClassKind.entries.associateBy { it.signatureKeyword }
-
-        /**
-         * Get the [ClassKind] whose [ClassKind.signatureKeyword] is equal to [keyword] or `null` if
-         * none could be found.
-         */
-        fun bySignatureKeyword(keyword: String) = bySignatureKeyword[keyword]
-    }
+    /**
+     * Get the implicit super class [ClassTypeItem] for a class of this [ClassKind] with
+     * [qualifiedName] and optional [containingClass].
+     */
+    fun implicitSuperClassType(
+        qualifiedName: String,
+        containingClass: ClassItem?,
+    ): ClassTypeItem? =
+        if (this == ENUM) {
+            val enumType =
+                TypeItem.createClassType(
+                    modifiers = TypeModifiers.emptyPlatformModifiers,
+                    qualifiedName = qualifiedName,
+                    arguments = emptyList(),
+                    outerClassType = containingClass?.type()?.substitute(arguments = emptyList()),
+                )
+            implicitSuperClassType?.substitute(arguments = listOf(enumType))
+        } else {
+            implicitSuperClassType
+        }
 }

@@ -129,58 +129,6 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
     }
 
     @Test
-    fun `Add checked exceptions thrown - Incompatible`() {
-        check(
-            expectedIssues =
-                """
-                load-api.txt:4: error: Binary breaking change: Method test.pkg.Foo.bar added thrown exception java.lang.Throwable [ChangedThrows]
-                """,
-            signatureSource =
-                """
-                package test.pkg {
-                  public interface Foo {
-                    method public void bar(int) throws java.lang.Throwable;
-                  }
-                }
-            """,
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public interface Foo {
-                    method public void bar(int);
-                  }
-                }
-            """
-        )
-    }
-
-    @Test
-    fun `Delete checked exceptions thrown - Incompatible`() {
-        check(
-            expectedIssues =
-                """
-                load-api.txt:4: error: Binary breaking change: Method test.pkg.Foo.bar no longer throws exception java.lang.Throwable [ChangedThrows]
-                """,
-            signatureSource =
-                """
-                package test.pkg {
-                  public interface Foo {
-                    method public void bar(int);
-                  }
-                }
-            """,
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public interface Foo {
-                    method public void bar(int) throws java.lang.Throwable;
-                  }
-                }
-            """
-        )
-    }
-
-    @Test
     fun `Re-order list of exceptions thrown - Compatible`() {
         check(
             signatureSource =

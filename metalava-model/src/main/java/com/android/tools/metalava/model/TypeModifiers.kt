@@ -59,6 +59,18 @@ private constructor(
     val isPlatformNullability
         get() = nullability == TypeNullability.PLATFORM
 
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is TypeModifiers) return false
+        return nullability == other.nullability && annotations == other.annotations
+    }
+
+    override fun hashCode(): Int {
+        var result = nullability.hashCode()
+        result = 31 * result + annotations.hashCode()
+        return result
+    }
+
     companion object {
         /** Get an empty (no annotations) [TypeModifiers] for [typeNullability]. */
         internal fun emptyModifiers(typeNullability: TypeNullability) =

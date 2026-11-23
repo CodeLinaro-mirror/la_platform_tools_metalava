@@ -36,16 +36,24 @@ internal class TurbineTypeItemFactory(
     private val initializer: TurbineCodebaseInitialiser,
     private val annotationFactory: TurbineAnnotationFactory,
     typeParameterScope: TypeParameterScope,
+    val fieldResolver: FieldResolver? = null,
 ) : DefaultTypeItemFactory<Type, TurbineTypeItemFactory>(typeParameterScope) {
-
-    // TODO(b/479907812): Provide a non-null FieldResolver.
-    val fieldResolver: FieldResolver?
-        get() = null
 
     override fun self() = this
 
     override fun createNestedFactory(scope: TypeParameterScope) =
-        TurbineTypeItemFactory(initializer, annotationFactory, scope)
+        TurbineTypeItemFactory(initializer, annotationFactory, scope, fieldResolver)
+
+    /** Return a [TurbineTypeItemFactory] with the same [typeParameterScope] and [fieldResolver]. */
+    fun withFieldResolver(fieldResolver: FieldResolver?) =
+        if (fieldResolver == this.fieldResolver) this
+        else
+            TurbineTypeItemFactory(
+                initializer,
+                annotationFactory,
+                typeParameterScope,
+                fieldResolver
+            )
 
     override fun getType(
         underlyingType: Type,
@@ -148,15 +156,76 @@ internal class TurbineTypeItemFactory(
             Type.TyKind.ERROR_TY -> {
                 // This is case of unresolved superclass or implemented interface
                 type as Type.ErrorTy
-                TypeItem.createClassType(
-                    TypeModifiers.emptyUndefinedModifiers,
-                    type.qualifiedName(),
-                    createTypeArguments(type.targs()),
-                    null,
-                )
+                createClassTypeItemFromSimpleErrorTys(type.classes(), contextNullability)
             }
             else -> throw IllegalStateException("Invalid type in API surface: $kind")
         }
+    }
+
+    /**
+     * Create a [ClassTypeItem] from a list of [Type.ErrorTy.SimpleErrorTy] using
+     * [contextNullability].
+     */
+    private fun createClassTypeItemFromSimpleErrorTys(
+        simpleErrorTys: List<Type.ErrorTy.SimpleErrorTy>,
+        contextNullability: ContextNullability,
+    ): ClassTypeItem {
+        val iterator = simpleErrorTys.iterator()
+        var simpleErrorTy = iterator.next()
+
+        val firstSym = simpleErrorTy.sym()
+        val qualifiedNameBuilder: StringBuilder
+        var outerClass: ClassTypeItem?
+        if (firstSym != null) {
+            // The leading segment resolved to a ClassSymbol; obtain any enclosing outer class
+            // types (e.g. when a nested class was imported directly) and start from its full
+            // qualified name.
+            outerClass = optionalOuterClassType(firstSym)
+            qualifiedNameBuilder = StringBuilder(initializer.qualifiedName(firstSym))
+        } else {
+            outerClass = null
+            // Group leading lowercase segments that have no type arguments or annotations into the
+            // package prefix, stopping before the last segment so at least one segment is treated
+            // as a class.
+            qualifiedNameBuilder = StringBuilder(simpleErrorTy.name())
+            while (
+                iterator.hasNext() &&
+                    simpleErrorTy.targs().isEmpty() &&
+                    simpleErrorTy.annos().isEmpty() &&
+                    simpleErrorTy.name().none { it.isUpperCase() }
+            ) {
+                simpleErrorTy = iterator.next()
+                qualifiedNameBuilder.append('.').append(simpleErrorTy.name())
+            }
+        }
+
+        while (true) {
+            val hasNext = iterator.hasNext()
+            val actualContextNullability =
+                if (hasNext) {
+                    ContextNullability.forceNonNull
+                } else {
+                    contextNullability
+                }
+            val modifiers = createModifiers(simpleErrorTy.annos(), actualContextNullability)
+            val arguments = createTypeArguments(simpleErrorTy.targs())
+            outerClass =
+                TypeItem.createClassType(
+                    modifiers,
+                    qualifiedNameBuilder.toString(),
+                    arguments,
+                    outerClass,
+                )
+            if (!hasNext) break
+            simpleErrorTy = iterator.next()
+            val sym = simpleErrorTy.sym()
+            if (sym != null) {
+                qualifiedNameBuilder.clear().append(initializer.qualifiedName(sym))
+            } else {
+                qualifiedNameBuilder.append('.').append(simpleErrorTy.name())
+            }
+        }
+        return outerClass!!
     }
 
     /**
@@ -219,49 +288,43 @@ internal class TurbineTypeItemFactory(
         val binaryName = classSymbol.binaryName()
 
         // If it does not contain a $ then it is not a nested class.
-        val firstDollarIndex = binaryName.indexOf('$')
-        if (firstDollarIndex == -1) {
+        if ('$' !in binaryName) {
             return null
         }
 
-        // Construct a list pf SimpleClassTys from the symbol.
-        val simpleClassTys = buildList {
-            val length = binaryName.length
-
-            // Iterate over each $ in the binary name of the symbol creating a SimpleClassTy for
-            // each containing class. e.g. when given pkg/A$B$C it will construct SimpleClassTys for
-            // * pkg/A
-            // * pkg/A$B
-            var startIndex = firstDollarIndex
-            while (startIndex < length) {
-                // Find the next $, if none exists then drop out. That ignores the innermost class
-                // which is created by the caller.
-                val nextDollarIndex = binaryName.indexOf('$', startIndex)
-                if (nextDollarIndex == -1) {
-                    break
+        // Walk the owner hierarchy using TypeBoundClass.owner(), falling back to splitting on '$'
+        // only when a symbol is not in the environment.
+        val outerSymbols = ArrayDeque<ClassSymbol>()
+        var current = classSymbol
+        while (true) {
+            val currentBinaryName = current.binaryName()
+            if ('$' !in currentBinaryName) break
+            val bound = initializer.typeBoundClassForSymbol(current)
+            if (bound != null) {
+                val owner = bound.owner() ?: break
+                outerSymbols.addFirst(owner)
+                current = owner
+            } else {
+                var dollarIndex = currentBinaryName.lastIndexOf('$')
+                while (dollarIndex != -1) {
+                    outerSymbols.addFirst(ClassSymbol(currentBinaryName.substring(0, dollarIndex)))
+                    dollarIndex = currentBinaryName.lastIndexOf('$', dollarIndex - 1)
                 }
-
-                // Create a symbol for the outer class.
-                val outerClassSymbol = ClassSymbol(binaryName.substring(0, nextDollarIndex))
-
-                // Wrap that in a SimpleClassTy
-                val simpleClassTy =
-                    Type.ClassTy.SimpleClassTy.create(
-                        outerClassSymbol,
-                        ImmutableList.of(),
-                        ImmutableList.of(),
-                    )
-
-                // Add it to the list.
-                add(simpleClassTy)
-
-                // Skip past the $.
-                startIndex = nextDollarIndex + 1
+                break
             }
         }
 
-        // Create a ClassTypeItem from the list of SimpleClassTys.
-        return createClassTypeItemFromSimpleTys(simpleClassTys, ContextNullability.forceNonNull)
+        var outerClass: ClassTypeItem? = null
+        for (outerSymbol in outerSymbols) {
+            outerClass =
+                TypeItem.createClassType(
+                    modifiers = TypeModifiers.emptyNonNullModifiers,
+                    qualifiedName = initializer.qualifiedName(outerSymbol),
+                    arguments = emptyList(),
+                    outerClassType = outerClass,
+                )
+        }
+        return outerClass
     }
 
     private fun createNestedClassType(
@@ -273,10 +336,10 @@ internal class TurbineTypeItemFactory(
 
         // If no outer class was provided then try and get an outer class type item from the type
         // symbol.
-        val outerClassItem = outerClass ?: optionalOuterClassType(type.sym())
+        val outerClassItem = outerClass ?: optionalOuterClassType(sym)
 
         val modifiers = createModifiers(type.annos(), contextNullability)
-        val qualifiedName = sym.qualifiedName
+        val qualifiedName = initializer.qualifiedName(sym)
         val parameters = createTypeArguments(type.targs())
         return TypeItem.createClassType(
             modifiers,

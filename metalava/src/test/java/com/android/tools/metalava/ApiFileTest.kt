@@ -19,8 +19,6 @@
 package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
-import com.android.tools.metalava.cli.common.ARG_ERROR
-import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.cli.common.ARG_KOTLIN_SOURCE
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
@@ -822,15 +820,9 @@ class ApiFileTest : DriverTest() {
                 """,
             format = FileFormat.V4,
             extraArguments =
-                arrayOf(
-                    ARG_HIDE,
-                    "ReferencesHidden",
-                    ARG_HIDE,
-                    "UnavailableSymbol",
-                    ARG_HIDE,
-                    "HiddenTypeParameter",
-                    ARG_HIDE,
-                    "HiddenSuperclass"
+                hiddenIssues(
+                    Issues.REFERENCES_HIDDEN,
+                    Issues.HIDDEN_SUPERCLASS,
                 )
         )
     }
@@ -966,13 +958,8 @@ class ApiFileTest : DriverTest() {
                 """,
             format = FileFormat.V4,
             extraArguments =
-                arrayOf(
-                    ARG_HIDE,
-                    "ReferencesHidden",
-                    ARG_HIDE,
-                    "UnavailableSymbol",
-                    ARG_HIDE,
-                    "HiddenTypeParameter"
+                hiddenIssues(
+                    Issues.REFERENCES_HIDDEN,
                 )
         )
     }
@@ -1812,7 +1799,10 @@ class ApiFileTest : DriverTest() {
                       }
                     }
                 """,
-            extraArguments = arrayOf(ARG_HIDE, "KotlinKeyword")
+            extraArguments =
+                hiddenIssues(
+                    Issues.KOTLIN_KEYWORD,
+                ),
         )
     }
 
@@ -2269,68 +2259,71 @@ class ApiFileTest : DriverTest() {
         // package is not marked @hide, but doclava now treats subpackages of a hidden package
         // as also hidden.
         check(
+            apiSurface = KnownApiSurface.PUBLIC,
             sourceFiles =
                 arrayOf(
                     java(
                         """
-                    ${"/** @hide hidden package */" /* avoid dangling javadoc warning */}
-                    package test.pkg1;
-                    """
+                            @android.annotation.Hide
+                            package test.pkg1;
+                        """
                     ),
                     java(
                         """
-                    package test.pkg1;
-                    @SuppressWarnings("ALL")
-                    public class Foo {
-                        // Hidden by package hide
-                    }
-                    """
+                            package test.pkg1;
+                            @SuppressWarnings("ALL")
+                            public class Foo {
+                                // Hidden by package hide
+                            }
+                        """
                     ),
                     java(
                         """
-                    package test.pkg2;
-                    /** @hide hidden class in this package */
-                    @SuppressWarnings("ALL")
-                    public class Bar {
-                    }
-                    """
+                            package test.pkg2;
+                            import android.annotation.Hide;
+                            @Hide
+                            @SuppressWarnings("ALL")
+                            public class Bar {
+                            }
+                        """
                     ),
                     java(
                         """
-                    package test.pkg2;
-                    /** @doconly hidden class in this package */
-                    @SuppressWarnings("ALL")
-                    public class Baz {
-                    }
-                    """
+                            package test.pkg2;
+                            import android.annotation.DocOnly;
+                            @DocOnly
+                            @SuppressWarnings("ALL")
+                            public class Baz {
+                            }
+                        """
                     ),
                     java(
                         """
-                    package test.pkg1.sub;
-                    // Hidden by @hide in package above
-                    @SuppressWarnings("ALL")
-                    public class Test {
-                    }
-                    """
+                            package test.pkg1.sub;
+                            // Hidden by @hide in package above
+                            @SuppressWarnings("ALL")
+                            public class Test {
+                            }
+                        """
                     ),
                     java(
                         """
-                    package test.pkg3;
-                    // The only really visible class
-                    @SuppressWarnings("ALL")
-                    public class Boo {
-                    }
-                    """
-                    )
+                            package test.pkg3;
+                            // The only really visible class
+                            @SuppressWarnings("ALL")
+                            public class Boo {
+                            }
+                        """
+                    ),
                 ),
             expectedApiSignature =
                 """
-                package test.pkg3 {
-                  public class Boo {
-                    ctor public Boo();
-                  }
-                }
-                """
+                    package test.pkg3 {
+                      public class Boo {
+                        ctor public Boo();
+                      }
+                    }
+                """,
         )
     }
 
@@ -2684,7 +2677,10 @@ class ApiFileTest : DriverTest() {
                       }
                     }
             """,
-            extraArguments = arrayOf(ARG_HIDE, Issues.INHERIT_CHANGES_SIGNATURE.name),
+            extraArguments =
+                hiddenIssues(
+                    Issues.INHERIT_CHANGES_SIGNATURE,
+                ),
         )
     }
 
@@ -3214,6 +3210,10 @@ class ApiFileTest : DriverTest() {
                       }
                     }
                     """,
+            expectedIssues =
+                """
+                    src/test/pkg/Child.java:9: error: Attempting to hide method test.pkg.Child.toString() which overrides method test.pkg.Parent.toString() which is already part of the API [HidingApiMethodOverride]
+                """,
         )
     }
 
@@ -3296,9 +3296,6 @@ class ApiFileTest : DriverTest() {
                     package test.pkg2 {
                       public class MyChild extends test.pkg1.MyParent {
                         ctor public MyChild();
-                        field public static final long CONSTANT1 = 12345L; // 0x3039L
-                        field public static final long CONSTANT2 = 67890L; // 0x10932L
-                        field public static final long CONSTANT3 = 42L; // 0x2aL
                       }
                     }
                 """
@@ -3830,7 +3827,10 @@ class ApiFileTest : DriverTest() {
     fun `References Deprecated`() {
         check(
             extraArguments =
-                arrayOf(ARG_ERROR, "ReferencesDeprecated", ARG_ERROR, "ExtendsDeprecated"),
+                errorIssues(
+                    Issues.REFERENCES_DEPRECATED,
+                    Issues.EXTENDS_DEPRECATED,
+                ),
             expectedIssues =
                 """
             src/test/pkg/MyClass.java:2: error: Extending deprecated super class class test.pkg.DeprecatedClass from test.pkg.MyClass: this class should also be deprecated [ExtendsDeprecated]
@@ -4117,7 +4117,10 @@ class ApiFileTest : DriverTest() {
                   }
                 }
                 """,
-            extraArguments = arrayOf(ARG_HIDE, Issues.INHERIT_CHANGES_SIGNATURE.name),
+            extraArguments =
+                hiddenIssues(
+                    Issues.INHERIT_CHANGES_SIGNATURE,
+                ),
         )
     }
 
@@ -5554,20 +5557,58 @@ class ApiFileTest : DriverTest() {
                         """
                         package test.pkg
                         class MyList : List<String> {
-                          override operator fun get(index: Int): String {}
+                            override val size: Int = 0
+                            override fun isEmpty(): Boolean = true
+                            override fun contains(element: String): Boolean = false
+                            override fun iterator(): Iterator<String> = error("")
+                            override fun containsAll(elements: Collection<String>): Boolean = false
+                            override operator fun get(index: Int): String = error("")
+                            override fun indexOf(element: String): Int = -1
+                            override fun lastIndexOf(element: String): Int = -1
+                            override fun listIterator(): ListIterator<String> = error("")
+                            override fun listIterator(index: Int): ListIterator<String> = error("")
+                            override fun subList(fromIndex: Int, toIndex: Int): List<String> = emptyList()
                         }
-                    """
+                        """
                     )
                 ),
             expectedApiSignature =
                 """
+                // Signature format: 5.0
                 package test.pkg {
                   public final class MyList implements kotlin.jvm.internal.markers.KMappedMarker java.util.List<java.lang.String> {
                     ctor public MyList();
+                    method @InaccessibleFromKotlin public void add(int p, String! p1);
+                    method @InaccessibleFromKotlin public boolean add(String! p);
+                    method @InaccessibleFromKotlin public boolean addAll(int p, java.util.Collection<? extends java.lang.String!>! p1);
+                    method @InaccessibleFromKotlin public boolean addAll(java.util.Collection<? extends java.lang.String!>! p);
+                    method @InaccessibleFromKotlin public void clear();
+                    method @InaccessibleFromKotlin public boolean contains(Object element);
+                    method public boolean contains(String element);
+                    method public boolean containsAll(java.util.Collection<? extends java.lang.Object?> elements);
                     method public operator String get(int index);
+                    method @InaccessibleFromKotlin public int getSize();
+                    method @InaccessibleFromKotlin public int indexOf(Object element);
+                    method public int indexOf(String element);
+                    method public boolean isEmpty();
+                    method public java.util.Iterator<java.lang.String> iterator();
+                    method @InaccessibleFromKotlin public int lastIndexOf(Object element);
+                    method public int lastIndexOf(String element);
+                    method public java.util.ListIterator<java.lang.String> listIterator();
+                    method public java.util.ListIterator<java.lang.String> listIterator(int index);
+                    method @InaccessibleFromKotlin public String! remove(int p);
+                    method @InaccessibleFromKotlin public boolean remove(Object! p);
+                    method @InaccessibleFromKotlin public boolean removeAll(java.util.Collection<? extends java.lang.Object?>! p);
+                    method @InaccessibleFromKotlin public boolean retainAll(java.util.Collection<? extends java.lang.Object?>! p);
+                    method @InaccessibleFromKotlin public String! set(int p, String! p1);
+                    method @InaccessibleFromKotlin public int size();
+                    method public java.util.List<java.lang.String> subList(int fromIndex, int toIndex);
+                    method @InaccessibleFromKotlin public Object![]! toArray();
+                    method @InaccessibleFromKotlin public <T> T[]! toArray(T[]! p);
+                    property public int size;
                   }
                 }
-            """
+                """
         )
     }
 
@@ -5957,9 +5998,6 @@ class ApiFileTest : DriverTest() {
                         """
                         package test.pkg
 
-                        /**
-                         * @hide
-                         */
                         @PublishedApi
                         internal fun internalYetPublished() {}
 
@@ -6032,6 +6070,28 @@ class ApiFileTest : DriverTest() {
                     restrictToSource,
                     visibleForTestingSource,
                 ),
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 2.3.20 (JRE 21.0.9+10-b1163.91)
+                    "" +
+                        "H4sIAAAAAAAA/wvwZmYRYeDg4GBgYFBkQAYiDLwMvq4hjrqefm76vo5+nm6u" +
+                        "wSF6vm6hIawMjAzLzgn9O8XA8Nn3zGkfb129i7zeulrnzpzfHGRwxfjB0yI9" +
+                        "L18dT9+Lpau2BH3w0i3U8jpzRjvswzn9kyfPPH766CkTQ4A3O8d6Yc31lkCb" +
+                        "zIE4AKc7RBk4GUpSi0v0C7LT9UOADO8SveScxOJiuENS/U97MTsKrLnXW/kz" +
+                        "ytRO6OsjT/11XQ8cBV0Exeev6Jh0OcfoxYyza1LSmyu46rrqH1xtZumvm3JD" +
+                        "WJ7jnVNoqW/p5b//Pn7iShDd3JKoLPz4vum6v8Viv9XYlSq2L9L94/Ei+7/F" +
+                        "nqmmZbFOnpnK0VEu4ZfmLElcMkk6Un3HZ27xlo/NbjlKS//en77Weqvfifwr" +
+                        "N0LTJk/gvNzOzsTaMnH+l4Umi/R6Hiy5nLN7z9Tkg1sZzpnd2B++LSopNF7t" +
+                        "x91zDhtva1rN++z60+ve6zKtc0JvL96Z8HxDkf59ufJ78zaZJd4OO8F3+maw" +
+                        "uHSb+c2+15Py7QOi5JaeDdh2zlVio3HtrKzFs4wu5E7V2LZtS1+vgdY1zoUV" +
+                        "YsvXzroTahb1ry/uD3eSJJ/R3r/aGgsy+p0ka08Y+ReGHrvufn7vBN3NZx4s" +
+                        "O7X9nOHzn9tvbeP5l7vx87Jqi07JZ6Z8Xz//adS6w9DM2MbEczi5cyLDYonV" +
+                        "TUJTDOJc1RzjmzpZWI/5g+Iu7r+JRgEjAwMHE764kwbGHTwN5SZm5ull55fk" +
+                        "ZObF5+anlOakwmMwOSEhIQ2IkxouJBxQPXI0cFJUzKLwCXP1jogxpVRO1zDM" +
+                        "MGQAJ5kC2fu+qkCDdcBJhpFJhAFhMXJyAiVeVEAwKaMbh+xDUBpEgA4gxp8i" +
+                        "0c1CdrY0ilkuTAxEhVCANysbSD0zEL4F0ruZQDwAHw3PAL4DAAA="
+                ),
             extraArguments =
                 arrayOf(
                     ARG_SHOW_UNANNOTATED,
@@ -6063,7 +6123,7 @@ class ApiFileTest : DriverTest() {
                     method public static test.pkg.Path2 copy(test.pkg.Path2);
                   }
                   public final class TestKt {
-                    method @kotlin.PublishedApi internal static void internalYetPublished();
+                    method @BytecodeOnly @kotlin.PublishedApi internal static void internalYetPublished();
                   }
                   public final class Toast {
                     ctor public Toast();
@@ -6240,6 +6300,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Partial signature files include affected subclass definitions`() {
         check(
+            apiSurface = KnownApiSurface.SYSTEM,
             format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
@@ -6257,7 +6318,6 @@ class ApiFileTest : DriverTest() {
 
                         import android.annotation.SystemApi;
 
-                        /** @hide */
                         @SystemApi
                         public class SystemSubClass extends SomePublicClass {
                         }
@@ -6271,7 +6331,6 @@ class ApiFileTest : DriverTest() {
                         }
                     """
                     ),
-                    systemApiSource,
                 ),
             expectedApiSignature =
                 """
@@ -6284,17 +6343,13 @@ class ApiFileTest : DriverTest() {
                   }
                 }
             """,
-            extraArguments =
-                arrayOf(
-                    ARG_SHOW_ANNOTATION,
-                    "android.annotation.SystemApi",
-                )
         )
     }
 
     @Test
     fun `Partial signature files include affected subclass definitions in complex class hierarchy`() {
         check(
+            apiSurface = KnownApiSurface.TEST,
             format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
@@ -6312,7 +6367,6 @@ class ApiFileTest : DriverTest() {
 
                         import android.annotation.SystemApi;
 
-                        /** @hide */
                         @SystemApi
                         public class SystemSubClass extends SomePublicClass {
                         }
@@ -6324,7 +6378,6 @@ class ApiFileTest : DriverTest() {
 
                         import android.annotation.TestApi;
 
-                        /** @hide */
                         @TestApi
                         public class TestSubClass extends SystemSubClass {
                         }
@@ -6336,7 +6389,6 @@ class ApiFileTest : DriverTest() {
 
                         import android.annotation.SystemApi;
 
-                        /** @hide */
                         @SystemApi
                         public class AnotherSystemSubClass extends TestSubClass {
                         }
@@ -6348,7 +6400,6 @@ class ApiFileTest : DriverTest() {
 
                         import android.annotation.TestApi;
 
-                        /** @hide */
                         @TestApi
                         public class AnotherTestSubClass extends AnotherSystemSubClass {
                         }
@@ -6362,14 +6413,14 @@ class ApiFileTest : DriverTest() {
                         }
                     """
                     ),
-                    systemApiSource,
-                    testApiSource,
                 ),
             expectedApiSignature =
                 """
                 // Signature format: 2.0
                 package test.pkg {
                   public class AnotherPublicClass extends test.pkg.AnotherTestSubClass {
+                  }
+                  public class AnotherSystemSubClass extends test.pkg.TestSubClass {
                   }
                   public class AnotherTestSubClass extends test.pkg.AnotherSystemSubClass {
                     ctor public AnotherTestSubClass();
@@ -6379,13 +6430,79 @@ class ApiFileTest : DriverTest() {
                   }
                 }
             """,
-            extraArguments =
+        )
+    }
+
+    @Test
+    fun `Partial signature files do not include subclasses of reverted base API class`() {
+        check(
+            apiSurface = KnownApiSurface.TEST,
+            format = FileFormat.V2,
+            configFiles = arrayOf(KnownConfigFiles.configEmptyApiFlags),
+            checkCompatibilityApiReleasedList =
+                listOf(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class BaseSystemClass {
+                            ctor public BaseSystemClass();
+                          }
+                          public class SubSystemClass extends test.pkg.BaseSystemClass {
+                            ctor public SubSystemClass();
+                          }
+                        }
+                    """,
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class BaseSystemClass {
+                            method public void testMethod();
+                          }
+                        }
+                    """,
+                ),
+            sourceFiles =
                 arrayOf(
-                    ARG_SHOW_ANNOTATION,
-                    "android.annotation.TestApi",
-                    ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION,
-                    "android.annotation.SystemApi",
-                )
+                    java(
+                        """
+                            package test.pkg;
+
+                            import android.annotation.FlaggedApi;
+                            import android.annotation.SystemApi;
+                            import android.annotation.TestApi;
+
+                            @SystemApi
+                            @FlaggedApi("test.pkg.flags.foo_bar")
+                            public class BaseSystemClass {
+                                public BaseSystemClass() {}
+                                @TestApi
+                                public void testMethod() {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+
+                            import android.annotation.SystemApi;
+
+                            @SystemApi
+                            public class SubSystemClass extends BaseSystemClass {
+                                public SubSystemClass() {}
+                            }
+                        """
+                    ),
+                ),
+            classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
+            expectedApiSignature =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class BaseSystemClass {
+                        method public void testMethod();
+                      }
+                    }
+                """,
         )
     }
 
@@ -6414,7 +6531,6 @@ class ApiFileTest : DriverTest() {
                         import android.annotation.SystemApi;
 
                         /**
-                         * @hide
                          * @removed
                          */
                         @SystemApi

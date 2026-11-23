@@ -570,4 +570,290 @@ class CommonMultiplatformPropertyItemTest : BaseModelTest() {
                 .isEqualTo("test.pkg#kotlin.String.foo")
         }
     }
+
+    @SupportedInputFormats(InputFormat.KOTLIN, InputFormat.SIGNATURE)
+    @Test
+    fun `Definition of property with context parameter`() {
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Foo.kt",
+                """
+                package test.pkg
+                expect class Foo {
+                    context(s: String)
+                    expect val foo: Int
+                }
+                """
+            )
+        val androidSource =
+            kotlin(
+                "androidMain/src/test/pkg/Foo.kt",
+                """
+                package test.pkg
+                actual class Foo {
+                    context(s: String)
+                    actual val foo: Int get() = 0
+                }
+                """
+            )
+        val nativeSource =
+            kotlin(
+                "nativeMain/src/test/pkg/Foo.kt",
+                """
+                package test.pkg
+                actual class Foo {
+                    context(s: String)
+                    actual val foo: Int get() = 0
+                }
+                """
+            )
+        runMultiplatformCodebaseTest(
+            inputSet(commonSource, androidSource, nativeSource),
+            inputSet(
+                signature(
+                    "commonMain.txt",
+                    """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Foo extends kotlin.Any {
+                        property public final kotlin.Int foo(context kotlin.String s);
+                      }
+                    }
+                    """
+                ),
+                signature(
+                    "androidMain.txt",
+                    """
+                    // Signature format: 5.0
+                    """
+                ),
+                signature(
+                    "nativeMain.txt",
+                    """
+                    // Signature format: 5.0
+                    """
+                )
+            ),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                    createAndroidModuleDescription(arrayOf(androidSource)),
+                    createNativeModuleDescription(arrayOf(nativeSource)),
+                )
+        ) {
+            val fooClass = multiplatformCodebase.assertClass("test.pkg.Foo")
+            val fooVal =
+                fooClass.assertProperty(
+                    "foo",
+                    contextParameterTypeStrings = listOf("kotlin.String")
+                )
+            fooVal.assertSourceSets("commonMain", "androidMain", "nativeMain")
+
+            assertThat(fooVal.toString())
+                .isEqualTo("multiplatform property test.pkg.Foo#foo(context kotlin.String)")
+            assertThat(fooVal.baselineKey.elementId())
+                .isEqualTo("test.pkg.Foo#foo(context kotlin.String)")
+
+            assertThat(fooVal.contextParameterTypes).hasSize(1)
+            assertThat(fooVal.contextParameterTypes[0].toTypeString()).isEqualTo("kotlin.String")
+
+            assertThat(fooVal.contextParameters).hasSize(1)
+            assertThat(fooVal.contextParameters[0].toString())
+                .isEqualTo(
+                    "multiplatform parameter #0 of multiplatform property test.pkg.Foo#foo(context kotlin.String)"
+                )
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.KOTLIN, InputFormat.SIGNATURE)
+    @Test
+    fun `Definition of properties with context parameters with different nullability`() {
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Foo.kt",
+                """
+                package test.pkg
+                expect class Foo
+                """
+            )
+        val androidSource =
+            kotlin(
+                "androidMain/src/test/pkg/Foo.kt",
+                """
+                package test.pkg
+                actual class Foo {
+                    context(s: String)
+                    val foo: Int get() = 0
+                }
+                """
+            )
+        val nativeSource =
+            kotlin(
+                "nativeMain/src/test/pkg/Foo.kt",
+                """
+                package test.pkg
+                actual class Foo {
+                    context(s: String)
+                    val foo: Int get() = 0
+
+                    context(s: String?)
+                    val foo: Int get() = 0
+                }
+                """
+            )
+        runMultiplatformCodebaseTest(
+            inputSet(commonSource, androidSource, nativeSource),
+            inputSet(
+                signature(
+                    "commonMain.txt",
+                    """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Foo extends kotlin.Any {
+                      }
+                    }
+                    """
+                ),
+                signature(
+                    "androidMain.txt",
+                    """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Foo extends kotlin.Any {
+                        property public final kotlin.Int foo(context kotlin.String s);
+                      }
+                    }
+                    """
+                ),
+                signature(
+                    "nativeMain.txt",
+                    """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Foo extends kotlin.Any {
+                        property public final kotlin.Int foo(context kotlin.String s);
+                        property public final kotlin.Int foo(context kotlin.String? s);
+                      }
+                    }
+                    """
+                )
+            ),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                    createAndroidModuleDescription(arrayOf(androidSource)),
+                    createNativeModuleDescription(arrayOf(nativeSource)),
+                )
+        ) {
+            val fooClass = multiplatformCodebase.assertClass("test.pkg.Foo")
+            val fooValNonNull =
+                fooClass.assertProperty(
+                    "foo",
+                    contextParameterTypeStrings = listOf("kotlin.String")
+                )
+            fooValNonNull.assertSourceSets("androidMain", "nativeMain")
+            assertThat(fooValNonNull.toString())
+                .isEqualTo("multiplatform property test.pkg.Foo#foo(context kotlin.String)")
+
+            val fooValNullable =
+                fooClass.assertProperty(
+                    "foo",
+                    contextParameterTypeStrings = listOf("kotlin.String?")
+                )
+            fooValNullable.assertSourceSets("nativeMain")
+            assertThat(fooValNullable.toString())
+                .isEqualTo("multiplatform property test.pkg.Foo#foo(context kotlin.String?)")
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.KOTLIN, InputFormat.SIGNATURE)
+    @Test
+    fun `Definition of property with context parameter where parameter names differ by source set`() {
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Foo.kt",
+                """
+                package test.pkg
+                expect class Foo
+                """
+            )
+        val androidSource =
+            kotlin(
+                "androidMain/src/test/pkg/Foo.kt",
+                """
+                package test.pkg
+                actual class Foo {
+                    context(android: String)
+                    val foo: Int get() = 0
+                }
+                """
+            )
+        val nativeSource =
+            kotlin(
+                "nativeMain/src/test/pkg/Foo.kt",
+                """
+                package test.pkg
+                actual class Foo {
+                    context(native: String)
+                    val foo: Int get() = 0
+                }
+                """
+            )
+        runMultiplatformCodebaseTest(
+            inputSet(commonSource, androidSource, nativeSource),
+            inputSet(
+                signature(
+                    "commonMain.txt",
+                    """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Foo extends kotlin.Any {
+                      }
+                    }
+                    """
+                ),
+                signature(
+                    "androidMain.txt",
+                    """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Foo extends kotlin.Any {
+                        property public final kotlin.Int foo(context kotlin.String android);
+                      }
+                    }
+                    """
+                ),
+                signature(
+                    "nativeMain.txt",
+                    """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Foo extends kotlin.Any {
+                        property public final kotlin.Int foo(context kotlin.String native);
+                      }
+                    }
+                    """
+                )
+            ),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                    createAndroidModuleDescription(arrayOf(androidSource)),
+                    createNativeModuleDescription(arrayOf(nativeSource)),
+                )
+        ) {
+            val fooClass = multiplatformCodebase.assertClass("test.pkg.Foo")
+            val fooVal =
+                fooClass.assertProperty(
+                    "foo",
+                    contextParameterTypeStrings = listOf("kotlin.String")
+                )
+            fooVal.assertSourceSets("androidMain", "nativeMain")
+            val contextParameter = fooVal.contextParameters[0]
+            contextParameter.publicName.assertSourceSetValues(
+                "androidMain" to "android",
+                "nativeMain" to "native"
+            )
+        }
+    }
 }

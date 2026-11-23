@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.annotation.AnnotationDefaults
+import com.android.tools.metalava.model.api.SelectedApi
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.type.ContextNullability
 import com.android.tools.metalava.model.value.Value
@@ -36,10 +37,9 @@ import org.jetbrains.kotlin.analysis.api.projectStructure.KaModule
 /**
  * A codebase containing Java, Kotlin, or UAST PSI classes
  *
- * After creation, a list of PSI file is passed to [PsiCodebaseAssembler.initializeFromSources] or a
- * JAR file is passed to [PsiCodebaseAssembler.initializeFromJar]. This creates package and class
- * items along with their members. Any classes defined in those files will have [ClassItem.origin]
- * set to [ClassOrigin.COMMAND_LINE].
+ * After creation, a list of PSI files is passed to [PsiCodebaseAssembler.initializeFromSources].
+ * This creates package and class items along with their members. Any classes defined in those files
+ * will have [ClassItem.origin] set to [ClassOrigin.COMMAND_LINE].
  *
  * Classes that are created through [findOrCreateClass] will have [ClassItem.origin] set to
  * [ClassOrigin.SOURCE_PATH] or [ClassOrigin.CLASS_PATH] depending on whether the class is defined
@@ -70,6 +70,8 @@ internal class PsiBasedCodebase(
         trustedApi = false,
         supportsDocumentation = true,
         assembler = assembler,
+        // Create a [SelectedApi] instance that will be initialized lazily from the source.
+        selectedApiFactory = SelectedApi.sourceFactory(config),
     ) {
 
     internal val psiAssembler = assembler
@@ -111,7 +113,7 @@ internal class PsiBasedCodebase(
      * * There is an optimization in [PsiCodebaseAssembler] where it will not create inaccessible
      *   classes.
      * * An `internal` class may be accessible if it has a show annotation.
-     * * Computing the [AnnotationItem.showability] requires getting values for all an
+     * * Determining whether an annotation is a show annotation requires getting values for all an
      *   [AnnotationItem]'s attributes, including default values.
      * * Getting [AnnotationDefaults] using the default implementation of this will resolve the
      *   [AnnotationItem]'s [ClassItem].

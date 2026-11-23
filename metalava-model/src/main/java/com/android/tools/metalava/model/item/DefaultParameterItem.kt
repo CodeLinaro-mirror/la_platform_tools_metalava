@@ -25,13 +25,14 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.ParameterKind
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceLanguage
+import com.android.tools.metalava.model.SourcePosition
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeItemConverter
-import com.android.tools.metalava.reporter.FileLocation
 
 internal class DefaultParameterItem(
     codebase: Codebase,
-    fileLocation: FileLocation,
+    fileLocationSource: FileLocationSource,
+    sourcePosition: SourcePosition,
     sourceLanguage: SourceLanguage,
     modifiers: BaseModifierList,
     private val name: String,
@@ -44,7 +45,8 @@ internal class DefaultParameterItem(
 ) :
     DefaultItem(
         codebase = codebase,
-        fileLocation = fileLocation,
+        fileLocationSource = fileLocationSource,
+        sourcePosition = sourcePosition,
         sourceLanguage = sourceLanguage,
         modifiers = modifiers,
     ),
@@ -82,7 +84,8 @@ internal class DefaultParameterItem(
     ): ParameterItem =
         DefaultParameterItem(
             codebase,
-            fileLocation,
+            duplicateFileLocationSource(),
+            sourcePosition,
             sourceLanguage,
             modifiers,
             name(),

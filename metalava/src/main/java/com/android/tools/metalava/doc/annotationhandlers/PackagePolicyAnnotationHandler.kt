@@ -17,25 +17,19 @@
 package com.android.tools.metalava.doc.annotationhandlers
 
 import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.annotation.binding.bindTo
-import com.android.tools.metalava.reporter.Reporter
-import java.util.function.Predicate
 
 /** Handles @android.processor.devicepolicy.PackagePolicyDefinition annotation. */
 class PackagePolicyAnnotationHandler(
-    codebase: Codebase,
-    reporter: Reporter,
-    filterReference: Predicate<SelectableItem>
-) : BaseDevicePolicyAnnotationHandler(codebase, reporter, filterReference) {
+    context: DevicePolicyContext,
+) : BaseDevicePolicyAnnotationHandler(context) {
     /**
      * Processes the [PackagePolicyDefinitionProxy] and returns the documentation for the policy.
      */
     override fun processPolicyAnnotation(annotation: AnnotationItem, item: Item): String {
-        val proxy = annotation.bindTo<PackagePolicyDefinitionProxy>(item)
-        return proxy?.generateDocs() ?: ""
+        val proxy = annotation.bindTo<PackagePolicyDefinitionProxy>(item) ?: return ""
+        return generateDocs(proxy, item)
     }
 }
 
@@ -47,10 +41,9 @@ class PackagePolicyAnnotationHandler(
  */
 data class PackagePolicyDefinitionProxy(
     val base: PolicyDefinitionProxy,
-) {
-    fun generateDocs() = buildString {
-        append("\n<p>Policy Type: Package</p>\n <ul>\n")
-        append(base.generateDocs())
-        append(" </ul>\n")
+) : DevicePolicy {
+    override fun generateDocRows(context: DevicePolicyContext): List<TableRow> = buildList {
+        addAll(base.generateDocRows())
+        add(TableRow("Policy value", renderPolicyValue("Package", emptyList())))
     }
 }

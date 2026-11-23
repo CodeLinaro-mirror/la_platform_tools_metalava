@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.LambdaTypeItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
@@ -622,6 +623,10 @@ interface ValueFactory {
                             "'$classType' is an invalid type for a class object value as it has type arguments"
                         )
                     }
+                }
+
+                override fun visit(lambdaType: LambdaTypeItem) {
+                    invalidType(lambdaType)
                 }
 
                 override fun visit(variableType: VariableTypeItem) {

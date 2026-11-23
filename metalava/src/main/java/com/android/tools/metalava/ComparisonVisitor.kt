@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.EmittedOnlyPredicate
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
@@ -30,9 +31,10 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TargetLanguage
+import com.android.tools.metalava.model.api.SelectedApi
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
-import com.android.tools.metalava.model.visitors.ApiFilters
-import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.model.testOrTrue
+import com.android.tools.metalava.model.visitors.ApiSurfaceVisitor
 
 /**
  * Visitor which visits all items in two matching codebases and matches up the items and invokes
@@ -109,45 +111,83 @@ private fun <E> Stack<E>.peek(): E = last()
 
 object CodebaseComparator {
     /**
-     * Visits this codebase and compares it with another codebase, informing the visitors about the
-     * correlations and differences that it finds
+     * Visits [old] and [new] codebases, comparing items and dispatching callbacks to [visitor] for
+     * added, removed, and matching items.
+     *
+     * @param visitor the [ComparisonVisitor] receiving callbacks as differences and matches are
+     *   found.
+     * @param old the baseline or previous codebase.
+     * @param new the current or newer codebase.
+     * @param surfaceFilter filter matching items belonging to the specific API surface being
+     *   compared (e.g. the delta surface). Only items matching this filter are considered for
+     *   addition or removal callbacks. If null, all items are considered.
+     * @param referenceFilter filter matching items belonging to the full reference API surface
+     *   hierarchy (e.g. the target surface and all base surfaces it extends). Used to construct the
+     *   item trees and to verify whether an item absent from [surfaceFilter] was moved into or
+     *   inherited from a base surface (e.g. inherited methods, fields, properties, interfaces, and
+     *   thrown types) rather than removed.
      */
     fun compare(
         visitor: ComparisonVisitor,
         old: Codebase,
         new: Codebase,
-        filter: FilterPredicate? = null
+        surfaceFilter: FilterPredicate? = null,
+        referenceFilter: FilterPredicate? = null,
     ) {
-        // Algorithm: build up two trees (by nesting level); then visit the
-        // two trees
-        val oldTree = createTree(old, filter)
-        val newTree = createTree(new, filter)
+        // Algorithm: build up two trees (by nesting level); then visit the two trees.
+
+        // Use referenceFilter so that the trees contain all items in
+        // the reference API surface hierarchy (e.g. including base surfaces), allowing items moved
+        // between surfaces or inherited from superclasses in base surfaces to be matched.
+        val oldTree = createTree(old, referenceFilter)
+        val newTree = createTree(new, referenceFilter)
 
         /* Debugging:
         println("Old:\n${ItemTree.prettyPrint(oldTree)}")
         println("New:\n${ItemTree.prettyPrint(newTree)}")
         */
 
-        compare(visitor, oldTree, newTree, null, null, filter)
+        compare(visitor, oldTree, newTree, null, null, surfaceFilter, referenceFilter)
     }
 
+    /**
+     * Compares two [MergedCodebase] instances, dispatching callbacks to [visitor] for added,
+     * removed, and matching items.
+     *
+     * @param visitor the [ComparisonVisitor] receiving callbacks as differences and matches are
+     *   found.
+     * @param old the baseline or previous merged codebase.
+     * @param new the current or newer merged codebase.
+     * @param surfaceFilter filter matching items belonging to the specific API surface being
+     *   compared (e.g. the delta surface). Only items matching this filter are considered for
+     *   addition or removal callbacks. If null, all items are considered.
+     * @param referenceFilter filter matching items belonging to the full reference API surface
+     *   hierarchy (e.g. the target surface and all base surfaces it extends). Used to construct the
+     *   item trees and to verify whether an item absent from [surfaceFilter] was moved into or
+     *   inherited from a base surface (e.g. inherited methods, fields, properties, interfaces, and
+     *   thrown types) rather than removed.
+     */
     fun compare(
         visitor: ComparisonVisitor,
         old: MergedCodebase,
         new: MergedCodebase,
-        filter: FilterPredicate? = null
+        surfaceFilter: FilterPredicate? = null,
+        referenceFilter: FilterPredicate? = null,
     ) {
-        // Algorithm: build up two trees (by nesting level); then visit the
-        // two trees
-        val oldTree = createTree(old, filter)
-        val newTree = createTree(new, filter)
+        // Algorithm: build up two trees (by nesting level); then visit the two trees.
+
+        // Use referenceFilter so that the trees contain all items in
+        // the reference API surface hierarchy (e.g. including base surfaces), allowing items moved
+        // between surfaces or inherited from superclasses in base surfaces to be matched.
+        val oldTree = createTree(old, referenceFilter)
+        val newTree = createTree(new, referenceFilter)
 
         /* Debugging:
         println("Old:\n${ItemTree.prettyPrint(oldTree)}")
         println("New:\n${ItemTree.prettyPrint(newTree)}")
         */
 
-        compare(visitor, oldTree, newTree, null, null, filter)
+        compare(visitor, oldTree, newTree, null, null, surfaceFilter, referenceFilter)
     }
 
     /**
@@ -161,12 +201,25 @@ object CodebaseComparator {
      *
      * If a source set [Codebase] is present in both [old] and [new], uses [compare] to compare all
      * elements of the [Codebase]s.
+     *
+     * @param visitor the [ComparisonVisitor] receiving callbacks as differences and matches are
+     *   found.
+     * @param old the baseline or previous multiplatform codebase.
+     * @param new the current or newer multiplatform codebase.
+     * @param surfaceFilter filter matching items belonging to the specific API surface being
+     *   compared (e.g. the delta surface). Only items matching this filter are considered for
+     *   addition or removal callbacks. If null, all items are considered.
+     * @param referenceFilter filter matching items belonging to the full reference API surface
+     *   hierarchy (e.g. the target surface and all base surfaces it extends). Used to construct the
+     *   item trees and to verify whether an item absent from [surfaceFilter] was moved into or
+     *   inherited from a base surface rather than removed.
      */
     fun compareMultiplatform(
         visitor: ComparisonVisitor,
         old: MultiplatformCodebase,
         new: MultiplatformCodebase,
-        filter: FilterPredicate? = null,
+        surfaceFilter: FilterPredicate? = null,
+        referenceFilter: FilterPredicate? = null,
     ) {
         val allSourceSetNames = old.sourceSets + new.sourceSets
         for (sourceSetName in allSourceSetNames) {
@@ -180,18 +233,27 @@ object CodebaseComparator {
                         }
                     )
                 newSourceSet == null -> visitor.removedCodebase(oldSourceSet)
-                else -> compare(visitor, oldSourceSet, newSourceSet, filter)
+                else -> compare(visitor, oldSourceSet, newSourceSet, surfaceFilter, referenceFilter)
             }
         }
     }
 
+    /**
+     * Recursively compares two lists of [ItemTree]s at the same nesting level.
+     *
+     * @param surfaceFilter determines if an item is considered for addition or removal callbacks.
+     * @param referenceFilter determines if an item is considered present in the reference API
+     *   hierarchy (to distinguish items moved into base surfaces or the removed API, or inherited
+     *   from base surfaces, from removals).
+     */
     private fun compare(
         visitor: ComparisonVisitor,
         oldList: List<ItemTree>,
         newList: List<ItemTree>,
         newParent: SelectableItem?,
         oldParent: SelectableItem?,
-        filter: FilterPredicate?
+        surfaceFilter: FilterPredicate?,
+        referenceFilter: FilterPredicate?,
     ) {
         // Debugging tip: You can print out a tree like this: ItemTree.prettyPrint(list)
         var index1 = 0
@@ -209,10 +271,12 @@ object CodebaseComparator {
                     val new = newTree.item()
 
                     val compare = compare(old, new)
+                    val newMatches = surfaceFilter.testOrTrue(new)
+                    val oldMatches = surfaceFilter.testOrTrue(old)
                     when {
                         compare > 0 -> {
                             index2++
-                            if (new.emit) {
+                            if (newMatches) {
                                 dispatchToAddedOrCompareIfItemWasMoved(
                                     new,
                                     oldParent,
@@ -222,18 +286,19 @@ object CodebaseComparator {
                         }
                         compare < 0 -> {
                             index1++
-                            if (old.emit) {
+                            if (oldMatches) {
                                 dispatchToRemovedOrCompareIfItemWasMoved(
                                     old,
                                     visitor,
                                     newParent,
-                                    filter,
+                                    referenceFilter,
                                 )
                             }
                         }
                         else -> {
-                            if (new.emit) {
-                                if (old.emit) {
+                            var compareChildren = true
+                            if (newMatches) {
+                                if (oldMatches) {
                                     dispatchToCompare(visitor, old, new)
                                 } else {
                                     dispatchToAddedOrCompareIfItemWasMoved(
@@ -243,25 +308,36 @@ object CodebaseComparator {
                                     )
                                 }
                             } else {
-                                if (old.emit) {
-                                    dispatchToRemovedOrCompareIfItemWasMoved(
-                                        old,
-                                        visitor,
-                                        newParent,
-                                        filter,
-                                    )
+                                if (oldMatches) {
+                                    // If new is in the reference API, it was moved to a base
+                                    // surface or the removed API rather than removed from the API.
+                                    val newInApi = referenceFilter.testOrTrue(new)
+                                    if (newInApi) {
+                                        dispatchToCompare(visitor, old, new)
+                                    } else {
+                                        dispatchToRemovedOrCompareIfItemWasMoved(
+                                            old,
+                                            visitor,
+                                            newParent,
+                                            referenceFilter,
+                                        )
+                                        compareChildren = false
+                                    }
                                 }
                             }
 
-                            // Compare the children (recurse)
-                            compare(
-                                visitor,
-                                oldTree.children,
-                                newTree.children,
-                                newTree.item(),
-                                oldTree.item(),
-                                filter
-                            )
+                            if (compareChildren) {
+                                // Compare the children (recurse)
+                                compare(
+                                    visitor,
+                                    oldTree.children,
+                                    newTree.children,
+                                    newTree.item(),
+                                    oldTree.item(),
+                                    surfaceFilter,
+                                    referenceFilter,
+                                )
+                            }
 
                             index1++
                             index2++
@@ -272,12 +348,14 @@ object CodebaseComparator {
                     while (index1 < length1) {
                         val oldTree = oldList[index1++]
                         val old = oldTree.item()
-                        dispatchToRemovedOrCompareIfItemWasMoved(
-                            old,
-                            visitor,
-                            newParent,
-                            filter,
-                        )
+                        if (surfaceFilter.testOrTrue(old)) {
+                            dispatchToRemovedOrCompareIfItemWasMoved(
+                                old,
+                                visitor,
+                                newParent,
+                                referenceFilter,
+                            )
+                        }
                     }
                 }
             } else if (index2 < length2) {
@@ -286,7 +364,9 @@ object CodebaseComparator {
                     val newTree = newList[index2++]
                     val new = newTree.item()
 
-                    dispatchToAddedOrCompareIfItemWasMoved(new, oldParent, visitor)
+                    if (surfaceFilter.testOrTrue(new)) {
+                        dispatchToAddedOrCompareIfItemWasMoved(new, oldParent, visitor)
+                    }
                 }
             } else {
                 break
@@ -377,7 +457,7 @@ object CodebaseComparator {
         old: SelectableItem,
         visitor: ComparisonVisitor,
         newParent: SelectableItem?,
-        filter: FilterPredicate?
+        referenceFilter: FilterPredicate?,
     ) {
         // If it's a method, we may not have removed the method, we may have simply
         // removed an override and are now inheriting the method from a superclass.
@@ -391,8 +471,7 @@ object CodebaseComparator {
                 // removed. That is because reverting it will replace it with the old item against
                 // which it is being compared in this compatibility check. So, while this specific
                 // item will not appear in the API the old item will and so it has not been removed.
-                val methodFilter =
-                    filter?.or { method: SelectableItem -> method.showability.revertUnstableApi() }
+                val methodFilter = referenceFilter?.or(RevertedPredicate)
 
                 // Find an element which matches the methodFilter
                 val superMethod = newParent.findPredicateMethodWithSuper(old, methodFilter)
@@ -416,7 +495,7 @@ object CodebaseComparator {
                         includeInterfaces = true
                     )
 
-                if (superField != null && (filter == null || filter.test(superField))) {
+                if (superField != null && referenceFilter.testOrTrue(superField)) {
                     superField.duplicate(newParent)
                 } else {
                     null
@@ -434,7 +513,7 @@ object CodebaseComparator {
         if (old is PropertyItem && newParent is ClassItem) {
             val superProperty =
                 newParent.findProperty(old, includeSuperClasses = true, includeInterfaces = true)
-            if (superProperty != null && (filter == null || filter.test(superProperty))) {
+            if (superProperty != null && referenceFilter.testOrTrue(superProperty)) {
                 dispatchToCompare(visitor, old, superProperty.duplicate(newParent))
                 return
             }
@@ -668,8 +747,8 @@ object CodebaseComparator {
     }
 
     /**
-     * Sorts and removes duplicate items. The kept item will be an unhidden item if possible. Ties
-     * are broken in favor of keeping children having lower indices
+     * Sorts and removes duplicate items. Ties are broken in favor of keeping children having lower
+     * indices.
      */
     private fun removeDuplicates(item: ItemTree) {
         item.children.sortWith(treeComparator)
@@ -679,18 +758,9 @@ object CodebaseComparator {
             val child = children[i]
             val prev = children[i + 1]
             if (comparator.compare(child.item, prev.item) == 0) {
-                if (prev.item!!.emit && !child.item!!.emit) {
-                    // merge child into prev because prev is emitted
-                    val prevChildren = prev.children.toList()
-                    prev.children.clear()
-                    prev.children += child.children
-                    prev.children += prevChildren
-                    children.removeAt(i)
-                } else {
-                    // merge prev into child because child was specified first
-                    child.children += prev.children
-                    children.removeAt(i + 1)
-                }
+                // merge prev into child because child was specified first
+                child.children += prev.children
+                children.removeAt(i + 1)
             }
             i--
         }
@@ -701,50 +771,42 @@ object CodebaseComparator {
 
     private fun createTree(
         codebase: MergedCodebase,
-        filter: FilterPredicate? = null
+        referenceFilter: FilterPredicate?,
     ): List<ItemTree> {
-        return createTree(codebase.children, filter)
+        return createTree(codebase.children, referenceFilter)
     }
 
-    private fun createTree(codebase: Codebase, filter: FilterPredicate? = null): List<ItemTree> {
-        return createTree(listOf(codebase), filter)
+    private fun createTree(
+        codebase: Codebase,
+        referenceFilter: FilterPredicate?,
+    ): List<ItemTree> {
+        return createTree(listOf(codebase), referenceFilter)
     }
 
     private fun createTree(
         codebases: List<Codebase>,
-        filter: FilterPredicate? = null
+        referenceFilter: FilterPredicate?,
     ): List<ItemTree> {
         val stack = Stack<ItemTree>()
         val root = ItemTree(null)
         stack.push(root)
 
         for (codebase in codebases) {
-            val acceptAll = codebase.preFiltered || filter == null
-            val predicate = if (acceptAll) FilterPredicate { true } else filter!!
-            val apiFilters = ApiFilters(emit = predicate, reference = predicate)
+            // For non-prefiltered codebases (e.g. source-based codebases), exclude external
+            // classpath dependencies (which have emit == false) while filtering to the requested
+            // API surface.
+            val filterEmit =
+                if (codebase.preFiltered) null
+                else if (referenceFilter == null) EmittedOnlyPredicate
+                else EmittedOnlyPredicate.and(referenceFilter)
             codebase.accept(
                 object :
-                    ApiVisitor(
+                    ApiSurfaceVisitor(
                         preserveClassNesting = true,
                         // Do not visit [ParameterItem]s, as they will be compared in
                         // [dispatchToCompare].
                         visitParameterItems = false,
-                        inlineInheritedFields = true,
-                        apiFilters = apiFilters,
-                        // Whenever a caller passes arguments of "--show-annotation 'SomeAnnotation'
-                        // --check-compatibility:api:released $oldApi",
-                        // really what they mean is:
-                        // 1. Definitions:
-                        //  1.1 Define the SomeAnnotation API as the set of APIs that are either
-                        // public or are annotated with @SomeAnnotation
-                        //  1.2 $oldApi was previously the difference between the SomeAnnotation api
-                        // and the public api
-                        // 2. The caller would like Metalava to verify that all APIs that are known
-                        // to have previously been part of the SomeAnnotation api remain part of the
-                        // SomeAnnotation api
-                        // So, when doing compatibility checking we want to consider public APIs
-                        // even if the caller didn't explicitly pass --show-unannotated
-                        showUnannotated = true,
+                        filterEmit = filterEmit,
                     ) {
 
                     /**
@@ -760,9 +822,6 @@ object CodebaseComparator {
 
                         stack.push(node)
                     }
-
-                    override fun include(cls: ClassItem): Boolean =
-                        if (acceptAll) true else super.include(cls)
 
                     /**
                      * Pop the [ItemTree] for [item] constructed in [visitSelectableItem] off the
@@ -831,4 +890,12 @@ object CodebaseComparator {
             }
         }
     }
+}
+
+/**
+ * [FilterPredicate] that matches items whose [SelectableItem.selectedApi] has [SelectedApi.revert]
+ * set to true.
+ */
+private object RevertedPredicate : FilterPredicate() {
+    override fun test(t: SelectableItem): Boolean = t.selectedApi.revert
 }

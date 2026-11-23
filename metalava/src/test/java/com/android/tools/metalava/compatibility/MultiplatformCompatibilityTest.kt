@@ -126,9 +126,7 @@ class MultiplatformCompatibilityTest : DriverTest() {
             expectedIssues =
                 // The issue is reported for each source set because all source sets extend common.
                 """
-                ../multiplatform-compatibility-api/commonMain.txt:4: error: Source breaking change: Removed constructor test.pkg.Common() [RemovedMethod]
-                ../multiplatform-compatibility-api/commonMain.txt:4: error: Source breaking change: Removed constructor test.pkg.Common() [RemovedMethod]
-                ../multiplatform-compatibility-api/commonMain.txt:4: error: Source breaking change: Removed constructor test.pkg.Common() [RemovedMethod]
+                MULTIPLATFORM-API-DIR/commonMain.txt:4: error: Source breaking change: Removed constructor test.pkg.Common() [RemovedMethod]
                 """
                     .trimIndent()
         )
@@ -189,7 +187,7 @@ class MultiplatformCompatibilityTest : DriverTest() {
                         """
                     ),
             expectedIssues =
-                "../multiplatform-compatibility-api/nativeMain.txt:4: error: Source breaking change: Removed constructor test.pkg.Native() [RemovedMethod]"
+                "MULTIPLATFORM-API-DIR/nativeMain.txt:4: error: Source breaking change: Removed constructor test.pkg.Native() [RemovedMethod]"
         )
     }
 
@@ -236,7 +234,7 @@ class MultiplatformCompatibilityTest : DriverTest() {
             multiplatformSignatureSource = listOf(commonApi, androidApi),
             multiplatformCompatibilityApi = listOf(commonApi, androidApi, nativeApi),
             expectedIssues =
-                "../multiplatform-compatibility-api/nativeMain.txt: error: Codebase for source set nativeMain has been removed [RemovedSourceSet]"
+                "MULTIPLATFORM-API-DIR/nativeMain.txt: error: Codebase for source set nativeMain has been removed [RemovedSourceSet]"
         )
     }
 

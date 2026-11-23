@@ -29,7 +29,7 @@ class SourceSetTest : BaseTemporaryFolderOwner() {
     private val reporter = RecordingReporter()
 
     private fun assertAndRemoveReportedIssues(expectedIssues: String) {
-        val issues = replaceFileWithSymbol(reporter.removeIssues())
+        val issues = removeTestSpecificDirectories(reporter.removeIssues())
         assertEquals(expectedIssues.trimIndent(), issues.trimIndent())
     }
 
@@ -203,5 +203,19 @@ class SourceSetTest : BaseTemporaryFolderOwner() {
         val sourceSet = SourceSet(filesWithDuplicates, emptyList())
         val extractedRoots = sourceSet.extractRoots(reporter)
         assertEquals(files, extractedRoots.sources)
+    }
+
+    @Test
+    fun `Test extract roots - blank source path does not extract roots`() {
+        val sources =
+            listOf(
+                File("src/main/java/com/android/tools/metalava/model/source/SourceSet.kt"),
+                File("src/main/java/com/android/tools/metalava/model/source/SourceParser.kt"),
+            )
+        val sourceSet = SourceSet(sources = sources, sourcePath = listOf(File("")))
+        val extractedRoots = sourceSet.extractRoots(reporter)
+
+        assertEquals(sources.map { it.absoluteFile }, extractedRoots.sources)
+        assertEquals(emptyList(), extractedRoots.sourcePath)
     }
 }

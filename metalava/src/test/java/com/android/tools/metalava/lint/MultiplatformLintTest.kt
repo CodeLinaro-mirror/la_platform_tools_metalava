@@ -19,9 +19,10 @@ package com.android.tools.metalava.lint
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
 import com.android.tools.metalava.DriverTest
-import com.android.tools.metalava.cli.common.ARG_HIDE
+import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.createAndroidModuleDescription
 import com.android.tools.metalava.testing.createCommonModuleDescription
 import com.android.tools.metalava.testing.createModuleDescription
@@ -204,6 +205,7 @@ class MultiplatformLintTest : DriverTest() {
             expectedIssues =
                 """
                 commonMain/src/test/pkg/Foo.kt:3: error: multiplatform method test.pkg.Foo#foo() has different visibilities in different source sets: internal in [commonMain], public in [androidMain], protected in [nativeMain] [KmpVisibilityMismatch]
+                nativeMain/src/test/pkg/Foo_native.kt:3: error: Protected methods not allowed; must be public: method test.pkg.Foo.foo()} [ProtectedMember]
                 """,
         )
     }
@@ -267,6 +269,13 @@ class MultiplatformLintTest : DriverTest() {
                         """
                     ),
                     kotlin(
+                        "commonMain/src/test/pkg/Show.kt",
+                        """
+                        package test.pkg
+                        annotation class Show
+                        """
+                    ),
+                    kotlin(
                         "commonMain/src/test/pkg/Foo.kt",
                         """
                         package test.pkg
@@ -274,8 +283,8 @@ class MultiplatformLintTest : DriverTest() {
                             @Hide val hiddenInCommon: Int
                             fun hiddenInNative(): Unit
 
-                            @PublishedApi internal fun shownInCommon(): Unit
-                            internal val shownInAndroid: Int
+                            @Show fun shownInCommon(): Unit
+                            val shownInAndroid: Int
                         }
                         """
                     )
@@ -290,8 +299,8 @@ class MultiplatformLintTest : DriverTest() {
                             actual val hiddenInCommon: Int
                             actual fun hiddenInNative(): Unit
 
-                            actual internal fun shownInCommon(): Unit
-                            @PublishedApi actual internal val shownInAndroid: Int
+                            actual fun shownInCommon(): Unit
+                            @Show actual val shownInAndroid: Int
                         }
                         """
                     )
@@ -306,15 +315,14 @@ class MultiplatformLintTest : DriverTest() {
                             actual val hiddenInCommon: Int
                             @Hide actual fun hiddenInNative(): Unit
 
-                            actual internal fun shownInCommon(): Unit
-                            actual internal val shownInAndroid: Int
+                            actual fun shownInCommon(): Unit
+                            actual val shownInAndroid: Int
                         }
                         """
                     )
                 ),
-            showAnnotations = arrayOf("kotlin.PublishedApi"),
+            showAnnotations = arrayOf("test.pkg.Show"),
             hideAnnotations = arrayOf("test.pkg.Hide"),
-            extraArguments = arrayOf(ARG_HIDE, "UnhiddenSystemApi"),
             expectedIssues =
                 """
                 commonMain/src/test/pkg/Foo.kt:3: error: multiplatform property test.pkg.Foo#hiddenInCommon is hidden with an annotation in source sets [commonMain] but not hidden with an annotation in source sets [androidMain, nativeMain] [KmpHideShowAnnotationMismatch]
@@ -472,7 +480,10 @@ class MultiplatformLintTest : DriverTest() {
                     )
                 ),
             expectedIssues = null,
-            extraArguments = arrayOf(ARG_HIDE, "TypealiasDefinition"),
+            extraArguments =
+                hiddenIssues(
+                    Issues.TYPEALIAS_DEFINITION,
+                ),
         )
     }
 
@@ -518,6 +529,7 @@ class MultiplatformLintTest : DriverTest() {
             expectedIssues =
                 """
                 commonMain/src/test/pkg/Foo.kt:3: error: multiplatform method test.pkg.Foo#plus(test.pkg.Foo) is operator in source sets [androidMain] but not operator in source sets [commonMain, nativeMain] [KmpModifierMismatch]
+                nativeMain/src/test/pkg/Foo_native.kt:3: info: Note that adding the `operator` keyword would allow calling this method using operator syntax [KotlinOperator]
                 """
         )
     }
@@ -687,12 +699,37 @@ class MultiplatformLintTest : DriverTest() {
                 ),
             enableMultiplatform = true,
             apiLint = "", // enabled
-            expectedIssues =
-                """
-                androidMain/src/test/pkg/Mismatch.kt:2: error: multiplatform class test.pkg.Mismatch has different origins in different source sets: COMMAND_LINE in [androidMain], CLASS_PATH in [jvmMain] [KmpOriginMismatch]
-                """,
         ) {
-            multiplatformCodebase!!.resolveClass("test.pkg.Mismatch")
+            // Because lint is run on top level classes from source, the mismatch issue doesn't end
+            // up reported.
+            val className = "test.pkg.Mismatch"
+            val pkg = multiplatformCodebase!!.findPackage("test.pkg")!!
+            val mismatchInitial = pkg.topLevelClasses().single { it.qualifiedName == className }
+            mismatchInitial.assertSourceSets("androidMain")
+            mismatchInitial.origin.assertSourceSetValues(
+                "androidMain" to ClassOrigin.COMMAND_LINE,
+            )
+
+            val mismatchResolved = multiplatformCodebase.resolveClass(className)!!
+            mismatchResolved.assertSourceSets("androidMain", "jvmMain")
+            mismatchResolved.origin.assertSourceSetValues(
+                "androidMain" to ClassOrigin.COMMAND_LINE,
+                "jvmMain" to ClassOrigin.CLASS_PATH
+            )
+
+            val mismatchAfterResolve =
+                pkg.topLevelClasses().single { it.qualifiedName == className }
+            mismatchAfterResolve.assertSourceSets("androidMain")
+            mismatchAfterResolve.origin.assertSourceSetValues(
+                "androidMain" to ClassOrigin.COMMAND_LINE,
+            )
+
+            val mismatchFromSource =
+                pkg.topLevelClassesFromSource.single { it.qualifiedName == className }
+            mismatchFromSource.assertSourceSets("androidMain")
+            mismatchFromSource.origin.assertSourceSetValues(
+                "androidMain" to ClassOrigin.COMMAND_LINE,
+            )
         }
     }
 
@@ -790,6 +827,7 @@ class MultiplatformLintTest : DriverTest() {
                 androidMain/src/test/pkg/clashingBadClassName.kt:2: error: multiplatform class test.pkg.clashingBadClassName is not an expect/actual and is defined with the same signature in unrelated source sets ([androidMain, nativeMain]) [KmpSignatureClash]
                 androidMain/src/test/pkg/clashingBadClassName.kt:2: error: Class must start with uppercase char: clashingBadClassName [StartWithUpper]
                 commonMain/src/test/pkg/commonBadClassName.kt:2: error: Class must start with uppercase char: commonBadClassName [StartWithUpper]
+                nativeMain/src/test/pkg/clashingBadClassName.kt:2: error: Class must start with uppercase char: clashingBadClassName [StartWithUpper]
                 nativeMain/src/test/pkg/nativeBadClassName.kt:2: error: Class must start with uppercase char: nativeBadClassName [StartWithUpper]
                 """,
         )
@@ -879,6 +917,46 @@ class MultiplatformLintTest : DriverTest() {
                         package test.pkg
                         actual class Outer {
                             private inner class Inner
+                        }
+                        """
+                    )
+                ),
+            expectedIssues = null,
+        )
+    }
+
+    @Test
+    fun `Check equals and hashCode definitions`() {
+        checkLint(
+            commonSource =
+                arrayOf(
+                    kotlin(
+                        "commonMain/src/test/pkg/Foo.kt",
+                        """
+                        package test.pkg
+                        expect class Foo
+                        """
+                    )
+                ),
+            androidSource =
+                arrayOf(
+                    kotlin(
+                        "androidMain/src/test/pkg/Foo_android.kt",
+                        """
+                        package test.pkg
+                        actual class Foo
+                        """
+                    )
+                ),
+            nativeSource =
+                arrayOf(
+                    kotlin(
+                        "nativeMain/src/test/pkg/Foo_native.kt",
+                        """
+                        package test.pkg
+                        actual class Foo {
+                            override fun equals(other: Any?): Boolean = true
+                            override fun hashCode(): Int = 0
                         }
                         """
                     )

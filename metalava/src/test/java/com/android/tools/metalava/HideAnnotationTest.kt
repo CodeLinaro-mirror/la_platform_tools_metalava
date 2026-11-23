@@ -123,7 +123,6 @@ class HideAnnotationTest : DriverTest() {
                     )
                 ),
             hideAnnotations = arrayOf("test.pkg.Hide"),
-            includeStrippedSuperclassWarnings = true,
             expectedApiSignature =
                 """
                 package test.pkg {

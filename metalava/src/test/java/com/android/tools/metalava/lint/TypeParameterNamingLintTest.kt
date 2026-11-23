@@ -17,7 +17,6 @@
 package com.android.tools.metalava.lint
 
 import com.android.tools.metalava.DriverTest
-import com.android.tools.metalava.cli.common.ARG_ERROR
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.reporter.Issues
@@ -43,7 +42,10 @@ class TypeParameterNamingLintTest : DriverTest() {
                     """
                     )
                 ),
-            extraArguments = arrayOf(ARG_ERROR, Issues.TYPE_PARAMETER_NAME.name),
+            extraArguments =
+                errorIssues(
+                    Issues.TYPE_PARAMETER_NAME,
+                ),
         )
     }
 
@@ -63,7 +65,10 @@ class TypeParameterNamingLintTest : DriverTest() {
                     """
                     )
                 ),
-            extraArguments = arrayOf(ARG_ERROR, Issues.TYPE_PARAMETER_NAME.name),
+            extraArguments =
+                errorIssues(
+                    Issues.TYPE_PARAMETER_NAME,
+                ),
         )
     }
 
@@ -83,7 +88,10 @@ class TypeParameterNamingLintTest : DriverTest() {
                     """
                     )
                 ),
-            extraArguments = arrayOf(ARG_ERROR, Issues.TYPE_PARAMETER_NAME.name),
+            extraArguments =
+                errorIssues(
+                    Issues.TYPE_PARAMETER_NAME,
+                ),
         )
     }
 
@@ -105,7 +113,10 @@ class TypeParameterNamingLintTest : DriverTest() {
                     """
                     )
                 ),
-            extraArguments = arrayOf(ARG_ERROR, Issues.TYPE_PARAMETER_NAME.name),
+            extraArguments =
+                errorIssues(
+                    Issues.TYPE_PARAMETER_NAME,
+                ),
         )
     }
 
@@ -128,7 +139,10 @@ class TypeParameterNamingLintTest : DriverTest() {
                     """
                     )
                 ),
-            extraArguments = arrayOf(ARG_ERROR, Issues.TYPE_PARAMETER_NAME.name),
+            extraArguments =
+                errorIssues(
+                    Issues.TYPE_PARAMETER_NAME,
+                ),
         )
     }
 
@@ -153,7 +167,10 @@ class TypeParameterNamingLintTest : DriverTest() {
                     """
                     )
                 ),
-            extraArguments = arrayOf(ARG_ERROR, Issues.TYPE_PARAMETER_NAME.name),
+            extraArguments =
+                errorIssues(
+                    Issues.TYPE_PARAMETER_NAME,
+                ),
         )
     }
 
@@ -173,7 +190,10 @@ class TypeParameterNamingLintTest : DriverTest() {
                     """
                     )
                 ),
-            extraArguments = arrayOf(ARG_ERROR, Issues.TYPE_PARAMETER_NAME.name),
+            extraArguments =
+                errorIssues(
+                    Issues.TYPE_PARAMETER_NAME,
+                ),
         )
     }
 
@@ -193,7 +213,10 @@ class TypeParameterNamingLintTest : DriverTest() {
                     """
                     )
                 ),
-            extraArguments = arrayOf(ARG_ERROR, Issues.TYPE_PARAMETER_NAME.name),
+            extraArguments =
+                errorIssues(
+                    Issues.TYPE_PARAMETER_NAME,
+                ),
         )
     }
 
@@ -216,7 +239,10 @@ class TypeParameterNamingLintTest : DriverTest() {
                     """
                     )
                 ),
-            extraArguments = arrayOf(ARG_ERROR, Issues.TYPE_PARAMETER_NAME.name),
+            extraArguments =
+                errorIssues(
+                    Issues.TYPE_PARAMETER_NAME,
+                ),
         )
     }
 
@@ -241,7 +267,10 @@ class TypeParameterNamingLintTest : DriverTest() {
                     """
                     )
                 ),
-            extraArguments = arrayOf(ARG_ERROR, Issues.TYPE_PARAMETER_NAME.name),
+            extraArguments =
+                errorIssues(
+                    Issues.TYPE_PARAMETER_NAME,
+                ),
         )
     }
 }

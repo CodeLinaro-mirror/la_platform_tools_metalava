@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.testsuite.typeitem
 
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.TypeComparator
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.testing.arrayTypeItem
 import com.android.tools.metalava.model.testing.classTypeItem
@@ -249,12 +250,30 @@ class CommonParameterizedTypeItemTest : BaseModelTest() {
 
     @Test
     fun `Test type`() {
-        runTypeItemTest { assertEquals(params.expectedTypeItem, typeItem) }
+        runTypeItemTest {
+            // Ignore nullability when comparing types because expected types created by test
+            // fixtures do not specify nullability, while actual types from the codebase may have
+            // model-specific nullability.
+            assertTypeComparison(
+                params.expectedTypeItem,
+                typeItem,
+                TypeComparator.IGNORE_NULLABILITY,
+            )
+        }
     }
 
     @Test
     fun `Test asErasedType`() {
-        runTypeItemTest { assertEquals(params.expectedAsErasedTypeItem, typeItem.asErasedType()) }
+        runTypeItemTest {
+            // Ignore nullability when comparing types because expected erased types created by
+            // test fixtures do not specify nullability, while actual types from the codebase may
+            // have model-specific nullability.
+            assertTypeComparison(
+                params.expectedAsErasedTypeItem,
+                typeItem.asErasedType(),
+                TypeComparator.IGNORE_NULLABILITY,
+            )
+        }
     }
 
     @Test

@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.source.LazySourceComment
 import com.android.tools.metalava.reporter.FileLocation
+import com.intellij.lang.ASTNode
 import com.intellij.psi.JavaTokenType
 import com.intellij.psi.PsiComment
 import com.intellij.psi.PsiCompiledElement
@@ -27,7 +28,10 @@ import com.intellij.psi.PsiField
 import com.intellij.psi.PsiJavaToken
 import com.intellij.psi.PsiPackageStatement
 import com.intellij.psi.PsiWhiteSpace
+import com.intellij.psi.TokenType
 import com.intellij.psi.impl.source.SourceTreeToPsiMap
+import com.intellij.psi.impl.source.tree.CompositeElement
+import com.intellij.psi.impl.source.tree.JavaDocElementType
 import com.intellij.psi.impl.source.tree.java.FieldElement
 import com.intellij.psi.javadoc.PsiDocComment
 import com.intellij.psi.util.PsiTreeUtil
@@ -51,6 +55,13 @@ internal class PsiSourceComment(private val psiElement: PsiElement) : LazySource
         // has been initialized as they are initialized together in [obtainText].
         text
         return PsiFileLocation.fromPsiElement(psiComment)
+    }
+
+    override fun obtainStartOffset(): Int {
+        // Make sure that the psiComment is initialized by making sure that the text backing field
+        // has been initialized as they are initialized together in [obtainText].
+        text
+        return psiComment?.textRange?.startOffset ?: -1
     }
 
     override fun obtainText(): String {
@@ -151,7 +162,10 @@ internal class PsiSourceComment(private val psiElement: PsiElement) : LazySource
                     }
                 }
 
-                val docComment = psiElement.docComment
+                // Get the PsiDocComment closest to the declaration, if any. That could be a
+                // traditional doc comment or a Markdown comment. If it is a Markdown comment then
+                // it will be ignored as Metalava does not yet support parsing Markdown comments.
+                val docComment = closestDocComment(psiElement)
                 if (docComment != null) {
                     val text = docComment.text
                     // Make sure that the text is a doc comment, i.e. starts with /**.
@@ -177,5 +191,51 @@ internal class PsiSourceComment(private val psiElement: PsiElement) : LazySource
 
         psiComment = null
         return ""
+    }
+
+    /**
+     * Find the closest [PsiDocComment], if any, to a declaration [element].
+     *
+     * The [PsiDocComment] could be either a traditional doc comment, or a Markdown comment.
+     */
+    private fun closestDocComment(element: PsiElement): PsiDocComment? {
+        // The PsiElement should be composed of multiple ASTNodes. That includes everything from
+        // the first doc comment that precedes the declaration element to the end of the
+        // declaration (e.g. closing `}` of a class declaration or concrete method, `;` of an
+        // abstract method or field. That also includes whitespace and line or block comments.
+        val parent = element.node as? CompositeElement ?: return null
+
+        // The last PsiDocComment that has been found
+        var docComment: PsiDocComment? = null
+
+        // Iterate over the parent's ASTNodes from first to last. It will stop at the first node
+        // that is not a comment or whitespace. That will limit the work done when the doc comment
+        // does not exist.
+        var child: ASTNode? = parent.firstChildNode
+        while (child != null) {
+            // Get the node type.
+            val childType = child.elementType
+            when (childType) {
+                JavaDocElementType.DOC_COMMENT,
+                JavaDocElementType.DOC_MARKDOWN_COMMENT -> {
+                    // Remember the doc comment but continue just in case there is one closer.
+                    docComment = child as? PsiDocComment
+                }
+                TokenType.WHITE_SPACE,
+                JavaTokenType.END_OF_LINE_COMMENT,
+                JavaTokenType.C_STYLE_COMMENT -> {
+                    // Ignore white space or non-doc comments as they can appear between doc
+                    // comments. Drop out to move onto the next child.
+                }
+                else -> {
+                    // Otherwise, exit early as while syntactically documentation comments can
+                    // appear anywhere, by convention doc comments have to appear before any part of
+                    // the API declaration.
+                    break
+                }
+            }
+            child = child.treeNext
+        }
+        return docComment
     }
 }

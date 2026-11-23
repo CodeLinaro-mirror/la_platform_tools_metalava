@@ -352,10 +352,10 @@ class NullnessMigrationTest : DriverTest() {
                             import type.use.only.NonNull;
                             import java.util.List;
                             public class Test {
-                                public @Nullable Integer compute1(@Nullable java.util.List<@Nullable String> list) {
+                                public @Nullable Integer compute1(java.util.@Nullable List<@Nullable String> list) {
                                     return 5;
                                 }
-                                public @Nullable Integer compute2(@Nullable java.util.List<@Nullable List<?>> list) {
+                                public @Nullable Integer compute2(java.util.@Nullable List<@Nullable List<?>> list) {
                                     return 5;
                                 }
                                 public Integer compute3(@NonNull String @Nullable [] @Nullable [] array) {
@@ -394,10 +394,10 @@ class NullnessMigrationTest : DriverTest() {
                             import mixed.use.NonNull;
                             import java.util.List;
                             public class Test {
-                                public @Nullable Integer compute1(@Nullable java.util.List<@Nullable String> list) {
+                                public @Nullable Integer compute1(@Nullable List<@Nullable String> list) {
                                     return 5;
                                 }
-                                public @Nullable Integer compute2(@Nullable java.util.List<@Nullable List<?>> list) {
+                                public @Nullable Integer compute2(@Nullable List<@Nullable List<?>> list) {
                                     return 5;
                                 }
                                 public Integer compute3(@NonNull String @Nullable [] @Nullable [] array) {
@@ -726,7 +726,6 @@ class NullnessMigrationTest : DriverTest() {
                     ),
                     KnownSourceFiles.androidxNonNullJavaSource,
                     KnownSourceFiles.androidxNullableJavaSource,
-                    KnownSourceFiles.systemApiSource,
                 ),
             migrateNullsApiList =
                 listOf(

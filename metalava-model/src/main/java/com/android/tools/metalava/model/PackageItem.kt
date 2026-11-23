@@ -23,6 +23,8 @@ interface PackageItem : SelectableItem, ReferencableItem, QualifiedNameScope {
     /** The optional [SourceFile] for packages created from `package-info.java` files. */
     val sourceFile: SourceFile?
 
+    override fun sourceFile(): SourceFile? = sourceFile
+
     /**
      * The overview documentation associated with the package; retrieved from an `overview.html`
      * file listed in the source files.
@@ -90,8 +92,11 @@ interface PackageItem : SelectableItem, ReferencableItem, QualifiedNameScope {
         return qualifiedName().hashCode()
     }
 
-    override fun toStringForItem() =
-        "package ${qualifiedName().let { if (it == "") "<root>" else it}}"
+    override fun describe(capitalize: Boolean) = buildString {
+        append(if (capitalize) "Package" else "package")
+        append(" ")
+        append(qualifiedName().let { if (it == "") "<root>" else it })
+    }
 
     companion object {
         val comparator: Comparator<PackageItem> = Comparator { a, b ->

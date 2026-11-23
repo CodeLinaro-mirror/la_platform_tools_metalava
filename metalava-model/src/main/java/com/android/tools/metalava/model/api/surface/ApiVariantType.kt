@@ -22,10 +22,10 @@ import com.android.tools.metalava.model.Item
  * The types of API variants.
  *
  * Each of these refers to a different variant of the API, where each variant has a unique set of
- * criteria that determines which [Item]s in the API are part of the variant. e.g. [DOCUMENTATION]
- * will be set for any [Item] that contributes to the documentation. An [Item] with `@doconly`
- * specified will only include this variant type. The intent is that every traversal of the API,
- * e.g. when generating output files, will just specify the set of variants that it needs to visit.
+ * criteria that determines which [Item]s in the API are part of the variant. e.g. [DOC_ONLY] only
+ * includes [Item]s that are annotated with an `<api-surfaces>/<doc-only>` configured annotation.
+ * The intent is that every traversal of the API, e.g. when generating output files, will just
+ * specify the set of variants that it needs to visit.
  *
  * e.g. When generating the public API it will visit [CORE] in [ApiSurfaces.main] and there will be
  * no [ApiSurfaces.base]. When generating the system API delta it will also visit [CORE] in
@@ -41,22 +41,44 @@ import com.android.tools.metalava.model.Item
  * generating the system stubs (which have to include the public stubs) it will visit [CORE] in both
  * [ApiSurfaces.main] and [ApiSurfaces.base].
  *
- * When generating documentation stubs it will visit the same set as for stubs plus [DOCUMENTATION]
- * for each of the [ApiSurface]s.
+ * When generating documentation stubs it will visit the same set as for stubs plus [DOC_ONLY] for
+ * each of the [ApiSurface]s.
  */
 enum class ApiVariantType(
     /**
      * Used in [ApiVariantSet.toString] to reduce the size of the string representation when
      * debugging.
      */
-    val shortCode: Char,
+    internal val shortCode: Char,
+
+    /**
+     * True if this type of [ApiVariantType] is included in an [ApiSurface] by default.
+     *
+     * @see ApiSurface.defaultVariantSet
+     */
+    internal val isDefault: Boolean,
 ) {
     /** The core API that is used everywhere. */
-    CORE(shortCode = 'C'),
+    CORE(
+        shortCode = 'C',
+
+        // Items are in the core API by default.
+        isDefault = true,
+    ),
 
     /** The removed API items. */
-    REMOVED(shortCode = 'R'),
+    REMOVED(
+        shortCode = 'R',
 
-    /** Documentation items. */
-    DOCUMENTATION(shortCode = 'D'),
+        // Items are not removed by default.
+        isDefault = false,
+    ),
+
+    /** Documentation only items. */
+    DOC_ONLY(
+        shortCode = 'D',
+
+        // Items are not documentation only by default.
+        isDefault = false,
+    ),
 }

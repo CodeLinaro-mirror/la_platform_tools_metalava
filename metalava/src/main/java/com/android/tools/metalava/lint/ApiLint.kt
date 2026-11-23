@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.lint
 
-import com.android.sdklib.SdkVersionInfo
 import com.android.tools.metalava.KotlinInteropChecks
 import com.android.tools.metalava.lint.ApiLint.PackageRank.Companion.INVALID_RANK
 import com.android.tools.metalava.lint.ResourceType.AAPT
@@ -52,6 +51,7 @@ import com.android.tools.metalava.lint.ResourceType.XML
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.SetMinSdkVersion
 import com.android.tools.metalava.manifest.emptyManifest
+import com.android.tools.metalava.model.ANDROID_SDK_EXTENSION_API
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.BaseTypeVisitor
@@ -70,6 +70,7 @@ import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.JAVA_LANG_RECORD
 import com.android.tools.metalava.model.JAVA_LANG_STRING
 import com.android.tools.metalava.model.JAVA_LANG_THROWABLE
+import com.android.tools.metalava.model.LambdaTypeItem
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MultipleTypeVisitor
@@ -82,6 +83,7 @@ import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.RecordComponentItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
+import com.android.tools.metalava.model.TypeComparator
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
@@ -89,13 +91,15 @@ import com.android.tools.metalava.model.TypeParameterListOwner
 import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
+import com.android.tools.metalava.model.api.surface.ApiSurface
+import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.hasAnnotation
+import com.android.tools.metalava.model.value.ValueKind
 import com.android.tools.metalava.model.value.asInt
 import com.android.tools.metalava.model.value.asString
-import com.android.tools.metalava.model.visitors.ApiPredicate
+import com.android.tools.metalava.model.visitors.ApiFiltersVisitor
 import com.android.tools.metalava.model.visitors.ApiType
-import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Issues.ABSTRACT_INNER
@@ -119,6 +123,7 @@ import com.android.tools.metalava.reporter.Issues.CONFIG_FIELD_NAME
 import com.android.tools.metalava.reporter.Issues.CONTEXT_FIRST
 import com.android.tools.metalava.reporter.Issues.CONTEXT_NAME_SUFFIX
 import com.android.tools.metalava.reporter.Issues.DATA_CLASS_DEFINITION
+import com.android.tools.metalava.reporter.Issues.EMPTY_BUILDER
 import com.android.tools.metalava.reporter.Issues.ENDS_WITH_IMPL
 import com.android.tools.metalava.reporter.Issues.ENUM
 import com.android.tools.metalava.reporter.Issues.EQUALS_AND_HASH_CODE
@@ -139,6 +144,7 @@ import com.android.tools.metalava.reporter.Issues.INTERFACE_CONSTANT
 import com.android.tools.metalava.reporter.Issues.INTERNAL_CLASSES
 import com.android.tools.metalava.reporter.Issues.INTERNAL_FIELD
 import com.android.tools.metalava.reporter.Issues.INVALID_NULLABILITY_OVERRIDE
+import com.android.tools.metalava.reporter.Issues.INVALID_SDK_EXTENSION_API
 import com.android.tools.metalava.reporter.Issues.Issue
 import com.android.tools.metalava.reporter.Issues.KOTLIN_DEFAULT_PARAMETER_ORDER
 import com.android.tools.metalava.reporter.Issues.KOTLIN_OPERATOR
@@ -210,13 +216,17 @@ private constructor(
     private val codebase: Codebase,
     oldCodebase: Codebase?,
     reporter: Reporter,
-    apiPredicateConfig: ApiPredicate.Config,
+    apiSurface: ApiSurface,
     private val config: Config,
 ) :
-    ApiVisitor(
+    ApiFiltersVisitor(
         visitParameterItems = false,
-        apiFilters = ApiType.PUBLIC_API.getNonElidingApiFilters(apiPredicateConfig),
-        targetLanguages = TargetLanguageSet.SOURCE,
+        apiFilters =
+            ApiSurfacePredicate.forSurfaceFilters(
+                    ApiType.CORE,
+                    apiSurface,
+                )
+                .forTargetLanguages(TargetLanguageSet.SOURCE),
     ) {
 
     data class Config(
@@ -225,6 +235,9 @@ private constructor(
 
         /** The list of allowed acronyms. */
         val allowedAcronyms: List<String> = emptyList(),
+
+        /** Whether to run Java-Kotlin interop checks. */
+        val enableInteropChecks: Boolean = true,
     )
 
     private val manifest
@@ -249,18 +262,27 @@ private constructor(
         codebase.accept(this)
     }
 
-    private val kotlinInterop: KotlinInteropChecks = KotlinInteropChecks(this.filteredReporter)
+    private val kotlinInterop: KotlinInteropChecks? =
+        if (config.enableInteropChecks) {
+            KotlinInteropChecks(this.filteredReporter)
+        } else {
+            null
+        }
+
+    override fun visitItem(item: Item) {
+        filteredReporter.withContext(item) { checkSdkExtensionApi(item) }
+    }
 
     override fun visitClass(cls: ClassItem) {
         val methods = cls.filteredMethods(filterReference).asSequence()
-        val fields = cls.filteredFields(filterReference, showUnannotated).asSequence()
+        val fields = cls.filteredFields(filterReference).asSequence()
         val constructors = cls.filteredConstructors(filterReference)
         val superClass = cls.filteredSuperclass(filterReference)
         val interfaces = cls.filteredInterfaceTypes(filterReference).asSequence()
         val allCallables = methods.asSequence() + constructors.asSequence()
         filteredReporter.withContext(cls) {
             checkClass(cls, methods, constructors, allCallables, fields, superClass, interfaces)
-            kotlinInterop.checkClass(cls, allCallables + fields)
+            kotlinInterop?.checkClass(cls, allCallables + fields)
         }
     }
 
@@ -298,12 +320,12 @@ private constructor(
             checkCallbackOrListenerMethod(method)
             checkMethodSuffixListenableFutureReturn(method)
             checkTypeParameterNames(method)
-            kotlinInterop.checkMethod(method)
+            kotlinInterop?.checkMethod(method)
         }
     }
 
     override fun visitConstructor(constructor: ConstructorItem) {
-        filteredReporter.withContext(constructor) { kotlinInterop.checkConstructor(constructor) }
+        filteredReporter.withContext(constructor) { kotlinInterop?.checkConstructor(constructor) }
     }
 
     override fun visitField(field: FieldItem) {
@@ -311,12 +333,86 @@ private constructor(
             checkField(field)
             val type = field.type()
             checkEveryType(type, field, TypeUseSite.FIELD)
-            kotlinInterop.checkField(field)
+            kotlinInterop?.checkField(field)
         }
     }
 
     override fun visitProperty(property: PropertyItem) {
-        filteredReporter.withContext(property) { kotlinInterop.checkProperty(property) }
+        filteredReporter.withContext(property) { kotlinInterop?.checkProperty(property) }
+    }
+
+    /**
+     * Check that the `@SdkExtensionApi` annotation on [item], if any, is valid, reporting
+     * [INVALID_SDK_EXTENSION_API] if it is not.
+     *
+     * An `@SdkExtensionApi` annotation is valid if:
+     * 1. Its `value` references a symbolic constant, e.g. `Build.VERSION_CODES.TIRAMISU`, rather
+     *    than an integer literal. This is only checked in sources, i.e. when the codebase is not
+     *    pre-filtered, as signature files always contain the resolved integer value.
+     * 2. Its `value` resolves to a valid SDK extension floor, see [isValidSdkExtensionFloor].
+     * 3. It does not contradict an `@SdkExtensionApi` annotation on an enclosing class, i.e. it
+     *    does not mix an [AD_SERVICES_EXTENSION_ID] floor with a dessert release floor, and is not
+     *    lower than the floor of the enclosing class.
+     */
+    private fun checkSdkExtensionApi(item: Item) {
+        // Only check items that are annotated with @SdkExtensionApi.
+        val annotation = item.modifiers.findAnnotation(ANDROID_SDK_EXTENSION_API) ?: return
+        val attr = annotation.findAttribute("value")
+
+        // 1. In sources, the value must reference a symbolic constant, not a literal.
+        if (!item.codebase.preFiltered && attr != null && attr.value.kind != ValueKind.FIELD) {
+            report(
+                INVALID_SDK_EXTENSION_API,
+                item,
+                "@SdkExtensionApi must reference a symbolic constant from android.os.Build.VERSION_CODES or android.os.ext.SdkExtensions, not a literal",
+                location = annotation.fileLocation,
+            )
+        }
+
+        // 2. The value must resolve to a valid floor. A missing or non-int value is invalid.
+        val floor = attr?.value?.asInt()
+        if (floor == null || !isValidSdkExtensionFloor(floor)) {
+            report(
+                INVALID_SDK_EXTENSION_API,
+                item,
+                "Invalid @SdkExtensionApi value $floor: must be >= $MIN_DESSERT_SDK (excluding $S_V2_SDK)",
+                location = annotation.fileLocation,
+            )
+        } else {
+            // 3. The floor must not contradict the floor of any enclosing class. Walk outwards
+            // through the enclosing classes, reporting at most one contradiction.
+            var enclosingClass = item.containingClass()
+            while (enclosingClass != null) {
+                val outerFloor = enclosingClass.sdkExtensionFloor()
+                // Ignore enclosing classes that are unannotated or have an invalid floor, as an
+                // invalid floor is reported on the enclosing class itself.
+                if (outerFloor != null && isValidSdkExtensionFloor(outerFloor)) {
+                    val innerIsAdServices = floor == AD_SERVICES_EXTENSION_ID
+                    val outerIsAdServices = outerFloor == AD_SERVICES_EXTENSION_ID
+                    if (innerIsAdServices != outerIsAdServices) {
+                        // AD_SERVICES is independent of the dessert releases so cannot be mixed.
+                        report(
+                            INVALID_SDK_EXTENSION_API,
+                            item,
+                            "@SdkExtensionApi($floor) on ${item.describe()} conflicts with @SdkExtensionApi($outerFloor) on enclosing ${enclosingClass.describe()}: cannot mix AD_SERVICES and dessert extension floors",
+                            location = annotation.fileLocation,
+                        )
+                        break
+                    } else if (floor < outerFloor) {
+                        // An item cannot be available in older SDK extensions than its enclosing
+                        // class.
+                        report(
+                            INVALID_SDK_EXTENSION_API,
+                            item,
+                            "@SdkExtensionApi($floor) on ${item.describe()} cannot be lower than @SdkExtensionApi($outerFloor) on enclosing ${enclosingClass.describe()}",
+                            location = annotation.fileLocation,
+                        )
+                        break
+                    }
+                }
+                enclosingClass = enclosingClass.containingClass()
+            }
+        }
     }
 
     /**
@@ -615,7 +711,7 @@ private constructor(
 
         val name = field.name()
         if (!constantNamePattern.matches(name)) {
-            val suggested = SdkVersionInfo.camelCaseToUnderlines(name).uppercase(Locale.US)
+            val suggested = camelCaseToUnderlines(name).uppercase(Locale.US)
             report(
                 ALL_UPPER,
                 field,
@@ -876,7 +972,12 @@ private constructor(
     private fun isEqualsMethod(method: MethodItem): Boolean {
         return method.name() == "equals" &&
             method.parameters().size == 1 &&
-            method.parameters()[0].type().isJavaLangObject() &&
+            (method.parameters()[0].type().isJavaLangObject() ||
+                // For a Kotlin-version of the equals method (which will be used in a multiplatform
+                // codebase, the parameter type will `Any`, which maps to `Object` for JVM.
+                (method.targetLanguages == TargetLanguageSet.KOTLIN_ONLY &&
+                    (method.parameters()[0].type() as? ClassTypeItem)?.qualifiedName ==
+                        "kotlin.Any")) &&
             !method.modifiers.isStatic()
     }
 
@@ -1256,7 +1357,7 @@ private constructor(
 
                 // If the return type and builder type are not equal (after erasing to handle
                 // type variables) then it is an error.
-                if (returnType.asErasedType() != builderType.asErasedType()) {
+                if (!TypeComparator.ERASED.compare(returnType, builderType)) {
                     report(
                         SETTER_RETURNS_THIS,
                         method,
@@ -1350,6 +1451,16 @@ private constructor(
         builtType?.builtClass()?.let { builtClass ->
             // Check to make sure it provides the expected getters.
             checkGettersOnBuiltClass(builtClass, expectedGetters)
+        }
+
+        if (builtType != null && methods.all { it.name() == "build" }) {
+            report(
+                EMPTY_BUILDER,
+                builderClass,
+                "Public API for builder class ${builderClass.qualifiedName()} only contains " +
+                    "`build` method. A public constructor on the built class should be provided " +
+                    "instead."
+            )
         }
     }
 
@@ -1881,7 +1992,7 @@ private constructor(
         }
     }
 
-    private fun checkExceptions(callable: CallableItem, filterReference: FilterPredicate) {
+    private fun checkExceptions(callable: CallableItem, filterReference: FilterPredicate?) {
         for (throwableType in callable.filteredThrowsTypes(filterReference)) {
             // Get the throwable class, which for a type parameter will be the lower bound. A
             // method that throws a type parameter is treated as if it throws its lower bound, so
@@ -1983,6 +2094,12 @@ private constructor(
             is ClassTypeItem ->
                 qualifiedName in qualifiedClassNames ||
                     arguments.any { it.usesAnyClassIn(qualifiedClassNames, checkVariableTypes) }
+            is LambdaTypeItem ->
+                receiverType?.usesAnyClassIn(qualifiedClassNames, checkVariableTypes) == true ||
+                    parameterTypes.any {
+                        it.usesAnyClassIn(qualifiedClassNames, checkVariableTypes)
+                    } ||
+                    returnType.usesAnyClassIn(qualifiedClassNames, checkVariableTypes)
             is WildcardTypeItem ->
                 extendsBound?.usesAnyClassIn(qualifiedClassNames, checkVariableTypes) == true ||
                     superBound?.usesAnyClassIn(qualifiedClassNames, checkVariableTypes) == true
@@ -2047,6 +2164,13 @@ private constructor(
 
     private fun checkHasNullability(item: Item) {
         val itemType = item.type() ?: return
+        // Skips nullability checks for items generated from Kotlin source for use by Java clients
+        // because the nullability of these methods is compiler-generated and can't be changed.
+        if (
+            (item is MethodItem || item is ParameterItem) &&
+                item.targetLanguages == TargetLanguageSet.NOT_KOTLIN
+        )
+            return
         val inherited =
             when (item) {
                 is ParameterItem -> item.possibleContainingMethod()?.inheritedFromAncestor == true
@@ -2896,6 +3020,14 @@ private constructor(
             }
         }
 
+        // Allow the Java collection `toArray` method.
+        if (
+            (item is MethodItem && item.name() == "toArray") ||
+                (item is ParameterItem && item.possibleContainingMethod()?.name() == "toArray") &&
+                    item.containingClass().isCollection()
+        )
+            return
+
         val action =
             when (item) {
                 is MethodItem -> "Method should return"
@@ -3383,7 +3515,8 @@ private constructor(
             val setterParamType = setter.parameters().single().type()
             // Don't check nullness if the methods don't use the same type (this type equality check
             // doesn't consider modifiers).
-            if (getterReturnType != setterParamType) return
+            if (!TypeComparator.IGNORE_NULLABILITY.compare(getterReturnType, setterParamType))
+                return
 
             // Recur through the getter and setter type simultaneously.
             getterReturnType.accept(
@@ -3459,7 +3592,7 @@ private constructor(
             codebase: Codebase,
             oldCodebase: Codebase?,
             reporter: Reporter,
-            apiPredicateConfig: ApiPredicate.Config,
+            apiSurface: ApiSurface,
             config: Config,
         ) {
             val apiLint =
@@ -3467,7 +3600,7 @@ private constructor(
                     codebase,
                     oldCodebase,
                     reporter,
-                    apiPredicateConfig,
+                    apiSurface,
                     config,
                 )
             apiLint.check()
@@ -3642,14 +3775,13 @@ private constructor(
             if (s.none { it.isLowerCase() }) {
                 // The entire thing is capitalized. If so, just perform
                 // normal capitalization, but try dropping _'s.
-                return SdkVersionInfo.underlinesToCamelCase(s.lowercase(Locale.US))
-                    .replaceFirstChar {
-                        if (it.isLowerCase()) {
-                            it.titlecase(Locale.getDefault())
-                        } else {
-                            it.toString()
-                        }
+                return underlinesToCamelCase(s.lowercase(Locale.US)).replaceFirstChar {
+                    if (it.isLowerCase()) {
+                        it.titlecase(Locale.getDefault())
+                    } else {
+                        it.toString()
                     }
+                }
             }
 
             while (true) {
@@ -3662,6 +3794,42 @@ private constructor(
                 val decapitalized = acronym[0] + acronym.substring(1).lowercase(Locale.US)
                 s = s.replace(acronym, decapitalized)
             }
+        }
+
+        /** Converts a CamelCase word into an underlined_word. */
+        private fun camelCaseToUnderlines(string: String): String {
+            if (string.isEmpty()) {
+                return string
+            }
+
+            val sb = StringBuilder(2 * string.length)
+            var lastWasUpperCase = string[0].isUpperCase()
+            for (c in string) {
+                val isUpperCase = c.isUpperCase()
+                if (isUpperCase && !lastWasUpperCase) {
+                    sb.append('_')
+                }
+                lastWasUpperCase = isUpperCase
+                sb.append(c.lowercaseChar())
+            }
+
+            return sb.toString()
+        }
+
+        /** Converts an underlined_word into a CamelCase word. */
+        private fun underlinesToCamelCase(string: String): String {
+            val sb = StringBuilder(string.length)
+            var upcaseNext = true
+            for (c in string) {
+                if (c == '_') {
+                    upcaseNext = true
+                } else {
+                    sb.append(if (upcaseNext) c.uppercaseChar() else c)
+                    upcaseNext = false
+                }
+            }
+
+            return sb.toString()
         }
 
         /** The set of heavyweight BitSet classes that are disallowed by [checkBitSet] */
@@ -3680,6 +3848,47 @@ private constructor(
                 "android.util.ArrayMap",
             )
     }
+}
+
+/**
+ * The minimum valid `@SdkExtensionApi` floor for a dessert release based SDK extension, i.e.
+ * `android.os.Build.VERSION_CODES.R`, the first release with SDK extensions.
+ */
+private const val MIN_DESSERT_SDK = 30
+
+/**
+ * The `android.os.Build.VERSION_CODES.S_V2` SDK version, i.e. Android 12L, which is not a valid
+ * `@SdkExtensionApi` floor as it does not have its own SDK extension.
+ */
+private const val S_V2_SDK = 32
+
+/**
+ * The `android.os.ext.SdkExtensions.AD_SERVICES` SDK extension id, which is independent of the
+ * dessert releases and so cannot be mixed with dessert release floors on enclosing classes.
+ */
+private const val AD_SERVICES_EXTENSION_ID = 1000000
+
+/**
+ * Check whether [floor] is a valid `@SdkExtensionApi` floor, i.e. it is at least [MIN_DESSERT_SDK]
+ * and is not [S_V2_SDK].
+ *
+ * Dessert release independent SDK extensions, e.g. [AD_SERVICES_EXTENSION_ID], are valid as they
+ * are greater than [MIN_DESSERT_SDK].
+ */
+private fun isValidSdkExtensionFloor(floor: Int): Boolean =
+    floor >= MIN_DESSERT_SDK && floor != S_V2_SDK
+
+/**
+ * Get the floor from the `@SdkExtensionApi` annotation directly on this [Item], or `null` if it is
+ * not annotated or its `value` is not an `int`.
+ *
+ * This does not take into account any `@SdkExtensionApi` annotation on enclosing classes.
+ */
+internal fun Item.sdkExtensionFloor(): Int? {
+    // Find the @SdkExtensionApi annotation, if any.
+    val annotation = modifiers.findAnnotation(ANDROID_SDK_EXTENSION_API) ?: return null
+    // Resolve its `value` attribute to an int, e.g. resolving a constant field reference.
+    return annotation.findAttribute("value")?.value?.asInt()
 }
 
 internal const val DefaultLintErrorMessage =

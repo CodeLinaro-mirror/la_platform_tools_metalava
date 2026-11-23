@@ -18,7 +18,6 @@ package com.android.tools.metalava.apilevels
 
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.ConstructorItem
@@ -44,6 +43,8 @@ fun addApisFromCodebase(
 
     val delegatedVisitor =
         object : DelegatedVisitor {
+            override val requiresSortedMembers: Boolean
+                get() = false
 
             var currentClass: ApiClass? = null
 
@@ -62,21 +63,14 @@ fun addApisFromCodebase(
                 currentClass = newClass
 
                 // Add the super class, if available.
-                val superClass = cls.superClass()
-                if (superClass == null) {
-                    // If no explicit super class has been provided then see if the ClassKind can
-                    // provide one.
-                    cls.classKind.binarySuperClassType?.let { superClassType ->
-                        newClass.updateSuperClass(superClassType.nameInApi(), updater)
-                    }
-                } else {
-                    newClass.updateSuperClass(superClass.nameInApi(), updater)
+                val superClassType = cls.superClassType() ?: cls.classKind.binarySuperClassType
+                if (superClassType != null) {
+                    newClass.updateSuperClass(superClassType.nameInApi(), updater)
                 }
 
                 // Add the interfaces, if any.
                 for (interfaceType in cls.interfaceTypes()) {
-                    val interfaceClass = interfaceType.resolveClass(cls.codebase) ?: return
-                    newClass.updateInterface(interfaceClass.nameInApi(), updater)
+                    newClass.updateInterface(interfaceType.nameInApi(), updater)
                 }
             }
 
@@ -138,15 +132,15 @@ fun addApisFromCodebase(
                 }
             }
 
-            /**
-             * The name of this class type in this [Api], based on [Api.useInternalNames].
-             *
-             * This does not work on nested classes, but it should only ever be called on the
-             * [ClassKind.binarySuperClassType].
-             */
-            fun ClassTypeItem.nameInApi() =
+            /** The name of this class type in this [Api], based on [Api.useInternalNames]. */
+            fun ClassTypeItem.nameInApi(): String =
                 if (useInternalNames) {
-                    qualifiedName.replace('.', '/')
+                    val outer = outerClassType
+                    if (outer != null) {
+                        "${outer.nameInApi()}\$$className"
+                    } else {
+                        qualifiedName.replace('.', '/')
+                    }
                 } else {
                     qualifiedName
                 }

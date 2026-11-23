@@ -39,7 +39,7 @@
             </xs:documentation>
         </xs:annotation>
         <xs:complexType>
-            <xs:choice>
+            <xs:choice maxOccurs="unbounded">
                 <xs:element name="api-surfaces" type="config:ApiSurfacesType" minOccurs="0">
                     <xs:annotation>
                         <xs:documentation>
@@ -65,6 +65,20 @@
                     <xs:annotation>
                         <xs:documentation>
                             The definitions of a set of issues.
+                        </xs:documentation>
+                    </xs:annotation>
+                </xs:element>
+                <xs:element name="annotation-classes" type="config:AnnotationClassesType" minOccurs="0">
+                    <xs:annotation>
+                        <xs:documentation>
+                            The definitions of a set of annotation classes.
+                        </xs:documentation>
+                    </xs:annotation>
+                </xs:element>
+                <xs:element name="documentation" type="config:DocumentationType" minOccurs="0">
+                    <xs:annotation>
+                        <xs:documentation>
+                            Configuration related to documentation processing.
                         </xs:documentation>
                     </xs:annotation>
                 </xs:element>
@@ -105,6 +119,24 @@
             <xs:field xpath="@name"/>
         </xs:key>
 
+        <!--
+         ! A key that makes sure that Annotation Class names are unique within the containing
+         ! file.
+         !-->
+        <xs:key name="AnnotationClassName">
+            <xs:selector xpath=".//config:annotation-class"/>
+            <xs:field xpath="@name"/>
+        </xs:key>
+
+        <!--
+         ! A key that makes sure that External Package prefixes are unique within the containing
+         ! file.
+         !-->
+        <xs:key name="ExternalPackagePrefix">
+            <xs:selector xpath=".//config:external-package"/>
+            <xs:field xpath="@prefix"/>
+        </xs:key>
+
     </xs:element>
 
     <xs:complexType name="ApiSurfacesType">
@@ -113,7 +145,7 @@
                 The type of the `api-surfaces` element defined inside `config`.
             </xs:documentation>
         </xs:annotation>
-        <xs:choice>
+        <xs:sequence>
             <xs:element name="api-surface" type="config:ApiSurfaceType" minOccurs="0" maxOccurs="unbounded">
                 <xs:annotation>
                     <xs:documentation>
@@ -121,7 +153,21 @@
                     </xs:documentation>
                 </xs:annotation>
             </xs:element>
-        </xs:choice>
+            <xs:element name="doc-only" type="config:ApiVariantType" minOccurs="0" maxOccurs="unbounded">
+                <xs:annotation>
+                    <xs:documentation>
+                        The doc-only variant definition.
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="removed" type="config:ApiVariantType" minOccurs="0" maxOccurs="unbounded">
+                <xs:annotation>
+                    <xs:documentation>
+                        The removed variant definition.
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+        </xs:sequence>
     </xs:complexType>
 
     <xs:simpleType name="ApiSurfaceNameType">
@@ -199,7 +245,7 @@
             <xs:annotation>
                 <xs:documentation>
                     Specifies what will happen to items which are not annotated with an annotation that matches an
-                    `annotation-rule`.
+                    `annotation-rule`. Defaults to `hide` if unspecified.
                 </xs:documentation>
             </xs:annotation>
         </xs:attribute>
@@ -267,6 +313,39 @@
         </xs:annotation>
         <xs:restriction base="xs:string"/>
     </xs:simpleType>
+
+    <xs:complexType name="ApiVariantType">
+        <xs:annotation>
+            <xs:documentation>
+                The type of api variant elements defined inside `api-surfaces`.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:choice>
+            <xs:element name="annotation-rule" type="config:AnnotationPattern" minOccurs="0" maxOccurs="unbounded">
+                <xs:annotation>
+                    <xs:documentation>
+                        Annotation rule definition.
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+        </xs:choice>
+    </xs:complexType>
+
+    <xs:complexType name="AnnotationPattern">
+        <xs:annotation>
+            <xs:documentation>
+                The type of the `annotation-rule` element defined inside `ApiVariantType`.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:choice/>
+        <xs:attribute name="pattern" type="config:AnnotationRulePattern" use="required">
+            <xs:annotation>
+                <xs:documentation>
+                    The pattern that will match an annotation.
+                </xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+    </xs:complexType>
 
     <xs:complexType name="ApiFlagsType">
         <xs:annotation>
@@ -382,7 +461,7 @@
             </xs:annotation>
         </xs:attribute>
         <xs:attributeGroup ref="config:ApiFlagStateAttributes"/>
-        <xs:attribute name="is-exported" type="xs:boolean" default="true">
+        <xs:attribute name="is-exported" type="xs:boolean" default="false">
             <xs:annotation>
                 <xs:documentation>
                     If the flag is exported.
@@ -541,6 +620,114 @@
             <xs:enumeration value="warning"/>
             <xs:enumeration value="error-when-new"/>
             <xs:enumeration value="error"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:complexType name="AnnotationClassesType">
+        <xs:annotation>
+            <xs:documentation>
+                The type of the `annotation-classes` element defined inside `config`.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:choice>
+            <xs:element name="annotation-class" type="config:AnnotationClassType" minOccurs="0" maxOccurs="unbounded">
+                <xs:annotation>
+                    <xs:documentation>
+                        Annotation class configuration.
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+        </xs:choice>
+    </xs:complexType>
+
+    <xs:complexType name="AnnotationClassType">
+        <xs:annotation>
+            <xs:documentation>
+                The type of the `annotation-class` element defined inside `AnnotationClassesType`.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:attribute name="name" type="config:AnnotationClassNameType" use="required">
+            <xs:annotation>
+                <xs:documentation>
+                    The required name of the annotation class.
+                </xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="targets" type="config:AnnotationClassTargetsType" use="required">
+            <xs:annotation>
+                <xs:documentation>
+                    The required targets of the annotation class.
+                </xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+    </xs:complexType>
+
+    <xs:simpleType name="AnnotationClassNameType">
+        <xs:annotation>
+            <xs:documentation>
+                The type of an annotation class name.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:restriction base="xs:string"/>
+    </xs:simpleType>
+
+    <xs:simpleType name="AnnotationClassTargetsType">
+        <xs:annotation>
+            <xs:documentation>
+                The targets where an annotation class should be included.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="none">
+                <xs:annotation>
+                    <xs:documentation>
+                        Do not include the annotation in any output files.
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:enumeration>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:complexType name="DocumentationType">
+        <xs:annotation>
+            <xs:documentation>
+                The type of the `documentation` element defined inside `config`.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:choice>
+            <xs:element name="external-package" type="config:ExternalPackageType" minOccurs="0" maxOccurs="unbounded">
+                <xs:annotation>
+                    <xs:documentation>
+                        External package configuration.
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+        </xs:choice>
+    </xs:complexType>
+
+    <xs:complexType name="ExternalPackageType">
+        <xs:annotation>
+            <xs:documentation>
+                The type of the `external-package` element defined inside `DocumentationType`.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:attribute name="prefix" type="config:PackagePrefixType" use="required">
+            <xs:annotation>
+                <xs:documentation>
+                    The required package prefix of the external package.
+                </xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+    </xs:complexType>
+
+    <xs:simpleType name="PackagePrefixType">
+        <xs:annotation>
+            <xs:documentation>
+                The type of a package prefix, consisting of dot-separated Java identifiers.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:restriction base="xs:string">
+            <xs:pattern value="[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)*"/>
         </xs:restriction>
     </xs:simpleType>
 </xs:schema>

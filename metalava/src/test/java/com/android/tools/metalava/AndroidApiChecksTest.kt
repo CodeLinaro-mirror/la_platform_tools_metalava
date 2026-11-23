@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.cli.common.ARG_WARNING
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.KnownSourceFiles.sdkConstantSource
 import com.android.tools.metalava.testing.java
@@ -142,7 +141,9 @@ class AndroidApiChecksTest : DriverTest() {
                     requiresPermissionSource
                 ),
             extraArguments =
-                arrayOf(ARG_WARNING, Issues.CONDITIONAL_REQUIRES_PERMISSION_NOT_EXPLAINED.name),
+                warningIssues(
+                    Issues.CONDITIONAL_REQUIRES_PERMISSION_NOT_EXPLAINED,
+                ),
         )
     }
 
@@ -191,7 +192,9 @@ class AndroidApiChecksTest : DriverTest() {
                     ),
                 ),
             extraArguments =
-                arrayOf(ARG_WARNING, Issues.CONDITIONAL_REQUIRES_PERMISSION_NOT_EXPLAINED.name),
+                warningIssues(
+                    Issues.CONDITIONAL_REQUIRES_PERMISSION_NOT_EXPLAINED,
+                ),
         )
     }
 
@@ -256,7 +259,11 @@ class AndroidApiChecksTest : DriverTest() {
                 src/android/pkg/NullMentions.java:18: warning: Parameter 'param1' of 'method3' documentation mentions 'null' without declaring @NonNull or @Nullable [Nullable]
                 src/android/pkg/NullMentions.java:21: warning: Return value of 'method4' documentation mentions 'null' without declaring @NonNull or @Nullable [Nullable]
                 """,
-            extraArguments = arrayOf(ARG_WARNING, "Nullable"), // Hidden by default
+            extraArguments =
+                warningIssues(
+                    // Hidden by default
+                    Issues.NULLABLE,
+                ),
             sourceFiles =
                 arrayOf(
                     java(
@@ -277,14 +284,14 @@ class AndroidApiChecksTest : DriverTest() {
                         /** Blah blah. Never null. */
                         public Object method2(Object param1) { return null; }
                         /** Blah blah. Never null.
-                         *  @param param1 Sometimes null. */
+                         *  @param param1 sometimes null */
                         public Object method3(Object param1) { return null; }
                         /** Blah blah. Never null.
-                         *  @return Sometimes null. */
+                         *  @return sometimes null */
                         public Object method4(Object param1) { return null; }
                         /** Blah blah. Never null.
-                         *  @param param1 Sometimes null.
-                         *  @return Sometimes null. */
+                         *  @param param1 sometimes null
+                         *  @return sometimes null */
                         public @Nullable Object method5(@Nullable Object param1) { return null; }
                     }
                     """
@@ -301,7 +308,11 @@ class AndroidApiChecksTest : DriverTest() {
                 """
                 src/android/pkg/NullMentions.java:16: warning: Field 'field1' documentation mentions constants without declaring an @IntDef [IntDef]
                 """,
-            extraArguments = arrayOf(ARG_WARNING, "IntDef"), // Hidden by default
+            extraArguments =
+                warningIssues(
+                    // Hidden by default
+                    Issues.INT_DEF,
+                ),
             sourceFiles =
                 arrayOf(
                     java(

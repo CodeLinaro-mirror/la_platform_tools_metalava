@@ -38,7 +38,8 @@ Concepts
                                              --stub-packages.
   signature-file-formats                     Describes the different signature file formats.
   historical-api-patterns                    Explains the syntax and behavior of historical API patterns used in options
-                                             like --android-jar-pattern.
+                                             like `api-history --pattern`.
+  api-surfaces                               Explains what API surfaces are and how to specify them.
                 """
                     .trimIndent()
         }
@@ -96,14 +97,6 @@ Usage: metalava help signature-file-formats
 
   * `add-additional-overrides = yes|no` - If `yes` then add additional overrides into the signature file that are needed
   in order to create compilable stubs from the signature file.
-
-  * `flagged-api-inheritance = none|nested-classes` - Specifies whether `@FlaggedApi` annotations are inherited in
-  signature files.
-
-  `none` (default) - they are not inherited. This can make it difficult to determine whether a nested class is flagged
-  when reviewin as the containing class may be out of view or even in another file altogether.
-
-  `nested-classes` - they are inherited onto nested classes that do not have their own `@FlaggedApi` annotation.
 
   * `include-default-parameter-values = yes|no` - If `no` then the signature file will not include any information about
   default parameter values. If `yes` then it will use the pseudo modifier `optional` to indicate a parameter that has a
@@ -250,7 +243,6 @@ Usage: metalava help signature-file-formats
   following properties:
 
   + add-additional-overrides = yes
-  + flagged-api-inheritance = nested-classes
   + java-record-classes = yes
   + normalize-abstract-modifier = yes
   + normalize-final-modifier = yes
@@ -272,32 +264,38 @@ Usage: metalava help signature-file-formats
                 """
 Usage: metalava help historical-api-patterns
 
-  Explains the syntax and behavior of historical API patterns used in options like --android-jar-pattern.
+  Explains the syntax and behavior of historical API patterns used in options like `api-history --pattern`.
 
   A historical API pattern is used to find historical versioned API files that are used to construct a history of an API
   surface, e.g. when items were added, removed, deprecated, etc.. It allows for efficiently scanning a directory for
   matching files, or matching a given file. In both cases information is extracted from the file path, e.g. version,
   that is used when constructing the API history.
 
+  A pattern starting with `!` is an exclusion pattern. Any file matched by an exclusion pattern will be ignored by any
+  subsequent patterns.
+
   Each pattern contains placeholders which match part of a file name, extracts the value, possibly filters it and then
   stores it in a property. Each property can have at most a single associated placeholder in each pattern.
 
-  A `version` placeholder is mandatory but the other options are optional. Files that match a pattern are assumed to
-  provide the definition of that version of the API. e.g. given a pattern of
-  `prebuilts/sdk/{version:level}/public/android.jar` then it will match a file like `prebuilts/sdk/1/public/android.jar`
-  and that file is assumed to define version 1 of the API.
+  A `version` placeholder is mandatory in non-exclusion patterns, all other placeholders are optional. Files that match
+  a non-exclusion pattern are assumed to provide the definition of that version of the API. e.g. given a pattern of
+  `prebuilts/sdk/{version:level}/public/api/android.txt` then it will match a file like
+  `prebuilts/sdk/1/public/api/android.txt` and that file is assumed to define version 1 of the API.
 
   Patterns can also include any number of wildcards:
 
   * `*` - matches any characters within a file name, but not into sub-directories. e.g. `foo/b*h/bar` will match
   `foo/blah/bar` but not `foo/blah/blah/bar`.
 
+  * `**` - matches zero or more directories in an exclusion pattern. Must match a whole directory name. e.g.
+  `!**/*-removed.txt` will match `foo-removed.txt` and `a/b/foo-removed.txt`.
+
   The supported properties are:
 
   * `version` - Mandatory property that stores the version of a matched file.
 
   Apart from the {version:extension} all placeholders for this will ignore versions that fall outside the range
-  --api-version-range, if provided.
+  --historical-versions, if provided.
 
   * `library` - Optional property that stores the name of a library.
 
@@ -325,13 +323,160 @@ Usage: metalava help historical-api-patterns
   module.
 
   * `{library}` - Placeholder for property `library`. Matches a library name which must consist of lower case letters,
-  hyphens and `.`s.
+  numbers, hyphens and `.`s.
 
   * `{module}` - Placeholder for property `module`. Matches a module name which must consist of lower case letters,
   hyphens and `.`s.
 
   * `{surface}` - Placeholder for property `surface`. Matches a surface name which must consist of lower case letters
   and hyphens.
+                """
+                    .trimIndent()
+        }
+    }
+
+    @Test
+    fun `Test help api-surfaces`() {
+        commandTest {
+            args += listOf("help", "api-surfaces")
+
+            expectedStdout =
+                """
+Usage: metalava help api-surfaces
+
+  Explains what API surfaces are and how to specify them.
+
+  An API surface is a defined subset of the complete API of a library or platform, tailored for a specific set of
+  consumers. For example, a platform might expose a public API surface for general app developers, and a broader system
+  API surface for system components.
+
+  Using a configuration file allows you to define a hierarchy of API surfaces, specifying what is included in or
+  excluded from each surface based on annotations.
+
+  To use API surfaces, you must:
+
+  1. Define the API surfaces in a configuration XML file.
+
+  2. Pass the configuration file to Metalava using the --config-file option.
+
+  3. Select the target API surface to generate using the --api-surface option.
+
+  ### Configuration File Format
+
+  The configuration file contains an `<api-surfaces>` element which encloses one or more `<api-surface>` elements, and
+  optional `<doc-only>` and `<removed>` elements.
+
+  An `<api-surface>` element has the following attributes:
+
+  * `name` (required) - The name of the API surface (e.g., `public`, `system`).
+
+  * `extends` (optional) - The name of a parent API surface that this surface extends. When a surface extends another,
+  it includes all the items in the parent surface.
+
+  * `contents` (optional) - Either `delta` or `standalone`.
+
+  `delta` (default) - The signature file generated for this surface will only contain the differences (delta) between
+  this surface and the surface it extends.
+
+  `standalone` - The signature file will contain the entire API for this surface (including everything in the extended
+  parent surfaces).
+
+  Within an `<api-surface>`, the `<selection-criteria>` element determines which code elements are included in the
+  surface. It supports:
+
+  * `unannotated` attribute - Set to `show` to include all unannotated public elements in the surface. Set to `hide` (or
+  omit) to exclude them.
+
+  * `<annotation-rule>` elements -
+
+  * `pattern` (required) - A pattern matching the annotation (e.g., `android.annotation.SystemApi`).
+
+  * `effect` (optional) - Either `show` (default) or `hide`.
+
+  * `recursive` (optional) - Either `true` (default) or `false`. If `true`, the rule also applies to nested/enclosed
+  items.
+
+  The `<doc-only>` and `<removed>` sections allow configuring annotations that mark items as documentation-only or
+  removed, respectively.
+
+  * `<doc-only>` - Elements annotated with these are excluded from stub jar files but kept in the signature
+  file/documentation.
+
+  * `<removed>` - Elements annotated with these are excluded from signature files and stubs.
+
+  ### Converting Legacy Options to API Surfaces
+
+  Previously, API surfaces were selected using --show-annotation, --show-unannotated, and --hide-annotation. These
+  options are now deprecated in favor of using a configuration file. Here is how to convert common legacy options:
+
+  #### 1. Public API
+
+  If you previously used:
+
+  --show-unannotated
+
+  This corresponds to a single "public" API surface that includes unannotated APIs:
+
+  <config xmlns="http://www.google.com/tools/metalava/config">
+      <api-surfaces>
+          <api-surface name="public">
+              <selection-criteria unannotated="show"/>
+          </api-surface>
+      </api-surfaces>
+  </config>
+
+  To run Metalava:
+
+  metalava --config-file config.xml --api-surface public
+
+  #### 2. System API (extends Public API)
+
+  If you previously used:
+
+  --show-annotation android.annotation.SystemApi
+
+  This is typically a "system" API surface that extends the "public" surface. The public surface shows unannotated
+  items, and the system surface shows items annotated with `@SystemApi`:
+
+  <config xmlns="http://www.google.com/tools/metalava/config">
+      <api-surfaces>
+          <api-surface name="public">
+              <selection-criteria unannotated="show"/>
+          </api-surface>
+          <api-surface name="system" extends="public">
+              <selection-criteria>
+                  <annotation-rule pattern="android.annotation.SystemApi"/>
+              </selection-criteria>
+          </api-surface>
+      </api-surfaces>
+  </config>
+
+  To run Metalava:
+
+  metalava --config-file config.xml --api-surface system
+
+  #### 3. Standalone API with Show and Hide Annotations
+
+  If you previously used:
+
+  --show-annotation my.custom.Api --hide-annotation my.custom.Hide
+
+  And did not want to include unannotated public APIs:
+
+  <config xmlns="http://www.google.com/tools/metalava/config">
+      <api-surfaces>
+          <api-surface name="custom">
+              <selection-criteria unannotated="hide">
+                  <annotation-rule pattern="my.custom.Api" effect="show"/>
+                  <annotation-rule pattern="my.custom.Hide" effect="hide"/>
+              </selection-criteria>
+          </api-surface>
+      </api-surfaces>
+  </config>
+
+  To run Metalava:
+
+  metalava --config-file config.xml --api-surface custom
                 """
                     .trimIndent()
         }

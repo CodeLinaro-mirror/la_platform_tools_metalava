@@ -27,78 +27,47 @@ import java.io.File
 interface SourceParser {
     /**
      * Get a [ClassPathResolver] instance that will resolve items provided by jars on the
-     * [classPath].
+     * [Environment.classPath].
      *
      * If an implementation supports this it must provide [Capability.CLASS_PATH_RESOLVER].
-     *
-     * @param classPath a list of jar [File]s.
      */
-    fun getClassPathResolver(classPath: List<File>): ClassPathResolver
+    fun getClassPathResolver(): ClassPathResolver
 
     /**
-     * Parse a set of sources into a [Codebase].
+     * Parse the sources in the [Environment] into a [Codebase].
      *
-     * @param inputs the [Inputs].
+     * @param description the description to use for [Codebase.description].
+     * @param apiPackages an optional [PackageFilter] that if specified will result in only
+     *   including the source classes that match the filter in the
+     *   [Codebase.getTopLevelClassesFromSource] list.
+     * @param compiledSourceJar a jar file containing the compiled version of the sources. Used to
+     *   add the compiled JVM forms of Kotlin source APIs. If the implementation supports this then
+     *   it must provide [Capability.JAR_WITH_SOURCES]. Only supported by the PSI model.
      */
-    fun parseSources(inputs: Inputs): Codebase?
-
-    /** Inputs for [parseSources]. */
-    data class Inputs(
-        /** The list of source files and root directories. */
-        val sourceSet: SourceSet,
-
-        /** The description to use for [Codebase.description]. */
-        val description: String,
-
-        /**
-         * The possibly empty list of jar files which may provide additional classes referenced by
-         * the sources.
-         */
-        val classPath: List<File>,
-
-        /**
-         * An optional [PackageFilter] that if specified will result in only including the source
-         * classes that match the filter in the [Codebase.getTopLevelClassesFromSource] list.
-         */
-        val apiPackages: PackageFilter? = null,
-
-        /**
-         * Lint project model that can describe project structures in detail.
-         *
-         * Only supported by the PSI model.
-         */
-        val projectDescription: File? = null,
-
-        /**
-         * A jar file containing the compiled version of [sourceSet]. Used to add the compiled JVM
-         * forms of Kotlin source APIs.
-         *
-         * If the implementation supports this then it must provide [Capability.JAR_WITH_SOURCES].
-         *
-         * Only supported by the PSI model.
-         */
-        val compiledSourceJar: File? = null,
-
-        /** Indicates whether to include Kotlin derived information in the [Codebase]. */
-        val includeKotlinInCodebase: Boolean = true,
-    )
+    fun parseSources(
+        description: String,
+        apiPackages: PackageFilter? = null,
+        compiledSourceJar: File? = null,
+    ): Codebase?
 
     /**
-     * Load a [Codebase] from a single jar.
+     * Parse the [javaStubFiles] against the [Environment] into a [Codebase].
      *
-     * If an implementation supports this it must provide [Capability.LOAD_JAR].
-     *
-     * @param apiJar the jar file from which the [Codebase] will be loaded.
-     * @param classPath the possibly empty list of jar files which may provide additional classes
-     *   referenced by [apiJar].
+     * @param javaStubFiles the list of Java stub files to parse.
+     * @param apiPackages an optional [PackageFilter] that if specified will result in only
+     *   including the source classes that match the filter in the
+     *   [Codebase.getTopLevelClassesFromSource] list.
      */
-    fun loadFromJar(apiJar: File, classPath: List<File>): Codebase
+    fun parseJavaStubs(
+        javaStubFiles: List<File>,
+        apiPackages: PackageFilter? = null,
+    ): Codebase?
 
     /**
-     * Creates a multiplatform codebase based on the [projectDescription] file, which is a lint
-     * project model that can describe project structures in detail.
+     * Creates a multiplatform codebase based on the [Environment.projectDescription] file, which is
+     * a lint project model that can describe project structures in detail.
      *
      * Only supported by the PSI model.
      */
-    fun createMultiplatformCodebase(projectDescription: File): MultiplatformCodebase
+    fun createMultiplatformCodebase(): MultiplatformCodebase
 }

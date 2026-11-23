@@ -18,14 +18,13 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.api.NullabilityAnnotationsValidator
 import com.android.tools.metalava.cli.common.ARG_MERGE_QUALIFIER_ANNOTATIONS
+import com.android.tools.metalava.cli.common.MetalavaOptionGroup
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.newFile
-import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.reporter.Reporter
-import com.android.tools.metalava.reporter.ThrowingReporter
-import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
+import java.io.File
 import java.util.Optional
 
 const val ARG_VALIDATE_NULLABILITY_FROM_MERGED_STUBS = "--validate-nullability-from-merged-stubs"
@@ -36,16 +35,12 @@ const val ARG_NULLABILITY_ERRORS_NON_FATAL = "--nullability-errors-non-fatal"
 /** The name of the group, can be used in help text to refer to the options in this group. */
 const val NULLABILITY_VALIDATION_OPTIONS_GROUP = "Nullability Validation"
 
-class NullabilityValidationOptions(
-    private val reporterSupplier: () -> Reporter = { ThrowingReporter.INSTANCE },
-    private val apiPredicateConfigSupplier: () -> ApiPredicate.Config = { ApiPredicate.Config() },
-) :
-    OptionGroup(
+class NullabilityValidationOptions() :
+    MetalavaOptionGroup(
         NULLABILITY_VALIDATION_OPTIONS_GROUP,
         help = "Options control nullability validation."
     ) {
 
-    /** Whether nullability validation errors should be considered fatal. */
     private val nullabilityErrorsNonFatal by
         option(
                 ARG_NULLABILITY_ERRORS_NON_FATAL,
@@ -62,10 +57,6 @@ class NullabilityValidationOptions(
     private val nullabilityErrorsFatal
         get() = !nullabilityErrorsNonFatal
 
-    /**
-     * A file to write non-fatal nullability validation issues to. If null, all issues are treated
-     * as fatal or else logged as warnings, depending on the value of [nullabilityErrorsFatal].
-     */
     private val nullabilityWarningsTxt by
         option(
                 ARG_NULLABILITY_WARNINGS_TXT,
@@ -79,10 +70,6 @@ class NullabilityValidationOptions(
             )
             .newFile()
 
-    /**
-     * Whether to validate nullability for all the classes where we are merging annotations from
-     * external java stub files.
-     */
     private val validateNullabilityFromMergedStubs by
         option(
                 ARG_VALIDATE_NULLABILITY_FROM_MERGED_STUBS,
@@ -95,7 +82,6 @@ class NullabilityValidationOptions(
             )
             .flag()
 
-    /** A file containing a list of classes whose nullability annotations should be validated. */
     private val validateNullabilityFromList by
         option(
                 ARG_VALIDATE_NULLABILITY_FROM_LIST,
@@ -109,6 +95,44 @@ class NullabilityValidationOptions(
             .existingFile()
 
     /**
+     * Returns a [ComputedNullabilityValidationOptions] instance based on the current state of the
+     * options.
+     */
+    fun compute(reporter: Reporter): ComputedNullabilityValidationOptions {
+        return ComputedNullabilityValidationOptions(
+            nullabilityErrorsFatal,
+            nullabilityWarningsTxt,
+            validateNullabilityFromMergedStubs,
+            validateNullabilityFromList,
+            reporter,
+        )
+    }
+}
+
+/**
+ * Options related to nullability validation and additional values computed based on those options.
+ */
+class ComputedNullabilityValidationOptions(
+    /** Whether nullability validation errors should be considered fatal. */
+    nullabilityErrorsFatal: Boolean,
+
+    /**
+     * A file to write non-fatal nullability validation issues to. If null, all issues are treated
+     * as fatal or else logged as warnings, depending on the value of [nullabilityErrorsFatal].
+     */
+    nullabilityWarningsTxt: File?,
+
+    /**
+     * Whether to validate nullability for all the classes where we are merging annotations from
+     * external java stub files.
+     */
+    val validateNullabilityFromMergedStubs: Boolean,
+
+    /** A file containing a list of classes whose nullability annotations should be validated. */
+    validateNullabilityFromList: File?,
+    private val reporter: Reporter,
+) {
+    /**
      * Underlying [NullabilityAnnotationsValidator].
      *
      * This uses [Optional] to wrap the value as [lazy] cannot handle nullable values as it uses
@@ -120,13 +144,10 @@ class NullabilityValidationOptions(
     private val optionalNullabilityAnnotationsValidator by lazy {
         Optional.ofNullable(
             if (validateNullabilityFromMergedStubs || validateNullabilityFromList != null) {
-                val reporter = reporterSupplier()
-                var apiPredicateConfig = apiPredicateConfigSupplier()
                 NullabilityAnnotationsValidator(
                     reporter,
                     nullabilityErrorsFatal,
                     nullabilityWarningsTxt,
-                    apiPredicateConfig,
                     validateNullabilityFromList,
                 )
             } else null

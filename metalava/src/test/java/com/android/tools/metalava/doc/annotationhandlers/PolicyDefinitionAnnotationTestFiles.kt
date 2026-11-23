@@ -33,6 +33,7 @@ object PolicyDefinitionAnnotationTestFiles {
                     public static final String INTEGER_TEST = "android.permission.INTEGER_TEST";
                     public static final String LONG_TEST = "android.permission.LONG_TEST";
                     public static final String LIST_TEST = "android.permission.LIST_TEST";
+                    public static final String MANAGE_DEVICE_POLICY_ACROSS_USERS = "android.permission.MANAGE_DEVICE_POLICY_ACROSS_USERS";
                 }
             }
             """
@@ -90,7 +91,9 @@ object PolicyDefinitionAnnotationTestFiles {
                 int affectedResource() default 0;
                 String requiredPermission() default "";
                 String requiredCrossUserPermission() default "";
+                boolean applyOnFullUsersOnly() default false;
                 AllowedDpcTypes allowedDpcTypes();
+                AllowedRoles allowedRoles() default @AllowedRoles;
             }
 
             @Retention(RetentionPolicy.SOURCE)
@@ -108,6 +111,14 @@ object PolicyDefinitionAnnotationTestFiles {
             }
 
             @Retention(RetentionPolicy.SOURCE)
+            public @interface AllowedRoles {
+                public static final int ALLOWED = 1;
+                public static final int DISALLOWED = 2;
+
+                public int deviceController() default DISALLOWED;
+            }
+
+            @Retention(RetentionPolicy.SOURCE)
             public @interface EnumResolutionMechanism {
                 boolean custom() default false;
                 int[] mostRestrictive() default {};
@@ -121,10 +132,15 @@ object PolicyDefinitionAnnotationTestFiles {
             }
 
             @Retention(RetentionPolicy.SOURCE)
-            public @interface IntegerPolicyDefinition {
-                PolicyDefinition base();
+            public @interface IntegerValidation {
                 int minValue() default Integer.MIN_VALUE;
                 int maxValue() default Integer.MAX_VALUE;
+            }
+
+            @Retention(RetentionPolicy.SOURCE)
+            public @interface IntegerPolicyDefinition {
+                PolicyDefinition base();
+                IntegerValidation validation() default @IntegerValidation;
                 IntegerResolutionMechanism resolutionMechanism();
             }
 
@@ -135,10 +151,15 @@ object PolicyDefinitionAnnotationTestFiles {
             }
 
             @Retention(RetentionPolicy.SOURCE)
-            public @interface LongPolicyDefinition {
-                PolicyDefinition base();
+            public @interface LongValidation {
                 long minValue() default Long.MIN_VALUE;
                 long maxValue() default Long.MAX_VALUE;
+            }
+
+            @Retention(RetentionPolicy.SOURCE)
+            public @interface LongPolicyDefinition {
+                PolicyDefinition base();
+                LongValidation validation() default @LongValidation;
                 LongResolutionMechanism resolutionMechanism();
             }
 
@@ -155,16 +176,24 @@ object PolicyDefinitionAnnotationTestFiles {
                 boolean emptyStringAllowed() default false;
                 boolean unprintableCharactersAllowed() default false;
                 boolean pureWhitespaceAllowed() default false;
+                boolean unstrippedStringAllowed() default false;
                 ListResolutionMechanism resolutionMechanism();
+                int maxListLength() default 10000;
+            }
+
+            @Retention(RetentionPolicy.SOURCE)
+            public @interface StringValidation {
+                boolean emptyStringAllowed() default false;
+                boolean unprintableCharactersAllowed() default false;
+                boolean pureWhitespaceAllowed() default false;
+                boolean unstrippedStringAllowed() default false;
+                int maxLength() default Integer.MAX_VALUE;
             }
 
             @Retention(RetentionPolicy.SOURCE)
             public @interface StringPolicyDefinition {
                 PolicyDefinition base();
-                boolean emptyStringAllowed() default false;
-                boolean unprintableCharactersAllowed() default false;
-                boolean pureWhitespaceAllowed() default false;
-                int maxLength() default Integer.MAX_VALUE;
+                StringValidation validation() default @StringValidation;
             }
 
             @Retention(RetentionPolicy.SOURCE)
@@ -177,7 +206,16 @@ object PolicyDefinitionAnnotationTestFiles {
                 PolicyDefinition base();
                 boolean emptyListAllowed() default false;
                 ListResolutionMechanism resolutionMechanism();
-                int maxListLength() default Integer.MAX_VALUE;
+                int maxListLength() default 10000;
+            }
+
+            @Retention(RetentionPolicy.SOURCE)
+            public @interface ListOfEnumPolicyDefinition {
+                PolicyDefinition base();
+                Class<?> intDef();
+                boolean emptyListAllowed() default false;
+                ListResolutionMechanism resolutionMechanism();
+                int maxListLength() default 10000;
             }
             """
         )

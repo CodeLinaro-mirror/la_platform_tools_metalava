@@ -45,6 +45,11 @@ class SourceSet(val sources: List<File>, val sourcePath: List<File>) {
      */
     fun extractRoots(reporter: Reporter): SourceSet {
         val absoluteSources = sources.map { it.absoluteFile }.distinct()
+        if (sourcePath.size == 1 && sourcePath[0].path.isBlank()) {
+            // A blank path means do not search the source path or extract roots from the source
+            // files.
+            return SourceSet(absoluteSources, emptyList())
+        }
         val absoluteSourcePaths =
             mutableListOf<File>().also {
                 sourcePath.filter { it.path.isNotBlank() }.mapTo(it) { it.absoluteFile }
@@ -123,7 +128,7 @@ class SourceSet(val sources: List<File>, val sourcePath: List<File>) {
             return sources.sortedWith(compareBy { it.name })
         }
 
-        private fun extractRoots(
+        internal fun extractRoots(
             reporter: Reporter,
             sources: List<File>,
             sourceRoots: MutableList<File> = mutableListOf()

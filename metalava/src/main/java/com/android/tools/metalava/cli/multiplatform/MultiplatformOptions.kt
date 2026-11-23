@@ -16,9 +16,9 @@
 
 package com.android.tools.metalava.cli.multiplatform
 
+import com.android.tools.metalava.cli.common.MetalavaOptionGroup
 import com.android.tools.metalava.cli.common.existingDir
 import com.android.tools.metalava.cli.common.newDir
-import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 
@@ -31,7 +31,7 @@ const val ARG_MULTIPLATFORM_API_SOURCES = "--multiplatform-api-sources"
 const val ARG_MULTIPLATFORM_CHECK_COMPATIBILITY = "--multiplatform-compatibility-api"
 
 class MultiplatformOptions :
-    OptionGroup(
+    MetalavaOptionGroup(
         name = "Multiplatform API Options",
         help = "Options controlling the handling of multiplatform API operations"
     ) {

@@ -746,18 +746,10 @@ class AddAdditionalOverridesTest : DriverTest() {
         check(
             sourceFiles =
                 arrayOf(
-                    // Without this, it works as expected. The ElidingPredicate searches for super
-                    // methods of Derived.bar that have the same signature, including modifiers. It
-                    // cannot find one because `Parent.bar` does not match as it is not `abstract`
-                    // and so it treats `Derived.bar` as different to its overridden method and
-                    // includes it in the API surface as expected.
-                    //
-                    // With this, it breaks. The ElidingPredicate searches for super methods of
-                    // `Derived.bar` that have the same signature, including modifiers. It skips
-                    // `Parent.bar` because as explained above it does not match. However, it
-                    // continues searching, finds `GrandParent.bar` and so elides `Parent.bar` as it
-                    // is different to the same as `GrandParent.bar`. That is wrong, it should stop
-                    // at `Parent.bar`.
+                    // GrandParent defines `bar` as abstract, Parent implements `bar` concretely,
+                    // and Derived re-abstracts `bar`. The ElidingPredicate must not search past
+                    // `Parent.bar` (which is included in the API surface) to `GrandParent.bar` and
+                    // wrongly elide `Derived.bar`.
                     java(
                         """
                             package test.pkg;
@@ -788,12 +780,11 @@ class AddAdditionalOverridesTest : DriverTest() {
                 ),
             format = FileFormat.V2,
             expectedApiSignature =
-                // TODO(b/293283969): Should include Derived.bar as it is an abstract overload of
-                //   its super method and so has significance in the API.
                 """
                     package test.pkg {
                       public abstract class Derived<E> extends test.pkg.Parent<E> {
                         ctor public Derived();
+                        method public abstract test.pkg.Parent<E> bar(int);
                       }
                       public interface GrandParent<E> {
                         method public test.pkg.Parent<E> bar(int);
