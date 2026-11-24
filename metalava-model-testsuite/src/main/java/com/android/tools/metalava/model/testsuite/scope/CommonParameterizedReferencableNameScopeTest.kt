@@ -202,6 +202,21 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                     },
                 ),
                 TestParams(
+                    name = "SourceFile - resolve static imported method with same name as class",
+                    imports =
+                        """
+                            import static other.pkg.StaticHost.StaticHost;
+                        """,
+                    scopeGetter = { codebase.assertClass("test.pkg.Test").sourceFile()!! },
+                    referencableName = "StaticHost",
+                    expectedItemGetter = {
+                        ReferencableMethodSet(
+                            codebase.assertClass("other.pkg.StaticHost"),
+                            "StaticHost",
+                        )
+                    },
+                ),
+                TestParams(
                     name = "SourceFile - resolve class in same file",
                     scopeGetter = { codebase.assertClass("test.pkg.Test").sourceFile()!! },
                     referencableName = "Hidden",
@@ -349,6 +364,14 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                     }
                 ),
                 TestParams(
+                    name = "ClassItem - qualified TypeParameter - Test.O",
+                    scopeGetter = { codebase.assertClass("test.pkg.Test") },
+                    referencableName = "Test.O",
+                    expectedItemGetter = { null },
+                    expectedErrorMessage =
+                        "Could not resolve 'Test.O' as could not find 'O' in 'class test.pkg.Test'",
+                ),
+                TestParams(
                     name = "ClassItem - resolve simple field reference",
                     scopeGetter = { codebase.assertClass("test.pkg.Test") },
                     referencableName = "field",
@@ -402,6 +425,15 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                     referencableName = "Test.Test",
                     nameClassification = NameClassification.CALLABLE_SET,
                     expectedItemGetter = { codebase.assertClass("test.pkg.Test") },
+                ),
+                TestParams(
+                    name = "ClassItem - resolve invalid constructor reference - ambiguous",
+                    scopeGetter = { codebase.assertClass("test.pkg.Test") },
+                    referencableName = "Test.Test",
+                    nameClassification = NameClassification.AMBIGUOUS,
+                    expectedItemGetter = { null },
+                    expectedErrorMessage =
+                        "Could not resolve 'Test.Test' as could not find 'Test' in 'class test.pkg.Test'",
                 ),
                 TestParams(
                     name = "ClassItem - resolve imported constructor reference - callable",
@@ -568,6 +600,15 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                     """
                         package test.pkg;
                         public class Other {}
+                    """
+                ),
+                java(
+                    """
+                        package other.pkg;
+                        public class StaticHost {
+                            public StaticHost() {}
+                            public static void StaticHost() {}
+                        }
                     """
                 ),
             ),

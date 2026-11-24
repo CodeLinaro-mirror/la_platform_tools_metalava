@@ -20,14 +20,20 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ExternalReferencableItem
 import com.android.tools.metalava.model.InvalidReferencableItem
+import com.android.tools.metalava.model.ReferencableMethodSet
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.scope.ReferencableNameScope
 import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.testing.createCommonModuleDescription
+import com.android.tools.metalava.testing.createProjectDescription
 import com.android.tools.metalava.testing.java
+import com.android.tools.metalava.testing.kotlin
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertSame
+import kotlin.test.assertTrue
 import org.junit.Test
 
 /** Common tests for [ReferencableNameScope] implementations that require custom setup. */
@@ -491,6 +497,218 @@ class CommonReferencableNameScopeTest : BaseModelTest() {
                     "Could not resolve a class called 'androidx_extra.Foo' as could not find a package or class called 'androidx_extra' in 'class test.pkg.Test'"
                 ),
                 testClass.resolveReferencableItem("androidx_extra.Foo", NameClassification.CLASS),
+            )
+        }
+    }
+
+    /**
+     * Verify that subclasses inherit fields and methods from their supertypes, while a supertype's
+     * own simple name, type parameters, and constructors are not inherited.
+     */
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test non-inheritance of base class simple name, type parameters, and constructors`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package other.pkg;
+                        public class Base<B> {
+                            public int baseField;
+                            public Base() {}
+                            public void baseMethod() {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class Derived extends other.pkg.Base<String> {
+                        }
+                    """
+                ),
+            ),
+        ) {
+            val baseClass = codebase.assertClass("other.pkg.Base")
+            val derivedClass = codebase.assertClass("test.pkg.Derived")
+
+            // Inherited fields and methods are in scope on Derived.
+            assertSame(
+                baseClass.assertField("baseField"),
+                derivedClass.resolveReferencableItem("baseField", NameClassification.AMBIGUOUS),
+            )
+            assertEquals(
+                ReferencableMethodSet(baseClass, "baseMethod"),
+                derivedClass.resolveReferencableItem("baseMethod", NameClassification.AMBIGUOUS),
+            )
+
+            // Supertypes' own simple names, type parameters, and constructors are not inherited.
+            assertEquals(
+                InvalidReferencableItem("Could not resolve 'Base' in 'class test.pkg.Derived'"),
+                derivedClass.resolveReferencableItem("Base", NameClassification.AMBIGUOUS),
+            )
+            assertEquals(
+                InvalidReferencableItem(
+                    "Could not resolve a method/constructor called 'Base' in 'class test.pkg.Derived'"
+                ),
+                derivedClass.resolveReferencableItem("Base", NameClassification.CALLABLE_SET),
+            )
+            assertEquals(
+                InvalidReferencableItem("Could not resolve 'B' in 'class test.pkg.Derived'"),
+                derivedClass.resolveReferencableItem("B", NameClassification.AMBIGUOUS),
+            )
+        }
+    }
+
+    /**
+     * Verify how `java.lang.Object` methods resolve on interfaces and annotation types when no
+     * superinterface declares or overloads them, without shadowing superinterface declarations or
+     * exposing non-public `Object` methods.
+     */
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test interface scope resolves java-lang-Object methods`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        public interface MyInterface {
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public interface EmptyInterface {
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public interface RedeclaringInterface {
+                            String toString();
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public interface SubInterface extends EmptyInterface, RedeclaringInterface {
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public @interface MyAnnotation {
+                        }
+                    """
+                ),
+            ),
+        ) {
+            val myInterface = codebase.assertClass("test.pkg.MyInterface")
+            val redeclaringInterface = codebase.assertClass("test.pkg.RedeclaringInterface")
+            val subInterface = codebase.assertClass("test.pkg.SubInterface")
+            val myAnnotation = codebase.assertClass("test.pkg.MyAnnotation")
+            val annotationClass = codebase.assertResolvedClass("java.lang.annotation.Annotation")
+            val objectClass = codebase.assertResolvedClass("java.lang.Object")
+
+            assertEquals(
+                ReferencableMethodSet(objectClass, "toString"),
+                myInterface.resolveReferencableItem("toString", NameClassification.AMBIGUOUS),
+            )
+            assertEquals(
+                ReferencableMethodSet(objectClass, "toString"),
+                myInterface.resolveReferencableItem(
+                    "MyInterface.toString",
+                    NameClassification.CALLABLE_SET,
+                ),
+            )
+
+            // Protected java.lang.Object methods (JLS 9.2) are not members of an interface.
+            assertEquals(
+                InvalidReferencableItem(
+                    "Could not resolve 'clone' in 'class test.pkg.MyInterface'"
+                ),
+                myInterface.resolveReferencableItem("clone", NameClassification.AMBIGUOUS),
+            )
+            assertEquals(
+                InvalidReferencableItem(
+                    "Could not resolve 'finalize' in 'class test.pkg.MyInterface'"
+                ),
+                myInterface.resolveReferencableItem("finalize", NameClassification.AMBIGUOUS),
+            )
+
+            // Superinterface declarations take precedence over java.lang.Object even when preceded
+            // by an unrelated superinterface that does not declare the method.
+            assertEquals(
+                ReferencableMethodSet(redeclaringInterface, "toString"),
+                subInterface.resolveReferencableItem("toString", NameClassification.AMBIGUOUS),
+            )
+
+            // Annotation types inherit toString() from java.lang.annotation.Annotation, while
+            // non-redeclared public instance methods like getClass() fall back to java.lang.Object
+            // and protected Object methods like clone() remain unresolved.
+            assertEquals(
+                ReferencableMethodSet(annotationClass, "toString"),
+                myAnnotation.resolveReferencableItem("toString", NameClassification.AMBIGUOUS),
+            )
+
+            assertEquals(
+                ReferencableMethodSet(objectClass, "getClass"),
+                myAnnotation.resolveReferencableItem("getClass", NameClassification.AMBIGUOUS),
+            )
+            assertEquals(
+                InvalidReferencableItem(
+                    "Could not resolve 'clone' in 'class test.pkg.MyAnnotation'"
+                ),
+                myAnnotation.resolveReferencableItem("clone", NameClassification.AMBIGUOUS),
+            )
+        }
+    }
+
+    /**
+     * Verify that Kotlin typealiases and synthetic top-level declaration file-facade classes do not
+     * fall back to `java.lang.Object` methods even though their [ClassItem.superClass] is `null`.
+     */
+    @SupportedInputFormats(InputFormat.KOTLIN)
+    @Test
+    fun `Test typealias and file-facade scopes do not resolve Object methods`() {
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Foo.kt",
+                """
+                    package test.pkg
+                    typealias MyTypeAlias = String
+                    fun topLevelFunction() {}
+                """,
+            )
+        runMultiplatformCodebaseTest(
+            inputSet(commonSource),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                ),
+        ) {
+            val commonCodebase = multiplatformCodebase.sourceSetToCodebase["commonMain"]!!
+            val myTypeAlias = commonCodebase.assertTypeAlias("test.pkg.MyTypeAlias")
+            assertNull(myTypeAlias.superClass())
+            assertEquals(
+                InvalidReferencableItem(
+                    "Could not resolve 'toString' in 'typealias test.pkg.MyTypeAlias'"
+                ),
+                myTypeAlias.resolveReferencableItem("toString", NameClassification.AMBIGUOUS),
+            )
+
+            val facadeName = "test.pkg.${ClassItem.TOP_LEVEL_DECLARATION_FACADE_NAME}"
+            val fileFacade = commonCodebase.assertClass(facadeName)
+            assertTrue(fileFacade.isFileFacade)
+            assertNull(fileFacade.superClass())
+            assertEquals(
+                InvalidReferencableItem("Could not resolve 'toString' in 'class $facadeName'"),
+                fileFacade.resolveReferencableItem("toString", NameClassification.AMBIGUOUS),
             )
         }
     }

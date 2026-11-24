@@ -525,6 +525,8 @@ class DocCommentParserTest : BaseDocCommentTest() {
             expectedIssues =
                 """
                     10:5: Cannot use 'inheritDoc' as a block tag [InvalidTagForm]
+                    23:9: Could not resolve '#field' as there is no containing class [UnresolvedLink]
+                    24:9: Could not resolve '#Class()' as there is no containing class [UnresolvedLink]
                 """,
         )
     }

@@ -269,6 +269,16 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                     expectedLinkLabel = null,
                 ),
                 TestParams(
+                    name = "noParamsMethod",
+                    expectedResolvedReference = "#noParamsMethod",
+                    expectedLinkLabel = null,
+                ),
+                TestParams(
+                    name = "intMethod",
+                    expectedResolvedReference = "#intMethod",
+                    expectedLinkLabel = null,
+                ),
+                TestParams(
                     name = "intMethod(int)",
                     expectedResolvedReference = "#intMethod(int)",
                     expectedLinkLabel = null,
@@ -283,6 +293,11 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                     expectedResolvedReference = "another.pkg.Imported#staticallyImportedField",
                 ),
                 TestParams(
+                    name = "staticallyImportedCollectionMethod",
+                    expectedResolvedReference =
+                        "another.pkg.Imported#staticallyImportedCollectionMethod",
+                ),
+                TestParams(
                     name = "staticallyImportedCollectionMethod(Collection)",
                     expectedResolvedReference =
                         "another.pkg.Imported#staticallyImportedCollectionMethod(java.util.Collection)",
@@ -294,6 +309,10 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                     expectedResolvedReference = "test.pkg.Other#field",
                     expectedIssues =
                         "warning: Malformed reference `Other.field`, missing '#', should be 'Other#field (ErrorWhenNew) [MalformedDocReference]",
+                ),
+                TestParams(
+                    name = "Other.noParamsMethod",
+                    expectedResolvedReference = "test.pkg.Other#noParamsMethod",
                 ),
                 TestParams(
                     name = "Other.intMethod(int)",

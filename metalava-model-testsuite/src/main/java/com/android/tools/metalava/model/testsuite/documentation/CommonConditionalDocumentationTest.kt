@@ -712,12 +712,16 @@ class CommonConditionalDocumentationTest : BaseModelTest() {
                 ),
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
+
+            // Javadoc `@see` references are only resolved on Java declarations.
+            val expectedSeeTarget =
+                if (inputFormat == InputFormat.JAVA) "test.pkg.Helper Helper" else "Helper"
             testClass.assertPrintedDocumentation(
                 expectedOutput =
                     """
                         /**
                          * Public. System. Module. NoOther.
-                         * @see test.pkg.Helper Helper
+                         * @see $expectedSeeTarget
                          */
                     """,
             )

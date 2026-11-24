@@ -67,6 +67,15 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
                 // Ensures consistent formatting irrespective of how it was formatted in the source.
                 .collapseSpaces()
 
+        // KDoc uses `[...]` links rather than Javadoc reference tags, and Kotlin stubs are not
+        // supported, so leave labeled reference tags in Kotlin comments unresolved.
+        if (context.isKotlin) {
+            return ExtractDataResult(
+                LabeledRefTagData(name, sourceReference, null),
+                consumedContent = labelStart,
+            )
+        }
+
         // Parse the source reference, reporting an error if it could not be done.
         val parsedReference = parseReference(sourceReference, context.docTypeParser)
         if (parsedReference == null) {
@@ -400,6 +409,26 @@ private fun rewriteMappedSourceClassName(
     resolvedClassName: String,
 ): String = if (sourceClassName == classItem.qualifiedName()) resolvedClassName else sourceClassName
 
+/**
+ * Rewrite [sourceCallableName] from `<unmappedClass>.[callableName]` to
+ * `[resolvedClassName].[callableName]` when the author wrote the full original qualified name of
+ * [containingClass] (e.g. `android.annotation.IntDef.flag` -> `androidx.annotation.IntDef.flag`),
+ * so mapped annotations do not synthesize a fallback label containing the unmapped name.
+ */
+private fun rewriteMappedSourceCallableName(
+    sourceCallableName: String,
+    containingClass: ClassItem,
+    callableName: String,
+    resolvedClassName: String,
+): String {
+    val unmappedQualifiedCallable = "${containingClass.qualifiedName()}.$callableName"
+    return if (sourceCallableName == unmappedQualifiedCallable) {
+        "$resolvedClassName.$callableName"
+    } else {
+        sourceCallableName
+    }
+}
+
 /** An ambiguous reference to something by [name]. */
 internal data class AmbiguousSourceReference(val name: String) : ParsedReference {
     override val normalizedForm: String
@@ -424,6 +453,45 @@ internal data class AmbiguousSourceReference(val name: String) : ParsedReference
             is TypeParameterItem -> ResolvedSourceReference(name, resolved.toResolvedReference())
             is FieldItem ->
                 ResolvedSourceReference(name, resolved.toResolvedReference(context, reporter))
+            is ReferencableMethodSet -> {
+                val declaringClass = resolved.containingClass
+                // When `name` is dot-qualified (`<Qualifier>.<method>`), preserve and validate the
+                // explicit qualifying class rather than the supertype that declared the method.
+                val qualifierClass =
+                    name
+                        .lastIndexOf('.')
+                        .takeIf { it != -1 }
+                        ?.let { lastDot ->
+                            context.resolveItemReference(
+                                name.substring(0, lastDot),
+                                NameClassification.CLASS,
+                            ) as? ClassItem
+                        }
+                val targetClass = qualifierClass ?: declaringClass
+                val qualifierCheck = context.checkReference(targetClass, reporter)
+                val checkResult =
+                    if (qualifierCheck.isValid && targetClass != declaringClass) {
+                        context.checkReference(declaringClass, reporter)
+                    } else {
+                        qualifierCheck
+                    }
+                val resolvedClassName = context.resolveClassReferenceName(targetClass)
+                val sourceCallableName =
+                    rewriteMappedSourceCallableName(
+                        name,
+                        targetClass,
+                        resolved.name,
+                        resolvedClassName,
+                    )
+                ResolvedSourceReference(
+                    sourceCallableName,
+                    CallableReference(
+                        resolvedClassName,
+                        resolved.name,
+                        checkResult = checkResult,
+                    ),
+                )
+            }
             else -> null
         }
 }
@@ -483,9 +551,13 @@ internal data class CurrentClassSourceReference(val member: ClassMemberSourceRef
         context: DocCommentContext,
         reporter: LocationSpecificReporter
     ): ResolvedSourceReference? {
-        // TODO(b/447588621): Report issue when no class is available, member references are not
-        //  allowed in packages.
         val classItem = context.containingClassItem
+        if (classItem == null && member !is UriFragmentSourceReference) {
+            reporter.report(
+                Issues.UNRESOLVED_LINK,
+                "Could not resolve '$normalizedForm' as there is no containing class",
+            )
+        }
         val resolvedClassName = classItem?.let { context.resolveClassReferenceName(it) } ?: ""
         val resolvedReference = member.findIn(context, reporter, classItem, resolvedClassName)
         return ResolvedSourceReference(normalizedForm, resolvedReference)
@@ -621,14 +693,13 @@ internal data class CallableSourceReference(
                 val classCheckResult = context.checkReference(containingClass, reporter)
 
                 val resolvedClassName = context.resolveClassReferenceName(containingClass)
-                val unmappedQualifiedCallable =
-                    "${containingClass.qualifiedName()}.${resolved.name}"
                 val sourceCallableName =
-                    if (name == unmappedQualifiedCallable) {
-                        "$resolvedClassName.${resolved.name}"
-                    } else {
-                        name
-                    }
+                    rewriteMappedSourceCallableName(
+                        name,
+                        containingClass,
+                        resolved.name,
+                        resolvedClassName,
+                    )
                 ResolvedSourceReference(
                     formatSignature(sourceCallableName, parameters, eraseGenericArguments = false),
                     createCallableReference(

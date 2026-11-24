@@ -118,6 +118,15 @@ internal interface DocCommentContext : ExprBuilderContext, ExprContext {
      */
     val containingClassItem: ClassItem?
 
+    /**
+     * Whether the documented item originates from Kotlin source.
+     *
+     * KDoc uses `[...]` links rather than Javadoc `{@link ...}` tags, and Kotlin stubs are not
+     * supported, so Javadoc reference resolution is skipped when `true`.
+     */
+    val isKotlin: Boolean
+        get() = false
+
     /** Provides support for parsing type references within Javadoc content. */
     val docTypeParser: DocTypeParser
 }

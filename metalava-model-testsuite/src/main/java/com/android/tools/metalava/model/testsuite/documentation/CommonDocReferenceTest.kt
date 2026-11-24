@@ -240,8 +240,7 @@ class CommonDocReferenceTest : BaseModelTest() {
             )
 
             assertAndRemoveReportedIssues(
-                // TODO(b/447588621): Should report an issue about the #invalid(...) reference.
-                ""
+                "MAIN_SRC/test/pkg/package-info.java:5:11: warning: Could not resolve '#invalid(String,Number)' as there is no containing class (ErrorWhenNew) [UnresolvedLink]"
             )
         }
     }
@@ -291,6 +290,78 @@ class CommonDocReferenceTest : BaseModelTest() {
             )
 
             assertAndRemoveReportedIssues("")
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test current-class member and uri-fragment links in package docs`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg1;
+                        public class Test {}
+                    """
+                ),
+                java(
+                    "test/pkg1/package-info.java",
+                    """
+                        /**
+                         * {@link #field}
+                         * {@link ##pkg-heading pkg heading}
+                         */
+                        package test.pkg1;
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg2;
+                        public class Test {}
+                    """
+                ),
+                html(
+                    "src/test/pkg2/package.html",
+                    """
+                        <HTML>
+                        <BODY>
+                        {@link #method()}
+                        {@link ##html-heading html heading}
+                        </BODY>
+                        </HTML>
+                    """
+                ),
+            ),
+        ) {
+            codebase
+                .assertPackage("test.pkg1")
+                .assertPrintedDocumentation(
+                    expectedOutput =
+                        """
+                            /**
+                             * {@link #field}
+                             * {@link ##pkg-heading pkg heading}
+                             */
+                        """,
+                )
+            codebase
+                .assertPackage("test.pkg2")
+                .assertPrintedDocumentation(
+                    expectedOutput =
+                        """
+                            /**
+                             * {@link #method()}
+                             * {@link ##html-heading html heading}
+                             */
+                        """,
+                )
+
+            assertAndRemoveReportedIssues(
+                """
+                    MAIN_SRC/test/pkg1/package-info.java:2:11: warning: Could not resolve '#field' as there is no containing class (ErrorWhenNew) [UnresolvedLink]
+                    warning: Could not resolve '#method()' as there is no containing class (ErrorWhenNew) [UnresolvedLink]
+                """
+            )
         }
     }
 
@@ -1578,6 +1649,99 @@ class CommonDocReferenceTest : BaseModelTest() {
                     """
                 )
             }
+        }
+    }
+
+    /**
+     * Verify that unparameterized method references written without `#` or `()` (including
+     * `java.lang.Object` methods on interfaces and mapped doc-stubs annotation elements) resolve to
+     * `#`-separated callable links.
+     */
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test ambiguous method references without hash or parentheses`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package android.annotation;
+                        /** @hide */
+                        public @interface IntDef {
+                            boolean flag() default false;
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        /** {@link toString} */
+                        public interface MyInterface {}
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class Parent {
+                            public void superMethod() {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class Child extends Parent {}
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        /** @hide */
+                        public class HiddenChild extends Parent {}
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        import android.annotation.IntDef;
+                        public class Test {
+                            /**
+                             * {@link IntDef.flag}
+                             * {@link android.annotation.IntDef.flag}
+                             * {@link android.annotation.IntDef.getClass}
+                             * {@link Child.superMethod}
+                             * {@link HiddenChild.superMethod}
+                             */
+                            public void test() {}
+                        }
+                    """
+                ),
+            ),
+        ) {
+            codebase
+                .assertClass("test.pkg.MyInterface")
+                .assertPrintedDocumentation(
+                    expectedOutput = "/** {@link java.lang.Object#toString toString} */",
+                )
+
+            codebase
+                .assertClass("test.pkg.Test")
+                .assertMethod("test", emptyList())
+                .assertPrintedDocumentation(
+                    expectedOutput =
+                        """
+                            /**
+                             * {@link androidx.annotation.IntDef#flag IntDef.flag}
+                             * {@link androidx.annotation.IntDef#flag}
+                             * {@link androidx.annotation.IntDef#getClass}
+                             * {@link test.pkg.Child#superMethod Child.superMethod}
+                             * ERROR[hidden: HiddenChild.superMethod]
+                             */
+                        """,
+                )
+
+            assertAndRemoveReportedIssues(
+                "MAIN_SRC/src/test/pkg/Test.java:9:15: warning: Class test.pkg.HiddenChild is hidden (ErrorWhenNew) [HiddenDocReference]"
+            )
         }
     }
 }

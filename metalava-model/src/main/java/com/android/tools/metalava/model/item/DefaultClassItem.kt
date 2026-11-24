@@ -25,12 +25,15 @@ import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentationFactory
+import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.RecordComponentItemsFactory
 import com.android.tools.metalava.model.RecordComponents
+import com.android.tools.metalava.model.ReferencableCallableItem
+import com.android.tools.metalava.model.ReferencableItem
 import com.android.tools.metalava.model.ReferencableMethodSet
 import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.SourceFile
@@ -505,7 +508,7 @@ internal class DefaultClassItem(
         simpleName: String,
         nameClassification: NameClassification,
         isFirstSimpleName: Boolean
-    ) =
+    ): ReferencableItem? =
         // Implements https://docs.oracle.com/javase/specs/jls/se21/html/jls-6.html#jls-6.5.2
         // First, check to see if it matches this class and if it does then return it. Only do that
         // for the first simple name in a qualified name, otherwise it would treat something like
@@ -513,35 +516,58 @@ internal class DefaultClassItem(
         nameClassification.findClass {
             if (isFirstSimpleName && simpleName == simpleName()) this else null
         }
-            // Then check to see type parameters.
+            // Then check type parameters, which are only in scope for unqualified names.
             ?: nameClassification.findTypeParameter {
-                typeParameterList.find { it.name() == simpleName }
+                if (isFirstSimpleName) typeParameterList.find { it.name() == simpleName } else null
             }
             // Then, check to see if it is a field of this class.
             ?: nameClassification.findField { findField(simpleName) }
-            // Then, check to see if this contains any method with the same name, if it does
-            // then return a ReferencableMethodSet.
-            ?: nameClassification.findCallableSet { findCallableSet(simpleName) }
+            // Then, check to see if this contains any callable with the same name. Constructors are
+            // only matched when explicitly resolving a CALLABLE_SET (with parentheses).
+            ?: nameClassification.findCallableSet {
+                findCallableSet(
+                    simpleName,
+                    includeConstructors = nameClassification == NameClassification.CALLABLE_SET,
+                )
+            }
             // Then, check to see if it matches a nested class and if it does then return that.
             ?: nameClassification.findClass {
                 mutableNestedClasses.find { it.simpleName() == simpleName }
             }
-            // Then, check to see if it matches a class defined in a super class.
-            ?: superClass()
-                ?.resolveReferencableItemBySimpleName(
-                    simpleName,
-                    nameClassification,
-                    isFirstSimpleName
-                )
-            // Then, check to see if it matches a class defined in a super interface.
-            ?: interfaceTypes().firstNotNullOfOrNull {
-                it.resolveClass(codebase)
-                    ?.resolveReferencableItemBySimpleName(
-                        simpleName,
-                        nameClassification,
-                        isFirstSimpleName
-                    )
+            // Finally, search inherited members in super classes and super interfaces, falling back
+            // to implicit public instance methods of java.lang.Object when superClass() is null.
+            ?: resolveInheritedMemberBySimpleName(simpleName, nameClassification)
+            ?: nameClassification.findCallableSet { resolveImplicitObjectMethod(simpleName) }
+
+    /**
+     * Fall back to `java.lang.Object` methods when [superClass] is `null` (such as on interfaces
+     * and annotation types, which have no superclass in the model).
+     *
+     * Excludes [isJavaLangObject] (whose own methods were already checked above),
+     * [ClassKind.TYPEALIAS], and [isFileFacade] classes (which also have `superClass() == null` but
+     * do not inherit from `java.lang.Object`). Per JLS 9.2, interfaces and annotation types only
+     * implicitly declare `public` instance methods of `java.lang.Object`, not `protected` methods
+     * like `clone()` or `finalize()` or `static` methods.
+     */
+    private fun resolveImplicitObjectMethod(simpleName: String): ReferencableMethodSet? {
+        if (
+            superClass() != null ||
+                isJavaLangObject() ||
+                classKind == ClassKind.TYPEALIAS ||
+                isFileFacade
+        ) {
+            return null
+        }
+        val publicInstanceOnly = isInterface() || isAnnotationType()
+        val objectClass = codebase.resolveClass(JAVA_LANG_OBJECT) ?: return null
+        val matches =
+            objectClass.methods().any { method ->
+                method.name() == simpleName &&
+                    (!publicInstanceOnly ||
+                        (method.modifiers.isPublic() && !method.modifiers.isStatic()))
             }
+        return if (matches) ReferencableMethodSet(objectClass, simpleName) else null
+    }
 
     /** Cache value of [annotationClass]. */
     private lateinit var cachedAnnotationClass: AnnotationClass
@@ -571,13 +597,50 @@ internal class DefaultClassItem(
 }
 
 /**
- * Check to see if [name] refers to a method or constructor in this [ClassItem].
+ * Search supertypes of this [ClassItem] for an inherited field, method, or nested class matching
+ * [simpleName] and [nameClassification].
  *
- * If [name] matches [ClassItem.simpleName] then it is assumed to be a constructor. In that case if
- * this [ClassItem] has any constructors then this [ClassItem] is returned to represent the set of
- * constructors, otherwise `null` is returned. [ClassItem] is used to represent the constructors
- * because that matches the specification. Constructors cannot usually be referenced by name and
- * instead the class is referenced which gives access to its constructor.
+ * Unlike [DefaultClassItem.resolveReferencableItemBySimpleName], this excludes supertypes' own
+ * simple class names, type parameters, and constructors as those are not inherited.
+ */
+private fun ClassItem.resolveInheritedMemberBySimpleName(
+    simpleName: String,
+    nameClassification: NameClassification,
+): ReferencableItem? {
+    superClass()?.resolveDirectOrInheritedMember(simpleName, nameClassification)?.let {
+        return it
+    }
+
+    return interfaceTypes().firstNotNullOfOrNull {
+        it.resolveClass(codebase)?.resolveDirectOrInheritedMember(simpleName, nameClassification)
+    }
+}
+
+/**
+ * Check [this] supertype's inheritable declarations (fields, non-constructor methods, and nested
+ * classes), recursing into its supertypes via [resolveInheritedMemberBySimpleName] if not found.
+ */
+private fun ClassItem.resolveDirectOrInheritedMember(
+    simpleName: String,
+    nameClassification: NameClassification,
+): ReferencableItem? =
+    nameClassification.findField { findField(simpleName) }
+        ?: nameClassification.findCallableSet {
+            findCallableSet(simpleName, includeConstructors = false)
+        }
+        ?: nameClassification.findClass { nestedClasses().find { it.simpleName() == simpleName } }
+        ?: resolveInheritedMemberBySimpleName(simpleName, nameClassification)
+
+/**
+ * Check to see if [name] refers to a method or (when [includeConstructors] is `true`) a constructor
+ * in this [ClassItem].
+ *
+ * If [includeConstructors] is `true` and [name] matches [ClassItem.simpleName] then it is assumed
+ * to be a constructor. In that case if this [ClassItem] has any constructors then this [ClassItem]
+ * is returned to represent the set of constructors, otherwise `null` is returned. [ClassItem] is
+ * used to represent the constructors because that matches the specification. Constructors cannot
+ * usually be referenced by name and instead the class is referenced which gives access to its
+ * constructor.
  *
  * Else, [ClassItem.methods] is searched for a [MethodItem] that matches [name]. If at least one
  * could be found then returns a [ReferencableMethodSet] to represent the set of all [MethodItem]s
@@ -585,8 +648,11 @@ internal class DefaultClassItem(
  *
  * Otherwise, `null` is returned.
  */
-internal fun ClassItem.findCallableSet(name: String) =
-    if (name == simpleName()) {
+internal fun ClassItem.findCallableSet(
+    name: String,
+    includeConstructors: Boolean,
+): ReferencableCallableItem? =
+    if (includeConstructors && name == simpleName()) {
         if (constructors().isEmpty()) {
             null
         } else {
