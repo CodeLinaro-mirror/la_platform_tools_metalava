@@ -35,8 +35,10 @@ import org.junit.Test
 val SIGNATURE_FORMAT_OPTIONS_HELP = signatureFormatOptionsHelp(defaultFileFormat = FileFormat.V2)
 
 /** Get the [SignatureFormatOptions] when using [defaultFileFormat]. */
-fun signatureFormatOptionsHelp(defaultFileFormat: FileFormat) =
-    """
+fun signatureFormatOptionsHelp(defaultFileFormat: FileFormat? = FileFormat.V2): String {
+    val defaultSuffix =
+        if (defaultFileFormat != null) " (default: ${defaultFileFormat.specifier()})" else ""
+    return """
 Signature Format Output:
 
   Options controlling the format of the generated signature files.
@@ -66,7 +68,7 @@ Signature Format Output:
                                              <version>[:<property>=<value>[,<property>=<value>]*]
 
                                              See `metalava help signature-file-formats` for more help including a list
-                                             of the available `<version>`s and `<property>=<value>`s. (default: ${defaultFileFormat.specifier()})
+                                             of the available `<version>`s and `<property>=<value>`s.$defaultSuffix
   --use-same-format-as <file>                Specifies that the output format should be the same as the format used in
                                              the specified file. It is an error if the file does not exist. If the file
                                              is empty then this will behave as if it was not specified. If the file is
@@ -92,6 +94,7 @@ Signature Format Output:
                                              properties.
     """
         .trimIndent()
+}
 
 class SignatureFormatOptionsTest :
     BaseOptionGroupTest<SignatureFormatOptions>(
@@ -440,6 +443,34 @@ class SignatureFormatOptionsTest :
                 """
                     .trimIndent(),
                 options.compute().fileFormat.header().trim()
+            )
+        }
+    }
+
+    @Test
+    fun `defaultFileFormat null uses fallback when no format option is specified`() {
+        runTest(
+            "--format-overrides",
+            "add-additional-overrides=yes",
+            optionGroup = SignatureFormatOptions(defaultFileFormat = null),
+        ) {
+            assertEquals(
+                FileFormat.V5.buildCopy { this[ADD_ADDITIONAL_OVERRIDES] = true },
+                options.compute().fileFormat { FileFormat.V5 },
+            )
+        }
+    }
+
+    @Test
+    fun `defaultFileFormat null prefers --format over fallback`() {
+        runTest(
+            "--format",
+            "2.0",
+            optionGroup = SignatureFormatOptions(defaultFileFormat = null),
+        ) {
+            assertEquals(
+                FileFormat.V2,
+                options.compute().fileFormat { error("fallback should not be invoked") },
             )
         }
     }

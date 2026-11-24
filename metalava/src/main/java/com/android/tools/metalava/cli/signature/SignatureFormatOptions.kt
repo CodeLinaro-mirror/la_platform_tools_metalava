@@ -22,8 +22,8 @@ import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.map
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.PropertyMap
+import com.github.ajalt.clikt.output.HelpFormatter
 import com.github.ajalt.clikt.parameters.options.convert
-import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 
 const val ARG_FORMAT = "--format"
@@ -35,8 +35,11 @@ const val SIGNATURE_FORMAT_OUTPUT_GROUP = "Signature Format Output"
 class SignatureFormatOptions(
     /** If true then the `migrating` property is allowed, otherwise it is not allowed at all. */
     private val migratingAllowed: Boolean = false,
-    /** The default [FileFormat]. */
-    defaultFileFormat: FileFormat = FileFormat.V2,
+    /**
+     * The default [FileFormat], or `null` if the caller supplies a fallback format when neither
+     * [ARG_FORMAT] nor [ARG_USE_SAME_FORMAT_AS] is specified.
+     */
+    private val defaultFileFormat: FileFormat? = FileFormat.V2,
 ) :
     MetalavaOptionGroup(
         name = SIGNATURE_FORMAT_OUTPUT_GROUP,
@@ -92,6 +95,12 @@ class SignatureFormatOptions(
                         of the available `<version>`s and `<property>=<value>`s.
                     """
                         .trimIndent(),
+                helpTags =
+                    if (defaultFileFormat != null) {
+                        mapOf(HelpFormatter.Tags.DEFAULT to defaultFileFormat.specifier())
+                    } else {
+                        emptyMap()
+                    },
             )
             .convert { specifier ->
                 FileFormat.parseSpecifier(
@@ -99,7 +108,6 @@ class SignatureFormatOptions(
                     migratingAllowed = migratingAllowed,
                 )
             }
-            .default(defaultFileFormat, defaultForHelp = defaultFileFormat.specifier())
 
     private val useSameFormatAs by
         option(
@@ -152,7 +160,7 @@ class SignatureFormatOptions(
     fun compute(): ComputedSignatureFormatOptions {
         return ComputedSignatureFormatOptions(
             formatDefaults,
-            formatSpecifier,
+            formatSpecifier ?: defaultFileFormat,
             useSameFormatAs,
             formatOverrides,
         )
@@ -164,26 +172,32 @@ class SignatureFormatOptions(
  */
 class ComputedSignatureFormatOptions(
     private val formatDefaults: PropertyMap?,
-    formatSpecifier: FileFormat,
-    useSameFormatAs: FileFormat?,
-    private val formatOverrides: String?
+    private val formatSpecifier: FileFormat?,
+    private val useSameFormatAs: FileFormat?,
+    private val formatOverrides: String?,
 ) {
     /**
      * The [FileFormat] produced by merging all the format related options into one cohesive set of
-     * format related properties. It combines the defaults
+     * format related properties, defaulting to [FileFormat.V2] if no format was specified.
      */
-    val fileFormat: FileFormat by
-        lazy(LazyThreadSafetyMode.NONE) {
-            // Check the useSameFormatAs first and if it is not specified (or is an empty file) then
-            // fall back to the other options.
-            val format = useSameFormatAs ?: formatSpecifier
+    val fileFormat: FileFormat by lazy(LazyThreadSafetyMode.NONE) { fileFormat { FileFormat.V2 } }
 
-            // Apply any overrides.
-            val withOverrides = applyOverridesTo(format)
+    /**
+     * Compute the [FileFormat] by merging all the format related options, falling back to
+     * [fallbackFormatProvider] if neither [ARG_USE_SAME_FORMAT_AS] (on a non-empty file) nor
+     * [ARG_FORMAT] was specified.
+     */
+    fun fileFormat(fallbackFormatProvider: () -> FileFormat): FileFormat {
+        // Check useSameFormatAs first, then formatSpecifier, and finally fall back to the
+        // caller-supplied default format if neither was specified.
+        val format = useSameFormatAs ?: formatSpecifier ?: fallbackFormatProvider()
 
-            // Apply any additional defaults.
-            applyDefaultsTo(withOverrides)
-        }
+        // Apply any overrides.
+        val withOverrides = applyOverridesTo(format)
+
+        // Apply any additional defaults.
+        return applyDefaultsTo(withOverrides)
+    }
 
     /** Apply optional defaults specified in [formatDefaults] to [base]. */
     fun applyDefaultsTo(base: FileFormat) = base.copy(formatDefaults = formatDefaults)
