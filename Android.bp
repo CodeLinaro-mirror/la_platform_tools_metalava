@@ -24,7 +24,7 @@ java_library_host {
     ],
 }
 
-// Make the version.properties file available for `metalava-main` in `metalava`
+// Make the version.properties file available for `metalava-core` in `metalava`
 // directory.
 filegroup {
     name: "metalava-version",
@@ -60,9 +60,10 @@ genrule {
     srcs: [
         "stub-annotations/src/main/java/**/*.java",
     ],
-    cmd: "($(location metalava) make-annotations-package-private " +
-        "tools/metalava/stub-annotations/src/main/java $(genDir)/private-stub-annotations) " +
-        "&& ($(location soong_zip) -o $(out) -C $(genDir) -D $(genDir))",
+    cmd: "DIR=$(genDir)/private-stub-annotations " +
+        "&& ($(location metalava) make-annotations-package-private " +
+        "tools/metalava/stub-annotations/src/main/java $$DIR) " +
+        "&& ($(location soong_zip) -o $(out) -C $$DIR -D $$DIR)",
     out: [
         "private-stub-annotations.srcjar",
     ],
@@ -83,4 +84,13 @@ java_library {
 droiddoc_exported_dir {
     name: "metalava-manual",
     path: "manual",
+}
+
+// A filegroup containing the sources of stub-annotations.
+// This is used to compile stub-annotations from source in core library stubs
+// (where we cannot depend on the stub-annotations JAR due to circular dependencies).
+filegroup {
+    name: "stub-annotations-sources",
+    srcs: ["stub-annotations/src/main/java/**/*.java"],
+    visibility: ["//visibility:public"],
 }

@@ -55,7 +55,6 @@ class PolymorphicMethodsTest : DriverTest() {
                                 public final native <T> Object invokeNotDeclaredObjectVarArgsTypes(T... args);
                             }
                         """
-                            .trimIndent()
                     ),
                     java(
                         """
@@ -67,10 +66,9 @@ class PolymorphicMethodsTest : DriverTest() {
                                 public final native Object invokeNative(Object... args);
                             }
                         """
-                            .trimIndent()
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                     // Signature format: 2.0
                     package java.lang.invoke {
@@ -88,7 +86,6 @@ class PolymorphicMethodsTest : DriverTest() {
                       }
                     }
                 """
-                    .trimIndent(),
         )
     }
 
@@ -108,10 +105,9 @@ class PolymorphicMethodsTest : DriverTest() {
                                 public final native void set(Object... args);
                             }
                         """
-                            .trimIndent()
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                     // Signature format: 2.0
                     package java.lang.invoke {
@@ -122,8 +118,7 @@ class PolymorphicMethodsTest : DriverTest() {
                         method public final native void set(java.lang.Object...);
                       }
                     }
-                """
-                    .trimIndent(),
+                """,
         )
     }
 }

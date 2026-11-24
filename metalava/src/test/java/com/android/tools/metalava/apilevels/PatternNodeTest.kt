@@ -16,21 +16,25 @@
 
 package com.android.tools.metalava.apilevels
 
+import com.android.tools.metalava.model.api.surface.ApiSurface
+import com.android.tools.metalava.model.api.surface.ApiSurfaces
+import com.android.tools.metalava.testing.BaseTemporaryFolderOwner
 import com.android.tools.metalava.testing.DirectoryBuilder
-import com.android.tools.metalava.testing.TemporaryFolderOwner
-import com.android.tools.metalava.testing.getAndroidDir
 import java.io.File
 import kotlin.test.assertEquals
 import org.junit.Assert.assertThrows
-import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
 
-class PatternNodeTest : TemporaryFolderOwner {
-    @get:Rule override val temporaryFolder = TemporaryFolder()
-
-    fun PatternNode.assertStructure(expected: String) {
+class PatternNodeTest : BaseTemporaryFolderOwner() {
+    private fun PatternNode.assertStructure(expected: String) {
         assertEquals(expected.trimIndent(), dump().trimIndent())
+    }
+
+    /** Assert that the [MatchedPatternFile]s */
+    private fun List<MatchedPatternFile>.assertMatchedPatternFiles(expected: String) {
+        val actual = joinToString("\n")
+        val cleaned = removeTestSpecificDirectories(actual)
+        assertEquals(expected.trimIndent(), cleaned)
     }
 
     @Test
@@ -88,9 +92,48 @@ class PatternNodeTest : TemporaryFolderOwner {
         val exception =
             assertThrows(IllegalStateException::class.java) { PatternNode.parsePatterns(patterns) }
         assertEquals(
-            "Pattern 'prebuilts/sdk/{unknown}/public/android-{version:level}.jar' contains an unknown placeholder '{unknown}', expected one of '{version:level}', '{version:major.minor?}', '{version:major.minor.patch}', '{version:extension}', '{module}'",
+            "Pattern 'prebuilts/sdk/{unknown}/public/android-{version:level}.jar' contains an unknown placeholder '{unknown}', expected one of '{version:level}', '{version:major.minor?}', '{version:major.minor.patch}', '{version:extension}', '{library}', '{module}', '{surface}'",
             exception.message
         )
+    }
+
+    @Test
+    fun `Empty exclusion pattern`() {
+        val patterns =
+            listOf(
+                "!",
+            )
+
+        val exception =
+            assertThrows(IllegalStateException::class.java) { PatternNode.parsePatterns(patterns) }
+        assertEquals("Exclusion pattern '!' cannot be empty", exception.message)
+    }
+
+    @Test
+    fun `Invalid recursive wildcard in non-exclusion pattern`() {
+        val patterns =
+            listOf(
+                "prebuilts/sdk/**/{version:level}/android.jar",
+            )
+
+        val exception =
+            assertThrows(IllegalStateException::class.java) { PatternNode.parsePatterns(patterns) }
+        assertEquals(
+            "Pattern 'prebuilts/sdk/**/{version:level}/android.jar' contains '**', which is only supported in exclusion patterns",
+            exception.message
+        )
+    }
+
+    @Test
+    fun `Invalid wildcard in file name`() {
+        val patterns =
+            listOf(
+                "!**/foo**bar.txt",
+            )
+
+        val exception =
+            assertThrows(IllegalStateException::class.java) { PatternNode.parsePatterns(patterns) }
+        assertEquals("Pattern '!**/foo**bar.txt' contains invalid wildcard '**'", exception.message)
     }
 
     @Test
@@ -182,176 +225,194 @@ class PatternNodeTest : TemporaryFolderOwner {
     }
 
     @Test
-    fun `Scan public prebuilts`() {
-        val androidDir = getAndroidDir()
-
+    fun `Parse exclusion patterns`() {
         val patterns =
             listOf(
-                "prebuilts/sdk/{version:level}/public/android.jar",
+                "prebuilts/sdk/{version:level}/public/api/keep-removed.txt",
+                "!**/*-incompatibilities.txt",
+                "!prebuilts/sdk/{version:level}/public/api/*-removed.txt",
+                "prebuilts/sdk/{version:level}/public/api/{library}.txt",
+            )
+
+        val patternNode = PatternNode.parsePatterns(patterns)
+        patternNode.assertStructure(
+            """
+                <root>
+                  prebuilts/
+                    sdk/
+                      (\d+)/
+                        public/
+                          api/
+                            keep-removed.txt
+                            ([a-z0-9-.]+)\Q.txt\E
+                              !(?:[^/]+/)*[^/]*\Q-incompatibilities.txt\E
+                              !\Qprebuilts\E/\Qsdk\E/(\d+)/\Qpublic\E/\Qapi\E/[^/]*\Q-removed.txt\E
+            """
+        )
+    }
+
+    /** Create a structure of versioned `prebuilts/sdk` files for testing. */
+    private fun createPrebuiltsSdkFileStructure(): File {
+        val rootDir = buildFileStructure {
+            dir("prebuilts/sdk") {
+                for (level in 1..32) {
+                    dir("$level") {
+                        apiFile("public/api/android")
+                        if (level >= 21) {
+                            apiFile("system/api/android")
+                        }
+                    }
+                }
+            }
+        }
+        return rootDir
+    }
+
+    @Test
+    fun `Scan public prebuilts`() {
+        val rootDir = createPrebuiltsSdkFileStructure()
+        val patterns =
+            listOf(
+                "prebuilts/sdk/{version:level}/public/api/android.txt",
             )
         val node = PatternNode.parsePatterns(patterns)
         val range = ApiVersion.fromLevel(1).rangeTo(ApiVersion.fromLevel(5))
-        val files = node.scan(PatternNode.ScanConfig(androidDir, range))
-        val expected =
-            listOf(
-                MatchedPatternFile(
-                    File("prebuilts/sdk/1/public/android.jar"),
-                    ApiVersion.fromLevel(1)
-                ),
-                MatchedPatternFile(
-                    File("prebuilts/sdk/2/public/android.jar"),
-                    ApiVersion.fromLevel(2)
-                ),
-                MatchedPatternFile(
-                    File("prebuilts/sdk/3/public/android.jar"),
-                    ApiVersion.fromLevel(3)
-                ),
-                MatchedPatternFile(
-                    File("prebuilts/sdk/4/public/android.jar"),
-                    ApiVersion.fromLevel(4)
-                ),
-                MatchedPatternFile(
-                    File("prebuilts/sdk/5/public/android.jar"),
-                    ApiVersion.fromLevel(5)
-                ),
-            )
-        assertEquals(expected, files)
+        val files = node.scan(PatternNode.ScanConfig(rootDir, range::contains))
+        files.assertMatchedPatternFiles(
+            """
+                MatchedPatternFile(file=TESTROOT/prebuilts/sdk/1/public/api/android.txt, version=1)
+                MatchedPatternFile(file=TESTROOT/prebuilts/sdk/2/public/api/android.txt, version=2)
+                MatchedPatternFile(file=TESTROOT/prebuilts/sdk/3/public/api/android.txt, version=3)
+                MatchedPatternFile(file=TESTROOT/prebuilts/sdk/4/public/api/android.txt, version=4)
+                MatchedPatternFile(file=TESTROOT/prebuilts/sdk/5/public/api/android.txt, version=5)
+            """
+        )
     }
 
     @Test
     fun `Scan system prebuilts`() {
-        val androidDir = getAndroidDir()
-
+        val rootDir = createPrebuiltsSdkFileStructure()
         val patterns =
             listOf(
                 // Check system first and then fall back to public. As there are both public and
                 // system for versions 21 onwards these patterns will match both the public and
                 // system versions but only the system one will be used as it would be found first.
-                "prebuilts/sdk/{version:level}/system/android.jar",
-                "prebuilts/sdk/{version:level}/public/android.jar",
+                "prebuilts/sdk/{version:level}/system/api/android.txt",
+                "prebuilts/sdk/{version:level}/public/api/android.txt",
             )
         val node = PatternNode.parsePatterns(patterns)
         val range = ApiVersion.fromLevel(20).rangeTo(ApiVersion.fromLevel(22))
-        val files = node.scan(PatternNode.ScanConfig(androidDir, range))
-        val expected =
-            listOf(
-                MatchedPatternFile(
-                    // The fallback to public when there was no system work correctly.
-                    File("prebuilts/sdk/20/public/android.jar"),
-                    ApiVersion.fromLevel(20)
-                ),
-                MatchedPatternFile(
-                    // Selecting system because the pattern came before public worked correctly.
-                    File("prebuilts/sdk/21/system/android.jar"),
-                    ApiVersion.fromLevel(21)
-                ),
-                MatchedPatternFile(
-                    File("prebuilts/sdk/22/system/android.jar"),
-                    ApiVersion.fromLevel(22)
-                ),
-            )
-        assertEquals(expected, files)
+        val files = node.scan(PatternNode.ScanConfig(rootDir, range::contains))
+        files.assertMatchedPatternFiles(
+            """
+                MatchedPatternFile(file=TESTROOT/prebuilts/sdk/20/public/api/android.txt, version=20)
+                MatchedPatternFile(file=TESTROOT/prebuilts/sdk/21/system/api/android.txt, version=21)
+                MatchedPatternFile(file=TESTROOT/prebuilts/sdk/22/system/api/android.txt, version=22)
+            """
+        )
     }
 
     @Test
     fun `Scan public prebuilts with unnecessary system pattern`() {
-        val androidDir = getAndroidDir()
-
+        val rootDir = createPrebuiltsSdkFileStructure()
         val patterns =
             listOf(
                 // Check the public first, this should never fall back to system as it will always
-                // find a public jar.
-                "prebuilts/sdk/{version:level}/public/android.jar",
-                "prebuilts/sdk/{version:level}/system/android.jar",
+                // find a public file.
+                "prebuilts/sdk/{version:level}/public/api/android.txt",
+                "prebuilts/sdk/{version:level}/system/api/android.txt",
             )
         val node = PatternNode.parsePatterns(patterns)
         val range = ApiVersion.fromLevel(20).rangeTo(ApiVersion.fromLevel(22))
-        val files = node.scan(PatternNode.ScanConfig(androidDir, range))
-        val expected =
-            listOf(
-                MatchedPatternFile(
-                    File("prebuilts/sdk/20/public/android.jar"),
-                    ApiVersion.fromLevel(20)
-                ),
-                MatchedPatternFile(
-                    File("prebuilts/sdk/21/public/android.jar"),
-                    ApiVersion.fromLevel(21)
-                ),
-                MatchedPatternFile(
-                    File("prebuilts/sdk/22/public/android.jar"),
-                    ApiVersion.fromLevel(22)
-                ),
-            )
-        assertEquals(expected, files)
+        val files = node.scan(PatternNode.ScanConfig(rootDir, range::contains))
+        files.assertMatchedPatternFiles(
+            """
+                MatchedPatternFile(file=TESTROOT/prebuilts/sdk/20/public/api/android.txt, version=20)
+                MatchedPatternFile(file=TESTROOT/prebuilts/sdk/21/public/api/android.txt, version=21)
+                MatchedPatternFile(file=TESTROOT/prebuilts/sdk/22/public/api/android.txt, version=22)
+            """
+        )
     }
 
     @Test
     fun `Scan version specific prebuilt directories`() {
-        val androidDir = getAndroidDir()
-
+        val rootDir = createPrebuiltsSdkFileStructure()
         val patterns =
             listOf(
                 "prebuilts/sdk/{version:level}",
             )
         val node = PatternNode.parsePatterns(patterns)
         val range = ApiVersion.fromLevel(21).rangeTo(ApiVersion.fromLevel(23))
-        val files = node.scan(PatternNode.ScanConfig(androidDir, range))
-        val expected =
-            listOf(
-                MatchedPatternFile(File("prebuilts/sdk/21"), ApiVersion.fromLevel(21)),
-                MatchedPatternFile(File("prebuilts/sdk/22"), ApiVersion.fromLevel(22)),
-                MatchedPatternFile(File("prebuilts/sdk/23"), ApiVersion.fromLevel(23)),
-            )
-        assertEquals(expected, files)
+        val files = node.scan(PatternNode.ScanConfig(rootDir, range::contains))
+        files.assertMatchedPatternFiles(
+            """
+                MatchedPatternFile(file=TESTROOT/prebuilts/sdk/21, version=21)
+                MatchedPatternFile(file=TESTROOT/prebuilts/sdk/22, version=22)
+                MatchedPatternFile(file=TESTROOT/prebuilts/sdk/23, version=23)
+            """
+        )
     }
 
     @Test
     fun `Scan explicit list of version specific jars`() {
-        val androidDir = getAndroidDir()
-
+        val rootDir = createPrebuiltsSdkFileStructure()
         val patterns =
             listOf(
-                "prebuilts/sdk/{version:level}/public/android.jar",
+                "prebuilts/sdk/{version:level}/public/api/android.txt",
             )
         val node = PatternNode.parsePatterns(patterns)
 
         val limitedFileProvider =
             PatternNode.LimitedFileSystemProvider(
                 listOf(
-                        "prebuilts/sdk/19/public/android.jar",
-                        "prebuilts/sdk/22/public/android.jar",
-                        "prebuilts/sdk/32/public/android.jar",
+                        "prebuilts/sdk/19/public/api/android.txt",
+                        "prebuilts/sdk/22/public/api/android.txt",
+                        "prebuilts/sdk/32/public/api/android.txt",
                     )
-                    .map { androidDir.resolve(it) }
+                    .map { rootDir.resolve(it) }
             )
 
         val scanConfig =
             PatternNode.ScanConfig(
-                dir = androidDir,
+                dir = rootDir,
                 fileProvider = limitedFileProvider,
             )
         val files = node.scan(scanConfig)
-        val expected =
-            listOf(
-                MatchedPatternFile(
-                    File("prebuilts/sdk/19/public/android.jar"),
-                    ApiVersion.fromLevel(19)
-                ),
-                MatchedPatternFile(
-                    File("prebuilts/sdk/22/public/android.jar"),
-                    ApiVersion.fromLevel(22)
-                ),
-                MatchedPatternFile(
-                    File("prebuilts/sdk/32/public/android.jar"),
-                    ApiVersion.fromLevel(32)
-                ),
+        files.assertMatchedPatternFiles(
+            """
+                MatchedPatternFile(file=TESTROOT/prebuilts/sdk/19/public/api/android.txt, version=19)
+                MatchedPatternFile(file=TESTROOT/prebuilts/sdk/22/public/api/android.txt, version=22)
+                MatchedPatternFile(file=TESTROOT/prebuilts/sdk/32/public/api/android.txt, version=32)
+            """
+        )
+
+        val prebuiltsContents =
+            limitedFileProvider.listFiles(rootDir.resolve("prebuilts")).orEmpty().joinToString("\n")
+        assertEquals(
+            "TESTROOT/prebuilts/sdk",
+            removeTestSpecificDirectories(prebuiltsContents),
+        )
+
+        val unnormalizedDirScanConfig =
+            PatternNode.ScanConfig(
+                dir = rootDir.resolve("."),
+                fileProvider = limitedFileProvider,
             )
-        assertEquals(expected, files)
+        val unnormalizedFiles = node.scan(unnormalizedDirScanConfig)
+        unnormalizedFiles.assertMatchedPatternFiles(
+            """
+                MatchedPatternFile(file=TESTROOT/prebuilts/sdk/19/public/api/android.txt, version=19)
+                MatchedPatternFile(file=TESTROOT/prebuilts/sdk/22/public/api/android.txt, version=22)
+                MatchedPatternFile(file=TESTROOT/prebuilts/sdk/32/public/api/android.txt, version=32)
+            """
+        )
     }
+
+    /** Create an API file, e.g. [name]`.txt` file in the [DirectoryBuilder]. */
+    private fun DirectoryBuilder.apiFile(name: String = "api") = emptyFile("$name.txt")
 
     /** Create a structure of versioned API files for testing. */
     private fun createApiFileStructure(): File {
-        fun DirectoryBuilder.apiFile() = emptyFile("api.txt")
         val rootDir = buildFileStructure {
             dir("1") { apiFile() }
             dir("1.1") { apiFile() }
@@ -368,7 +429,7 @@ class PatternNodeTest : TemporaryFolderOwner {
     fun `Scan with empty patterns`() {
         val rootDir = createApiFileStructure()
         val node = PatternNode.parsePatterns(emptyList())
-        val files = node.scan(PatternNode.ScanConfig(rootDir, apiVersionRange = null))
+        val files = node.scan(PatternNode.ScanConfig(rootDir, apiVersionFilter = null))
         assertEquals(emptyList(), files)
     }
 
@@ -381,15 +442,15 @@ class PatternNodeTest : TemporaryFolderOwner {
                 "{version:major.minor?}/api.txt",
             )
         val node = PatternNode.parsePatterns(patterns)
-        val files = node.scan(PatternNode.ScanConfig(rootDir, apiVersionRange = null))
-        val expected =
-            listOf(
-                MatchedPatternFile(File("1/api.txt"), ApiVersion.fromString("1")),
-                MatchedPatternFile(File("1.1/api.txt"), ApiVersion.fromString("1.1")),
-                MatchedPatternFile(File("2/api.txt"), ApiVersion.fromString("2")),
-                MatchedPatternFile(File("2.2/api.txt"), ApiVersion.fromString("2.2")),
-            )
-        assertEquals(expected, files)
+        val files = node.scan(PatternNode.ScanConfig(rootDir, apiVersionFilter = null))
+        files.assertMatchedPatternFiles(
+            """
+                MatchedPatternFile(file=TESTROOT/1/api.txt, version=1)
+                MatchedPatternFile(file=TESTROOT/1.1/api.txt, version=1.1)
+                MatchedPatternFile(file=TESTROOT/2/api.txt, version=2)
+                MatchedPatternFile(file=TESTROOT/2.2/api.txt, version=2.2)
+            """
+        )
     }
 
     @Test
@@ -401,13 +462,13 @@ class PatternNodeTest : TemporaryFolderOwner {
                 "{version:major.minor.patch}/api.txt",
             )
         val node = PatternNode.parsePatterns(patterns)
-        val files = node.scan(PatternNode.ScanConfig(rootDir, apiVersionRange = null))
-        val expected =
-            listOf(
-                MatchedPatternFile(File("1.1.1/api.txt"), ApiVersion.fromString("1.1.1")),
-                MatchedPatternFile(File("2.2.3/api.txt"), ApiVersion.fromString("2.2.3")),
-            )
-        assertEquals(expected, files)
+        val files = node.scan(PatternNode.ScanConfig(rootDir, apiVersionFilter = null))
+        files.assertMatchedPatternFiles(
+            """
+                MatchedPatternFile(file=TESTROOT/1.1.1/api.txt, version=1.1.1)
+                MatchedPatternFile(file=TESTROOT/2.2.3/api.txt, version=2.2.3)
+            """
+        )
     }
 
     @Test
@@ -421,14 +482,28 @@ class PatternNodeTest : TemporaryFolderOwner {
                 "{version:major.minor.patch}*/api.txt",
             )
         val node = PatternNode.parsePatterns(patterns)
-        val files = node.scan(PatternNode.ScanConfig(rootDir, apiVersionRange = null))
-        val expected =
+        val files = node.scan(PatternNode.ScanConfig(rootDir, apiVersionFilter = null))
+        files.assertMatchedPatternFiles(
+            """
+                MatchedPatternFile(file=TESTROOT/1.1.1/api.txt, version=1.1.1)
+                MatchedPatternFile(file=TESTROOT/1.1.2-beta01/api.txt, version=1.1.2)
+                MatchedPatternFile(file=TESTROOT/2.2.3/api.txt, version=2.2.3)
+            """
+        )
+    }
+
+    @Test
+    fun `Check pattern with version extension includes module`() {
+        val patterns =
             listOf(
-                MatchedPatternFile(File("1.1.1/api.txt"), ApiVersion.fromString("1.1.1")),
-                MatchedPatternFile(File("1.1.2-beta01/api.txt"), ApiVersion.fromString("1.1.2")),
-                MatchedPatternFile(File("2.2.3/api.txt"), ApiVersion.fromString("2.2.3")),
+                "extensions/{version:extension}/api.txt",
             )
-        assertEquals(expected, files)
+        val exception =
+            assertThrows(IllegalStateException::class.java) { PatternNode.parsePatterns(patterns) }
+        assertEquals(
+            "Pattern 'extensions/{version:extension}/api.txt' contains `{version:extension}` but does not contain `{module}`",
+            exception.message
+        )
     }
 
     @Test
@@ -437,23 +512,22 @@ class PatternNodeTest : TemporaryFolderOwner {
 
         val patterns =
             listOf(
-                "{version:extension}/api.txt",
+                "{version:extension}/{module}.txt",
             )
         val node = PatternNode.parsePatterns(patterns)
         // This range should have no effect on extension versions.
         val range = ApiVersion.fromLevel(20).rangeTo(ApiVersion.fromLevel(22))
-        val files = node.scan(PatternNode.ScanConfig(rootDir, apiVersionRange = range))
-        val expected =
-            listOf(
-                MatchedPatternFile(File("1/api.txt"), ApiVersion.fromString("1")),
-                MatchedPatternFile(File("2/api.txt"), ApiVersion.fromString("2")),
-            )
-        assertEquals(expected, files)
+        val files = node.scan(PatternNode.ScanConfig(rootDir, apiVersionFilter = range::contains))
+        files.assertMatchedPatternFiles(
+            """
+                MatchedPatternFile(file=TESTROOT/1/api.txt, version=1, isExtension=true, module='api')
+                MatchedPatternFile(file=TESTROOT/2/api.txt, version=2, isExtension=true, module='api')
+            """
+        )
     }
 
     @Test
     fun `Scan for module`() {
-        fun DirectoryBuilder.apiFile(module: String) = emptyFile("$module.txt")
         val rootDir = buildFileStructure {
             dir("extensions") {
                 dir("1") { apiFile("module-one") }
@@ -474,34 +548,301 @@ class PatternNodeTest : TemporaryFolderOwner {
             )
         val node = PatternNode.parsePatterns(patterns)
         val files = node.scan(PatternNode.ScanConfig(rootDir))
-        val expected =
+        files.assertMatchedPatternFiles(
+            """
+                MatchedPatternFile(file=TESTROOT/extensions/1/module-one.txt, version=1, isExtension=true, module='module-one')
+                MatchedPatternFile(file=TESTROOT/extensions/3/module-one.txt, version=3, isExtension=true, module='module-one')
+                MatchedPatternFile(file=TESTROOT/extensions/2/module-two.txt, version=2, isExtension=true, module='module-two')
+                MatchedPatternFile(file=TESTROOT/extensions/3/module-two.txt, version=3, isExtension=true, module='module-two')
+                MatchedPatternFile(file=TESTROOT/extensions/2/module.three.txt, version=2, isExtension=true, module='module.three')
+            """
+        )
+    }
+
+    @Test
+    fun `Scan for library`() {
+        val rootDir = buildFileStructure {
+            dir("root") {
+                dir("1") { apiFile("android") }
+                dir("2") {
+                    apiFile("android")
+                    apiFile("android.test.base")
+                    apiFile("android.test.mock")
+                    apiFile("android.test.runtime")
+                }
+                dir("3") {
+                    apiFile("android")
+                    apiFile("android.test.base")
+                    apiFile("android.test.mock")
+                    apiFile("android.test.runtime")
+                }
+            }
+        }
+
+        val patterns =
             listOf(
-                MatchedPatternFile(
-                    File("extensions/1/module-one.txt"),
-                    ApiVersion.fromLevel(1),
-                    module = "module-one",
-                ),
-                MatchedPatternFile(
-                    File("extensions/3/module-one.txt"),
-                    ApiVersion.fromLevel(3),
-                    module = "module-one",
-                ),
-                MatchedPatternFile(
-                    File("extensions/2/module-two.txt"),
-                    ApiVersion.fromLevel(2),
-                    module = "module-two",
-                ),
-                MatchedPatternFile(
-                    File("extensions/3/module-two.txt"),
-                    ApiVersion.fromLevel(3),
-                    module = "module-two",
-                ),
-                MatchedPatternFile(
-                    File("extensions/2/module.three.txt"),
-                    ApiVersion.fromLevel(2),
-                    module = "module.three",
-                ),
+                "root/{version:level}/{library}.txt",
             )
-        assertEquals(expected, files)
+        val node = PatternNode.parsePatterns(patterns)
+        val files = node.scan(PatternNode.ScanConfig(rootDir))
+        files.assertMatchedPatternFiles(
+            """
+                MatchedPatternFile(file=TESTROOT/root/1/android.txt, version=1, library='android')
+                MatchedPatternFile(file=TESTROOT/root/2/android.txt, version=2, library='android')
+                MatchedPatternFile(file=TESTROOT/root/2/android.test.base.txt, version=2, library='android.test.base')
+                MatchedPatternFile(file=TESTROOT/root/2/android.test.mock.txt, version=2, library='android.test.mock')
+                MatchedPatternFile(file=TESTROOT/root/2/android.test.runtime.txt, version=2, library='android.test.runtime')
+                MatchedPatternFile(file=TESTROOT/root/3/android.txt, version=3, library='android')
+                MatchedPatternFile(file=TESTROOT/root/3/android.test.base.txt, version=3, library='android.test.base')
+                MatchedPatternFile(file=TESTROOT/root/3/android.test.mock.txt, version=3, library='android.test.mock')
+                MatchedPatternFile(file=TESTROOT/root/3/android.test.runtime.txt, version=3, library='android.test.runtime')
+            """
+        )
+    }
+
+    @Test
+    fun `Scan for android and library does not match android twice`() {
+        val rootDir = buildFileStructure {
+            dir("root") {
+                dir("1") { apiFile("android") }
+                dir("2") {
+                    apiFile("android")
+                    apiFile("android.test.base")
+                }
+            }
+        }
+
+        val patterns =
+            listOf(
+                "root/{version:level}/android.txt",
+                "root/{version:level}/{library}.txt",
+            )
+        val node = PatternNode.parsePatterns(patterns)
+        val files = node.scan(PatternNode.ScanConfig(rootDir))
+        files.assertMatchedPatternFiles(
+            """
+                MatchedPatternFile(file=TESTROOT/root/1/android.txt, version=1)
+                MatchedPatternFile(file=TESTROOT/root/2/android.txt, version=2)
+                MatchedPatternFile(file=TESTROOT/root/2/android.test.base.txt, version=2, library='android.test.base')
+            """
+        )
+    }
+
+    @Test
+    fun `Scan with exclusion patterns`() {
+        val rootDir = buildFileStructure {
+            dir("prebuilts") {
+                dir("sdk") {
+                    dir("1") {
+                        dir("public") {
+                            dir("api") {
+                                apiFile("android")
+                                apiFile("android-removed")
+                                apiFile("android-incompatibilities")
+                                apiFile("android.test.base")
+                                apiFile("android.test.base-removed")
+                                apiFile("runtime-i18n")
+                                apiFile("runtime-i18n-removed")
+                            }
+                        }
+                    }
+                    dir("extensions") {
+                        dir("1") {
+                            dir("public") {
+                                dir("api") {
+                                    apiFile("module-one")
+                                    apiFile("module-one-removed")
+                                    apiFile("module-one-incompatibilities")
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        val patterns =
+            listOf(
+                "!**/*-incompatibilities.txt",
+                "!**/*-removed.txt",
+                "prebuilts/sdk/{version:level}/public/api/android.txt",
+                "prebuilts/sdk/{version:level}/public/api/{library}.txt",
+                "prebuilts/sdk/extensions/{version:extension}/public/api/{module}.txt",
+            )
+        val node = PatternNode.parsePatterns(patterns)
+        val files = node.scan(PatternNode.ScanConfig(rootDir))
+        files.assertMatchedPatternFiles(
+            """
+                MatchedPatternFile(file=TESTROOT/prebuilts/sdk/1/public/api/android.txt, version=1)
+                MatchedPatternFile(file=TESTROOT/prebuilts/sdk/1/public/api/android.test.base.txt, version=1, library='android.test.base')
+                MatchedPatternFile(file=TESTROOT/prebuilts/sdk/1/public/api/runtime-i18n.txt, version=1, library='runtime-i18n')
+                MatchedPatternFile(file=TESTROOT/prebuilts/sdk/extensions/1/public/api/module-one.txt, version=1, isExtension=true, module='module-one')
+            """
+        )
+    }
+
+    @Test
+    fun `Scan with ordered inclusion and exclusion patterns`() {
+        val rootDir = buildFileStructure {
+            dir("root") {
+                dir("1") {
+                    apiFile("keep-removed")
+                    apiFile("other-removed")
+                    apiFile("android.test.base")
+                }
+            }
+        }
+
+        val patterns =
+            listOf(
+                "root/{version:level}/keep-removed.txt",
+                "!**/*-removed.txt",
+                "root/{version:level}/{library}.txt",
+            )
+        val node = PatternNode.parsePatterns(patterns)
+        val files = node.scan(PatternNode.ScanConfig(rootDir))
+        files.assertMatchedPatternFiles(
+            """
+                MatchedPatternFile(file=TESTROOT/root/1/keep-removed.txt, version=1)
+                MatchedPatternFile(file=TESTROOT/root/1/android.test.base.txt, version=1, library='android.test.base')
+            """
+        )
+    }
+
+    @Test
+    fun `Scan for extension and non-extension versions`() {
+        val rootDir = buildFileStructure {
+            dir("1.7") { apiFile("module.txt") }
+            dir("extensions") { dir("1") { apiFile("module.txt") } }
+        }
+
+        val patterns =
+            listOf(
+                "extensions/{version:extension}/{module}.txt",
+                "{version:major.minor?}/{module}.txt",
+            )
+        val node = PatternNode.parsePatterns(patterns)
+        val files =
+            node.scan(
+                PatternNode.ScanConfig(rootDir),
+            )
+        files.assertMatchedPatternFiles(
+            """
+                MatchedPatternFile(file=TESTROOT/1.7/module.txt.txt, version=1.7, module='module.txt')
+                MatchedPatternFile(file=TESTROOT/extensions/1/module.txt.txt, version=1, isExtension=true, module='module.txt')
+            """
+        )
+    }
+
+    @Test
+    fun `Test use surface placeholder without surfaces`() {
+        val rootDir = buildFileStructure { dir("1") { dir("public") { apiFile() } } }
+
+        val patterns =
+            listOf(
+                "{version:level}/{surface}/api.txt",
+            )
+        val node = PatternNode.parsePatterns(patterns)
+        val exception =
+            assertThrows(IllegalStateException::class.java) {
+                node.scan(PatternNode.ScanConfig(rootDir))
+            }
+        assertEquals(
+            "Must provide ScanConfig.apiSurfaceByName when {surface} is used",
+            exception.message
+        )
+    }
+
+    /**
+     * Check scanning for files that contain surfaces.
+     *
+     * @param apiSurfaces the set of allowable [ApiSurface]s.
+     * @param expectedFiles the expected set of matching files.
+     */
+    private fun checkScanningForSurfaces(apiSurfaces: ApiSurfaces, expectedFiles: String) {
+        val rootDir = buildFileStructure {
+            dir("1") { dir("public") { apiFile() } }
+            dir("2") {
+                dir("public") { apiFile() }
+                dir("system") { apiFile() }
+                // 'test' should not appear in the scanned files as it is not a supported surface.
+                dir("test") { apiFile() }
+            }
+            dir("3") {
+                dir("public") { apiFile() }
+                dir("system") { apiFile() }
+                dir("module-lib") { apiFile() }
+                // 'test' should not appear in the scanned files as it is not a supported surface.
+                dir("test") { apiFile() }
+            }
+        }
+
+        val patterns =
+            listOf(
+                "{version:level}/{surface}/api.txt",
+            )
+        val node = PatternNode.parsePatterns(patterns)
+        val apiSurfaceByName = apiSurfaces.byName
+        val files = node.scan(PatternNode.ScanConfig(rootDir, apiSurfaceByName = apiSurfaceByName))
+        files.assertMatchedPatternFiles(expectedFiles)
+    }
+
+    @Test
+    fun `Scan for surface - public`() {
+        val apiSurfaces = ApiSurfaces.build { createSurface(name = "public", isMain = true) }
+
+        checkScanningForSurfaces(
+            apiSurfaces,
+            expectedFiles =
+                """
+                    MatchedPatternFile(file=TESTROOT/1/public/api.txt, version=1, surface='public')
+                    MatchedPatternFile(file=TESTROOT/2/public/api.txt, version=2, surface='public')
+                    MatchedPatternFile(file=TESTROOT/3/public/api.txt, version=3, surface='public')
+                """,
+        )
+    }
+
+    @Test
+    fun `Scan for surface - system`() {
+        val apiSurfaces =
+            ApiSurfaces.build {
+                createSurface(name = "public")
+                createSurface(name = "system", extends = "public", isMain = true)
+            }
+
+        checkScanningForSurfaces(
+            apiSurfaces,
+            expectedFiles =
+                """
+                    MatchedPatternFile(file=TESTROOT/1/public/api.txt, version=1, surface='public')
+                    MatchedPatternFile(file=TESTROOT/2/public/api.txt, version=2, surface='public')
+                    MatchedPatternFile(file=TESTROOT/2/system/api.txt, version=2, surface='system')
+                    MatchedPatternFile(file=TESTROOT/3/public/api.txt, version=3, surface='public')
+                    MatchedPatternFile(file=TESTROOT/3/system/api.txt, version=3, surface='system')
+                """,
+        )
+    }
+
+    @Test
+    fun `Scan for surface - module-lib`() {
+        val apiSurfaces =
+            ApiSurfaces.build {
+                createSurface(name = "public")
+                createSurface(name = "system", extends = "public")
+                createSurface(name = "module-lib", extends = "public", isMain = true)
+            }
+
+        checkScanningForSurfaces(
+            apiSurfaces,
+            expectedFiles =
+                """
+                    MatchedPatternFile(file=TESTROOT/1/public/api.txt, version=1, surface='public')
+                    MatchedPatternFile(file=TESTROOT/2/public/api.txt, version=2, surface='public')
+                    MatchedPatternFile(file=TESTROOT/2/system/api.txt, version=2, surface='system')
+                    MatchedPatternFile(file=TESTROOT/3/public/api.txt, version=3, surface='public')
+                    MatchedPatternFile(file=TESTROOT/3/system/api.txt, version=3, surface='system')
+                    MatchedPatternFile(file=TESTROOT/3/module-lib/api.txt, version=3, surface='module-lib')
+                """,
+        )
     }
 }

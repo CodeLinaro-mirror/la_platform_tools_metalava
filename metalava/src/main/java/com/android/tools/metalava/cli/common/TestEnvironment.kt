@@ -16,9 +16,14 @@
 
 package com.android.tools.metalava.cli.common
 
-import com.android.tools.metalava.Options
+import com.android.tools.metalava.Driver
+import com.android.tools.metalava.MiscellaneousOptions
+import com.android.tools.metalava.doc.ApiHistoryProvider
+import com.android.tools.metalava.doc.DocAnalyzer
+import com.android.tools.metalava.doc.MetalavaApiHistoryProvider
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ModelOptions
+import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.source.SourceModelProvider
 
 /**
@@ -44,9 +49,15 @@ class TestEnvironment(
      * completed.
      *
      * This is set by tests to check the state of the objects referenced from [CheckerContext] like
-     * [Codebase] and [Options] that are not easily verifiable through other means.
+     * [Codebase] and [MiscellaneousOptions] that are not easily verifiable through other means.
      */
     val postAnalysisChecker: CheckerFunction? = null,
+
+    /**
+     * The [ApiHistoryProvider.Loader] to use when loading `api-versions.xml` in
+     * [DocAnalyzer.applyApiVersions].
+     */
+    val apiHistoryProviderLoader: ApiHistoryProvider.Loader = MetalavaApiHistoryProvider.loader,
 )
 
 /**
@@ -54,8 +65,9 @@ class TestEnvironment(
  * [TestEnvironment.postAnalysisChecker] lambda.
  */
 class CheckerContext(
-    val options: Options,
-    val codebase: Codebase,
+    val driver: Driver,
+    val codebase: Codebase?,
+    val multiplatformCodebase: MultiplatformCodebase?,
 )
 
 /** Alias for a lambda that is invoked on [CheckerContext] to check its state as part of a test. */

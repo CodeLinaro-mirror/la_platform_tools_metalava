@@ -16,19 +16,45 @@
 
 package com.android.tools.metalava.model.testsuite.annotationitem
 
+import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.ANNOTATION_IN_ALL_STUBS
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.BaseItemVisitor
+import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.getAttributeValue
-import com.android.tools.metalava.model.getAttributeValues
-import com.android.tools.metalava.model.provider.Capability
-import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
+import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
+import com.android.tools.metalava.model.api.ApiSurfaceRules
+import com.android.tools.metalava.model.api.ApiSurfaceSelector
+import com.android.tools.metalava.model.api.SurfaceSelectionRule
+import com.android.tools.metalava.model.api.surface.ApiSurfaces
+import com.android.tools.metalava.model.noOpAnnotationManager
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
+import com.android.tools.metalava.model.testing.classTypeItem
+import com.android.tools.metalava.model.testing.testTypeString
+import com.android.tools.metalava.model.testing.value.annotationItem
+import com.android.tools.metalava.model.testing.value.annotationValue
+import com.android.tools.metalava.model.testing.value.arrayValue
+import com.android.tools.metalava.model.testing.value.arrayValueFromAny
+import com.android.tools.metalava.model.testing.value.assertValuesAreStrictlyEqual
+import com.android.tools.metalava.model.testing.value.classObjectValue
+import com.android.tools.metalava.model.testing.value.fieldReferenceValue
+import com.android.tools.metalava.model.testing.value.literalValue
+import com.android.tools.metalava.model.testing.value.primitiveValueForKind
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.model.value.FieldReferenceValue
+import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.reporter.FileLocation
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
+import kotlin.test.assertSame
+import kotlin.test.assertTrue
+import kotlin.test.fail
 import org.junit.Test
 
 /** Annotation that is added on a line before the item being annotated. */
@@ -76,7 +102,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
             object : BaseItemVisitor() {
                 override fun visitItem(item: Item) {
                     item.modifiers.annotations().forEach {
-                        addDetails(it.fileLocation, it.toSource())
+                        addDetails(it.fileLocation, it.toString())
                     }
                     addDetails(item.fileLocation, item.describe())
                 }
@@ -87,9 +113,9 @@ class CommonAnnotationItemTest : BaseModelTest() {
         assertEquals(expectedLocations.trimIndent(), actualLocations)
     }
 
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
-    fun `annotation location (java)`() {
+    fun `annotation location - java`() {
         runCodebaseTest(
             inputSet(
                 lineBefore,
@@ -136,9 +162,9 @@ class CommonAnnotationItemTest : BaseModelTest() {
         }
     }
 
-    @RequiresCapabilities(Capability.KOTLIN)
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
-    fun `annotation location (kotlin)`() {
+    fun `annotation location - kotlin`() {
         runCodebaseTest(
             inputSet(
                 lineBefore,
@@ -176,7 +202,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
                     8:@test.pkg.SameLine("field")
                     8:field test.pkg.Foo.field
                     8:method test.pkg.Foo.getField()
-                    8:property Foo.field
+                    8:property test.pkg.Foo#field
                     9:@test.pkg.LineBefore("method")
                     10:@test.pkg.SameLine("method")
                     10:method test.pkg.Foo.method(int)
@@ -188,6 +214,43 @@ class CommonAnnotationItemTest : BaseModelTest() {
         }
     }
 
+    @Test
+    fun `annotation super class kind`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public @interface Anno {
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    public @interface Anno {
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    annotation class Anno
+                """
+            )
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Anno")
+            val annotationClass = codebase.assertResolvedClass("java.lang.annotation.Annotation")
+            assertSame(annotationClass, testClass.interfaceTypes().single().resolveClass(codebase))
+
+            // Make sure that the super type of all annotations is treated as an interface.
+            assertEquals(ClassKind.INTERFACE, annotationClass.classKind)
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `annotation with annotation values`() {
         runCodebaseTest(
@@ -204,8 +267,8 @@ class CommonAnnotationItemTest : BaseModelTest() {
                       }
 
                       public @interface Test.Anno {
-                          method public Other annotationValue();
-                          method public Other[] annotationArrayValue();
+                          method public test.pkg.Other annotationValue();
+                          method public test.pkg.Other[] annotationArrayValue();
                       }
                     }
                 """
@@ -236,21 +299,22 @@ class CommonAnnotationItemTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             val anno = testClass.modifiers.annotations().single()
 
-            val other = anno.getAttributeValue<AnnotationItem>("annotationValue")!!
-            assertEquals("test.pkg.Other", other.qualifiedName)
-            other.assertAttributeValue("value", "other")
-
-            val otherAsList = anno.getAttributeValues<AnnotationItem>("annotationValue")
-            assertEquals(listOf(other), otherAsList)
-
-            val others = anno.getAttributeValues<AnnotationItem>("annotationArrayValue")!!
-            assertEquals(
-                "other1, other2",
-                others.mapNotNull { it.getAttributeValue("value") }.joinToString()
-            )
+            val expectedAnno =
+                annotationItem(
+                    "test.pkg.Test.Anno",
+                    "annotationValue" to
+                        annotationValue("test.pkg.Other", "value" to literalValue("other")),
+                    "annotationArrayValue" to
+                        arrayValue(
+                            annotationValue("test.pkg.Other", "value" to literalValue("other1")),
+                            annotationValue("test.pkg.Other", "value" to literalValue("other2")),
+                        ),
+                )
+            assertEquals(expectedAnno, anno)
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `annotation with boolean values`() {
         runCodebaseTest(
@@ -295,12 +359,17 @@ class CommonAnnotationItemTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             val anno = testClass.modifiers.annotations().single()
 
-            anno.assertAttributeValue("booleanValue", true)
-            anno.assertAttributeValues("booleanValue", listOf(true))
-            anno.assertAttributeValues("booleanArrayValue", listOf(true, false))
+            val expectedAnno =
+                annotationItem(
+                    "test.pkg.Test.Anno",
+                    "booleanValue" to literalValue(true),
+                    "booleanArrayValue" to arrayValueFromAny(true, false),
+                )
+            assertEquals(expectedAnno, anno)
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `annotation with char values`() {
         runCodebaseTest(
@@ -310,7 +379,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
                     package test.pkg {
                       @test.pkg.Test.Anno(
                           charValue = 'a',
-                          charArrayValue = {'a', 'b'},
+                          charArrayValue = {'a', '\uff00'},
                       )
                       public class Test {
                         ctor public Test();
@@ -329,7 +398,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
 
                     @Test.Anno(
                       charValue = 'a',
-                      charArrayValue = {'a', 'b'}
+                      charArrayValue = {'a', '\uff00'}
                     )
                     public class Test {
                         public Test() {}
@@ -345,12 +414,17 @@ class CommonAnnotationItemTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             val anno = testClass.modifiers.annotations().single()
 
-            anno.assertAttributeValue("charValue", 'a')
-            anno.assertAttributeValues("charValue", listOf('a'))
-            anno.assertAttributeValues("charArrayValue", listOf('a', 'b'))
+            val expectedAnno =
+                annotationItem(
+                    "test.pkg.Test.Anno",
+                    "charValue" to literalValue('a'),
+                    "charArrayValue" to arrayValueFromAny('a', '\uff00'),
+                )
+            assertEquals(expectedAnno, anno)
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `annotation with class values`() {
         runCodebaseTest(
@@ -359,8 +433,8 @@ class CommonAnnotationItemTest : BaseModelTest() {
                     // Signature format: 2.0
                     package test.pkg {
                       @test.pkg.Test.Anno(
-                          classValue = test.pkg.Test,
-                          classArrayValue = {test.pkg.Test, Anno}
+                          classValue = test.pkg.Test.class,
+                          classArrayValue = {test.pkg.Test.class, test.pkg.Test.Anno.class}
                       )
                       public class Test {
                         ctor public Test();
@@ -379,7 +453,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
 
                     @Test.Anno(
                       classValue = Test.class,
-                      classArrayValue = {Test.class, Anno.class}
+                      classArrayValue = {Test.class, Test.Anno.class}
                     )
                     public class Test {
                         public Test() {}
@@ -395,13 +469,28 @@ class CommonAnnotationItemTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             val anno = testClass.modifiers.annotations().single()
 
-            // A class value can be retrieved as a string.
-            anno.assertAttributeValue("classValue", "test.pkg.Test")
-            anno.assertAttributeValues("classValue", listOf("test.pkg.Test"))
-            anno.assertAttributeValues("classArrayValue", listOf("test.pkg.Test", "Anno"))
+            val testClassTypeItem = classTypeItem("test.pkg.Test")
+            val testClassObjectValue = classObjectValue(testClassTypeItem)
+            val expectedAnno =
+                annotationItem(
+                    "test.pkg.Test.Anno",
+                    "classValue" to testClassObjectValue,
+                    "classArrayValue" to
+                        arrayValue(
+                            testClassObjectValue,
+                            classObjectValue(
+                                classTypeItem(
+                                    "test.pkg.Test.Anno",
+                                    outerClassType = testClassTypeItem
+                                )
+                            ),
+                        ),
+                )
+            assertEquals(expectedAnno, anno)
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `annotation with number values`() {
         runCodebaseTest(
@@ -416,14 +505,14 @@ class CommonAnnotationItemTest : BaseModelTest() {
                           doubleValue = 1.5,
                           doubleArrayValue = {1.5, 2.5},
 
-                          floatValue = 0.5F,
-                          floatArrayValue = {0.5F, 1.5F},
+                          floatValue = 0.5f,
+                          floatArrayValue = {0.5f, 1.5f},
 
                           intValue = 1,
                           intArrayValue = {1, 2, 3},
 
-                          longValue = 2,
-                          longArrayValue = {2, 4},
+                          longValue = 2L,
+                          longArrayValue = {2L, 4L},
 
                           shortValue = 3,
                           shortArrayValue = {3, 5},
@@ -506,32 +595,27 @@ class CommonAnnotationItemTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             val anno = testClass.modifiers.annotations().single()
 
-            anno.assertAttributeValue("byteValue", 1.toByte())
-            anno.assertAttributeValues("byteValue", byteArrayOf(1).toList())
-            anno.assertAttributeValues("byteArrayValue", byteArrayOf(1, 2).toList())
-
-            anno.assertAttributeValue("doubleValue", 1.5)
-            anno.assertAttributeValues("doubleValue", listOf(1.5))
-            anno.assertAttributeValues("doubleArrayValue", listOf(1.5, 2.5))
-
-            anno.assertAttributeValue("floatValue", 0.5F)
-            anno.assertAttributeValues("floatValue", listOf(0.5F))
-            anno.assertAttributeValues("floatArrayValue", listOf(0.5F, 1.5F))
-
-            anno.assertAttributeValue("intValue", 1)
-            anno.assertAttributeValues("intValue", listOf(1))
-            anno.assertAttributeValues("intArrayValue", listOf(1, 2, 3))
-
-            anno.assertAttributeValue("longValue", 2L)
-            anno.assertAttributeValues("longValue", listOf(2L))
-            anno.assertAttributeValues("longArrayValue", listOf(2L, 4L))
-
-            anno.assertAttributeValue("shortValue", 3.toShort())
-            anno.assertAttributeValues("shortValue", listOf(3.toShort()))
-            anno.assertAttributeValues("shortArrayValue", shortArrayOf(3, 5).toList())
+            val expectedAnno =
+                annotationItem(
+                    "test.pkg.Test.Anno",
+                    "byteValue" to literalValue(1.toByte()),
+                    "byteArrayValue" to arrayValueFromAny(1.toByte(), 2.toByte()),
+                    "doubleValue" to literalValue(1.5),
+                    "doubleArrayValue" to arrayValueFromAny(1.5, 2.5),
+                    "floatValue" to literalValue(0.5f),
+                    "floatArrayValue" to arrayValueFromAny(0.5f, 1.5f),
+                    "intValue" to literalValue(1),
+                    "intArrayValue" to arrayValueFromAny(1, 2, 3),
+                    "longValue" to literalValue(2L),
+                    "longArrayValue" to arrayValueFromAny(2L, 4L),
+                    "shortValue" to literalValue(3.toShort()),
+                    "shortArrayValue" to arrayValueFromAny(3.toShort(), 5.toShort()),
+                )
+            assertEquals(expectedAnno, anno)
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `annotation with string values`() {
         runCodebaseTest(
@@ -576,12 +660,17 @@ class CommonAnnotationItemTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             val anno = testClass.modifiers.annotations().single()
 
-            anno.assertAttributeValue("stringValue", "string")
-            anno.assertAttributeValues("stringValue", listOf("string"))
-            anno.assertAttributeValues("stringArrayValue", listOf("string1", "string2"))
+            val expectedAnno =
+                annotationItem(
+                    "test.pkg.Test.Anno",
+                    "stringValue" to literalValue("string"),
+                    "stringArrayValue" to arrayValueFromAny("string1", "string2"),
+                )
+            assertEquals(expectedAnno, anno)
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `annotation array values with single element`() {
         runCodebaseTest(
@@ -618,11 +707,17 @@ class CommonAnnotationItemTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             val anno = testClass.modifiers.annotations().single()
 
-            // It is expected to be not of array type
-            anno.assertAttributeValue("value", "string")
+            // It is expected to be of array type
+            val expectedAnno =
+                annotationItem(
+                    "test.pkg.Test.Anno",
+                    "value" to arrayValueFromAny("string"),
+                )
+            assertEquals(expectedAnno, anno)
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `annotation array values with single array element`() {
         runCodebaseTest(
@@ -660,10 +755,16 @@ class CommonAnnotationItemTest : BaseModelTest() {
             val anno = testClass.modifiers.annotations().single()
 
             // It is expected to be of array type
-            anno.assertAttributeValues("value", listOf("string"))
+            val expectedAnno =
+                annotationItem(
+                    "test.pkg.Test.Anno",
+                    "value" to arrayValueFromAny("string"),
+                )
+            assertEquals(expectedAnno, anno)
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `annotation with enum values`() {
         runCodebaseTest(
@@ -680,8 +781,8 @@ class CommonAnnotationItemTest : BaseModelTest() {
                       }
 
                       public @interface Test.Anno {
-                          method public Enum stringValue();
-                          method public Enum[] stringArrayValue();
+                          method public Enum enumValue();
+                          method public Enum[] enumArrayValue();
                       }
 
                       public enum Enum {
@@ -718,17 +819,34 @@ class CommonAnnotationItemTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             val anno = testClass.modifiers.annotations().single()
 
-            anno.assertAttributeValue("enumValue", "test.pkg.Enum.ENUM1")
-            anno.assertAttributeValues("enumValue", listOf("test.pkg.Enum.ENUM1"))
-            anno.assertAttributeValues(
-                "enumArrayValue",
-                listOf("test.pkg.Enum.ENUM1", "test.pkg.Enum.ENUM2")
-            )
+            val expectedAnno =
+                annotationItem(
+                    "test.pkg.Test.Anno",
+                    "enumValue" to fieldReferenceValue("test.pkg.Enum", "ENUM1"),
+                    "enumArrayValue" to
+                        arrayValue(
+                            fieldReferenceValue("test.pkg.Enum", "ENUM1"),
+                            fieldReferenceValue("test.pkg.Enum", "ENUM2"),
+                        ),
+                )
+            assertEquals(expectedAnno, anno)
+
+            // Make sure that the enum value resolves to the enum field.
+            val enumValue = anno.assertAttribute("enumValue").value as FieldReferenceValue
+            val enum1Field = codebase.assertClass("test.pkg.Enum").assertField("ENUM1")
+            assertSame(enum1Field, enumValue.resolve(), message = "enumValue.resolve()")
+
+            val enumArrayValue =
+                anno.assertAttribute("enumArrayValue").value.asFlatList().map {
+                    it as FieldReferenceValue
+                }
+            assertSame(enum1Field, enumArrayValue[0].resolve(), "enumArrayValue[0].resolve()")
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
-    fun `annotation with constant literal values`() {
+    fun `annotation with constant literal value in int attribute`() {
         runCodebaseTest(
             signature(
                 """
@@ -741,7 +859,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
                       }
 
                       public @interface Test.Anno {
-                         method public Int value();
+                         method public int value();
                       }
                     }
                 """
@@ -766,28 +884,31 @@ class CommonAnnotationItemTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             val anno = testClass.modifiers.annotations().single()
 
-            anno.assertAttributeValue("value", 5)
+            val expectedAnno =
+                annotationItem(
+                    "test.pkg.Test.Anno",
+                    "value" to fieldReferenceValue("test.pkg.Test", "FIELD"),
+                )
+            assertEquals(expectedAnno, anno)
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
-    fun `annotation toSource() with annotation values`() {
+    fun `annotation with constant literal value in int array attribute`() {
         runCodebaseTest(
             signature(
                 """
                     // Signature format: 2.0
                     package test.pkg {
-                      @test.pkg.Test.Anno(
-                        annotationValue = @test.pkg.Other("other"),
-                        annotationArrayValue = {@test.pkg.Other("other1"), @test.pkg.Other("other2")}
-                      )
+                      @test.pkg.Test.Anno({test.pkg.Test.FIELD})
                       public class Test {
                         ctor public Test();
+                        field public static final int FIELD = 5;
                       }
 
                       public @interface Test.Anno {
-                          method public Other annotationValue();
-                          method public Other[] annotationArrayValue();
+                         method public int[] values();
                       }
                     }
                 """
@@ -796,70 +917,14 @@ class CommonAnnotationItemTest : BaseModelTest() {
                 """
                     package test.pkg;
 
-                    @Test.Anno(
-                      annotationValue = @test.pkg.Other("other"),
-                      annotationArrayValue = {@test.pkg.Other("other1"), @test.pkg.Other("other2")}
-                    )
+                    @Test.Anno(Test.FIELD)
                     public class Test {
                         public Test() {}
 
-                        public @interface Anno {
-                          Other annotationValue();
-                          Other[] annotationArrayValue();
-                        }
-                    }
-
-                    @interface Other {
-                        String value();
-                    }
-                """
-            ),
-        ) {
-            val testClass = codebase.assertClass("test.pkg.Test")
-            val anno = testClass.modifiers.annotations().single()
-
-            val toSource =
-                "@test.pkg.Test.Anno(annotationValue=@test.pkg.Other(\"other\"), annotationArrayValue={@test.pkg.Other(\"other1\"), @test.pkg.Other(\"other2\")})"
-            assertEquals(toSource, anno.toSource())
-        }
-    }
-
-    @Test
-    fun `annotation toSource() with boolean values`() {
-        runCodebaseTest(
-            signature(
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      @test.pkg.Test.Anno(
-                          booleanValue = true,
-                          booleanArrayValue = {true, false},
-                      )
-                      public class Test {
-                        ctor public Test();
-                      }
-
-                      public @interface Test.Anno {
-                          method public boolean booleanValue();
-                          method public boolean[] booleanArrayValue();
-                      }
-                    }
-                """
-            ),
-            java(
-                """
-                    package test.pkg;
-
-                    @Test.Anno(
-                      booleanValue = true,
-                      booleanArrayValue = {true, false}
-                    )
-                    public class Test {
-                        public Test() {}
+                        public static final int FIELD = 5;
 
                         public @interface Anno {
-                          boolean booleanValue();
-                          boolean[] booleanArrayValue();
+                          int[] value();
                         }
                     }
                 """
@@ -868,158 +933,33 @@ class CommonAnnotationItemTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             val anno = testClass.modifiers.annotations().single()
 
-            val toSource = "@test.pkg.Test.Anno(booleanValue=true, booleanArrayValue={true, false})"
-            assertEquals(toSource, anno.toSource())
+            val expectedAnno =
+                annotationItem(
+                    "test.pkg.Test.Anno",
+                    "value" to arrayValue(fieldReferenceValue("test.pkg.Test", "FIELD")),
+                )
+            assertEquals(expectedAnno, anno)
         }
     }
 
     @Test
-    fun `annotation toSource() with char values`() {
+    fun `annotation attribute with unknown field`() {
         runCodebaseTest(
             signature(
                 """
                     // Signature format: 2.0
                     package test.pkg {
                       @test.pkg.Test.Anno(
-                          charValue = 'a',
-                          charArrayValue = {'a', '\uFF00'},
+                          intValue = other.pkg.TestEnum.UNKNOWN,
+                          intArrayValue = {TestEnum.UNKNOWN, UNKNOWN},
                       )
                       public class Test {
                         ctor public Test();
                       }
 
                       public @interface Test.Anno {
-                          method public char charValue();
-                          method public char[] charArrayValue();
-                      }
-                    }
-                """
-            ),
-            java(
-                """
-                    package test.pkg;
-
-                    @Test.Anno(
-                      charValue = 'a',
-                      charArrayValue = {'a', '\uFF00'}
-                    )
-                    public class Test {
-                        public Test() {}
-
-                        public @interface Anno {
-                          char charValue();
-                          char[] charArrayValue();
-                        }
-                    }
-                """
-            ),
-        ) {
-            val testClass = codebase.assertClass("test.pkg.Test")
-            val anno = testClass.modifiers.annotations().single()
-
-            val toSource = "@test.pkg.Test.Anno(charValue='a', charArrayValue={'a', '\\uff00'})"
-            assertEquals(toSource, anno.toSource())
-        }
-    }
-
-    @Test
-    fun `annotation toSource() with class values`() {
-        runCodebaseTest(
-            signature(
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      @test.pkg.Test.Anno(
-                          classValue = test.pkg.Test,
-                          classArrayValue = {test.pkg.Test, Anno}
-                      )
-                      public class Test {
-                        ctor public Test();
-                      }
-
-                      public @interface Test.Anno {
-                          method public Class<?> classValue();
-                          method public Class<?>[] classArrayValue();
-                      }
-                    }
-                """
-            ),
-            java(
-                """
-                    package test.pkg;
-
-                    @Test.Anno(
-                      classValue = Test.class,
-                      classArrayValue = {Test.class, Anno.class}
-                    )
-                    public class Test {
-                        public Test() {}
-
-                        public @interface Anno {
-                          Class<?> classValue();
-                          Class<?>[] classArrayValue();
-                        }
-                    }
-                """
-            ),
-        ) {
-            val testClass = codebase.assertClass("test.pkg.Test")
-            val anno = testClass.modifiers.annotations().single()
-
-            val toSource =
-                "@test.pkg.Test.Anno(classValue=Test.class, classArrayValue={Test.class, Anno.class})"
-            assertEquals(toSource, anno.toSource())
-        }
-    }
-
-    @Test
-    fun `annotation toSource() with number values`() {
-        runCodebaseTest(
-            signature(
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      @test.pkg.Test.Anno(
-                          byteValue = 1,
-                          byteArrayValue = {1, 2},
-
-                          doubleValue = 1.5,
-                          doubleArrayValue = {1.5, 2.5},
-
-                          floatValue = 0.5F,
-                          floatArrayValue = {0.5F, 1.5F},
-
-                          intValue = 1,
-                          intArrayValue = {1, 2, 3},
-
-                          longValue = 2,
-                          longArrayValue = {2, 4},
-
-                          shortValue = 3,
-                          shortArrayValue = {3, 5},
-                      )
-                      public class Test {
-                        ctor public Test();
-                      }
-
-                      public @interface Test.Anno {
-                          method public byte byteValue();
-                          method public byte[] byteArrayValue();
-
-                          method public double doubleValue();
-                          method public double[] doubleArrayValue();
-
-                          method public float floatValue();
-                          method public float[] floatArrayValue();
-
                           method public int intValue();
                           method public int[] intArrayValue();
-
-                          method public long longValue();
-                          method public long[] longArrayValue();
-
-                          method public short shortValue();
-                          method public short[] shortArrayValue();
                       }
                     }
                 """
@@ -1027,98 +967,38 @@ class CommonAnnotationItemTest : BaseModelTest() {
             java(
                 """
                     package test.pkg;
+                    import other.pkg.TestEnum;
+                    import static other.pkg.TestEnum.UNKNOWN;
 
                     @Test.Anno(
-                      byteValue = 1,
-                      byteArrayValue = {1, 2},
-
-                      doubleValue = 1.5,
-                      doubleArrayValue = {1.5, 2.5},
-
-                      floatValue = 0.5F,
-                      floatArrayValue = {0.5F, 1.5F},
-
-                      intValue = 1,
-                      intArrayValue = {1, 2, 3},
-
-                      longValue = 2L,
-                      longArrayValue = {2L, 4L},
-
-                      shortValue = 3,
-                      shortArrayValue = {3, 5}
+                      intValue = other.pkg.TestEnum.UNKNOWN,
+                      intArrayValue = {TestEnum.UNKNOWN, UNKNOWN}
                     )
                     public class Test {
                         public Test() {}
 
                         public @interface Anno {
-                          byte byteValue();
-                          byte[] byteArrayValue();
-
-                          double doubleValue();
-                          double[] doubleArrayValue();
-
-                          float floatValue();
-                          float[] floatArrayValue();
-
                           int intValue();
                           int[] intArrayValue();
-
-                          long longValue();
-                          long[] longArrayValue();
-
-                          short shortValue();
-                          short[] shortArrayValue();
                         }
                     }
                 """
             ),
-        ) {
-            val testClass = codebase.assertClass("test.pkg.Test")
-            val anno = testClass.modifiers.annotations().single()
-
-            val toSource =
-                "@test.pkg.Test.Anno(byteValue=1, byteArrayValue={1, 2}, doubleValue=1.5, doubleArrayValue={1.5, 2.5}, floatValue=0.5f, floatArrayValue={0.5f, 1.5f}, intValue=1, intArrayValue={1, 2, 3}, longValue=2L, longArrayValue={2L, 4L}, shortValue=3, shortArrayValue={3, 5})"
-            assertEquals(toSource, anno.toSource())
-        }
-    }
-
-    @Test
-    fun `annotation toSource() with string values`() {
-        runCodebaseTest(
-            signature(
+            kotlin(
                 """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      @test.pkg.Test.Anno(
-                          stringValue = "string",
-                          stringArrayValue = {"string1", "string2"},
-                      )
-                      public class Test {
-                        ctor public Test();
-                      }
-
-                      public @interface Test.Anno {
-                          method public String stringValue();
-                          method public String[] stringArrayValue();
-                      }
-                    }
-                """
-            ),
-            java(
-                """
-                    package test.pkg;
+                    package test.pkg
+                    import other.pkg.TestEnum
+                    import other.pkg.TestEnum.UNKNOWN
 
                     @Test.Anno(
-                      stringValue = "string",
-                      stringArrayValue = {"string1", "string2"}
+                      intValue = other.pkg.TestEnum.UNKNOWN,
+                      intArrayValue = [TestEnum.UNKNOWN, UNKNOWN]
                     )
-                    public class Test {
-                        public Test() {}
-
-                        public @interface Anno {
-                          String stringValue();
-                          String[] stringArrayValue();
-                        }
+                    class Test {
+                        annotation class Anno(
+                          val intValue: Int,
+                          val intArrayValue: IntArray,
+                        )
                     }
                 """
             ),
@@ -1126,26 +1006,49 @@ class CommonAnnotationItemTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             val anno = testClass.modifiers.annotations().single()
 
-            val toSource =
-                "@test.pkg.Test.Anno(stringValue=\"string\", stringArrayValue={\"string1\", \"string2\"})"
-            assertEquals(toSource, anno.toSource())
+            val intValue = anno.assertAttribute("intValue").value
+            assertValuesAreStrictlyEqual(
+                fieldReferenceValue("other.pkg.TestEnum", "UNKNOWN"),
+                intValue,
+                message = "intValue",
+            )
+
+            val intArrayValue = anno.assertAttribute("intArrayValue").value
+            assertValuesAreStrictlyEqual(
+                arrayValue(
+                    fieldReferenceValue("TestEnum", "UNKNOWN"),
+                    fieldReferenceValue("", "UNKNOWN"),
+                ),
+                intArrayValue,
+                message = "intArrayValue",
+            )
+
+            // Kotlin does not report an unresolved import for some reason.
+            val unresolvedImportIssues =
+                "MAIN_SRC/src/test/pkg/Test.java:2: info: Unresolved import: `other.pkg.TestEnum` [UnresolvedImport]"
+            removeReportedIssues().let { actualIssues ->
+                if (actualIssues != "" && actualIssues != unresolvedImportIssues) {
+                    fail("Unexpected issues:\n${actualIssues.prependIndent("    ")}")
+                }
+            }
         }
     }
 
     @Test
-    fun `annotation toSource() for array values with single element`() {
+    fun `annotation default attribute with unknown field`() {
         runCodebaseTest(
             signature(
                 """
                     // Signature format: 2.0
                     package test.pkg {
-                      @test.pkg.Test.Anno("string")
                       public class Test {
                         ctor public Test();
+                        method @test.pkg.Test.Anno(other.pkg.TestEnum.UNKNOWN) public void method1();
+                        method @test.pkg.Test.Anno({TestEnum.UNKNOWN, UNKNOWN}) public void method2();
                       }
 
                       public @interface Test.Anno {
-                          method public String[] value();
+                          method public int[] value();
                       }
                     }
                 """
@@ -1153,193 +1056,92 @@ class CommonAnnotationItemTest : BaseModelTest() {
             java(
                 """
                     package test.pkg;
+                    import other.pkg.TestEnum;
+                    import static other.pkg.TestEnum.UNKNOWN;
 
-                    @Test.Anno("string")
                     public class Test {
                         public Test() {}
 
+                        @Test.Anno(other.pkg.TestEnum.UNKNOWN)
+                        public void method1() {}
+
+                        @Test.Anno({TestEnum.UNKNOWN, UNKNOWN})
+                        public void method2() {}
+
                         public @interface Anno {
-                          String[] value();
+                          int[] value();
                         }
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    import other.pkg.TestEnum
+                    import other.pkg.TestEnum.UNKNOWN
+
+                    class Test {
+                        @Test.Anno(other.pkg.TestEnum.UNKNOWN)
+                        fun method1() {}
+
+                        @Test.Anno([TestEnum.UNKNOWN, UNKNOWN])
+                        fun method2() {}
+
+                        annotation class Anno(
+                          val value: IntArray,
+                        )
                     }
                 """
             ),
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
-            val anno = testClass.modifiers.annotations().single()
 
-            val toSource = "@test.pkg.Test.Anno(\"string\")"
-            assertEquals(toSource, anno.toSource())
-        }
-    }
+            testClass
+                .methods()
+                .single { it.name() == "method1" }
+                .let { methodItem ->
+                    val annotation = methodItem.modifiers.annotations().single()
 
-    @Test
-    fun `annotation toSource() for array values with single array element`() {
-        runCodebaseTest(
-            signature(
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      @test.pkg.Test.Anno({"string"})
-                      public class Test {
-                        ctor public Test();
-                      }
-
-                      public @interface Test.Anno {
-                          method public String[] value();
-                      }
-                    }
-                """
-            ),
-            java(
-                """
-                    package test.pkg;
-
-                    @Test.Anno({"string"})
-                    public class Test {
-                        public Test() {}
-
-                        public @interface Anno {
-                          String[] value();
-                        }
-                    }
-                """
-            ),
-        ) {
-            val testClass = codebase.assertClass("test.pkg.Test")
-            val anno = testClass.modifiers.annotations().single()
-
-            val toSource = "@test.pkg.Test.Anno({\"string\"})"
-            assertEquals(toSource, anno.toSource())
-        }
-    }
-
-    @Test
-    fun `annotation toSource() with enum values`() {
-        runCodebaseTest(
-            signature(
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      @test.pkg.Test.Anno(
-                          enumValue = test.pkg.Enum.ENUM1,
-                          enumArrayValue = {test.pkg.Enum.ENUM1, test.pkg.Enum.ENUM2},
-                      )
-                      public class Test {
-                        ctor public Test();
-                      }
-
-                      public @interface Test.Anno {
-                          method public Enum stringValue();
-                          method public Enum[] stringArrayValue();
-                      }
-
-                      public enum Enum {
-                        enum_constant public test.pkg.Enum ENUM1;
-                        enum_constant public test.pkg.Enum ENUM2;
-                      }
-                    }
-                """
-            ),
-            java(
-                """
-                    package test.pkg;
-
-                    @Test.Anno(
-                      enumValue = Enum.ENUM1,
-                      enumArrayValue = {Enum.ENUM1,Enum.ENUM2}
+                    val value = annotation.assertAttribute(ANNOTATION_ATTR_VALUE).value
+                    assertValuesAreStrictlyEqual(
+                        arrayValue(fieldReferenceValue("other.pkg.TestEnum", "UNKNOWN")),
+                        value,
+                        message = "method1 value"
                     )
-                    public class Test {
-                        public Test() {}
+                }
 
-                        public @interface Anno {
-                          Enum enumValue();
-                          Enum[] enumArrayValue();
-                        }
-                    }
+            testClass
+                .methods()
+                .single { it.name() == "method2" }
+                .let { methodItem ->
+                    val annotation = methodItem.modifiers.annotations().single()
 
-                    public enum Enum {
-                      ENUM1,
-                      ENUM2,
-                    }
-                """
-            ),
-        ) {
-            val testClass = codebase.assertClass("test.pkg.Test")
-            val anno = testClass.modifiers.annotations().single()
+                    val value = annotation.assertAttribute(ANNOTATION_ATTR_VALUE).value
+                    assertValuesAreStrictlyEqual(
+                        arrayValue(
+                            fieldReferenceValue("TestEnum", "UNKNOWN"),
+                            fieldReferenceValue("", "UNKNOWN"),
+                        ),
+                        value,
+                        message = "method2 value"
+                    )
+                }
 
-            val toSource =
-                "@test.pkg.Test.Anno(enumValue=test.pkg.Enum.ENUM1, enumArrayValue={test.pkg.Enum.ENUM1, test.pkg.Enum.ENUM2})"
-            assertEquals(toSource, anno.toSource())
+            // Kotlin does not report an unresolved import for some reason.
+            val unresolvedImportIssues =
+                "MAIN_SRC/src/test/pkg/Test.java:2: info: Unresolved import: `other.pkg.TestEnum` [UnresolvedImport]"
+            removeReportedIssues().let { actualIssues ->
+                if (actualIssues != "" && actualIssues != unresolvedImportIssues) {
+                    fail("Unexpected issues:\n${actualIssues.prependIndent("    ")}")
+                }
+            }
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
-    fun `annotation toSource() with constant literal values`() {
+    fun `annotation with compound expression values`() {
         runCodebaseTest(
-            signature(
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      @test.pkg.Test.Anno(test.pkg.Test.FIELD)
-                      public class Test {
-                        ctor public Test();
-                        field public static final int FIELD = 5;
-                      }
-
-                      public @interface Test.Anno {
-                         method public Int value();
-                      }
-                    }
-                """
-            ),
-            java(
-                """
-                    package test.pkg;
-
-                    @Test.Anno(Test.FIELD)
-                    public class Test {
-                        public Test() {}
-
-                        public static final int FIELD = 5;
-
-                        public @interface Anno {
-                          int value();
-                        }
-                    }
-                """
-            ),
-        ) {
-            val testClass = codebase.assertClass("test.pkg.Test")
-            val anno = testClass.modifiers.annotations().single()
-
-            val toSource = "@test.pkg.Test.Anno(test.pkg.Test.FIELD)"
-            assertEquals(toSource, anno.toSource())
-        }
-    }
-
-    @Test
-    fun `annotation toSource() with compound expression values`() {
-        runCodebaseTest(
-            signature(
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      @test.pkg.Test.Anno(value=test.pkg.Test.FIELD1+test.pkg.Test.FIELD2, name="FirstName"+"LastName", id=1+test.pkg.FIELD1)
-                      public class Test {
-                        ctor public Test();
-                        field public static final int FIELD1 = 5;
-                        field public static final int FIELD2 = 7;
-                      }
-
-                      public @interface Test.Anno {
-                          method public int value();
-                          method public String name();
-                          method public int id();
-                      }
-                    }
-                """
-            ),
             java(
                 """
                     package test.pkg;
@@ -1363,15 +1165,98 @@ class CommonAnnotationItemTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             val anno = testClass.modifiers.annotations().single()
 
-            anno.assertAttributeValue("value", 12)
-            anno.assertAttributeValue("name", "FirstNameLastName")
-            anno.assertAttributeValue("id", 6)
-            val toSource =
-                "@test.pkg.Test.Anno(value=test.pkg.Test.FIELD1 + test.pkg.Test.FIELD2, name=\"FirstName\" + \"LastName\", id=1 + test.pkg.Test.FIELD1)"
-            assertEquals(toSource, anno.toSource())
+            val expectedAnno =
+                annotationItem(
+                    "test.pkg.Test.Anno",
+                    "value" to literalValue(12),
+                    "name" to literalValue("FirstNameLastName"),
+                    "id" to literalValue(6),
+                )
+            assertEquals(expectedAnno, anno)
         }
     }
 
+    private fun checkGetVsSetParamAnnotation(
+        attributeType: String,
+        attributePrimitive: Primitive,
+        underlyingKaValue: Any,
+    ) {
+        runCodebaseTest(
+            kotlin(
+                """
+                        package test.pkg
+
+                        annotation class Anno(val attr: $attributeType)
+
+                        class Test {
+                            @get:Anno(attr = 12) @setparam:Anno(attr = 12) var property = 0
+                        }
+                    """
+            )
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val property = testClass.properties().single()
+
+            // Test the annotation on the property (the @get:Anno).
+            // This comes from the KaValueFactory, which does not have information about the
+            // underlying value being an int.
+            val expectedValueKa = primitiveValueForKind(attributePrimitive, underlyingKaValue)
+            property.modifiers.annotations().single().let { anno ->
+                assertValuesAreStrictlyEqual(
+                    expectedValueKa,
+                    anno.assertAttribute("attr").value,
+                    message = "@get:Anno"
+                )
+            }
+
+            // Test the annotation on the setter parameter (the @setparam:Anno).
+            // This comes from the PsiValueFactory, which does have information about the underlying
+            // value being an int.
+            val expectedValuePsi = primitiveValueForKind(attributePrimitive, 12)
+            val setter = property.setter
+            assertNotNull(setter, message = "setter method")
+            val parameter = setter.parameters().single()
+            parameter.modifiers.annotations().single().let { anno ->
+                assertValuesAreStrictlyEqual(
+                    expectedValuePsi,
+                    anno.assertAttribute("attr").value,
+                    message = "@setparam:Anno"
+                )
+            }
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.KOTLIN)
+    @Test
+    fun `annotation on @get and @setparam annotations - byte`() {
+        checkGetVsSetParamAnnotation(
+            attributeType = "Byte",
+            attributePrimitive = Primitive.BYTE,
+            underlyingKaValue = 12.toByte(),
+        )
+    }
+
+    @SupportedInputFormats(InputFormat.KOTLIN)
+    @Test
+    fun `annotation on @get and @setparam annotations - short`() {
+        checkGetVsSetParamAnnotation(
+            attributeType = "Short",
+            attributePrimitive = Primitive.SHORT,
+            underlyingKaValue = 12.toShort(),
+        )
+    }
+
+    @SupportedInputFormats(InputFormat.KOTLIN)
+    @Test
+    fun `annotation on @get and @setparam annotations - long`() {
+        checkGetVsSetParamAnnotation(
+            attributeType = "Long",
+            attributePrimitive = Primitive.LONG,
+            underlyingKaValue = 12L,
+        )
+    }
+
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `annotation with negative number values`() {
         runCodebaseTest(
@@ -1383,7 +1268,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
                           doubleValue = -1.5,
                           floatValue = -0.5F,
                           intValue = -1,
-                          longValue = -2,
+                          longValue = -2L,
                           shortValue = -3,
                       )
                       public class Test {
@@ -1409,7 +1294,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
                       floatValue = -0.5F,
                       intValue = -1,
                       longValue = -2L,
-                      shortValue = -3,
+                      shortValue = -3
                     )
                     public class Test {
                         public Test() {}
@@ -1428,36 +1313,24 @@ class CommonAnnotationItemTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             val anno = testClass.modifiers.annotations().single()
 
-            anno.assertAttributeValue("doubleValue", -1.5)
-            anno.assertAttributeValue("floatValue", -0.5F)
-            anno.assertAttributeValue("intValue", -1)
-            anno.assertAttributeValue("longValue", -2L)
-            anno.assertAttributeValue("shortValue", -3.toShort())
-
-            val toSource =
-                "@test.pkg.Test.Anno(doubleValue=-1.5, floatValue=-0.5F, intValue=0xffffffff, longValue=-2L, shortValue=0xfffffffd)"
-            assertEquals(toSource, anno.toSource())
+            val expectedAnno =
+                annotationItem(
+                    "test.pkg.Test.Anno",
+                    "doubleValue" to literalValue(-1.5),
+                    "floatValue" to literalValue(-0.5F),
+                    "intValue" to literalValue(-1),
+                    "longValue" to literalValue(-2L),
+                    "shortValue" to literalValue((-3).toShort()),
+                )
+            assertEquals(expectedAnno, anno)
         }
     }
 
+    // Does not work with signature files as they do not support casts.
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `annotation with type cast values`() {
         runCodebaseTest(
-            signature(
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      @test.pkg.Test.Anno((int)5.6)
-                      public class Test {
-                        ctor public Test();
-                      }
-
-                      public @interface Test.Anno {
-                          method public int value();
-                      }
-                    }
-                """
-            ),
             java(
                 """
                     package test.pkg;
@@ -1476,11 +1349,16 @@ class CommonAnnotationItemTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             val anno = testClass.modifiers.annotations().single()
 
-            anno.assertAttributeValue("value", 5)
-            assertEquals("@test.pkg.Test.Anno(0x5)", anno.toSource())
+            val expectedAnno =
+                annotationItem(
+                    "test.pkg.Test.Anno",
+                    "value" to literalValue(5),
+                )
+            assertEquals(expectedAnno, anno)
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `annotation with infinity values`() {
         runCodebaseTest(
@@ -1488,13 +1366,13 @@ class CommonAnnotationItemTest : BaseModelTest() {
                 """
                     // Signature format: 2.0
                     package test.pkg {
-                      @test.pkg.Test.Anno({java.lang.Double.POSITIVE_INFINITY,java.lang.Double.POSITIVE_INFINITY})
+                      @test.pkg.Test.Anno({java.lang.Double.POSITIVE_INFINITY,java.lang.Double.NEGATIVE_INFINITY})
                       public class Test {
                         ctor public Test();
                       }
 
                       public @interface Test.Anno {
-                          method public double [] value();
+                          method public double[] value();
                       }
                     }
                 """
@@ -1517,14 +1395,54 @@ class CommonAnnotationItemTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             val anno = testClass.modifiers.annotations().single()
 
-            anno.assertAttributeValues("value", listOf(2147483647, -2147483648))
-            assertEquals(
-                "@test.pkg.Test.Anno({java.lang.Double.POSITIVE_INFINITY, java.lang.Double.NEGATIVE_INFINITY})",
-                anno.toSource()
-            )
+            val expectedAnno =
+                annotationItem(
+                    "test.pkg.Test.Anno",
+                    "value" to
+                        arrayValueFromAny(Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY),
+                )
+            assertEquals(expectedAnno, anno)
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
+    @Test
+    fun `annotation on @file`() {
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    """
+                        @file:RestrictTo(RestrictTo.Scope.LIBRARY)
+                        package test.pkg
+
+                        import androidx.annotation.RestrictTo
+
+                        class Foo
+
+                        const val CONSTANT = 1
+                    """
+                ),
+                KnownSourceFiles.restrictToSource,
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.FooKt")
+            val anno = testClass.modifiers.annotations().single()
+
+            val attribute = anno.assertAttribute("value")
+            val expected =
+                arrayValue(
+                    Value.createFieldReferenceValue(
+                        codebase,
+                        "androidx.annotation.RestrictTo.Scope",
+                        "LIBRARY"
+                    ),
+                )
+            val actual = attribute.value
+            assertEquals(expected, actual)
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `annotation resolve`() {
         runCodebaseTest(
@@ -1578,6 +1496,61 @@ class CommonAnnotationItemTest : BaseModelTest() {
     }
 
     @Test
+    fun `ensure can access annotation class even when using the NoOpAnnotationManager`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      @test.pkg.Test.Anno
+                      public class Test {
+                      }
+
+                      @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface Test.Anno {
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    @Test.Anno
+                    public class Test {
+                        private Test() {}
+
+                        public @interface Anno {
+                        }
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    @Test.Anno
+                    class Test {
+                        annotation class Anno {
+                        }
+                    }
+                """
+            ),
+            testFixture =
+                TestFixture(
+                    // Use the noOpAnnotationManager to ensure that tests that use it can still
+                    // access AnnotationItem.annotationClass from the AnnotationClass.
+                    annotationManager = noOpAnnotationManager,
+                ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val annotation = testClass.modifiers.annotations().single()
+
+            assertNotNull(annotation.annotationClass)
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
     fun `annotation targets - on source path`() {
         runCodebaseTest(
             inputSet(
@@ -1610,25 +1583,815 @@ class CommonAnnotationItemTest : BaseModelTest() {
         }
     }
 
-    inline fun <reified T : Any> AnnotationItem.assertAttributeValue(
-        attributeName: String,
-        expected: T
-    ) {
-        assertEquals(
-            expected,
-            getAttributeValue(attributeName),
-            message = "getAttributeValue($attributeName)"
-        )
+    @SupportedInputFormats(InputFormat.KOTLIN)
+    @Test
+    fun `annotation on internal`() {
+        // Treat RestrictTo(Scope.LIBRARY) as a show annotation.
+        val apiSurfaceRules =
+            ApiSurfaceRules(
+                apiSurfaces = ApiSurfaces.DEFAULT,
+                byName =
+                    mapOf(
+                        "main" to
+                            listOf(
+                                SurfaceSelectionRule.createAnnotationRule(
+                                    "androidx.annotation.RestrictTo(androidx.annotation.RestrictTo.Scope.LIBRARY)"
+                                )
+                            )
+                    ),
+            )
+
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    """
+                        package test.pkg
+
+                        import androidx.annotation.RestrictTo
+
+                        // Defined during codebase construction as it is accessible because while it
+                        // is internal it is annotated with PublishedApi.
+                        @PublishedApi
+                        internal class Foo
+
+                        // Not defined during codebase construction as it is inaccessible because it
+                        // is internal and while it has a show annotation it is not annotated with
+                        // PublishedApi.
+                        @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
+                        internal class Bar
+
+                        // Not defined during codebase construction as it is inaccessible because it
+                        // is internal and is not annotated with PublishedApi.
+                        internal class Baz
+                    """
+                ),
+                KnownSourceFiles.restrictToSource,
+            ),
+            testFixture =
+                TestFixture(
+                    annotationManagerFactory = {
+                        DefaultAnnotationManager(
+                            config =
+                                DefaultAnnotationManager.Config(
+                                    apiFlags = apiFlags,
+                                    apiSurfaceSelector =
+                                        ApiSurfaceSelector(
+                                            apiSurfaceRules = apiSurfaceRules,
+                                        ),
+                                )
+                        )
+                    }
+                ),
+        ) {
+            // This should be defined and accessible.
+            codebase.assertClass("test.pkg.Foo").also { testClass ->
+                assertTrue(testClass.modifiers.hasApiVisibility(), message = "Foo")
+            }
+
+            // This should be defined but not accessible.
+            codebase.assertClass("test.pkg.Bar").also { testClass ->
+                assertFalse(testClass.modifiers.hasApiVisibility(), message = "Bar")
+            }
+
+            // This should be defined but not accessible.
+            codebase.assertClass("test.pkg.Baz").also { testClass ->
+                assertFalse(testClass.modifiers.hasApiVisibility(), message = "Baz")
+            }
+        }
     }
 
-    inline fun <reified T : Any> AnnotationItem.assertAttributeValues(
-        attributeName: String,
-        expected: List<T>
-    ) {
-        assertEquals(
-            expected,
-            getAttributeValues(attributeName),
-            message = "getAttributeValues($attributeName)"
-        )
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `annotation repeated inside container`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        import java.lang.annotation.*;
+                        import static java.lang.annotation.ElementType.*;
+                        import static java.lang.annotation.RetentionPolicy;
+                        @Retention(RetentionPolicy.RUNTIME)
+                        @Target({TYPE})
+                        @Repeatable(Repeated.Container.class)
+                        public @interface Repeated {
+                          String value();
+
+                          @Retention(RetentionPolicy.RUNTIME)
+                          @Target(TYPE)
+                          @interface Container {
+                              Repeated[] value();
+                          }
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        @Repeated("1")
+                        @Repeated("2")
+                        public class Test {
+                        }
+                    """
+                ),
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val annos = testClass.modifiers.annotations()
+
+            val expectedAnnos =
+                listOf(
+                    annotationItem(
+                        "test.pkg.Repeated",
+                        "value" to literalValue("1"),
+                    ),
+                    annotationItem(
+                        "test.pkg.Repeated",
+                        "value" to literalValue("2"),
+                    ),
+                )
+            assertEquals(expectedAnnos, annos)
+        }
+    }
+
+    @Test
+    fun `unknown annotation class with default attribute - string value`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      @Anno("unknown")
+                      public class Test {
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+                    @Anno("unknown")
+                    public class Test {
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    @Anno("unknown")
+                    class Test {
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val anno = testClass.modifiers.annotations().single()
+
+            val value = anno.assertAttribute(ANNOTATION_ATTR_VALUE).value
+            assertEquals(literalValue("unknown"), value)
+        }
+    }
+
+    @Test
+    fun `unknown annotation class with named attribute - string value`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      @Anno(attr="unknown")
+                      public class Test {
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+                    @Anno(attr="unknown")
+                    public class Test {
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    @Anno(attr="unknown")
+                    class Test {
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val anno = testClass.modifiers.annotations().single()
+
+            val value = anno.assertAttribute("attr").value
+            assertEquals(literalValue("unknown"), value)
+        }
+    }
+
+    @Test
+    fun `unknown annotation class with default attribute - array value`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      @Anno({"unknown1", "unknown2"})
+                      public class Test {
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+                    @Anno({"unknown1", "unknown2"})
+                    public class Test {
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    @Anno(["unknown1", "unknown2"])
+                    class Test {
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val anno = testClass.modifiers.annotations().single()
+
+            val value = anno.assertAttribute(ANNOTATION_ATTR_VALUE).value
+            assertEquals(arrayValue(literalValue("unknown1"), literalValue("unknown2")), value)
+        }
+    }
+
+    @Test
+    fun `unknown annotation class with named attribute - array value`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      @Anno(attr={"unknown1", "unknown2"})
+                      public class Test {
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+                    @Anno(attr={"unknown1", "unknown2"})
+                    public class Test {
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    @Anno(attr=["unknown1", "unknown2"])
+                    class Test {
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val anno = testClass.modifiers.annotations().single()
+
+            val value = anno.assertAttribute("attr").value
+            assertEquals(arrayValue(literalValue("unknown1"), literalValue("unknown2")), value)
+        }
+    }
+
+    /** Assert the annotations status of this list of [Item]s. */
+    private fun List<Item>.assertItemAnnotationStatus(expectedStatus: String) {
+        // Construct a single string with information about where each method's annotations and
+        // type (including annotations).
+        val result = buildString {
+            for (item in this@assertItemAnnotationStatus) {
+                this.append(item).append('\n')
+
+                this.append("    annotations = ")
+                append(item.modifiers.annotations())
+                this.append('\n')
+
+                this.append("    type = ")
+                this.append(item.type()?.testTypeString(annotations = true))
+                this.append('\n')
+
+                this.append('\n')
+            }
+        }
+
+        assertEquals(expectedStatus.trimIndent(), result.trim())
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `annotations of various uses on method`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        import java.lang.annotation.*;
+                        import static java.lang.annotation.ElementType.*;
+                        @Target({METHOD})
+                        public @interface DeclOnlyAnno {
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        import java.lang.annotation.*;
+                        import static java.lang.annotation.ElementType.*;
+                        @Target({TYPE_USE})
+                        public @interface TypeOnlyAnno {
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        import java.lang.annotation.*;
+                        import static java.lang.annotation.ElementType.*;
+                        @Target({METHOD, TYPE_USE})
+                        public @interface DeclAndTypeAnno {
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class Test {
+                            // Declaration only annotations, should be on the method but not the
+                            // type.
+                            public @DeclOnlyAnno String method1() {}
+                            public @DeclOnlyAnno String[] method2() {}
+
+                            // Type only annotations, should be on the type but not the method.
+                            public @TypeOnlyAnno String method3() {}
+                            public @TypeOnlyAnno String[] method4() {}
+
+                            // Declaration and type annotations, should be on both.
+                            public @DeclAndTypeAnno String method5() {}
+                            public @DeclAndTypeAnno String[] method6() {}
+                        }
+                    """
+                ),
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+
+            // TODO(b/479907812): It is not strictly correct that the TypeOnlyAnnos are added to the
+            //  method's annotations. Look into removing them from the model and adding them back in
+            //  where necessary when writing out signature files or stub files.
+            val methods = testClass.methods()
+            methods.assertItemAnnotationStatus(
+                """
+                    method test.pkg.Test.method1()
+                        annotations = [@test.pkg.DeclOnlyAnno]
+                        type = java.lang.String
+
+                    method test.pkg.Test.method2()
+                        annotations = [@test.pkg.DeclOnlyAnno]
+                        type = java.lang.String[]
+
+                    method test.pkg.Test.method3()
+                        annotations = []
+                        type = java.lang.@test.pkg.TypeOnlyAnno String
+
+                    method test.pkg.Test.method4()
+                        annotations = []
+                        type = java.lang.@test.pkg.TypeOnlyAnno String[]
+
+                    method test.pkg.Test.method5()
+                        annotations = [@test.pkg.DeclAndTypeAnno]
+                        type = java.lang.@test.pkg.DeclAndTypeAnno String
+
+                    method test.pkg.Test.method6()
+                        annotations = [@test.pkg.DeclAndTypeAnno]
+                        type = java.lang.@test.pkg.DeclAndTypeAnno String[]
+                """
+            )
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `annotations of various uses and nullability on method`() {
+        runCodebaseTest(
+            inputSet(
+                KnownSourceFiles.notTypeUseNullableSource,
+                KnownSourceFiles.notTypeUseNonNullSource,
+                KnownSourceFiles.typeUseOnlyNullableSource,
+                KnownSourceFiles.typeUseOnlyNonNullSource,
+                KnownSourceFiles.mixedUseNullableSource,
+                KnownSourceFiles.mixedUseNonNullSource,
+                java(
+                    """
+                        package test.pkg;
+                        public class Test {
+                            // Declaration only annotations, should be on the method but not the
+                            // type.
+                            public @not.type.use.Nullable String method1() {}
+                            public @not.type.use.NonNull String @not.type.use.Nullable [] method2() {}
+
+                            // Type only annotations, should be on the type but not the method.
+                            public @type.use.only.Nullable String method3() {}
+                            public @type.use.only.NonNull String @type.use.only.Nullable [] method4() {}
+
+                            // Declaration and type annotations, should be on both.
+                            public @mixed.use.Nullable String method5() {}
+                            public @mixed.use.NonNull String @mixed.use.Nullable [] method6() {}
+                        }
+                    """
+                ),
+            ),
+            testFixture =
+                TestFixture(
+                    // Use the noOpAnnotationManager to avoid annotation name normalizing as the
+                    // annotation names are important for this test.
+                    annotationManager = noOpAnnotationManager,
+                ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+
+            // TODO(b/479907812): It is not strictly correct that the type.use.only.* annotations
+            //  are added to the method's annotations. Look into removing them from the model and
+            //  adding them back in where necessary when writing out signature files or stub files.
+            val methods = testClass.methods()
+            methods.assertItemAnnotationStatus(
+                """
+                    method test.pkg.Test.method1()
+                        annotations = [@not.type.use.Nullable]
+                        type = java.lang.String
+
+                    method test.pkg.Test.method2()
+                        annotations = [@not.type.use.NonNull]
+                        type = java.lang.String @not.type.use.Nullable []
+
+                    method test.pkg.Test.method3()
+                        annotations = [@type.use.only.Nullable]
+                        type = java.lang.@type.use.only.Nullable String
+
+                    method test.pkg.Test.method4()
+                        annotations = [@type.use.only.Nullable]
+                        type = java.lang.@type.use.only.NonNull String @type.use.only.Nullable []
+
+                    method test.pkg.Test.method5()
+                        annotations = [@mixed.use.Nullable]
+                        type = java.lang.@mixed.use.Nullable String
+
+                    method test.pkg.Test.method6()
+                        annotations = [@mixed.use.NonNull]
+                        type = java.lang.@mixed.use.NonNull String @mixed.use.Nullable []
+                """
+            )
+        }
+    }
+
+    /**
+     * TODO(b/479907812): This should behave just like [`annotations of various uses on method`].
+     */
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `annotations of various uses after generic method type arguments list`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        import java.lang.annotation.*;
+                        import static java.lang.annotation.ElementType.*;
+                        @Target({METHOD})
+                        public @interface DeclOnlyAnno {
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        import java.lang.annotation.*;
+                        import static java.lang.annotation.ElementType.*;
+                        @Target({TYPE_USE})
+                        public @interface TypeOnlyAnno {
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        import java.lang.annotation.*;
+                        import static java.lang.annotation.ElementType.*;
+                        @Target({METHOD, TYPE_USE})
+                        public @interface DeclAndTypeAnno {
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class Test {
+                            // Declaration only annotations, should be on the method but not the
+                            // type.
+                            public <T> @DeclOnlyAnno String method1() {}
+                            public <T> @DeclOnlyAnno String[] method2() {}
+
+                            // Type only annotations, should be on the type but not the method.
+                            public <T> @TypeOnlyAnno String method3() {}
+                            public <T> @TypeOnlyAnno String[] method4() {}
+
+                            // Declaration and type annotations, should be on both.
+                            public <T> @DeclAndTypeAnno String method5() {}
+                            public <T> @DeclAndTypeAnno String[] method6() {}
+                        }
+                    """
+                ),
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+
+            // TODO(b/479907812): It is not strictly correct that the TypeOnlyAnnos are added to the
+            //  method's annotations. Look into removing them from the model and adding them back in
+            //  where necessary when writing out signature files or stub files.
+            val methods = testClass.methods()
+            methods.assertItemAnnotationStatus(
+                """
+                    method test.pkg.Test.method1()
+                        annotations = [@test.pkg.DeclOnlyAnno]
+                        type = java.lang.String
+
+                    method test.pkg.Test.method2()
+                        annotations = [@test.pkg.DeclOnlyAnno]
+                        type = java.lang.String[]
+
+                    method test.pkg.Test.method3()
+                        annotations = []
+                        type = java.lang.@test.pkg.TypeOnlyAnno String
+
+                    method test.pkg.Test.method4()
+                        annotations = []
+                        type = java.lang.@test.pkg.TypeOnlyAnno String[]
+
+                    method test.pkg.Test.method5()
+                        annotations = [@test.pkg.DeclAndTypeAnno]
+                        type = java.lang.@test.pkg.DeclAndTypeAnno String
+
+                    method test.pkg.Test.method6()
+                        annotations = [@test.pkg.DeclAndTypeAnno]
+                        type = java.lang.@test.pkg.DeclAndTypeAnno String[]
+                """
+            )
+        }
+    }
+
+    /**
+     * TODO(b/479907812): This should behave just like
+     *   [`annotations of various uses and nullability on method`].
+     */
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `annotations of various uses and nullability after generic method type arguments list`() {
+        runCodebaseTest(
+            inputSet(
+                KnownSourceFiles.notTypeUseNullableSource,
+                KnownSourceFiles.notTypeUseNonNullSource,
+                KnownSourceFiles.typeUseOnlyNullableSource,
+                KnownSourceFiles.typeUseOnlyNonNullSource,
+                KnownSourceFiles.mixedUseNullableSource,
+                KnownSourceFiles.mixedUseNonNullSource,
+                java(
+                    """
+                        package test.pkg;
+                        public class Test {
+                            // Declaration only annotations, should be on the method but not the
+                            // type.
+                            public <T> @not.type.use.Nullable String method1() {}
+                            public <T> @not.type.use.NonNull String @not.type.use.Nullable [] method2() {}
+
+                            // Type only annotations, should be on the type but not the method.
+                            public <T> @type.use.only.Nullable String method3() {}
+                            public <T> @type.use.only.NonNull String @type.use.only.Nullable [] method4() {}
+
+                            // Declaration and type annotations, should be on both.
+                            public <T> @mixed.use.Nullable String method5() {}
+                            public <T> @mixed.use.NonNull String @mixed.use.Nullable [] method6() {}
+                        }
+                    """
+                ),
+            ),
+            testFixture =
+                TestFixture(
+                    // Use the noOpAnnotationManager to avoid annotation name normalizing as the
+                    // annotation names are important for this test.
+                    annotationManager = noOpAnnotationManager,
+                ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+
+            // TODO(b/479907812): It is not strictly correct that the type.use.only.* annotations
+            //  are added to the method's annotations. Look into removing them from the model and
+            //  adding them back in where necessary when writing out signature files or stub files.
+            val methods = testClass.methods()
+            methods.assertItemAnnotationStatus(
+                """
+                    method test.pkg.Test.method1()
+                        annotations = [@not.type.use.Nullable]
+                        type = java.lang.String
+
+                    method test.pkg.Test.method2()
+                        annotations = [@not.type.use.NonNull]
+                        type = java.lang.String @not.type.use.Nullable []
+
+                    method test.pkg.Test.method3()
+                        annotations = [@type.use.only.Nullable]
+                        type = java.lang.@type.use.only.Nullable String
+
+                    method test.pkg.Test.method4()
+                        annotations = [@type.use.only.Nullable]
+                        type = java.lang.@type.use.only.NonNull String @type.use.only.Nullable []
+
+                    method test.pkg.Test.method5()
+                        annotations = [@mixed.use.Nullable]
+                        type = java.lang.@mixed.use.Nullable String
+
+                    method test.pkg.Test.method6()
+                        annotations = [@mixed.use.NonNull]
+                        type = java.lang.@mixed.use.NonNull String @mixed.use.Nullable []
+                """
+            )
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test isShowabilityAnnotation for show and hide apis`() {
+        val apiSurfaceRules =
+            ApiSurfaceRules(
+                apiSurfaces = ApiSurfaces.DEFAULT,
+                byName =
+                    mapOf(
+                        "main" to
+                            listOf(
+                                SurfaceSelectionRule.unannotated,
+                                SurfaceSelectionRule.createAnnotationRule("test.pkg.ShowAnno"),
+                                SurfaceSelectionRule.createAnnotationRule(
+                                    "test.pkg.HideAnno",
+                                    effect = SurfaceSelectionRule.Effect.HIDE,
+                                ),
+                            )
+                    ),
+            )
+
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    @interface ShowAnno {}
+                    @interface HideAnno {}
+                    @interface NormalAnno {}
+
+                    @ShowAnno
+                    public class ShowClass {}
+
+                    @HideAnno
+                    public class HideClass {}
+
+                    @NormalAnno
+                    public class NormalClass {}
+                """
+            ),
+            testFixture =
+                TestFixture(
+                    apiSurfaceRules = apiSurfaceRules,
+                ),
+        ) {
+            val showAnno =
+                codebase.assertClass("test.pkg.ShowClass").assertAnnotation("test.pkg.ShowAnno")
+            assertTrue(showAnno.isShowabilityAnnotation(), "showAnno.isShowabilityAnnotation()")
+            assertTrue(showAnno.isShowAnnotation(), "showAnno.isShowAnnotation()")
+            assertFalse(showAnno.isHideAnnotation(), "showAnno.isHideAnnotation()")
+
+            val hideAnno =
+                codebase.assertClass("test.pkg.HideClass").assertAnnotation("test.pkg.HideAnno")
+            assertTrue(hideAnno.isShowabilityAnnotation(), "hideAnno.isShowabilityAnnotation()")
+            assertFalse(hideAnno.isShowAnnotation(), "hideAnno.isShowAnnotation()")
+            assertTrue(hideAnno.isHideAnnotation(), "hideAnno.isHideAnnotation()")
+
+            val normalAnno =
+                codebase.assertClass("test.pkg.NormalClass").assertAnnotation("test.pkg.NormalAnno")
+            assertFalse(
+                normalAnno.isShowabilityAnnotation(),
+                "normalAnno.isShowabilityAnnotation()",
+            )
+            assertFalse(normalAnno.isShowAnnotation(), "normalAnno.isShowAnnotation()")
+            assertFalse(normalAnno.isHideAnnotation(), "normalAnno.isHideAnnotation()")
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `copyTypeUseOnlyNullnessAnnotationsToItems skips non-emitted classes`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package a.pkg;
+                        public class Foo {
+                            public String @b.pkg.Nullable [] bar() { return null; }
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package b.pkg;
+                        public class Emitted {}
+                    """
+                ),
+                sourcePathFiles =
+                    listOf(
+                        java(
+                            """
+                                package b.pkg;
+                                import java.lang.annotation.ElementType;
+                                import java.lang.annotation.Target;
+                                @Target(ElementType.TYPE_USE)
+                                public @interface Nullable {
+                                    String @c.pkg.Nullable [] helperMethod() default {};
+                                }
+                            """
+                        ),
+                        java(
+                            """
+                                package c.pkg;
+                                import java.lang.annotation.ElementType;
+                                import java.lang.annotation.Target;
+                                @Target(ElementType.TYPE_USE)
+                                public @interface Nullable {}
+                            """
+                        ),
+                    ),
+            ),
+            testFixture =
+                TestFixture(
+                    annotationManager = noOpAnnotationManager,
+                ),
+        ) {
+            // b.pkg.Nullable was resolved from the source path when checking Foo.bar()'s return
+            // type annotation.
+            val nullableClass = codebase.assertResolvedClass("b.pkg.Nullable")
+            assertFalse(nullableClass.emit)
+            val helperMethod = nullableClass.methods().single()
+
+            // b.pkg.Nullable is not emitted, so copyTypeUseOnlyNullnessAnnotationsToItems() should
+            // not traverse its methods or copy @c.pkg.Nullable onto helperMethod().
+            assertEquals(emptyList(), helperMethod.annotationNames())
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `copyTypeUseOnlyNullnessAnnotationsToItems skips inaccessible classes`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package a.pkg;
+                        class PackagePrivateFoo {
+                            public String @b.pkg.Nullable [] bar() { return null; }
+                        }
+                    """
+                ),
+                sourcePathFiles =
+                    listOf(
+                        java(
+                            """
+                                package b.pkg;
+                                import java.lang.annotation.ElementType;
+                                import java.lang.annotation.Target;
+                                @Target(ElementType.TYPE_USE)
+                                public @interface Nullable {}
+                            """
+                        ),
+                    ),
+            ),
+            testFixture =
+                TestFixture(
+                    annotationManager = noOpAnnotationManager,
+                ),
+        ) {
+            val barMethod = codebase.assertClass("a.pkg.PackagePrivateFoo").methods().single()
+
+            // a.pkg.PackagePrivateFoo does not have API visibility, so
+            // copyTypeUseOnlyNullnessAnnotationsToItems() should not traverse its methods or copy
+            // @b.pkg.Nullable onto bar().
+            assertEquals(emptyList(), barMethod.annotationNames())
+        }
     }
 }

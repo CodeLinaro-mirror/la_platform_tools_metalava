@@ -38,8 +38,8 @@ class TextMethodItemTest : BaseTextCodebaseTest() {
             )
         ) {
             val cls = codebase.assertClass("test.pkg.Foo")
-            val ctorItem = cls.assertConstructor("")
-            val methodItem = cls.assertMethod("bar", "")
+            val ctorItem = cls.assertConstructor(emptyList())
+            val methodItem = cls.assertMethod("bar", emptyList())
 
             assertNotNull(ctorItem.returnType())
             assertEquals(

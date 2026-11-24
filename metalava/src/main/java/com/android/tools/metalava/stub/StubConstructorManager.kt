@@ -88,7 +88,17 @@ class StubConstructorManager(codebase: Codebase) {
         // constructors initialized first (such that we can match the parameter lists and throws
         // signatures), and we use the tag fields to avoid looking at all the internal classes more
         // than once.
-        packages.allClasses().filter { filter.test(it) }.forEach { addConstructors(it, filter) }
+        //
+        // The `filter` passed here is a reference filter (which also matches non-emitted classes on
+        // the classpath or source path so that superclasses can be inspected), and
+        // `packages.allClasses()` includes all resolved non-emitted classes. Check `it.emit` so
+        // that the traversal only starts from emitted classes; non-emitted superclasses of emitted
+        // classes will still be visited on demand when walking up the hierarchy in
+        // `addConstructors(cls, filter)` via `cls.filteredSuperclass(filter)`.
+        packages
+            .allClasses()
+            .filter { it.emit && filter.test(it) }
+            .forEach { addConstructors(it, filter) }
     }
 
     /**
@@ -170,7 +180,7 @@ class StubConstructorManager(codebase: Codebase) {
                 // constructor) so a package private constructor is needed. Technically, this will
                 // result in the stub class having a constructor that isn't available at runtime,
                 // but creating subclasses in API packages is not supported.
-                cls.createDefaultConstructor(VisibilityLevel.PACKAGE_PRIVATE)
+                cls.createImplicitDefaultConstructor(VisibilityLevel.PACKAGE_PRIVATE)
             }
 
         // If neither the constructors in this class nor its subclasses need to add a `super(...)`
@@ -207,11 +217,11 @@ class StubConstructorManager(codebase: Codebase) {
          * the same.
          */
         private val bestStubConstructorComparator: Comparator<ConstructorItem> =
-            Comparator.comparingInt<ConstructorItem?>({ it.throwsTypes().size })
-                .thenComparingInt({ it.parameters().size })
-                .thenComparingInt({
+            Comparator.comparingInt<ConstructorItem> { it.throwsTypes().size }
+                .thenComparingInt { it.parameters().size }
+                .thenComparingInt {
                     it.parameters().sumOf { it.type().toErasedTypeString().length }
-                })
+                }
                 .thenComparing(CallableItem.comparator)
     }
 
@@ -238,10 +248,18 @@ class StubConstructorManager(codebase: Codebase) {
      * constructor.
      */
     fun optionalSyntheticConstructor(classItem: ClassItem): ConstructorItem? {
-        val stubConstructor = classToStubConstructors[classItem]?.stubConstructor ?: return null
+        val stubConstructor = optionalStubConstructor(classItem) ?: return null
         if (stubConstructor in classItem.constructors()) return null
         return stubConstructor
     }
+
+    /**
+     * Get the optional stub constructor for [classItem].
+     *
+     * This is the [ConstructorItem] that subclasses of [classItem] will delegate to, if needed.
+     */
+    fun optionalStubConstructor(classItem: ClassItem) =
+        classToStubConstructors[classItem]?.stubConstructor
 
     /** Get the optional super constructor, if needed, for [classItem]. */
     fun optionalSuperConstructor(classItem: ClassItem): ConstructorItem? {

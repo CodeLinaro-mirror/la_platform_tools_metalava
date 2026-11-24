@@ -18,6 +18,8 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.cli.common.ARG_JAVA_SOURCE
+import com.android.tools.metalava.cli.common.ARG_JDK_HOME
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.java
 import org.junit.Test
@@ -44,7 +46,7 @@ class Java9LanguageFeaturesTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public interface Person {
@@ -133,7 +135,7 @@ class Java9LanguageFeaturesTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package libcore.internal {
                   public class Java9LanguageFeatures {
@@ -171,7 +173,7 @@ class Java9LanguageFeaturesTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class SwingTest extends javax.swing.JButton {

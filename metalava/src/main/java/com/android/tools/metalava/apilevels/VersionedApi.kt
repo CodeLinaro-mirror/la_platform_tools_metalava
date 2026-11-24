@@ -22,13 +22,15 @@ package com.android.tools.metalava.apilevels
  * Supports updating [Api] with information from the [apiVersion] of the API that is defined by
  * this.
  */
-interface VersionedApi {
+sealed class VersionedApi(
+    protected val updater: ApiHistoryUpdater,
+) {
     /** The [ApiVersion] of the API defined by this. */
-    val apiVersion: ApiVersion
+    val apiVersion = updater.apiVersion
 
     /** Update [api] with information from this version of the API. */
-    fun updateApi(api: Api)
+    abstract fun updateApi(api: Api)
 
     /** Provide a string representation for debugging and testing. */
-    override fun toString(): String
+    abstract override fun toString(): String
 }

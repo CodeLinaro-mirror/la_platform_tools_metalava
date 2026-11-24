@@ -33,9 +33,10 @@ import java.util.function.Predicate
  * ", args: "-stubpackages com.android.ahat:com.android.ahat.*", args:
  * "-force-convert-to-warning-nullability-annotations +*:-android.*:+android.icu.*:-dalvik.*
  */
-class PackageFilter {
-    private val components: MutableList<PackageFilterComponent> = mutableListOf()
-
+class PackageFilter
+internal constructor(
+    private val components: MutableList<PackageFilterComponent> = mutableListOf(),
+) {
     fun matches(qualifiedName: String): Boolean {
         for (component in components.reversed()) {
             if (component.filter.test(qualifiedName)) {
@@ -44,6 +45,10 @@ class PackageFilter {
         }
         return false
     }
+
+    /** Combine this [PackageFilter] with [other], with rules in [other] taking precedence. */
+    operator fun plus(other: PackageFilter): PackageFilter =
+        PackageFilter((components + other.components).toMutableList())
 
     internal fun addPackages(path: String) {
         for (arg in path.split(File.pathSeparatorChar)) {

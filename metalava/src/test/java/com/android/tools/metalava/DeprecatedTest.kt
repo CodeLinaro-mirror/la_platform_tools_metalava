@@ -40,7 +40,7 @@ class DeprecatedTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                     // Signature format: 5.0
                     package test.pkg {
@@ -50,7 +50,7 @@ class DeprecatedTest : DriverTest() {
                       }
                     }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -99,7 +99,7 @@ class DeprecatedTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                     // Signature format: 5.0
                     package test.pkg {
@@ -109,7 +109,7 @@ class DeprecatedTest : DriverTest() {
                       }
                     }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -117,8 +117,8 @@ class DeprecatedTest : DriverTest() {
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public class Foo {
                             Foo() { throw new RuntimeException("Stub!"); }
-                            public static final int CONSTANT = 1; // 0x1
-                            public static final int INHERITED = 0; // 0x0
+                            public static final int CONSTANT = 1;
+                            public static final int INHERITED = 0;
                             }
                         """
                     )
@@ -155,7 +155,7 @@ class DeprecatedTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                     // Signature format: 5.0
                     package test.pkg {
@@ -165,7 +165,7 @@ class DeprecatedTest : DriverTest() {
                       }
                     }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -173,9 +173,9 @@ class DeprecatedTest : DriverTest() {
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public class Foo {
                             Foo() { throw new RuntimeException("Stub!"); }
-                            public static final int CONSTANT = 1; // 0x1
+                            public static final int CONSTANT = 1;
                             /** @deprecated */
-                            @Deprecated public static final int INHERITED = 0; // 0x0
+                            @Deprecated public static final int INHERITED = 0;
                             }
                         """
                     )
@@ -210,7 +210,7 @@ class DeprecatedTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                     // Signature format: 5.0
                     package test.pkg {
@@ -220,7 +220,7 @@ class DeprecatedTest : DriverTest() {
                       }
                     }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -231,8 +231,8 @@ class DeprecatedTest : DriverTest() {
                             public class Foo {
                             @Deprecated
                             Foo() { throw new RuntimeException("Stub!"); }
-                            @Deprecated public static final int CONSTANT = 1; // 0x1
-                            @Deprecated public static final int INHERITED = 0; // 0x0
+                            @Deprecated public static final int CONSTANT = 1;
+                            @Deprecated public static final int INHERITED = 0;
                             }
                         """
                     )
@@ -287,7 +287,8 @@ class DeprecatedTest : DriverTest() {
                       }
                     }
                 """,
-            api = """
+            expectedApiSignature =
+                """
                     // Signature format: 5.0
                 """,
             stubPaths = emptyArray(),

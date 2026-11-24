@@ -53,7 +53,7 @@ class MakeAnnotationsPackagePrivateCommand :
         val rewrite = RewriteAnnotations()
         sourceDir.listFiles()?.forEach { file ->
             try {
-                rewrite.modifyAnnotationSources(null, file, File(targetDir, file.name))
+                rewrite.modifyAnnotationSources(file, File(targetDir, file.name))
             } catch (e: IllegalStateException) {
                 cliError(e.message!!)
             }

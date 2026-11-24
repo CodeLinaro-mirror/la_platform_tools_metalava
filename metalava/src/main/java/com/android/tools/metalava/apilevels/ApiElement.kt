@@ -15,16 +15,13 @@
  */
 package com.android.tools.metalava.apilevels
 
+import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.Reporter
+
 /** Represents a parent of [ApiElement]. */
 interface ParentApiElement {
     /** The API version this API was first introduced in. */
     val since: ApiVersion
-
-    /**
-     * The version in which this API last appeared, if this is not the latest API then it will be
-     * treated as having been removed in the next API version, i.e. [lastPresentIn] + 1.
-     */
-    val lastPresentIn: ApiVersion
 
     /**
      * The SDKs and their versions this API was first introduced in.
@@ -39,6 +36,9 @@ interface ParentApiElement {
 
     /** The optional API level this element was deprecated in. */
     val deprecatedIn: ApiVersion?
+
+    /** The optional API level this element was removed in. */
+    val removedIn: ApiVersion?
 }
 
 /**
@@ -47,13 +47,59 @@ interface ParentApiElement {
  * @param name the name of the API element
  */
 open class ApiElement(val name: String) : ParentApiElement, Comparable<ApiElement> {
+    /**
+     * A special constructor, used by [ApiClass.addClassDependentMembersIfNeeded] that will be used
+     * to create additional members on [containingClass] whose API history is identical to the
+     * class.
+     *
+     * This is currently used for compiler generated enum methods `valueOf(String)` and `values()`.
+     */
+    internal constructor(name: String, containingClass: ApiClass) : this(name) {
+        since = containingClass.since
+        sinceExtension = containingClass.sinceExtension
+        sdks = containingClass.sdks
+        mainlineModule = containingClass.mainlineModule
+        deprecatedIn = containingClass.deprecatedIn
+        lastPresentIn = containingClass.lastPresentIn
+        removedIn = containingClass.removedIn
+        // Do not copy sdkExtensionApi as that is the floor explicitly declared on an element, and
+        // these members inherit the floor of the containing class, like any other member without
+        // an explicit floor.
+    }
+
+    /**
+     * Initializes this element with explicit attributes read from an `api-versions.xml` file.
+     *
+     * @param since the API version in which this element was introduced.
+     * @param sdks the optional comma-separated SDK extension versions string.
+     * @param deprecatedIn the optional API version in which this element was deprecated.
+     * @param removedIn the optional API version in which this element was removed.
+     * @param mainlineModule the optional mainline module name for this element.
+     */
+    internal fun initFromXml(
+        since: ApiVersion,
+        sdks: String? = null,
+        deprecatedIn: ApiVersion? = null,
+        removedIn: ApiVersion? = null,
+        mainlineModule: String? = null,
+    ) {
+        this.since = since
+        this.sdks = sdks
+        this.deprecatedIn = deprecatedIn
+        this.removedIn = removedIn
+        this.mainlineModule = mainlineModule
+    }
 
     /**
      * The Android API level of this ApiElement. i.e. The Android platform SDK version this API was
      * first introduced in.
      */
     final override lateinit var since: ApiVersion
-        private set
+        protected set
+
+    /** True if [since] has been initialized. */
+    internal val isSinceInitialized: Boolean
+        get() = ::since.isInitialized
 
     /**
      * The extension version of this ApiElement. i.e. The Android extension SDK version this API was
@@ -72,7 +118,32 @@ open class ApiElement(val name: String) : ParentApiElement, Comparable<ApiElemen
     final override var deprecatedIn: ApiVersion? = null
         private set
 
-    final override lateinit var lastPresentIn: ApiVersion
+    /**
+     * The version in which this API last appeared, if this is not the latest API then it will be
+     * treated as having been removed in the next API version.
+     */
+    lateinit var lastPresentIn: ApiVersion
+        private set
+
+    /** The optional API level this element was removed in. */
+    final override var removedIn: ApiVersion? = null
+        private set
+
+    /**
+     * The floor explicitly declared on this element by an `@SdkExtensionApi` annotation, or `null`
+     * if this element does not have its own `@SdkExtensionApi` annotation.
+     *
+     * This is not the effective floor of the element. A member without an explicit floor inherits
+     * the floor of its containing class, but that inheritance is not resolved here; it is resolved
+     * when generating the `sdks` attribute in `api-versions.xml`, i.e. the effective floor of a
+     * member is `member.sdkExtensionApi ?: containingClass.sdkExtensionApi`. Signature files
+     * already include the inherited `@SdkExtensionApi` annotation on nested classes so a nested
+     * class has its own explicit floor.
+     *
+     * If the floor changes over time then this is the floor from the newest version, see
+     * [updateSdkExtensionApi].
+     */
+    var sdkExtensionApi: Int? = null
         private set
 
     override fun toString(): String {
@@ -119,6 +190,28 @@ open class ApiElement(val name: String) : ParentApiElement, Comparable<ApiElemen
         }
     }
 
+    /** Updates [lastPresentIn] if [version] is greater than the current [lastPresentIn]. */
+    fun updateLastPresentIn(version: ApiVersion) {
+        if (!::lastPresentIn.isInitialized || lastPresentIn < version) {
+            lastPresentIn = version
+        }
+    }
+
+    /**
+     * Updates the [deprecatedIn] version of this element if it was not already deprecated in an
+     * earlier version.
+     */
+    fun updateDeprecatedIn(version: ApiVersion) {
+        if (deprecatedIn == null || deprecatedIn!! > version) {
+            deprecatedIn = version
+        }
+    }
+
+    /** Updates the [removedIn] version of this element to [version]. */
+    fun updateRemovedIn(version: ApiVersion) {
+        removedIn = version
+    }
+
     /**
      * Analogous to update(), but for extensions sdk versions.
      *
@@ -150,8 +243,74 @@ open class ApiElement(val name: String) : ParentApiElement, Comparable<ApiElemen
         mainlineModule = module
     }
 
+    /**
+     * Whether [sdkExtensionApi] was set from the current API, see
+     * [updateSdkExtensionApiFromCurrent].
+     */
+    private var sdkExtensionApiFromCurrent = false
+
+    /**
+     * Updates [sdkExtensionApi] with the [floor] of the `@SdkExtensionApi` annotation on this
+     * element in the historical Android SDK version or SDK extension version being loaded.
+     *
+     * Versions are loaded from oldest to newest, i.e. historical Android SDK versions, then the
+     * current API, then SDK extension versions, so a later floor replaces an earlier one and the
+     * floor from the newest version is used. The exception is a floor from the current API, which
+     * is not replaced by a floor from an SDK extension version, see
+     * [updateSdkExtensionApiFromCurrent].
+     *
+     * A `null` [floor] is ignored so that an unannotated declaration, e.g. a delta declaration in a
+     * `system-current.txt` file, does not clear a floor provided by another declaration.
+     */
+    fun updateSdkExtensionApi(floor: Int?) {
+        if (floor != null && !sdkExtensionApiFromCurrent) {
+            sdkExtensionApi = floor
+        }
+    }
+
+    /**
+     * Updates [sdkExtensionApi] with the [floor] of the `@SdkExtensionApi` annotation on this
+     * element in the current API.
+     *
+     * The current API is always the newest version, so its floor takes precedence over the floor
+     * from any other version. When there is no current API, e.g. on a finalized release build, the
+     * floor from the newest historical version is used, see [updateSdkExtensionApi].
+     *
+     * A `null` [floor] is ignored.
+     */
+    fun updateSdkExtensionApiFromCurrent(floor: Int?) {
+        if (floor != null) {
+            sdkExtensionApi = floor
+            sdkExtensionApiFromCurrent = true
+        }
+    }
+
     override fun compareTo(other: ApiElement): Int {
         return name.compareTo(other.name)
+    }
+}
+
+/**
+ * Removes any [ApiElement] in this map whose [ApiElement.since] property has not been initialized,
+ * reporting an [Issues.INCONSISTENT_API_HISTORY] issue for each one.
+ */
+internal fun <T : ApiElement> MutableMap<String, T>.removeInconsistentExtensionElements(
+    reporter: Reporter,
+    mainlineModule: String? = null,
+    describeElement: (T) -> String,
+) {
+    values.removeAll { element ->
+        if (!element.isSinceInitialized) {
+            val module = element.mainlineModule ?: mainlineModule
+            reporter.report(
+                Issues.INCONSISTENT_API_HISTORY,
+                reportable = null,
+                "${describeElement(element)} was added in SDK extension ${element.sinceExtension} (module $module) but is missing from the latest SDK extension and all SDK versions",
+            )
+            true
+        } else {
+            false
+        }
     }
 }
 

@@ -16,32 +16,34 @@
 
 package com.android.tools.metalava.model.item
 
-import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ItemDocumentationFactory
-import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.MemberItem
-import com.android.tools.metalava.reporter.FileLocation
+import com.android.tools.metalava.model.SourceLanguage
+import com.android.tools.metalava.model.SourcePosition
+import com.android.tools.metalava.model.TargetLanguage
 
-abstract class DefaultMemberItem(
+internal sealed class DefaultMemberItem(
     codebase: Codebase,
-    fileLocation: FileLocation,
-    itemLanguage: ItemLanguage,
+    fileLocationSource: FileLocationSource,
+    sourcePosition: SourcePosition,
+    sourceLanguage: SourceLanguage,
+    targetLanguages: Set<TargetLanguage>,
     modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
-    variantSelectorsFactory: ApiVariantSelectorsFactory,
     private val name: String,
     private val containingClass: ClassItem,
 ) :
     DefaultSelectableItem(
         codebase = codebase,
-        fileLocation = fileLocation,
-        itemLanguage = itemLanguage,
+        fileLocationSource = fileLocationSource,
+        sourcePosition = sourcePosition,
+        sourceLanguage = sourceLanguage,
+        targetLanguages = targetLanguages,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
-        variantSelectorsFactory = variantSelectorsFactory,
     ),
     MemberItem {
 

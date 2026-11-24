@@ -16,10 +16,12 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.doc.DocContent
+import com.android.tools.metalava.model.doc.DocContentOwner
+import com.android.tools.metalava.model.item.FileLocationSource
 import com.android.tools.metalava.reporter.BaselineKey
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Reportable
-import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Represents a code element such as a package, a class, a method, a field, a parameter.
@@ -71,12 +73,18 @@ interface Item : Reportable {
     fun mutateModifiers(mutator: MutableModifierList.() -> Unit)
 
     /**
-     * The javadoc/KDoc comment for this code element, if any. This is the original content of the
-     * documentation, including lexical tokens to begin, continue and end the comment (such as /+*).
-     * See [ItemDocumentation.fullyQualifiedDocumentation] to look up the documentation with fully
-     * qualified references to classes.
+     * The, possibly empty, description of the [Item].
+     *
+     * For [SelectableItem]s this is the main description in [SelectableItem.documentation]. For
+     * [ParameterItem]s this is the description of the corresponding `@param` tag in the
+     * [ParameterItem.containingCallable]'s [CallableItem.documentation],
      */
-    val documentation: ItemDocumentation
+    val description: DocContent?
+
+    /**
+     * The owner of this [Item]'s [description] that provides support for modifying [description].
+     */
+    val descriptionOwner: DocContentOwner
 
     /**
      * A rank used for sorting. This allows signature files etc to sort similar items by a natural
@@ -86,18 +94,6 @@ interface Item : Reportable {
      * not clear that an alphabetical order (of each parameter?) would be preferable.)
      */
     val sortingRank: Int
-
-    /**
-     * Add the given text to the documentation.
-     *
-     * If the [tagSection] is null, add the comment to the initial text block of the description.
-     *
-     * If it is "@return", add the comment to the return value.
-     *
-     * Otherwise, the [tagSection] is taken to be the parameter name, and the comment added as
-     * parameter documentation for the given parameter.
-     */
-    fun appendDocumentation(comment: String, tagSection: String? = null)
 
     val isPublic: Boolean
     val isProtected: Boolean
@@ -131,27 +127,27 @@ interface Item : Reportable {
     fun hashCodeForItem(): Int
 
     /** Provides a string representation of the item, suitable for use while debugging. */
-    fun toStringForItem(): String
+    fun toStringForItem(): String = describe()
 
     /**
-     * The language in which this was written, or [ItemLanguage.UNKNOWN] if not known, e.g. when
+     * The language in which this was written, or [SourceLanguage.UNKNOWN] if not known, e.g. when
      * created from a signature file.
      */
-    val itemLanguage: ItemLanguage
+    val sourceLanguage: SourceLanguage
 
     /**
      * Is this element declared in Java (rather than Kotlin) ?
      *
-     * See [itemLanguage].
+     * See [sourceLanguage].
      */
-    fun isJava() = itemLanguage.isJava()
+    fun isJava() = sourceLanguage.isJava()
 
     /**
      * Is this element declared in Kotlin (rather than Java) ?
      *
-     * See [itemLanguage].
+     * See [sourceLanguage].
      */
-    fun isKotlin() = itemLanguage.isKotlin()
+    fun isKotlin() = sourceLanguage.isKotlin()
 
     /**
      * Returns true if this [Item]'s modifier list contains any suppress compatibility
@@ -168,6 +164,14 @@ interface Item : Reportable {
     fun hasSuppressCompatibilityMetaAnnotation(): Boolean =
         codebase.annotationManager.hasSuppressCompatibilityMetaAnnotations(modifiers)
 
+    /** The [FileLocationSource] for this [Item]. */
+    val fileLocationSource: FileLocationSource
+        get() = FileLocationSource.NONE
+
+    /** The [SourcePosition] for this [Item]. */
+    val sourcePosition: SourcePosition
+        get() = SourcePosition.UNKNOWN
+
     override val fileLocation: FileLocation
         get() = FileLocation.UNKNOWN
 
@@ -175,13 +179,16 @@ interface Item : Reportable {
      * Produces a user visible description of this item, including a label such as "class" or
      * "field"
      */
-    fun describe(capitalize: Boolean = false) = describe(this, capitalize)
+    fun describe(capitalize: Boolean = false): String
 
     /** Returns the package that contains this item. */
     fun containingPackage(): PackageItem?
 
     /** Returns the class that contains this item. */
     fun containingClass(): ClassItem?
+
+    /** Returns the corresponding source file, if any. */
+    fun sourceFile(): SourceFile? = containingClass()?.sourceFile()
 
     /**
      * Returns the associated type, if any.
@@ -193,6 +200,7 @@ interface Item : Reportable {
      *   as the type arguments.
      * * For type parameters it's a [VariableTypeItem] reference the type parameter.
      * * For packages and files, it's null.
+     * * For type aliases it's the underlying type for which the alias is an alternative name.
      */
     fun type(): TypeItem?
 
@@ -260,239 +268,6 @@ interface Item : Reportable {
      */
     fun baselineElementId(): String
 
-    companion object {
-        fun describe(item: Item, capitalize: Boolean = false): String {
-            return when (item) {
-                is PackageItem -> describe(item, capitalize = capitalize)
-                is ClassItem -> describe(item, capitalize = capitalize)
-                is FieldItem -> describe(item, capitalize = capitalize)
-                is CallableItem ->
-                    describe(
-                        item,
-                        includeParameterNames = false,
-                        includeParameterTypes = true,
-                        capitalize = capitalize
-                    )
-                is ParameterItem ->
-                    describe(
-                        item,
-                        includeParameterNames = true,
-                        includeParameterTypes = true,
-                        capitalize = capitalize
-                    )
-                else -> item.toString()
-            }
-        }
-
-        fun describe(
-            item: CallableItem,
-            includeParameterNames: Boolean = false,
-            includeParameterTypes: Boolean = false,
-            includeReturnValue: Boolean = false,
-            capitalize: Boolean = false
-        ): String {
-            val builder = StringBuilder()
-            if (item.isConstructor()) {
-                builder.append(if (capitalize) "Constructor" else "constructor")
-            } else {
-                builder.append(if (capitalize) "Method" else "method")
-            }
-            builder.append(' ')
-            if (includeReturnValue && !item.isConstructor()) {
-                builder.append(item.returnType().toSimpleType())
-                builder.append(' ')
-            }
-            appendCallableSignature(builder, item, includeParameterNames, includeParameterTypes)
-            return builder.toString()
-        }
-
-        fun describe(
-            item: ParameterItem,
-            includeParameterNames: Boolean = false,
-            includeParameterTypes: Boolean = false,
-            capitalize: Boolean = false
-        ): String {
-            val builder = StringBuilder()
-            builder.append(if (capitalize) "Parameter" else "parameter")
-            builder.append(' ')
-            builder.append(item.name())
-            builder.append(" in ")
-            val callable = item.containingCallable()
-            appendCallableSignature(builder, callable, includeParameterNames, includeParameterTypes)
-            return builder.toString()
-        }
-
-        private fun appendCallableSignature(
-            builder: StringBuilder,
-            item: CallableItem,
-            includeParameterNames: Boolean,
-            includeParameterTypes: Boolean
-        ) {
-            builder.append(item.containingClass().qualifiedName())
-            if (!item.isConstructor()) {
-                builder.append('.')
-                builder.append(item.name())
-            }
-            if (includeParameterNames || includeParameterTypes) {
-                builder.append('(')
-                var first = true
-                for (parameter in item.parameters()) {
-                    if (first) {
-                        first = false
-                    } else {
-                        builder.append(',')
-                        if (includeParameterNames && includeParameterTypes) {
-                            builder.append(' ')
-                        }
-                    }
-                    if (includeParameterTypes) {
-                        builder.append(parameter.type().toSimpleType())
-                        if (includeParameterNames) {
-                            builder.append(' ')
-                        }
-                    }
-                    if (includeParameterNames) {
-                        builder.append(parameter.publicName() ?: parameter.name())
-                    }
-                }
-                builder.append(')')
-            }
-        }
-
-        private fun describe(item: FieldItem, capitalize: Boolean = false): String {
-            return if (item.isEnumConstant()) {
-                "${if (capitalize) "Enum" else "enum"} constant ${item.containingClass().qualifiedName()}.${item.name()}"
-            } else {
-                "${if (capitalize) "Field" else "field"} ${item.containingClass().qualifiedName()}.${item.name()}"
-            }
-        }
-
-        private fun describe(item: ClassItem, capitalize: Boolean = false): String {
-            return "${if (capitalize) "Class" else "class"} ${item.qualifiedName()}"
-        }
-
-        private fun describe(item: PackageItem, capitalize: Boolean = false): String {
-            val suffix = item.qualifiedName().let { if (it.isEmpty()) "<root>" else it }
-            return "${if (capitalize) "Package" else "package"} $suffix"
-        }
-    }
-}
-
-/** Base [Item] implementation that is common to all models. */
-abstract class DefaultItem(
-    override val codebase: Codebase,
-    final override val fileLocation: FileLocation,
-    final override val itemLanguage: ItemLanguage,
-    modifiers: BaseModifierList,
-    documentationFactory: ItemDocumentationFactory,
-) : Item {
-
-    /**
-     * Create a [ItemDocumentation] appropriate for this [Item].
-     *
-     * The leaking of `this` is safe as the implementations do not access anything that has not been
-     * initialized.
-     */
-    final override val documentation = @Suppress("LeakingThis") documentationFactory(this)
-
-    /**
-     * The immutable [modifiers].
-     *
-     * The supplied `modifiers` parameter could be either [MutableModifierList] or [ModifierList]
-     * but this requires a [ModifierList] so get one using [BaseModifierList.toImmutable].
-     *
-     * The [ModifierList] that this references is immutable but the [mutateModifiers] method can be
-     * used to change the [ModifierList] to which this refers.
-     */
-    final override var modifiers: ModifierList = modifiers.toImmutable()
-        private set
-
-    init {
-        if (!modifiers.isDeprecated() && documentation.hasTagSection("@deprecated")) {
-            @Suppress("LeakingThis") mutateModifiers { setDeprecated(true) }
-        }
-    }
-
-    final override val sortingRank: Int = nextRank.getAndIncrement()
-
-    final override val originallyDeprecated
-        // Delegate to the [ModifierList.isDeprecated] method so that changes to that will affect
-        // the value of this and [Item.effectivelyDeprecated] which delegates to this.
-        get() = modifiers.isDeprecated()
-
-    override fun mutateModifiers(mutator: MutableModifierList.() -> Unit) {
-        val mutable = modifiers.toMutable()
-        mutable.mutator()
-        modifiers = mutable.toImmutable()
-    }
-
-    final override val isPublic: Boolean
-        get() = modifiers.isPublic()
-
-    final override val isProtected: Boolean
-        get() = modifiers.isProtected()
-
-    final override val isInternal: Boolean
-        get() = modifiers.getVisibilityLevel() == VisibilityLevel.INTERNAL
-
-    final override val isPackagePrivate: Boolean
-        get() = modifiers.isPackagePrivate()
-
-    final override val isPrivate: Boolean
-        get() = modifiers.isPrivate()
-
-    companion object {
-        private var nextRank = AtomicInteger()
-    }
-
-    final override fun suppressedIssues(): Set<String> {
-        return buildSet {
-            for (annotation in modifiers.annotations()) {
-                val annotationName = annotation.qualifiedName
-                if (annotationName in SUPPRESS_ANNOTATIONS) {
-                    for (attribute in annotation.attributes) {
-                        // Assumption that all annotations in SUPPRESS_ANNOTATIONS only have
-                        // one attribute such as value/names that is varargs of String
-                        val value = attribute.value
-                        if (value is AnnotationArrayAttributeValue) {
-                            // Example: @SuppressLint({"RequiresFeature", "AllUpper"})
-                            for (innerValue in value.values) {
-                                innerValue.value()?.toString()?.let { add(it) }
-                            }
-                        } else {
-                            // Example: @SuppressLint("RequiresFeature")
-                            value.value()?.toString()?.let { add(it) }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    final override fun appendDocumentation(comment: String, tagSection: String?) {
-        if (comment.isBlank()) {
-            return
-        }
-
-        // TODO: Figure out if an annotation should go on the return value, or on the method.
-        // For example; threading: on the method, range: on the return value.
-        // TODO: Find a good way to add or append to a given tag (@param <something>, @return, etc)
-
-        if (this is ParameterItem) {
-            // For parameters, the documentation goes into the surrounding method's documentation!
-            // Find the right parameter location!
-            val parameterName = name()
-            val target = containingCallable()
-            target.appendDocumentation(comment, parameterName)
-            return
-        }
-
-        documentation.appendDocumentation(comment, tagSection)
-    }
-
-    final override fun equals(other: Any?) = equalsToItem(other)
-
-    final override fun hashCode() = hashCodeForItem()
-
-    final override fun toString() = toStringForItem()
+    /** The languages from which this [Item] can be used. */
+    val targetLanguages: Set<TargetLanguage>
 }

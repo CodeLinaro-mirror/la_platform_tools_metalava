@@ -16,17 +16,27 @@
 
 package com.android.tools.metalava.model.testsuite
 
+import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.noOpAnnotationManager
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
+import com.android.tools.metalava.model.testing.classTypeItem
+import com.android.tools.metalava.model.testing.value.annotationItem
+import com.android.tools.metalava.model.testing.value.arrayValue
+import com.android.tools.metalava.model.testing.value.arrayValueFromAny
+import com.android.tools.metalava.model.testing.value.classObjectValue
+import com.android.tools.metalava.model.testing.value.fieldReferenceValue
+import com.android.tools.metalava.model.value.asInt
 import com.android.tools.metalava.testing.java
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertSame
 import org.junit.Test
 
 /**
@@ -36,6 +46,7 @@ import org.junit.Test
  * previous test so that a developer would start by running the first test, making it pass,
  * submitting the changes and then moving on to the next test.
  */
+@SupportedInputFormats(InputFormat.JAVA)
 class BootstrapSourceModelProviderTest : BaseModelTest() {
 
     @Test
@@ -117,7 +128,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             ),
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
-            val methodItem = testClass.assertMethod("method", "")
+            val methodItem = testClass.assertMethod("method", emptyList())
             assertEquals("method", methodItem.name())
         }
     }
@@ -136,7 +147,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             ),
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
-            val constructorItem = testClass.assertConstructor("")
+            val constructorItem = testClass.assertConstructor(emptyList())
             assertEquals("Test", constructorItem.name())
         }
     }
@@ -243,9 +254,11 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
                         }
                     """
                 ),
-                java("""
+                java(
+                    """
                         package test;
-                     """),
+                    """
+                ),
             ),
         ) {
             val packageItem = codebase.assertPackage("test.pkg")
@@ -374,7 +387,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             assertEquals(2, classItem.interfaceTypes().count())
 
             assertNotNull(superClassType)
-            assertEquals(null, superClassType.asClass())
+            assertEquals(null, superClassType.resolveClass(codebase))
         }
     }
 
@@ -451,17 +464,17 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             val nullAnno = fieldItem.assertAnnotation("test.Nullable")
 
             val customAnno1 = fieldItem.assertAnnotation("test.anno.FieldInfo")
-            val custAnno1Attr1 = customAnno1.findAttribute("children")
-            val custAnno1Attr2 = customAnno1.findAttribute("val")
-            val custAnno1Attr3 = customAnno1.findAttribute("cls")
+            val custAnno1Attr1 = customAnno1.assertAttribute("children")
+            val custAnno1Attr2 = customAnno1.assertAttribute("val")
+            val custAnno1Attr3 = customAnno1.assertAttribute("cls")
             val annoClassItem1 = codebase.assertClass("test.anno.FieldInfo")
             val retAnno = annoClassItem1.assertAnnotation("java.lang.annotation.Retention")
             val tarAnno = annoClassItem1.assertAnnotation("java.lang.annotation.Target")
-            val tarAnnoAtrr1 = tarAnno.findAttribute("value")
+            val tarAnnoAttr1 = tarAnno.assertAttribute("value")
 
             val customAnno2 = fieldItem.assertAnnotation("anno.FieldValue")
             val annoClassItem2 = codebase.assertClass("anno.FieldValue")
-            val custAnno2Attr1 = customAnno2.findAttribute("value")
+            val custAnno2Attr1 = customAnno2.assertAttribute("value")
 
             assertEquals(3, fieldItem.modifiers.annotations().count())
 
@@ -469,35 +482,42 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
 
             assertEquals(3, customAnno1.attributes.count())
             assertEquals(false, customAnno1.isRetention())
-            assertNotNull(custAnno1Attr1)
-            assertNotNull(custAnno1Attr2)
-            assertNotNull(custAnno1Attr3)
-            assertEquals(
-                true,
-                listOf("child1", "child2").toTypedArray() contentEquals
-                    custAnno1Attr1.value.value() as Array<*>
-            )
-            assertEquals(5, custAnno1Attr2.value.value())
-            assertEquals("test.SimpleClass", custAnno1Attr3.value.value())
+            assertEquals(arrayValueFromAny("child1", "child2"), custAnno1Attr1.value)
+            assertEquals(5, custAnno1Attr2.value.asInt())
+            assertEquals(classObjectValue(classTypeItem("test.SimpleClass")), custAnno1Attr3.value)
             assertEquals(annoClassItem1, customAnno1.resolve())
             assertEquals(true, retAnno.isRetention())
-            assertEquals(AnnotationRetention.RUNTIME, annoClassItem1.getRetention())
+            assertEquals(AnnotationRetention.RUNTIME, annoClassItem1.annotationClass.retention)
 
             assertEquals(annoClassItem2, customAnno2.resolve())
-            assertNotNull(custAnno2Attr1)
-            assertEquals(12, custAnno2Attr1.value.value())
+            assertEquals(12, custAnno2Attr1.value.asInt())
 
-            assertEquals("@test.Nullable", nullAnno.toSource())
+            assertEquals(annotationItem("test.Nullable"), nullAnno)
 
             assertEquals(
-                "@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)",
-                retAnno.toSource()
+                annotationItem(
+                    "java.lang.annotation.Retention",
+                    ANNOTATION_ATTR_VALUE to
+                        fieldReferenceValue("java.lang.annotation.RetentionPolicy", "RUNTIME"),
+                ),
+                retAnno
             )
             assertEquals(
-                "@java.lang.annotation.Target(java.lang.annotation.ElementType.FIELD)",
-                tarAnno.toSource()
+                annotationItem(
+                    "java.lang.annotation.Target",
+                    ANNOTATION_ATTR_VALUE to
+                        arrayValue(
+                            fieldReferenceValue("java.lang.annotation.ElementType", "FIELD"),
+                        ),
+                ),
+                tarAnno
             )
-            assertEquals(true, tarAnnoAtrr1!!.value is DefaultAnnotationSingleAttributeValue)
+            assertEquals(
+                arrayValue(
+                    fieldReferenceValue("java.lang.annotation.ElementType", "FIELD"),
+                ),
+                tarAnnoAttr1.value
+            )
         }
     }
 
@@ -540,21 +560,21 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             ),
         ) {
             val itfCls1 = codebase.assertClass("test.pkg.Interface1")
-            val itf1Mtd1 = itfCls1.assertMethod("method1", "")
-            val itf1Mtd2 = itfCls1.assertMethod("method2", "java.lang.Object")
+            val itf1Mtd1 = itfCls1.assertMethod("method1", emptyList())
+            val itf1Mtd2 = itfCls1.assertMethod("method2", listOf("T"))
 
             val itfCls2 = codebase.assertClass("test.pkg.Interface2")
-            val itf2Mtd1 = itfCls2.assertMethod("method1", "")
+            val itf2Mtd1 = itfCls2.assertMethod("method1", emptyList())
 
             val classItem1 = codebase.assertClass("test.pkg.Test1")
-            val cls1Mtd1 = classItem1.assertMethod("method1", "")
-            val cls1Mtd2 = classItem1.assertMethod("method2", "java.lang.Object")
+            val cls1Mtd1 = classItem1.assertMethod("method1", emptyList())
+            val cls1Mtd2 = classItem1.assertMethod("method2", listOf("Integer"))
 
             val classItem2 = codebase.assertClass("test.pkg.Test2")
-            val cls2Mtd1 = classItem2.assertMethod("method1", "")
+            val cls2Mtd1 = classItem2.assertMethod("method1", emptyList())
 
             val classItem3 = codebase.assertClass("test.pkg.Test3")
-            val cls3Mtd1 = classItem3.assertMethod("method1", "")
+            val cls3Mtd1 = classItem3.assertMethod("method1", emptyList())
 
             assertEquals(listOf(itf2Mtd1), cls1Mtd1.superMethods())
             assertEquals(listOf(itf2Mtd1, itf1Mtd1), cls1Mtd1.allSuperMethods().toList())
@@ -595,7 +615,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
                     public class Test {
                         public int field;
 
-                        public void method(String a, List<Outer<String>> [] ... b, List<?extends   String> c){}
+                        public void method(String a, List<?extends   String> b, List<Outer<String>> [] ... c){}
 
                         public <T> Outer<Integer>.Inner<T, Test1<String>> foo() {
                             return (new Outer<Integer>()).new Inner<Boolean, Test1<String>>();
@@ -625,11 +645,11 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             assertEquals("void", returnTypeItem1.toTypeString())
             assertEquals("java.lang.String", parameterTypeItem1.toTypeString())
             assertEquals(
-                "java.util.List<test.pkg.Outer<java.lang.String>>[]...",
+                "java.util.List<? extends java.lang.String>",
                 parameterTypeItem2.toTypeString()
             )
             assertEquals(
-                "java.util.List<? extends java.lang.String>",
+                "java.util.List<test.pkg.Outer<java.lang.String>>[]...",
                 parameterTypeItem3.toTypeString()
             )
             assertEquals(
@@ -672,7 +692,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             val typeParameter1 = testClass1.typeParameterList.single()
             typeArgument1.assertReferencesTypeParameter(typeParameter1)
             assertEquals("S", (typeArgument1 as VariableTypeItem).toString())
-            assertEquals(0, typeParameter1.typeBounds().count())
+            typeParameter1.assertUsesDefaultTypeBounds()
             assertEquals("test.pkg.Test1<S>", testClassType1.toString())
             assertEquals(null, testClassType1.outerClassType)
 
@@ -708,19 +728,18 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             ),
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
-            assertEquals(false, testClass.hasImplicitDefaultConstructor())
             assertEquals(2, testClass.constructors().count())
             val constructorItem = testClass.constructors().first()
             assertEquals("Test", constructorItem.name())
             assertEquals(testClass.type(), constructorItem.returnType())
-            assertEquals(false, testClass.hasImplicitDefaultConstructor())
+            assertEquals(false, constructorItem.isImplicitConstructor())
 
             val testClass1 = codebase.assertClass("test.pkg.Test.Test1")
             val constructorItem1 = testClass1.constructors().single()
             assertEquals("Test1", constructorItem1.name())
             assertEquals("test.pkg.Test.Test1", constructorItem1.returnType().toString())
             assertEquals(testClass1.type(), constructorItem1.returnType())
-            assertEquals(true, testClass1.hasImplicitDefaultConstructor())
+            assertEquals(true, constructorItem1.isImplicitConstructor())
         }
     }
 
@@ -802,19 +821,19 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             ),
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
-            val methodItem = testClass.assertMethod("foo", "")
+            val methodItem = testClass.assertMethod("foo", emptyList())
             val testExceptionClass = codebase.assertClass("test.pkg.TestException")
 
             // This must only be available after resolving throwable types.
             assertNull(codebase.findClass("java.io.IOException"))
 
             // Resolve the types to classes.
-            val throwableClasses = methodItem.throwsTypes().map { it.erasedClass }
+            val throwableClasses = methodItem.throwsTypes().map { it.asErasedClass(codebase) }
 
             // This must be available after resolving throwable types.
             val ioExceptionClass = codebase.assertClass("java.io.IOException", expectedEmit = false)
 
-            assertEquals(listOf(testExceptionClass, ioExceptionClass), throwableClasses)
+            assertEquals(listOf(ioExceptionClass, testExceptionClass), throwableClasses)
         }
     }
 
@@ -857,7 +876,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             ),
         ) {
             val classItem = codebase.assertClass("test.pkg.Test")
-            val ctorItem = classItem.createDefaultConstructor()
+            val ctorItem = classItem.createImplicitDefaultConstructor()
 
             assertEquals("Test", ctorItem.name())
             assertEquals(classItem, ctorItem.containingClass())
@@ -868,45 +887,6 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             )
             assertEquals(emptyList(), ctorItem.throwsTypes())
             assertEquals(emptyList(), ctorItem.parameters())
-        }
-    }
-
-    @Test
-    fun `230 test public name and default value of parameters`() {
-        runSourceCodebaseTest(
-            java(
-                """
-                    package test.pkg;
-
-                    import java.lang.annotation.ElementType;
-                    import java.lang.annotation.Target;
-
-                    public class Test {
-                        public void foo(@ParameterName("TestParam") @DefaultValue(5) int parameter) {
-                        }
-                    }
-
-                    @Target(ElementType.PARAMETER)
-                    @interface DefaultValue {
-                        int value();
-                    }
-
-                    @Target(ElementType.PARAMETER)
-                    @interface ParameterName {
-                        String value();
-                    }
-                """
-            ),
-        ) {
-            val methodItem = codebase.assertClass("test.pkg.Test").methods().single()
-            val paramItem = methodItem.parameters().single()
-
-            assertEquals("parameter", paramItem.name())
-            assertEquals(methodItem, paramItem.containingCallable())
-            assertEquals("TestParam", paramItem.publicName())
-            assertEquals(true, paramItem.hasDefaultValue())
-            assertEquals(true, paramItem.isDefaultValueKnown())
-            assertEquals("5", paramItem.defaultValueAsString())
         }
     }
 
@@ -964,24 +944,29 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             val methodComment =
                 """
                     /**
-                         * Method documentation
-                         * Multiple
-                         * Lines
-                         */
+                     * Method documentation
+                     * Multiple
+                     * Lines
+                     */
                 """
                     .trimIndent()
-            assertEquals(
-                sourceFile,
-                innerClassItem.sourceFile(),
-                message = "inner class sourceFile"
-            )
+            assertSame(sourceFile, innerClassItem.sourceFile(), message = "inner class sourceFile")
             assertEquals(headerComment, sourceFile.getHeaderComments())
-            assertEquals(methodComment, methodItem.documentation.text)
-            assertEquals("/** Class documentation */", classItem.documentation.text)
-            assertEquals("/** Field Doc */", fieldItem.documentation.text)
-            assertEquals("", fieldItem1.documentation.text)
-            assertEquals("", pkgItem.documentation.text)
-            assertEquals(classItem.sourceFile(), classItem1.sourceFile())
+            methodItem.assertPrintedDocumentation(
+                expectedOutput = methodComment,
+                message = "method"
+            )
+            classItem.assertPrintedDocumentation(
+                expectedOutput = "/** Class documentation */",
+                message = "class"
+            )
+            fieldItem.assertPrintedDocumentation(
+                expectedOutput = "/** Field Doc */",
+                message = "field"
+            )
+            fieldItem1.assertPrintedDocumentation(expectedOutput = "", message = "field1")
+            pkgItem.assertPrintedDocumentation(expectedOutput = "", message = "package")
+            assertSame(classItem.sourceFile(), classItem1.sourceFile())
         }
     }
 
@@ -1026,39 +1011,6 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             assertEquals(true, classItem1.isEnum())
             assertEquals(0, classItem1.methods().count())
             assertEquals(false, nonEnumClassField.isEnumConstant())
-        }
-    }
-
-    @Test
-    fun `260 - test doconly members`() {
-        runSourceCodebaseTest(
-            java(
-                """
-                    package test.pkg;
-
-                    public class Test {
-                        /** @doconly */
-                        public class Inner {
-                            public int InnerField;
-                        }
-
-                        /** @doconly Some docs here */
-                        public int Field;
-                    }
-                """
-            ),
-        ) {
-            val classItem = codebase.assertClass("test.pkg.Test")
-            val classSelectors = classItem.variantSelectors
-            val innerClassItem = codebase.assertClass("test.pkg.Test.Inner")
-            val innerClassSelectors = innerClassItem.variantSelectors
-            val fieldSelectors = classItem.assertField("Field").variantSelectors
-            val innerFieldSelectors = innerClassItem.assertField("InnerField").variantSelectors
-
-            assertEquals(false, classSelectors.docOnly, message = "classSelectors.docOnly")
-            assertEquals(true, innerClassSelectors.docOnly, message = "innerClassSelectors.docOnly")
-            assertEquals(true, innerFieldSelectors.docOnly, message = "innerFieldSelectors.docOnly")
-            assertEquals(true, fieldSelectors.docOnly, message = "fieldSelectors.docOnly")
         }
     }
 }

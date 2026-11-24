@@ -21,11 +21,19 @@ package com.android.tools.metalava.stub
  * options.
  */
 internal data class StubWriterConfig(
-    /**
-     * If true then generate kotlin stubs if the source is kotlin, otherwise generate java stubs.
-     */
-    val kotlinStubs: Boolean = false,
-
     /** If true then include documentation in the generated stubs. */
     val includeDocumentationInStubs: Boolean = false,
+
+    /**
+     * If true then include Java record class related information in the generated stubs. Otherwise,
+     * treat record classes as normal classes as much as possible.
+     */
+    val javaRecordClasses: Boolean = false,
+
+    /**
+     * If true then include Java sealed class related information in the generated stubs.
+     *
+     * TODO(b/482391240): Decide what to do with sealed classes when this is false.
+     */
+    val javaSealedClasses: Boolean = false,
 )

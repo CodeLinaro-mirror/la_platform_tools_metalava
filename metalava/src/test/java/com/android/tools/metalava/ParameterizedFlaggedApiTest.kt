@@ -1,0 +1,2595 @@
+/*
+ * Copyright (C) 2023 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.android.tools.metalava
+
+import com.android.tools.lint.checks.infrastructure.TestFile
+import com.android.tools.metalava.config.ApiFlagActionConfig.Mutability.IMMUTABLE
+import com.android.tools.metalava.config.ApiFlagActionConfig.Status.ENABLED
+import com.android.tools.metalava.config.ApiFlagConfig
+import com.android.tools.metalava.config.ApiFlagsConfig
+import com.android.tools.metalava.config.Config
+import com.android.tools.metalava.config.writeTo
+import com.android.tools.metalava.model.ANDROID_ANNOTATION_PACKAGE
+import com.android.tools.metalava.model.ANDROID_REQUIRES_FLAG
+import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.testing.KnownJarFiles
+import com.android.tools.metalava.testing.KnownSourceFiles
+import com.android.tools.metalava.testing.java
+import java.io.File
+import java.util.Locale
+import org.junit.Test
+import org.junit.runners.Parameterized
+
+private val annotationsList =
+    listOf(
+        nonNullSource,
+        KnownSourceFiles.removedFromApiAnnotation,
+    )
+
+/**
+ * A parameterized test for the `android.annotation.FlaggedApi` annotation.
+ *
+ * This tests the behavior of `@FlaggedApi` for a number of different changes across multiple API
+ * surfaces. That is necessary as currently there are significant differences in the processing that
+ * is done for:
+ * 1. An API surface that does not extend another, e.g. `public`; controlled through
+ *    `showUnannotated`.
+ * 2. An API surface that extends another, e.g. `system` which extends `public`; controlled through
+ *    `showUnannotated`, and `showAnnotations`.
+ */
+class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTest() {
+
+    /** The configuration of the test. */
+    data class Configuration(
+        val surface: Surface,
+        val flagged: Flagged,
+    ) {
+        fun extraArguments(dir: File) = flagged.extraArguments(dir)
+
+        override fun toString(): String {
+            val surfaceText = surface.name.lowercase(Locale.US)
+            return "$surfaceText ${flagged.text}"
+        }
+    }
+
+    /** The surfaces that this test will check. */
+    enum class Surface(val knownApiSurface: KnownApiSurface) {
+        PUBLIC(KnownApiSurface.PUBLIC),
+        SYSTEM(KnownApiSurface.SYSTEM),
+        MODULE_LIB(KnownApiSurface.MODULE_LIB),
+    }
+
+    /** The different configurations of the flagged API that this test will check. */
+    enum class Flagged(
+        val text: String,
+        val apiFlagsConfig: ApiFlagsConfig? = null,
+    ) {
+        /** Represents an API that keeps all flagged APIs. */
+        KEEP_ALL("keep all") {
+            override fun synthesizeAdditionalExpectations(expectations: Expectations) =
+                listOf(
+                    expectations,
+                    // All Expectations with flagged APIs are identical to the Expectations without
+                    // flagged APIs apart from those for feature flag `foo/bar`. So, this adds
+                    // additional Expectations without flagged APIs but with flagged APIs for
+                    // feature flag `foo/bar` flagged API that are identical to the "with flagged
+                    // APIs" except for the expectedApi which does not include `@FlaggedApi`
+                    // annotations.
+                    expectations.copy(
+                        flagged = FINALIZE_FOO_BAR_APIS,
+                        // Remove any FlaggedApi annotations from the signature files
+                        expectedApiSignature =
+                            expectations.expectedApiSignature.replace(
+                                flaggedApiInSignatureRegex,
+                                ""
+                            ),
+                        expectedRemovedApiSignature =
+                            expectations.expectedRemovedApiSignature?.replace(
+                                flaggedApiInSignatureRegex,
+                                ""
+                            ),
+                        // Remove any RequiresFlag (which is substituted for FlaggedApi) annotations
+                        // from the stubs files
+                        expectedStubFiles =
+                            expectations.expectedStubFiles
+                                .map {
+                                    val copy = TestFile()
+                                    copy.contents =
+                                        it.contents.replace(RequiresFlagInStubsRegex, "")
+                                    copy.targetRelativePath = it.targetRelativePath
+                                    copy
+                                }
+                                .toTypedArray()
+                    ),
+                )
+        },
+
+        /**
+         * Represents an API that reverts all flagged APIs.
+         *
+         * Uses `--config-file` and `<api-flags>`.
+         */
+        REVERT_ALL(
+            "revert all",
+            apiFlagsConfig = ApiFlagsConfig(),
+        ),
+
+        /**
+         * Represents an API without flagged APIs apart from those flagged APIs that are part of
+         * feature `foo_bar`. They are treated as being finalized so their `@FlaggedApi` annotations
+         * are discarded.
+         *
+         * Uses `--config-file` and `<api-flags>`.
+         */
+        FINALIZE_FOO_BAR_APIS(
+            "finalize foo_bar",
+            apiFlagsConfig =
+                ApiFlagsConfig(
+                    flags =
+                        listOf(
+                            ApiFlagConfig(
+                                pkg = "test.pkg.flags",
+                                name = "foo_bar",
+                                isExported = true,
+                                mutability = IMMUTABLE,
+                                status = ENABLED,
+                            ),
+                        )
+                )
+        ),
+        ;
+
+        /**
+         * Synthesize additional [Expectations], if any.
+         *
+         * This is called on the [Expectations.flagged] object passing in the referencing
+         * [Expectations] to allow additional [Expectations] to be created that are based on the
+         * [expectations] by applying simple transformations. It avoids having to duplicate 90% of
+         * the test.
+         */
+        open fun synthesizeAdditionalExpectations(expectations: Expectations) = listOf(expectations)
+
+        /**
+         * Get extra command line arguments to pass.
+         *
+         * @param dir a temporary directory in which configuration files can be created.
+         */
+        fun extraArguments(dir: File) =
+            if (apiFlagsConfig != null) {
+                val config = Config(apiFlags = apiFlagsConfig)
+                val configFile = dir.resolve("flags-config.xml")
+                config.writeTo(configFile)
+                listOf(ARG_CONFIG_FILE, configFile.path)
+            } else {
+                emptyList()
+            }
+    }
+
+    companion object {
+        /** Compute the cross product of [Surface] and [Flagged]. */
+        @JvmStatic
+        @Parameterized.Parameters(name = "{0}")
+        fun configurations(): Iterable<Configuration> =
+            Surface.entries.flatMap { surface ->
+                Flagged.entries.map { flagged ->
+                    Configuration(
+                        surface = surface,
+                        flagged = flagged,
+                    )
+                }
+            }
+
+        /**
+         * Regular expression that matches a FlaggedApi annotation in a signature file. It is not
+         * fully qualified as the annotation is shortened in signature files. It includes the
+         * following white space as this is used to remove the annotation by replacing the matched
+         * text with an empty string.
+         */
+        val flaggedApiInSignatureRegex = """@FlaggedApi\([^)]+\) """.toRegex()
+
+        /**
+         * Regular expression that matches a RequiresFlag annotation in a stubs file. It is fully
+         * qualified as annotations are fully qualified in stub files. It includes the following
+         * newline or space as this is used to remove the annotation by replacing the matched text
+         * with an empty string.
+         *
+         * All FlaggedApi annotations get converted to RequiresFlag in stub files
+         */
+        val RequiresFlagInStubsRegex =
+            """@android\.annotation\.RequiresFlag\([^)]+\)[\n ]""".toRegex()
+
+        private val flagsFile =
+            java(
+                """
+                package test.pkg.flags;
+
+                /** @hide */
+                public class Flags {
+                    public static final String FLAG_FOO_BAR = "test.pkg.flags.foo_bar";
+                }
+            """
+            )
+    }
+
+    @Suppress("ArrayInDataClass")
+    data class Expectations(
+        val surface: Surface,
+        val flagged: Flagged,
+        val expectedApiSignature: String,
+        val expectedRemovedApiSignature: String? = null,
+        val expectedIssues: String = "",
+        val expectedStubFiles: Array<TestFile> = emptyArray(),
+        val expectedStubPaths: Array<String>? = null,
+    )
+
+    /**
+     * Check the result of generating APIs with and without flagged apis for both public and system
+     * API surfaces.
+     */
+    private fun checkFlaggedApis(
+        vararg sourceFiles: TestFile,
+        extraArguments: Array<String> = emptyArray(),
+        previouslyReleasedApi: Map<Surface, String> = emptyMap(),
+        previouslyReleasedRemovedApi: Map<Surface, String> = emptyMap(),
+        expectationsList: List<Expectations>,
+    ) {
+        val explicitConfigs = expectationsList.map { it.surface to it.flagged }.toSet()
+        val transformedExpectationsList =
+            expectationsList.flatMap { expectations ->
+                expectations.flagged.synthesizeAdditionalExpectations(expectations).filter {
+                    it === expectations || (it.surface to it.flagged) !in explicitConfigs
+                }
+            }
+
+        val filterExpectations =
+            transformedExpectationsList.filter {
+                it.surface == config.surface && it.flagged == config.flagged
+            }
+        // singleOrNull will return null if called on a list with more than one item
+        // which would ignore what is an error so check that explicitly first.
+        if (filterExpectations.size > 1) {
+            throw IllegalStateException(
+                "Found ${filterExpectations.size} expectations that match config"
+            )
+        }
+        val expectations = filterExpectations.singleOrNull() ?: return
+
+        // Get the surface for which this test is currently being run.
+        val surface = config.surface
+
+        // Get the previously released API surface specific to the surface being tested.
+        val specificPreviouslyReleasedApi = previouslyReleasedApi[surface] ?: ""
+
+        // Get the lists of API (and removed API) from the narrowest API surface (i.e. public) to
+        // the widest (i.e. module-lib).
+        val previouslyReleasedApiList = contributingSurfaces(previouslyReleasedApi)
+        val previouslyReleasedRemovedApiList = contributingSurfaces(previouslyReleasedRemovedApi)
+
+        val args =
+            arrayOf(
+                *warningIssues(Issues.UNFLAGGED_API),
+                *config.extraArguments(temporaryFolder.root).toTypedArray(),
+                *extraArguments,
+            )
+
+        check(
+            apiSurface = config.surface.knownApiSurface,
+            // Enable API linting against the previous API; only report issues in changes to that
+            // API. Only pass in the API for the surface whose test is currently run as API lint
+            // does not support passing in a list.
+            apiLint = specificPreviouslyReleasedApi,
+            // Pass the previously released API as the API against which compatibility checks are
+            // performed as that is what will determine the previous API to which a flagged API will
+            // be reverted.
+            checkCompatibilityApiReleasedList = previouslyReleasedApiList,
+            checkCompatibilityRemovedApiReleasedList = previouslyReleasedRemovedApiList,
+            format = FileFormat.V2,
+            sourceFiles =
+                buildList {
+                        addAll(sourceFiles)
+                        addAll(annotationsList)
+                        add(flagsFile)
+                    }
+                    .toTypedArray(),
+            // Access android.annotation.FlaggedApi
+            classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
+            expectedApiSignature = expectations.expectedApiSignature,
+            removedApi = expectations.expectedRemovedApiSignature,
+            expectedStubFiles = expectations.expectedStubFiles,
+            stubPaths = expectations.expectedStubPaths,
+            expectedIssues = expectations.expectedIssues,
+            // Do not include flags in the output but do not mark them as hide or removed.
+            // This is needed to verify that the code to always inline the values of
+            // FlaggedApi annotations even when not hidden or removed is working correctly.
+            // Do not emit android.annotation classes either.
+            skipEmitPackages = listOf("test.pkg.flags", ANDROID_ANNOTATION_PACKAGE),
+            extraArguments = args,
+        )
+    }
+
+    /**
+     * Get the list of all surfaces in [apiSurfaces] that contribute to the [Surface] that is
+     * currently under test; from the narrowest to the widest.
+     *
+     * e.g. When the surface under test is [Surface.PUBLIC] then this will return just the public
+     * API surface, but when it is [Surface.SYSTEM] then this will return the public and system API
+     * surfaces in that order.
+     */
+    private fun contributingSurfaces(apiSurfaces: Map<Surface, String>) =
+        Surface.entries.filter { it <= config.surface }.map { apiSurfaces[it] ?: "" }
+
+    @Test
+    fun `Basic test that FlaggedApi annotated items can be hidden`() {
+
+        checkFlaggedApis(
+            java(
+                """
+                    package test.pkg;
+
+                    import android.annotation.FlaggedApi;
+                    import android.annotation.SystemApi;
+                    import test.pkg.flags.Flags;
+
+                    public class Foo {
+                        @FlaggedApi(Flags.FLAG_FOO_BAR)
+                        public void flaggedPublicApi() {}
+
+                        @SystemApi
+                        @FlaggedApi(Flags.FLAG_FOO_BAR)
+                        public void flaggedSystemApi() {}
+                    }
+                """
+            ),
+            previouslyReleasedApi =
+                mapOf(
+                    Surface.PUBLIC to
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class Foo {
+                                ctor public Foo();
+                              }
+                            }
+                        """,
+                ),
+            expectationsList =
+                listOf(
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.KEEP_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public class Foo {
+                                    ctor public Foo();
+                                    method @FlaggedApi("test.pkg.flags.foo_bar") public void flaggedPublicApi();
+                                  }
+                                }
+                            """,
+                        expectedStubFiles =
+                            arrayOf(
+                                java(
+                                    """
+                                    package test.pkg;
+                                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                                    public class Foo {
+                                    public Foo() { throw new RuntimeException("Stub!"); }
+                                    @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar")
+                                    public void flaggedPublicApi() { throw new RuntimeException("Stub!"); }
+                                    }
+                                """
+                                ),
+                            ),
+                    ),
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.REVERT_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public class Foo {
+                                    ctor public Foo();
+                                  }
+                                }
+                            """,
+                        expectedStubFiles =
+                            arrayOf(
+                                java(
+                                    """
+                                        package test.pkg;
+                                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                                        public class Foo {
+                                        public Foo() { throw new RuntimeException("Stub!"); }
+                                        }
+                                    """
+                                ),
+                            ),
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.KEEP_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public class Foo {
+                                    method @FlaggedApi("test.pkg.flags.foo_bar") public void flaggedSystemApi();
+                                  }
+                                }
+                            """,
+                        expectedStubFiles =
+                            arrayOf(
+                                java(
+                                    """
+                                        package test.pkg;
+                                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                                        public class Foo {
+                                        public Foo() { throw new RuntimeException("Stub!"); }
+                                        @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar")
+                                        public void flaggedPublicApi() { throw new RuntimeException("Stub!"); }
+                                        @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar")
+                                        public void flaggedSystemApi() { throw new RuntimeException("Stub!"); }
+                                        }
+                                    """
+                                ),
+                            ),
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.REVERT_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubFiles =
+                            arrayOf(
+                                java(
+                                    """
+                                        package test.pkg;
+                                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                                        public class Foo {
+                                        public Foo() { throw new RuntimeException("Stub!"); }
+                                        }
+                                    """
+                                ),
+                            ),
+                    ),
+                ),
+        )
+    }
+
+    @Test
+    fun `Test that cross references are handled correctly when flagged APIs are hidden`() {
+        checkFlaggedApis(
+            java(
+                """
+                    package test.pkg;
+
+                    import android.annotation.FlaggedApi;
+                    import android.annotation.SystemApi;
+                    import test.pkg.flags.Flags;
+
+                    @FlaggedApi(Flags.FLAG_FOO_BAR)
+                    public class Foo {
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    import android.annotation.FlaggedApi;
+                    import android.annotation.SystemApi;
+                    import test.pkg.flags.Flags;
+
+                    public class Bar {
+                        @SystemApi
+                        @FlaggedApi(Flags.FLAG_FOO_BAR)
+                        public void flaggedSystemApi(@android.annotation.NonNull Foo foo) {}
+                    }
+                """
+            ),
+            previouslyReleasedApi =
+                mapOf(
+                    Surface.PUBLIC to
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class Bar {
+                                ctor public Bar();
+                              }
+                            }
+                        """,
+                ),
+            expectationsList =
+                listOf(
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.KEEP_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public class Bar {
+                                    ctor public Bar();
+                                  }
+                                  @FlaggedApi("test.pkg.flags.foo_bar") public class Foo {
+                                    ctor public Foo();
+                                  }
+                                }
+                            """,
+                    ),
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.REVERT_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public class Bar {
+                                    ctor public Bar();
+                                  }
+                                }
+                            """,
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.KEEP_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public class Bar {
+                                    method @FlaggedApi("test.pkg.flags.foo_bar") public void flaggedSystemApi(@NonNull test.pkg.Foo);
+                                  }
+                                }
+                            """,
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.REVERT_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                            """,
+                    ),
+                ),
+        )
+    }
+
+    @Test
+    fun `Test that method overrides are handled correctly when flagged APIs are hidden`() {
+        checkFlaggedApis(
+            java(
+                """
+                    package test.pkg;
+
+                    import android.annotation.FlaggedApi;
+                    import android.annotation.SystemApi;
+                    import test.pkg.flags.Flags;
+
+                    public class Foo {
+                        @FlaggedApi(Flags.FLAG_FOO_BAR)
+                        public void flaggedMethod() {}
+
+                        @SystemApi
+                        @FlaggedApi(Flags.FLAG_FOO_BAR)
+                        public void systemFlaggedMethod() {}
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    import android.annotation.FlaggedApi;
+                    import android.annotation.SystemApi;
+
+                    public class Bar extends Foo {
+                        @Override
+                        public void flaggedMethod() {}
+
+                        @SystemApi
+                        @Override
+                        public void systemFlaggedMethod() {}
+                    }
+                """
+            ),
+            previouslyReleasedApi =
+                mapOf(
+                    Surface.PUBLIC to
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class Bar extends test.pkg.Foo {
+                                ctor public Bar();
+                              }
+                              public class Foo {
+                                ctor public Foo();
+                              }
+                            }
+                        """,
+                ),
+            expectationsList =
+                listOf(
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.KEEP_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public class Bar extends test.pkg.Foo {
+                                    ctor public Bar();
+                                  }
+                                  public class Foo {
+                                    ctor public Foo();
+                                    method @FlaggedApi("test.pkg.flags.foo_bar") public void flaggedMethod();
+                                  }
+                                }
+                            """,
+                    ),
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.REVERT_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public class Bar extends test.pkg.Foo {
+                                    ctor public Bar();
+                                  }
+                                  public class Foo {
+                                    ctor public Foo();
+                                  }
+                                }
+                            """,
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.KEEP_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public class Foo {
+                                    method @FlaggedApi("test.pkg.flags.foo_bar") public void systemFlaggedMethod();
+                                  }
+                                }
+                            """,
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.REVERT_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubPaths =
+                            arrayOf(
+                                "test/pkg/Bar.java",
+                                "test/pkg/Foo.java",
+                            ),
+                        // Make sure that no FlaggedApi annotation appears in the stubs.
+                        expectedStubFiles =
+                            arrayOf(
+                                java(
+                                    """
+                                    package test.pkg;
+                                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                                    public class Bar extends test.pkg.Foo {
+                                    public Bar() { throw new RuntimeException("Stub!"); }
+                                    }
+                                """
+                                ),
+                                java(
+                                    """
+                                    package test.pkg;
+                                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                                    public class Foo {
+                                    public Foo() { throw new RuntimeException("Stub!"); }
+                                    }
+                                """
+                                ),
+                            ),
+                    ),
+                    Expectations(
+                        Surface.MODULE_LIB,
+                        Flagged.REVERT_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubFiles =
+                            arrayOf(
+                                java(
+                                    """
+                                    package test.pkg;
+                                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                                    public class Bar extends test.pkg.Foo {
+                                    public Bar() { throw new RuntimeException("Stub!"); }
+                                    }
+                                """
+                                ),
+                                java(
+                                    """
+                                    package test.pkg;
+                                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                                    public class Foo {
+                                    public Foo() { throw new RuntimeException("Stub!"); }
+                                    }
+                                """
+                                ),
+                            ),
+                    ),
+                ),
+        )
+    }
+
+    @Test
+    fun `Test that annotated class members are handled correctly when flagged APIs are hidden`() {
+        checkFlaggedApis(
+            java(
+                """
+                    package test.pkg;
+
+                    import android.annotation.FlaggedApi;
+                    import android.annotation.SystemApi;
+                    import test.pkg.flags.Flags;
+
+                    @FlaggedApi(Flags.FLAG_FOO_BAR)
+                    @SystemApi
+                    public final class Foo {
+                        @SystemApi
+                        public Foo() {}
+
+                        @SystemApi
+                        public void method() {}
+                    }
+                """
+            ),
+            previouslyReleasedApi =
+                mapOf(
+                    Surface.PUBLIC to
+                        """
+                            // Signature format: 2.0
+                        """,
+                ),
+            expectationsList =
+                listOf(
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.KEEP_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                            """,
+                    ),
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.REVERT_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                            """,
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.KEEP_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  @FlaggedApi("test.pkg.flags.foo_bar") public final class Foo {
+                                    ctor public Foo();
+                                    method public void method();
+                                  }
+                                }
+                            """,
+                        expectedStubPaths =
+                            arrayOf(
+                                "test/pkg/Foo.java",
+                            ),
+                        expectedStubFiles =
+                            arrayOf(
+                                java(
+                                    """
+                                    package test.pkg;
+                                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                                    @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar")
+                                    public final class Foo {
+                                    @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar")
+                                    public Foo() { throw new RuntimeException("Stub!"); }
+                                    @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar")
+                                    public void method() { throw new RuntimeException("Stub!"); }
+                                    }
+                                """
+                                ),
+                            ),
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.REVERT_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        // Make sure that no stub classes are generated at all.
+                        expectedStubPaths = emptyArray(),
+                    ),
+                    // Check the module lib stubs without flagged apis.
+                    Expectations(
+                        Surface.MODULE_LIB,
+                        Flagged.REVERT_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        // There should be no stubs generated.
+                        expectedStubPaths = emptyArray(),
+                    ),
+                ),
+        )
+    }
+
+    @Test
+    fun `Test that previously released APIs which are now public and flagged are not removed`() {
+        val stubsWithNewMembers =
+            arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public final class Foo {
+                    @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar")
+                    public Foo() { throw new RuntimeException("Stub!"); }
+                    @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar")
+                    public void method() { throw new RuntimeException("Stub!"); }
+                    @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar") public final int field;
+                    { field = 0; }
+                    }
+                """
+                ),
+            )
+        val stubsWithoutNewMembers =
+            arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public final class Foo {
+                    Foo() { throw new RuntimeException("Stub!"); }
+                    }
+                """
+                ),
+            )
+        checkFlaggedApis(
+            java(
+                @Suppress("JavadocDeclaration")
+                """
+                    package test.pkg;
+
+                    import android.annotation.FlaggedApi;
+                    import test.pkg.flags.Flags;
+
+                    @FlaggedApi(Flags.FLAG_FOO_BAR)
+                    public final class Foo {
+                        public Foo() {}
+                        public void method() {}
+                        @android.annotation.RemovedFromApi
+                        public void removedMethod() {}
+                        public final int field = 2;
+                    }
+                """
+            ),
+            previouslyReleasedApi =
+                mapOf(
+                    // Use the same previously released API for each surface on which this test is
+                    // being run. That is needed because this test verifies what happens when an API
+                    // that was previously released in one API surface, is moved from that surface
+                    // to public while adding some new members. If the class was previously
+                    // released in the public API surface this tests what happens when a class is
+                    // annotated with @FlaggedApi because it contains new members.
+                    config.surface to
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public final class Foo {
+                              }
+                            }
+                        """,
+                ),
+            previouslyReleasedRemovedApi =
+                mapOf(
+                    // See above for an explanation as to why this uses config.surface.
+                    config.surface to
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public final class Foo {
+                                method public void removedMethod();
+                              }
+                            }
+                        """,
+                ),
+            expectationsList =
+                listOf(
+                    // The following public expectations verify what happens with a class that was
+                    // previously released but which is annotated with FlaggedApi because it has new
+                    // members.
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.KEEP_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  @FlaggedApi("test.pkg.flags.foo_bar") public final class Foo {
+                                    ctor public Foo();
+                                    method public void method();
+                                    field public final int field;
+                                  }
+                                }
+                            """,
+                        expectedStubFiles = stubsWithNewMembers,
+                    ),
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.REVERT_ALL,
+                        // Even without flagged APIs the class is still part of the public API
+                        // because being annotated with @FlaggedApi does not cause it to be removed
+                        // it was previously part of a released API. However, the new members did
+                        // not exist in the previously released API so have been removed.
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public final class Foo {
+                                  }
+                                }
+                            """,
+                        expectedStubFiles = stubsWithoutNewMembers,
+                    ),
+                    // The following system expectations verify what happens with a class that was
+                    // previously released as part of the system API but which is annotated with
+                    // FlaggedApi because it has moved to public and has new members.
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.KEEP_ALL,
+                        // This is expected to be empty as the API has moved to public.
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        // The system API stubs with flagged APIs include the class and the new
+                        // methods because while they are no longer system API they are public API
+                        // and system API stubs include public API stubs.
+                        expectedStubFiles = stubsWithNewMembers,
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.REVERT_ALL,
+                        // Even without flagged APIs the class is still part of the system API
+                        // because being annotated with @FlaggedApi does not cause it to be removed
+                        // it was previously part of a released API. However, the new members did
+                        // not exist in the previously released API so have been removed.
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public final class Foo {
+                                  }
+                                }
+                            """,
+                        // The system API stubs without flagged APIs include the class but exclude
+                        // the new methods because the class was present in the previously released
+                        // system API but the methods were not.
+                        expectedStubFiles = stubsWithoutNewMembers,
+                    ),
+                    // The following module lib expectations verify what happens with a class that
+                    // was previously released as part of the module lib API but which is annotated
+                    // with FlaggedApi because it has moved to public and has new members.
+                    Expectations(
+                        Surface.MODULE_LIB,
+                        Flagged.KEEP_ALL,
+                        // This is expected to be empty as the API has moved to public.
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        // The module lib API stubs with flagged APIs include the class and the new
+                        // methods because while they are no longer module lib API they are public
+                        // API and module lib API stubs include public API stubs.
+                        expectedStubFiles = stubsWithNewMembers,
+                    ),
+                    Expectations(
+                        Surface.MODULE_LIB,
+                        Flagged.REVERT_ALL,
+                        // Even without flagged APIs the class is still part of the module lib API
+                        // because being annotated with @FlaggedApi does not cause it to be removed
+                        // it was previously part of a released API. However, the new members did
+                        // not exist in the previously released API so have been removed.
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public final class Foo {
+                                  }
+                                }
+                            """,
+                        // The module lib API stubs without flagged APIs include the class but
+                        // exclude the new methods because the class was present in the previously
+                        // released module lib API but the methods were not.
+                        expectedStubFiles = stubsWithoutNewMembers,
+                    ),
+                ),
+        )
+    }
+
+    @Test
+    fun `Test that previously released APIs which are now system and flagged are not removed`() {
+        val stubsWithNewMembers =
+            arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public final class Foo {
+                    @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar")
+                    public Foo() { throw new RuntimeException("Stub!"); }
+                    @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar")
+                    public void method() { throw new RuntimeException("Stub!"); }
+                    @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar") public final int field;
+                    { field = 0; }
+                    }
+                """
+                ),
+            )
+        val stubsWithoutNewMembers =
+            arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public final class Foo {
+                    Foo() { throw new RuntimeException("Stub!"); }
+                    }
+                """
+                ),
+            )
+        checkFlaggedApis(
+            java(
+                @Suppress("JavadocDeclaration")
+                """
+                    package test.pkg;
+
+                    import android.annotation.FlaggedApi;
+                    import android.annotation.SystemApi;
+                    import test.pkg.flags.Flags;
+
+                    @SystemApi
+                    @FlaggedApi(Flags.FLAG_FOO_BAR)
+                    public final class Foo {
+                        public Foo() {}
+                        public void method() {}
+                        @android.annotation.RemovedFromApi
+                        public void removedMethod() {}
+                        public final int field = 2;
+                    }
+                """
+            ),
+            previouslyReleasedApi =
+                mapOf(
+                    // Use the same previously released API for each surface on which this test is
+                    // being run. That is needed because this test verifies what happens when an API
+                    // that was previously released in one API surface, is moved from that surface
+                    // to system while adding some new members. If the class was previously
+                    // released in the system API surface this tests what happens when a class is
+                    // annotated with @FlaggedApi because it contains new members.
+                    config.surface to
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public final class Foo {
+                              }
+                            }
+                        """,
+                ),
+            previouslyReleasedRemovedApi =
+                mapOf(
+                    // See above for an explanation as to why this uses config.surface.
+                    config.surface to
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public final class Foo {
+                                method public void removedMethod();
+                              }
+                            }
+                        """,
+                ),
+            expectationsList =
+                listOf(
+                    // The following system expectations verify what happens with a class that was
+                    // previously released as part of the system API but which is annotated with
+                    // FlaggedApi because it has new members.
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.KEEP_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  @FlaggedApi("test.pkg.flags.foo_bar") public final class Foo {
+                                    ctor public Foo();
+                                    method public void method();
+                                    field public final int field;
+                                  }
+                                }
+                            """,
+                        expectedStubFiles = stubsWithNewMembers,
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.REVERT_ALL,
+                        // Even without flagged APIs the class is still part of the system API
+                        // because being annotated with @FlaggedApi does not cause it to be removed
+                        // it was previously part of a released API. However, the new members did
+                        // not exist in the previously released API so have been removed.
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public final class Foo {
+                                  }
+                                }
+                            """,
+                        expectedStubFiles = stubsWithoutNewMembers,
+                    ),
+                    // The following module lib expectations verify what happens with a class that
+                    // was previously released as part of the module lib API but which is annotated
+                    // with FlaggedApi because it has moved to system API and has new members.
+                    Expectations(
+                        Surface.MODULE_LIB,
+                        Flagged.KEEP_ALL,
+                        // This is expected to be empty as the API has moved to system.
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        // The module lib API stubs with flagged APIs include the class and the new
+                        // methods because while they are no longer module lib API they are public
+                        // API and module lib API stubs include public API stubs.
+                        expectedStubFiles = stubsWithNewMembers,
+                    ),
+                    Expectations(
+                        Surface.MODULE_LIB,
+                        Flagged.REVERT_ALL,
+                        // Even without flagged APIs the class is still part of the module lib API
+                        // because being annotated with @FlaggedApi does not cause it to be removed
+                        // it was previously part of a released API. However, the new members did
+                        // not exist in the previously released API so have been removed.
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public final class Foo {
+                                  }
+                                }
+                            """,
+                        // The module lib API stubs without flagged APIs include the class but
+                        // exclude the new methods because the class was present in the previously
+                        // released module lib API but the methods were not.
+                        expectedStubFiles = stubsWithoutNewMembers,
+                    ),
+                ),
+        )
+    }
+
+    @Test
+    fun `Test interface fields behave correctly when flagged`() {
+        val expectedStubPaths =
+            arrayOf(
+                "test/pkg/Foo.java",
+            )
+
+        val stubsWithFlaggedApi =
+            arrayOf(
+                java(
+                    """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public interface Foo {
+                        @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar") public static final int CONSTANT = 1;
+                        }
+                    """
+                ),
+            )
+
+        val stubsWithoutFlaggedApi =
+            arrayOf(
+                java(
+                    """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public interface Foo {
+                        }
+                    """
+                ),
+            )
+
+        checkFlaggedApis(
+            java(
+                """
+                    package test.pkg;
+
+                    import android.annotation.FlaggedApi;
+                    import android.annotation.SystemApi;
+                    import test.pkg.flags.Flags;
+
+                    public interface Foo {
+                        @FlaggedApi(Flags.FLAG_FOO_BAR)
+                        int CONSTANT = 1;
+                    }
+                """
+            ),
+            previouslyReleasedApi =
+                mapOf(
+                    Surface.PUBLIC to
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                                public interface Foo {
+                                }
+                            }
+                        """,
+                ),
+            expectationsList =
+                listOf(
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.KEEP_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public interface Foo {
+                                    field @FlaggedApi("test.pkg.flags.foo_bar") public static final int CONSTANT = 1; // 0x1
+                                  }
+                                }
+                            """,
+                        expectedStubPaths = expectedStubPaths,
+                        expectedStubFiles = stubsWithFlaggedApi,
+                    ),
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.REVERT_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public interface Foo {
+                                  }
+                                }
+                            """,
+                        expectedStubPaths = expectedStubPaths,
+                        expectedStubFiles = stubsWithoutFlaggedApi,
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.KEEP_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubPaths = expectedStubPaths,
+                        expectedStubFiles = stubsWithFlaggedApi,
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.REVERT_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubPaths = expectedStubPaths,
+                        expectedStubFiles = stubsWithoutFlaggedApi,
+                    ),
+                ),
+        )
+    }
+
+    @Test
+    fun `Test that changing modifiers of public class can be reverted`() {
+        val stubsWithFlaggedApis =
+            arrayOf(
+                java(
+                    """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public class Foo {
+                        public Foo() { throw new RuntimeException("Stub!"); }
+                        public void abstractMethod() { throw new RuntimeException("Stub!"); }
+                        public void method(@android.annotation.Nullable java.lang.String p) { throw new RuntimeException("Stub!"); }
+                        public native void nativeMethod();
+                        public static int field;
+                        }
+                    """
+                ),
+            )
+
+        val stubsWithoutFlaggedApis =
+            arrayOf(
+                java(
+                    """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public abstract class Foo {
+                        protected Foo() { throw new RuntimeException("Stub!"); }
+                        public abstract void abstractMethod();
+                        public final void method(@android.annotation.Nullable java.lang.String p) { throw new RuntimeException("Stub!"); }
+                        public void nativeMethod() { throw new RuntimeException("Stub!"); }
+                        public static final int field;
+                        static { field = 0; }
+                        }
+                    """
+                ),
+            )
+
+        checkFlaggedApis(
+            java(
+                """
+                    package test.pkg;
+
+                    import android.annotation.FlaggedApi;
+                    import test.pkg.flags.Flags;
+
+                    @FlaggedApi(Flags.FLAG_FOO_BAR)
+                    public class Foo {
+                        public Foo() {}
+                        public void abstractMethod();
+                        public void method(@Nullable String p) {}
+                        public native void nativeMethod();
+                        public static int field;
+                    }
+                """
+            ),
+            extraArguments =
+                hiddenIssues(
+                    Issues.REMOVED_FINAL_STRICT,
+                ),
+            // The previously released public api.
+            previouslyReleasedApi =
+                mapOf(
+                    Surface.PUBLIC to
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public abstract class Foo {
+                                ctor protected Foo();
+                                method public abstract void abstractMethod();
+                                method public final void method(@Nullable String);
+                                method public void nativeMethod();
+                                field public static final int field;
+                              }
+                            }
+                        """,
+                ),
+            expectationsList =
+                listOf(
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.KEEP_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  @FlaggedApi("test.pkg.flags.foo_bar") public class Foo {
+                                    ctor public Foo();
+                                    method public void abstractMethod();
+                                    method public void method(@Nullable String);
+                                    method public void nativeMethod();
+                                    field public static int field;
+                                  }
+                                }
+                            """,
+                        expectedStubFiles = stubsWithFlaggedApis,
+                    ),
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.REVERT_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public abstract class Foo {
+                                    ctor protected Foo();
+                                    method public abstract void abstractMethod();
+                                    method public final void method(@Nullable String);
+                                    method public void nativeMethod();
+                                    field public static final int field;
+                                  }
+                                }
+                            """,
+                        expectedStubFiles = stubsWithoutFlaggedApis,
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.KEEP_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubFiles = stubsWithFlaggedApis,
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.REVERT_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubFiles = stubsWithoutFlaggedApis,
+                    ),
+                    Expectations(
+                        Surface.MODULE_LIB,
+                        Flagged.KEEP_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubFiles = stubsWithFlaggedApis,
+                    ),
+                    Expectations(
+                        Surface.MODULE_LIB,
+                        Flagged.REVERT_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubFiles = stubsWithoutFlaggedApis,
+                    ),
+                ),
+        )
+    }
+
+    @Test
+    fun `Test that changing deprecated status of public class can be reverted`() {
+        val stubsWithFlaggedApis =
+            arrayOf(
+                java(
+                    """
+                        package test.pkg;
+                        /**
+                         * A Bar class.
+                         *
+                         * @deprecated a multi-line, multi-sentence
+                         * deprecation message. Deprecated for
+                         * testing.
+                         */
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        @Deprecated
+                        public class Bar {
+                        /**
+                         * A Bar constructor.
+                         * @deprecated constructor
+                         */
+                        @Deprecated
+                        public Bar() { throw new RuntimeException("Stub!"); }
+                        /**
+                         * A method.
+                         * @deprecated method
+                         */
+                        @Deprecated
+                        public void method() { throw new RuntimeException("Stub!"); }
+                        /**
+                         * A field.
+                         * @deprecated field
+                         */
+                        @Deprecated public static int field;
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public class Foo {
+                        Foo() { throw new RuntimeException("Stub!"); }
+                        public void method(@android.annotation.Nullable java.lang.String p) { throw new RuntimeException("Stub!"); }
+                        /** @deprecated */
+                        @Deprecated public static int field;
+                        }
+                    """
+                ),
+            )
+
+        val stubsWithoutFlaggedApis =
+            arrayOf(
+                java(
+                    """
+                        package test.pkg;
+                        /** A Bar class. */
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public class Bar {
+                        /** A Bar constructor. */
+                        public Bar() { throw new RuntimeException("Stub!"); }
+                        /** A method. */
+                        public void method() { throw new RuntimeException("Stub!"); }
+                        /** A field. */
+                        public static int field;
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public class Foo {
+                        Foo() { throw new RuntimeException("Stub!"); }
+                        public void method(@android.annotation.Nullable java.lang.String p) { throw new RuntimeException("Stub!"); }
+                        /** */
+                        public static int field;
+                        }
+                    """
+                ),
+            )
+
+        checkFlaggedApis(
+            java(
+                """
+                    package test.pkg;
+
+                    import android.annotation.FlaggedApi;
+                    import test.pkg.flags.Flags;
+
+                    /**
+                     * A Bar class.
+                     *
+                     * @deprecated a multi-line, multi-sentence
+                     * deprecation message. Deprecated for
+                     * testing.
+                     */
+                    @FlaggedApi(Flags.FLAG_FOO_BAR)
+                    public class Bar {
+                        /**
+                         * A Bar constructor.
+                         * @deprecated constructor
+                         */
+                        @Deprecated
+                        public Bar() {}
+                        /**
+                         * A method.
+                         * @deprecated method
+                         */
+                        @Deprecated
+                        public void method() {}
+                        /**
+                         * A field.
+                         * @deprecated field
+                         */
+                        public @Deprecated static int field;
+                    }
+                """
+            ),
+            // This makes sure that existing deprecation annotations and tags are not discarded even
+            // if annotated with @FlaggedApi.
+            java(
+                """
+                    package test.pkg;
+
+                    import android.annotation.FlaggedApi;
+                    import test.pkg.flags.Flags;
+
+                    /** @deprecated */
+                    @FlaggedApi(Flags.FLAG_FOO_BAR)
+                    @Deprecated
+                    public class Baz {
+                        /** @deprecated */
+                        @Deprecated
+                        public Baz() {}
+                        /** @deprecated */
+                        @Deprecated
+                        public void method() {}
+                        /** @deprecated */
+                        public @Deprecated static int field;
+                    }
+                """
+            ),
+            @Suppress("DeprecatedIsStillUsed")
+            java(
+                """
+                    package test.pkg;
+
+                    import android.annotation.FlaggedApi;
+                    import test.pkg.flags.Flags;
+
+                    @FlaggedApi(Flags.FLAG_FOO_BAR)
+                    public class Foo {
+                        private Foo() {}
+                        public void method(@Nullable String p) {}
+                        /** @deprecated */
+                        public @Deprecated static int field;
+                    }
+                """
+            ),
+            // The previously released public api.
+            previouslyReleasedApi =
+                mapOf(
+                    Surface.PUBLIC to
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class Foo {
+                                method public void method(@Nullable String);
+                                field public static int field;
+                              }
+                              public class Bar {
+                                ctor public Bar();
+                                method public void method();
+                                field public static int field;
+                              }
+                              @Deprecated public class Baz {
+                                ctor @Deprecated public Baz();
+                                method @Deprecated public void method();
+                                field @Deprecated public static int field;
+                              }
+                            }
+                        """,
+                ),
+            expectationsList =
+                listOf(
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.KEEP_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  @Deprecated @FlaggedApi("test.pkg.flags.foo_bar") public class Bar {
+                                    ctor @Deprecated public Bar();
+                                    method @Deprecated public void method();
+                                    field @Deprecated public static int field;
+                                  }
+                                  @Deprecated @FlaggedApi("test.pkg.flags.foo_bar") public class Baz {
+                                    ctor @Deprecated public Baz();
+                                    method @Deprecated public void method();
+                                    field @Deprecated public static int field;
+                                  }
+                                  @FlaggedApi("test.pkg.flags.foo_bar") public class Foo {
+                                    method public void method(@Nullable String);
+                                    field @Deprecated public static int field;
+                                  }
+                                }
+                            """,
+                        expectedStubFiles = stubsWithFlaggedApis,
+                    ),
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.REVERT_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public class Bar {
+                                    ctor public Bar();
+                                    method public void method();
+                                    field public static int field;
+                                  }
+                                  @Deprecated public class Baz {
+                                    ctor @Deprecated public Baz();
+                                    method @Deprecated public void method();
+                                    field @Deprecated public static int field;
+                                  }
+                                  public class Foo {
+                                    method public void method(@Nullable String);
+                                    field public static int field;
+                                  }
+                                }
+                            """,
+                        expectedStubFiles = stubsWithoutFlaggedApis,
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.KEEP_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubFiles = stubsWithFlaggedApis,
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.REVERT_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubFiles = stubsWithoutFlaggedApis,
+                    ),
+                    Expectations(
+                        Surface.MODULE_LIB,
+                        Flagged.KEEP_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubFiles = stubsWithFlaggedApis,
+                    ),
+                    Expectations(
+                        Surface.MODULE_LIB,
+                        Flagged.REVERT_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubFiles = stubsWithoutFlaggedApis,
+                    ),
+                ),
+        )
+    }
+
+    @Test
+    fun `Test that pulling method up into super class can be reverted`() {
+        val stubsWithFlaggedApis =
+            arrayOf(
+                java(
+                    """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public class Bar {
+                        public Bar() { throw new RuntimeException("Stub!"); }
+                        @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar")
+                        public void method() { throw new RuntimeException("Stub!"); }
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public class Foo extends test.pkg.Bar {
+                        Foo() { throw new RuntimeException("Stub!"); }
+                        }
+                    """
+                ),
+            )
+
+        val stubsWithoutFlaggedApis =
+            arrayOf(
+                java(
+                    """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public class Bar {
+                        public Bar() { throw new RuntimeException("Stub!"); }
+                        }
+                    """
+                ),
+                // TODO(b/337840740): Foo should have method().
+                java(
+                    """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public class Foo extends test.pkg.Bar {
+                        Foo() { throw new RuntimeException("Stub!"); }
+                        }
+                    """
+                ),
+            )
+
+        checkFlaggedApis(
+            java(
+                """
+                    package test.pkg;
+
+                    import android.annotation.FlaggedApi;
+                    import test.pkg.flags.Flags;
+
+                    public class Bar {
+                        // This is flagged as the method was pulled up from Foo.
+                        @FlaggedApi(Flags.FLAG_FOO_BAR)
+                        public void method() {}
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    import android.annotation.FlaggedApi;
+                    import test.pkg.flags.Flags;
+
+                    public class Foo extends Bar {
+                        private Foo() {}
+                    }
+                """
+            ),
+            // The previously released public api.
+            previouslyReleasedApi =
+                mapOf(
+                    Surface.PUBLIC to
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class Bar {
+                                ctor public Bar();
+                              }
+                              public class Foo {
+                                method public void method();
+                              }
+                            }
+                        """,
+                ),
+            expectationsList =
+                listOf(
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.KEEP_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public class Bar {
+                                    ctor public Bar();
+                                    method @FlaggedApi("test.pkg.flags.foo_bar") public void method();
+                                  }
+                                  public class Foo extends test.pkg.Bar {
+                                  }
+                                }
+                            """,
+                        expectedStubFiles = stubsWithFlaggedApis,
+                    ),
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.REVERT_ALL,
+                        expectedApiSignature =
+                            // TODO(b/337840740): Foo should have method().
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public class Bar {
+                                    ctor public Bar();
+                                  }
+                                  public class Foo extends test.pkg.Bar {
+                                  }
+                                }
+                            """,
+                        expectedStubFiles = stubsWithoutFlaggedApis,
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.KEEP_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubFiles = stubsWithFlaggedApis,
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.REVERT_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubFiles = stubsWithoutFlaggedApis,
+                    ),
+                    Expectations(
+                        Surface.MODULE_LIB,
+                        Flagged.KEEP_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubFiles = stubsWithFlaggedApis,
+                    ),
+                    Expectations(
+                        Surface.MODULE_LIB,
+                        Flagged.REVERT_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubFiles = stubsWithoutFlaggedApis,
+                    ),
+                ),
+        )
+    }
+
+    @Test
+    fun `Test that FlaggedApi annotated RemovedFromApi items can be reverted`() {
+        checkFlaggedApis(
+            java(
+                """
+                    package test.pkg;
+
+                    import android.annotation.FlaggedApi;
+                    import android.annotation.RemovedFromApi;
+                    import android.annotation.SystemApi;
+                    import test.pkg.flags.Flags;
+
+                    public class Foo {
+                        @RemovedFromApi
+                        @FlaggedApi(Flags.FLAG_FOO_BAR)
+                        public void removedPublicApi() {}
+
+                        @SystemApi
+                        @RemovedFromApi
+                        @FlaggedApi(Flags.FLAG_FOO_BAR)
+                        public void removedSystemApi() {}
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    import android.annotation.FlaggedApi;
+                    import android.annotation.RemovedFromApi;
+                    import test.pkg.flags.Flags;
+
+                    @RemovedFromApi
+                    @FlaggedApi(Flags.FLAG_FOO_BAR)
+                    public class RemovedBar {
+                        public void method() {}
+                    }
+                """
+            ),
+            previouslyReleasedApi =
+                mapOf(
+                    Surface.PUBLIC to
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class Foo {
+                                ctor public Foo();
+                                method public void removedPublicApi();
+                              }
+                              public class RemovedBar {
+                                ctor public RemovedBar();
+                                method public void method();
+                              }
+                            }
+                        """,
+                    Surface.SYSTEM to
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class Foo {
+                                method public void removedSystemApi();
+                              }
+                            }
+                        """,
+                ),
+            expectationsList =
+                listOf(
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.KEEP_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public class Foo {
+                                    ctor public Foo();
+                                    method @ForRemoval @FlaggedApi("test.pkg.flags.foo_bar") public void removedPublicApi();
+                                  }
+                                  @ForRemoval @FlaggedApi("test.pkg.flags.foo_bar") public class RemovedBar {
+                                    ctor public RemovedBar();
+                                    method public void method();
+                                  }
+                                }
+                            """,
+                        expectedRemovedApiSignature =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubPaths =
+                            arrayOf(
+                                "test/pkg/Foo.java",
+                                "test/pkg/RemovedBar.java",
+                            ),
+                        expectedStubFiles =
+                            arrayOf(
+                                java(
+                                    """
+                                        package test.pkg;
+                                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                                        public class Foo {
+                                        public Foo() { throw new RuntimeException("Stub!"); }
+                                        public void removedPublicApi() { throw new RuntimeException("Stub!"); }
+                                        }
+                                    """
+                                ),
+                                java(
+                                    """
+                                        package test.pkg;
+                                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                                        public class RemovedBar {
+                                        public RemovedBar() { throw new RuntimeException("Stub!"); }
+                                        public void method() { throw new RuntimeException("Stub!"); }
+                                        }
+                                    """
+                                ),
+                            ),
+                    ),
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.FINALIZE_FOO_BAR_APIS,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public class Foo {
+                                    ctor public Foo();
+                                  }
+                                }
+                            """,
+                        expectedRemovedApiSignature =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public class Foo {
+                                    method public void removedPublicApi();
+                                  }
+                                  public class RemovedBar {
+                                    ctor public RemovedBar();
+                                    method public void method();
+                                  }
+                                }
+                            """,
+                        expectedStubPaths =
+                            arrayOf(
+                                "test/pkg/Foo.java",
+                            ),
+                        expectedStubFiles =
+                            arrayOf(
+                                java(
+                                    """
+                                        package test.pkg;
+                                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                                        public class Foo {
+                                        public Foo() { throw new RuntimeException("Stub!"); }
+                                        }
+                                    """
+                                ),
+                            ),
+                    ),
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.REVERT_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public class Foo {
+                                    ctor public Foo();
+                                    method public void removedPublicApi();
+                                  }
+                                  public class RemovedBar {
+                                    ctor public RemovedBar();
+                                    method public void method();
+                                  }
+                                }
+                            """,
+                        expectedRemovedApiSignature =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubPaths =
+                            arrayOf(
+                                "test/pkg/Foo.java",
+                                "test/pkg/RemovedBar.java",
+                            ),
+                        expectedStubFiles =
+                            arrayOf(
+                                java(
+                                    """
+                                        package test.pkg;
+                                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                                        public class Foo {
+                                        public Foo() { throw new RuntimeException("Stub!"); }
+                                        public void removedPublicApi() { throw new RuntimeException("Stub!"); }
+                                        }
+                                    """
+                                ),
+                                java(
+                                    """
+                                        package test.pkg;
+                                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                                        public class RemovedBar {
+                                        public RemovedBar() { throw new RuntimeException("Stub!"); }
+                                        public void method() { throw new RuntimeException("Stub!"); }
+                                        }
+                                    """
+                                ),
+                            ),
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.KEEP_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public class Foo {
+                                    method @ForRemoval @FlaggedApi("test.pkg.flags.foo_bar") public void removedSystemApi();
+                                  }
+                                }
+                            """,
+                        expectedRemovedApiSignature =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubPaths =
+                            arrayOf(
+                                "test/pkg/Foo.java",
+                                "test/pkg/RemovedBar.java",
+                            ),
+                        expectedStubFiles =
+                            arrayOf(
+                                java(
+                                    """
+                                        package test.pkg;
+                                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                                        public class Foo {
+                                        public Foo() { throw new RuntimeException("Stub!"); }
+                                        public void removedPublicApi() { throw new RuntimeException("Stub!"); }
+                                        public void removedSystemApi() { throw new RuntimeException("Stub!"); }
+                                        }
+                                    """
+                                ),
+                                java(
+                                    """
+                                        package test.pkg;
+                                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                                        public class RemovedBar {
+                                        public RemovedBar() { throw new RuntimeException("Stub!"); }
+                                        public void method() { throw new RuntimeException("Stub!"); }
+                                        }
+                                    """
+                                ),
+                            ),
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.FINALIZE_FOO_BAR_APIS,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedRemovedApiSignature =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public class Foo {
+                                    method public void removedSystemApi();
+                                  }
+                                }
+                            """,
+                        expectedStubPaths =
+                            arrayOf(
+                                "test/pkg/Foo.java",
+                            ),
+                        expectedStubFiles =
+                            arrayOf(
+                                java(
+                                    """
+                                        package test.pkg;
+                                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                                        public class Foo {
+                                        public Foo() { throw new RuntimeException("Stub!"); }
+                                        }
+                                    """
+                                ),
+                            ),
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.REVERT_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public class Foo {
+                                    method public void removedSystemApi();
+                                  }
+                                }
+                            """,
+                        expectedRemovedApiSignature =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubPaths =
+                            arrayOf(
+                                "test/pkg/Foo.java",
+                                "test/pkg/RemovedBar.java",
+                            ),
+                        expectedStubFiles =
+                            arrayOf(
+                                java(
+                                    """
+                                        package test.pkg;
+                                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                                        public class Foo {
+                                        public Foo() { throw new RuntimeException("Stub!"); }
+                                        public void removedPublicApi() { throw new RuntimeException("Stub!"); }
+                                        public void removedSystemApi() { throw new RuntimeException("Stub!"); }
+                                        }
+                                    """
+                                ),
+                                java(
+                                    """
+                                        package test.pkg;
+                                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                                        public class RemovedBar {
+                                        public RemovedBar() { throw new RuntimeException("Stub!"); }
+                                        public void method() { throw new RuntimeException("Stub!"); }
+                                        }
+                                    """
+                                ),
+                            ),
+                    ),
+                ),
+        )
+    }
+
+    @Test
+    fun `Test conditional doc references to FlaggedApi items`() {
+        val stubsWithFlaggedApis =
+            arrayOf(
+                java(
+                    """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public class Foo {
+                        public Foo() { throw new RuntimeException("Stub!"); }
+                        /**
+                         * Existing method. {@link test.pkg.NewReplacement NewReplacement} and {@link #NEW_CONSTANT}
+                         * @see test.pkg.NewReplacement NewReplacement
+                         */
+                        public void existingMethod() { throw new RuntimeException("Stub!"); }
+                        @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar") public static final int NEW_CONSTANT = 1;
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar")
+                        public class NewReplacement {
+                        @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar")
+                        public NewReplacement() { throw new RuntimeException("Stub!"); }
+                        }
+                    """
+                ),
+            )
+
+        val stubsWithoutFlaggedApis =
+            arrayOf(
+                java(
+                    """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public class Foo {
+                        public Foo() { throw new RuntimeException("Stub!"); }
+                        /** Existing method. */
+                        public void existingMethod() { throw new RuntimeException("Stub!"); }
+                        }
+                    """
+                ),
+            )
+
+        checkFlaggedApis(
+            java(
+                """
+                    package test.pkg;
+
+                    import android.annotation.FlaggedApi;
+                    import test.pkg.flags.Flags;
+
+                    @FlaggedApi(Flags.FLAG_FOO_BAR)
+                    public class NewReplacement {}
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    import android.annotation.FlaggedApi;
+                    import test.pkg.flags.Flags;
+
+                    public class Foo {
+                        /**
+                         * Existing method. {@if (flag(Flags.FLAG_FOO_BAR)) {{@link NewReplacement} and {@link #NEW_CONSTANT}}}
+                         *
+                         * @if (flag(Flags.FLAG_FOO_BAR)) {
+                         *     :@see NewReplacement
+                         * }
+                         */
+                        public void existingMethod() {}
+
+                        @FlaggedApi(Flags.FLAG_FOO_BAR)
+                        public static final int NEW_CONSTANT = 1;
+                    }
+                """
+            ),
+            previouslyReleasedApi =
+                mapOf(
+                    Surface.PUBLIC to
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class Foo {
+                                ctor public Foo();
+                                method public void existingMethod();
+                              }
+                            }
+                        """,
+                ),
+            expectationsList =
+                listOf(
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.KEEP_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public class Foo {
+                                    ctor public Foo();
+                                    method public void existingMethod();
+                                    field @FlaggedApi("test.pkg.flags.foo_bar") public static final int NEW_CONSTANT = 1; // 0x1
+                                  }
+                                  @FlaggedApi("test.pkg.flags.foo_bar") public class NewReplacement {
+                                    ctor public NewReplacement();
+                                  }
+                                }
+                            """,
+                        expectedStubFiles = stubsWithFlaggedApis,
+                    ),
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.REVERT_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public class Foo {
+                                    ctor public Foo();
+                                    method public void existingMethod();
+                                  }
+                                }
+                            """,
+                        expectedStubFiles = stubsWithoutFlaggedApis,
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.KEEP_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubFiles = stubsWithFlaggedApis,
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.REVERT_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubFiles = stubsWithoutFlaggedApis,
+                    ),
+                    Expectations(
+                        Surface.MODULE_LIB,
+                        Flagged.KEEP_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubFiles = stubsWithFlaggedApis,
+                    ),
+                    Expectations(
+                        Surface.MODULE_LIB,
+                        Flagged.REVERT_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubFiles = stubsWithoutFlaggedApis,
+                    ),
+                ),
+        )
+    }
+
+    @Test
+    fun `Test newly deprecated doc references to FlaggedApi items`() {
+        val stubsWithFlaggedApis =
+            arrayOf(
+                java(
+                    """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public class Foo {
+                        public Foo() { throw new RuntimeException("Stub!"); }
+                        /**
+                         * Existing method.
+                         * @deprecated Use {@link test.pkg.NewReplacement NewReplacement} and {@link #NEW_CONSTANT} instead.
+                         */
+                        @Deprecated
+                        public void oldMethod() { throw new RuntimeException("Stub!"); }
+                        @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar") public static final int NEW_CONSTANT = 1;
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar")
+                        public class NewReplacement {
+                        @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar")
+                        public NewReplacement() { throw new RuntimeException("Stub!"); }
+                        }
+                    """
+                ),
+            )
+
+        val stubsWithoutFlaggedApis =
+            arrayOf(
+                java(
+                    """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public class Foo {
+                        public Foo() { throw new RuntimeException("Stub!"); }
+                        /** Existing method. */
+                        public void oldMethod() { throw new RuntimeException("Stub!"); }
+                        }
+                    """
+                ),
+            )
+
+        checkFlaggedApis(
+            java(
+                """
+                    package test.pkg;
+
+                    import android.annotation.FlaggedApi;
+                    import test.pkg.flags.Flags;
+
+                    @FlaggedApi(Flags.FLAG_FOO_BAR)
+                    public class NewReplacement {}
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    import android.annotation.FlaggedApi;
+                    import test.pkg.flags.Flags;
+
+                    public class Foo {
+                        /**
+                         * Existing method.
+                         *
+                         * @deprecated Use {@link NewReplacement} and {@link #NEW_CONSTANT} instead.
+                         */
+                        @FlaggedApi(Flags.FLAG_FOO_BAR)
+                        @Deprecated
+                        public void oldMethod() {}
+
+                        @FlaggedApi(Flags.FLAG_FOO_BAR)
+                        public static final int NEW_CONSTANT = 1;
+                    }
+                """
+            ),
+            previouslyReleasedApi =
+                mapOf(
+                    Surface.PUBLIC to
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class Foo {
+                                ctor public Foo();
+                                method public void oldMethod();
+                              }
+                            }
+                        """,
+                ),
+            expectationsList =
+                listOf(
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.KEEP_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public class Foo {
+                                    ctor public Foo();
+                                    method @Deprecated @FlaggedApi("test.pkg.flags.foo_bar") public void oldMethod();
+                                    field @FlaggedApi("test.pkg.flags.foo_bar") public static final int NEW_CONSTANT = 1; // 0x1
+                                  }
+                                  @FlaggedApi("test.pkg.flags.foo_bar") public class NewReplacement {
+                                    ctor public NewReplacement();
+                                  }
+                                }
+                            """,
+                        expectedStubFiles = stubsWithFlaggedApis,
+                    ),
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.REVERT_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public class Foo {
+                                    ctor public Foo();
+                                    method public void oldMethod();
+                                  }
+                                }
+                            """,
+                        expectedStubFiles = stubsWithoutFlaggedApis,
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.KEEP_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubFiles = stubsWithFlaggedApis,
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.REVERT_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubFiles = stubsWithoutFlaggedApis,
+                    ),
+                    Expectations(
+                        Surface.MODULE_LIB,
+                        Flagged.KEEP_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubFiles = stubsWithFlaggedApis,
+                    ),
+                    Expectations(
+                        Surface.MODULE_LIB,
+                        Flagged.REVERT_ALL,
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubFiles = stubsWithoutFlaggedApis,
+                    ),
+                ),
+        )
+    }
+}

@@ -30,6 +30,7 @@ import org.gradle.api.publish.PublishingExtension
 import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.api.publish.maven.plugins.MavenPublishPlugin
 import org.gradle.api.publish.tasks.GenerateModuleMetadata
+import org.gradle.api.tasks.ClasspathNormalizer
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.tasks.bundling.Zip
 import org.gradle.api.tasks.testing.Test
@@ -37,6 +38,7 @@ import org.gradle.api.tasks.testing.logging.TestLogEvent
 import org.gradle.kotlin.dsl.create
 import org.gradle.kotlin.dsl.get
 import org.gradle.kotlin.dsl.getByType
+import org.gradle.kotlin.dsl.setEnvironment
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 import org.jetbrains.kotlin.gradle.plugin.KotlinBasePluginWrapper
@@ -59,8 +61,8 @@ class MetalavaBuildPlugin : Plugin<Project> {
                     project.tasks.withType(KotlinCompile::class.java).configureEach { task ->
                         task.compilerOptions.apply {
                             jvmTarget.set(JvmTarget.JVM_17)
-                            apiVersion.set(KotlinVersion.KOTLIN_2_0)
-                            languageVersion.set(KotlinVersion.KOTLIN_2_0)
+                            apiVersion.set(KotlinVersion.KOTLIN_2_2)
+                            languageVersion.set(KotlinVersion.KOTLIN_2_2)
                             allWarningsAsErrors.set(true)
                         }
                     }
@@ -87,10 +89,17 @@ class MetalavaBuildPlugin : Plugin<Project> {
             disable.add("GradleDependency") // not useful for this project
             abortOnError = true
             baseline = File("lint-baseline.xml")
+            warningsAsErrors = true
         }
     }
 
     private fun configureTestTasks(project: Project) {
+        // Create a configuration that depends on :stub-annotations project so tests can
+        // depend on the JAR produced by this project.
+        val stubAnnotations = project.configurations.detachedConfiguration(
+            project.dependencies.create(project.project(":stub-annotations"))
+        ).incoming.artifactView { }.files
+
         val testTask = project.tasks.named("test", Test::class.java)
 
         val zipTask: TaskProvider<Zip> =
@@ -103,14 +112,33 @@ class MetalavaBuildPlugin : Plugin<Project> {
             }
 
         testTask.configure { task ->
-            task as Test
             task.jvmArgs = listOf(
                 "--add-opens=java.base/java.lang=ALL-UNNAMED",
                 // Needed for CustomizableParameterizedRunner
                 "--add-opens=java.base/java.lang.reflect=ALL-UNNAMED",
             )
 
+            // Increase from the default heap size because multiplatform tests run out of memory
+            // otherwise (b/479506031).
+            task.maxHeapSize = "1024m"
+
+            // Clear the environment before adding any custom variables. Avoids problems with
+            // inconsistent behavior when testing code that accesses environment variables, e.g.
+            // command line tools that use environment variables to determine whether to use colors
+            // in command line help.
+            task.setEnvironment()
+
+            // Make test task depend on the stubAnnotations and normalize it as a classpath input.
+            task.inputs.files(stubAnnotations)
+                .withPropertyName("stubAnnotations")
+                .withNormalizer(ClasspathNormalizer::class.java)
+
             task.doFirst {
+                // Get the path to the stub-annotations jar and pass it to this in an environment
+                // variable.
+                task.environment["METALAVA_STUB_ANNOTATIONS_JAR"] =
+                    stubAnnotations.singleFile.absolutePath
+
                 // Before running the tests update the filter.
                 task.filter { testFilter ->
                     testFilter as DefaultTestFilter

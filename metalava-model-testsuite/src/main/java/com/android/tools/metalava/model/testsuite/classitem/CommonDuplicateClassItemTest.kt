@@ -18,6 +18,8 @@ package com.android.tools.metalava.model.testsuite.classitem
 
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
@@ -26,7 +28,7 @@ import org.junit.Test
 /** Common tests for implementations of [ClassItem]. */
 class CommonDuplicateClassItemTest : BaseModelTest() {
 
-    private fun runDuplicateTest(test: CodebaseContext.() -> Unit) {
+    private fun runDuplicateTest(codebaseChecker: CodebaseContext.() -> Unit) {
         runCodebaseTest(
             inputSet(
                 java(
@@ -45,14 +47,19 @@ class CommonDuplicateClassItemTest : BaseModelTest() {
                     """
                 )
             ),
-            test = test,
-        )
+        ) {
+            assertAndRemoveReportedIssues(
+                "MAIN_SRC/src2/test/pkg/Foo.java:3: warning: Attempted to register test.pkg.Foo twice; once from MAIN_SRC/src/test/pkg/Foo.java and this one from MAIN_SRC/src2/test/pkg/Foo.java [DuplicateSourceClass]"
+            )
+
+            codebaseChecker()
+        }
     }
 
     private fun CodebaseContext.checkCodebase(codebase: Codebase) {
         val fooClass = codebase.assertClass("test.pkg.Foo")
         assertEquals(
-            "TESTROOT/src/test/pkg/Foo.java",
+            "MAIN_SRC/src/test/pkg/Foo.java",
             removeTestSpecificDirectories(fooClass.fileLocation.path.toString())
         )
 
@@ -66,13 +73,14 @@ class CommonDuplicateClassItemTest : BaseModelTest() {
                 }
         assertEquals(
             """
-                TESTROOT/src/test/pkg/Foo.java
+                MAIN_SRC/src/test/pkg/Foo.java
             """
                 .trimIndent(),
             fooLocations
         )
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test duplicate classes`() {
         runDuplicateTest { checkCodebase(codebase) }

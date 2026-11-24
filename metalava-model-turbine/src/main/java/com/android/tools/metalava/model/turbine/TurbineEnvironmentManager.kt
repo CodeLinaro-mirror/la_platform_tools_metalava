@@ -16,25 +16,39 @@
 
 package com.android.tools.metalava.model.turbine
 
-import com.android.tools.metalava.model.Codebase
+import androidx.tracing.Tracer
 import com.android.tools.metalava.model.ModelOptions
+import com.android.tools.metalava.model.source.Environment
 import com.android.tools.metalava.model.source.EnvironmentManager
-import com.android.tools.metalava.model.source.SourceParser
+import com.android.tools.metalava.model.source.SourceSet
+import com.android.tools.metalava.reporter.Reporter
 import java.io.File
 
 /** Manages the objects created when processing sources. */
 internal class TurbineEnvironmentManager() : EnvironmentManager {
 
-    override fun createSourceParser(
-        codebaseConfig: Codebase.Config,
+    override fun createEnvironment(
+        sourceSet: SourceSet,
+        classPath: List<File>,
+        projectDescription: File?,
         javaLanguageLevel: String,
         kotlinLanguageLevel: String,
         modelOptions: ModelOptions,
-        allowReadingComments: Boolean,
         jdkHome: File?,
-    ): SourceParser {
-        return TurbineSourceParser(codebaseConfig, allowReadingComments)
-    }
+        reporter: Reporter,
+        tracer: Tracer,
+    ): Environment =
+        TurbineEnvironment(
+            environmentManager = this,
+            rawSourceSet = sourceSet,
+            rawClassPath = classPath,
+            projectDescription = projectDescription,
+            javaLanguageLevel = javaLanguageLevel,
+            kotlinLanguageLevel = kotlinLanguageLevel,
+            jdkHome = jdkHome,
+            reporter = reporter,
+            tracer = tracer,
+        )
 
     // TODO (b/299217550 implement it)
     override fun close() {}

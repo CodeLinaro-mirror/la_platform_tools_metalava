@@ -23,14 +23,19 @@ java_library_host {
         "src/main/java/**/*.java",
         "src/main/java/**/*.kt",
     ],
-    kotlin_lang_version: "2",
     java_resource_dirs: ["src/main/resources/"],
     libs: [
         "metalava-model",
         "metalava-reporter",
         "metalava-model-source",
-        "metalava-tools-common-m2-deps",
-        // Needed for guava stuff
-        "metalava-gradle-plugin-deps",
+
+        "prebuilts-metalava-tracing",
+    ],
+    static_libs: [
+        "kotlin_metadata_jvm",
+        "prebuilts-metalava-asm",
+        "prebuilts-metalava-guava",
+        "prebuilts-metalava-lint",
+        "prebuilts-metalava-psi",
     ],
 }

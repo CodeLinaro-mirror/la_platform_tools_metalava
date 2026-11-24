@@ -17,9 +17,9 @@
 package com.android.tools.metalava.cli.common
 
 import com.android.tools.metalava.reporter.Baseline
-import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
+import java.nio.file.Path
 
 const val ARG_DELETE_EMPTY_BASELINES = "--delete-empty-baselines"
 const val ARG_PASS_BASELINE_UPDATES = "--pass-baseline-updates"
@@ -27,11 +27,8 @@ const val ARG_PASS_BASELINE_UPDATES = "--pass-baseline-updates"
 /** The name of the group, can be used in help text to refer to the options in this group. */
 const val BASELINE_OPTIONS_GROUP = "Baseline Files"
 
-class CommonBaselineOptions(
-    sourceOptions: SourceOptions = SourceOptions(),
-    issueReportingOptions: IssueReportingOptions = IssueReportingOptions(),
-) :
-    OptionGroup(
+class CommonBaselineOptions() :
+    MetalavaOptionGroup(
         name = BASELINE_OPTIONS_GROUP,
         help =
             """
@@ -50,17 +47,7 @@ class CommonBaselineOptions(
             )
             .flag()
 
-    internal val baselineConfig by
-        lazy(LazyThreadSafetyMode.NONE) {
-            Baseline.Config(
-                issueConfiguration = issueReportingOptions.issueConfiguration,
-                deleteEmptyBaselines = deleteEmptyBaselines,
-                sourcePath = sourceOptions.sourcePath,
-            )
-        }
-
-    /** If updating baselines, don't fail the build */
-    internal val passBaselineUpdates by
+    private val passBaselineUpdates by
         option(
                 ARG_PASS_BASELINE_UPDATES,
                 help =
@@ -73,4 +60,41 @@ class CommonBaselineOptions(
                         .trimIndent()
             )
             .flag()
+
+    /**
+     * Returns a [ComputedCommonBaselineOptions] instance based on the current state of the options.
+     */
+    fun compute(
+        sourceOptions: SourceOptions = SourceOptions(),
+        issueReportingOptions: ComputedIssueReportingOptions,
+        rootFolder: Path = Path.of("").toAbsolutePath(),
+    ): ComputedCommonBaselineOptions {
+        return ComputedCommonBaselineOptions(
+            deleteEmptyBaselines = deleteEmptyBaselines,
+            passBaselineUpdates = passBaselineUpdates,
+            sourceOptions = sourceOptions,
+            issueReportingOptions = issueReportingOptions,
+            rootFolder = rootFolder,
+        )
+    }
+}
+
+/** Options related to baselines and additional values computed based on those options. */
+class ComputedCommonBaselineOptions(
+    private val deleteEmptyBaselines: Boolean,
+    /** If updating baselines, don't fail the build */
+    internal val passBaselineUpdates: Boolean,
+    sourceOptions: SourceOptions,
+    issueReportingOptions: ComputedIssueReportingOptions,
+    rootFolder: Path,
+) {
+    internal val baselineConfig by
+        lazy(LazyThreadSafetyMode.NONE) {
+            Baseline.Config(
+                issueConfiguration = issueReportingOptions.issueConfiguration,
+                deleteEmptyBaselines = deleteEmptyBaselines,
+                sourcePath = sourceOptions.sourcePath,
+                rootFolder = rootFolder,
+            )
+        }
 }

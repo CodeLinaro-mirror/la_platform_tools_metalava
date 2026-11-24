@@ -18,11 +18,11 @@ package com.android.tools.metalava.model.testsuite.documentation
 
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import java.util.EnumSet
-import kotlin.test.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TestRule
@@ -31,6 +31,7 @@ import org.junit.runners.Parameterized
 import org.junit.runners.model.Statement
 
 /** Common tests for implementations of [ItemDocumentation] */
+@SupportedInputFormats(InputFormat.JAVA, InputFormat.KOTLIN)
 class CommonParameterizedDocumentationTest : BaseModelTest() {
 
     @Parameterized.Parameter(0) lateinit var params: TestParams
@@ -85,7 +86,7 @@ class CommonParameterizedDocumentationTest : BaseModelTest() {
                     inputFormats = javaOnly,
                     imports = listOf("java.util.List"),
                     comment = "/** {@link List} */",
-                    expectedFullyQualified = "/** {@link java.util.List List} */",
+                    expectedText = "/** {@link java.util.List List} */",
                 ),
                 TestParams(
                     name = "doc comment with link - kotlin",
@@ -147,9 +148,7 @@ class CommonParameterizedDocumentationTest : BaseModelTest() {
             )
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
-            val documentation = testClass.documentation
-
-            assertEquals(params.expectedText, documentation.text)
+            testClass.assertPrintedDocumentation(expectedOutput = params.expectedText)
         }
     }
 
@@ -177,9 +176,8 @@ class CommonParameterizedDocumentationTest : BaseModelTest() {
             )
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
-            val documentation = testClass.documentation
 
-            assertEquals(params.expectedFullyQualified, documentation.fullyQualifiedDocumentation())
+            testClass.assertPrintedDocumentation(params.expectedFullyQualified + "\n")
         }
     }
 }

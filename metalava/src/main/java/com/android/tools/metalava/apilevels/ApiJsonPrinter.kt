@@ -34,8 +34,8 @@ internal class ApiJsonPrinter : ApiPrinter {
     private fun ApiClass.toJson() =
         toJson("class") +
             mapOf(
-                "methods" to methods.map { it.toJson("method") },
-                "fields" to fields.map { it.toJson("field") }
+                "methods" to methods.sorted().map { it.toJson("method") },
+                "fields" to fields.sorted().map { it.toJson("field") }
             )
 
     private fun ApiElement.toJson(elementType: String) =

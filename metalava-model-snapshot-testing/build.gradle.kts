@@ -37,9 +37,10 @@ dependencies {
     // SourceModelProvider.
     testImplementation(testFixtures(project(":metalava-model-source")))
 
-    // Include the turbine model's SourceModelProvider so that the test suite will run its Java
+    // Include the turbine model's SourceModelProvider, if available (i.e. when
+    // ../../external/turbine is present in the checkout), so that the test suite will run its Java
     // based tests on a snapshot of the codebase it produces.
-    testImplementation(project(":metalava-model-turbine"))
+    findProject(":metalava-model-turbine")?.let { testImplementation(it) }
 
     // Include the psi model's SourceModelProvider so that the test suite will run its Java based
     // tests on a snapshot of the codebase it produces.

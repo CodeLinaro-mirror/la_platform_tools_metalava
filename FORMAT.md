@@ -1,7 +1,13 @@
 # Signature Formats
 
-This document describes the signature file format created and used by metalava,
-doclava, apicheck, etc.
+For accurate information about signature file formats supported by Metalava see:
+```
+    metalava help signature-file-formats
+```
+
+The rest of this document provides some historical context on the changes that
+have been made but is not 100% accurate. (For the canonical documentation of the
+signature file formats, see the command above.)
 
 There are currently 3 versions of this format:
 
@@ -22,16 +28,16 @@ There are currently 3 versions of this format:
    values, as well as cleans up a number of things (such as dropping
    java.lang. prefixes on types, etc)
 
-3. This is format v2, but with all nullness annotations replaced by a
-   Kotlin-syntax, e.g. "?" for nullable types, "!" for unknown/platform types,
-   and no suffix for non-nullable types. The initial plan was to include this
-   in format v2, but it was deferred since type-use annotations introduces
-   some complexities in the implementation.
+3. Format 4.0, which is format 4.0 but with all nullness annotations replaced by
+   a Kotlin-syntax, e.g. "?" for nullable types, "!" for unknown/platform types,
+   and no suffix for non-nullable types. The initial plan was to include this in
+   format 2.0, but it was deferred since type-use annotations introduces some
+   complexities in the implementation.
 
 
 ## Motivation
 
-Why did we change from the historical doclava signature format (v1)
+Why did we change from the historical doclava signature format (1.0)
 to a new format?
 
 In order to support Kotlin better (though this will also benefit Java
@@ -50,16 +56,16 @@ other changes too.
 
 ### Comments
 
-In v2, line comments (starting with //) are allowed. This allows us to leave
+In 2.0, line comments (starting with //) are allowed. This allows us to leave
 reminders and other issues with the signature source (though the update-api task
 will generally blow these away, so use sparingly.)
 
 ### Header
 
-New signature files (v2+) generally include a file header comment which states
+New signature files (2.0+) generally include a file header comment which states
 the version number. This makes it possible for tools to more safely interpret
-signature files. For example, in v3 the type "String" means "@NonNull String",
-but in v2 "String" means "String with unknown nullness".
+signature files. For example, in 3.0 the type "String" means "@NonNull String",
+but in 2.0 "String" means "String with unknown nullness".
 
 The header looks like this:
 
@@ -98,7 +104,7 @@ The annotations should be sorted alphabetically by fully qualified name.
 
 ### Use Special Syntax or Nullness Annotations
 
-(Note: Only in version format 3+)
+(Note: Only in version format 4.0+)
 
 As a special optimization, since we eventually want **all** APIs to have
 explicit nullness, use Kotlin's syntax for nullness. That means that for
@@ -152,13 +158,13 @@ The above signature line is turned into
 
 ### Clean Up Terminology
 
-Format v2 also cleans up some of the terminology used to describe the class
-structure in the signature file. For example, in v1, an interface is called an
+Format 2.0 also cleans up some of the terminology used to describe the class
+structure in the signature file. For example, in 1.0, an interface is called an
 "abstract interface"; an interface extending another interface is said to
 "implement" it instead of "extend"-ing it, etc; enums and annotations are just
 referred to as classes that extend java.lang.Enum, or java.lang.Annotation etc.
 
-With these changes, these lines from v1 signature files:
+With these changes, these lines from 1.0 signature files:
 
 
 ```
@@ -181,7 +187,7 @@ are replaced by
 
 ### Use Generics Everywhere
 
-The v1 signature files uses raw types in some places but not others.  Note that
+The 1.0 signature files uses raw types in some places but not others.  Note that
 in the above it was missing from super interface Collection:
 
 
@@ -190,7 +196,7 @@ in the above it was missing from super interface Collection:
 ```
 
 
- whereas in the v2 format it's included:
+ whereas in the 2.0 format it's included:
 
 
 ```
@@ -198,14 +204,14 @@ in the above it was missing from super interface Collection:
 ```
 
 
-Similarly, v1 used erasure in throws clauses. For example, for this method:
+Similarly, 1.0 used erasure in throws clauses. For example, for this method:
 
 
 ```
     public <X extends Throwable> T orElseThrow(Supplier<? extends X> exceptionSupplier) throws X
 ```
 
-v1 used this signature:
+1.0 used this signature:
 
 
 ```
@@ -214,7 +220,7 @@ v1 used this signature:
 
 Note how that's "throws Throwable" instead of "throws X". This results in b/110302703.
 
-In the v2 format we instead use the correct throws type:
+In the 2.0 format we instead use the correct throws type:
 
 ```
  method public <X extends java.lang.Throwable> T orElseThrow(java.util.function.Supplier<? extends X>) throws X;
@@ -231,7 +237,7 @@ The old format was completely missing annotation type methods:
 ```
 
 We need to include annotation member methods, as well as their default values
-since those are API-significant. Here's how this looks in the v2 file format
+since those are API-significant. Here's how this looks in the 2.0 file format
 (also applying the @interface terminology change described above) :
 
 
@@ -256,7 +262,7 @@ This doesn't currently apply to the SDK, but the signature files are also used
 in the support library, and some of these are written in Kotlin and exposes
 Kotlin-specific APIs.
 
-That means the v2 format can express API-significant aspects of Kotlin. This
+That means the 2.0 format can express API-significant aspects of Kotlin. This
 includes special modifiers, such as sealed, inline, operator, infix, etc:
 
 ```
@@ -301,47 +307,30 @@ Here's an example:
     method public static void edit(android.content.SharedPreferences, boolean commit);
 ```
 
-In v1 files we only list type names, but in v2 we allow an optional parameter
+In 1.0 files we only list type names, but in 2.0 we allow an optional parameter
 name to be specified; "commit" in the above.
 
-Note that this isn't just for Kotlin. Just like there are special nullness
-annotations to mark up the null contract for an element, we will also have a
-special annotation to explicitly name a Java parameter:
-@android.annotation.ParameterName (which is hidden). This obviously isn't usable
-from Java, but Kotlin client code can now reference the parameter.
-
-Therefore, the following Java code (not signature code) will also produce
-exactly the same signature as the above:
-
-```
-    public static void edit(SharedPreferences prefs, @ParameterName("commit") boolean ct) {…}
-```
-
-(Note how the implementation parameter doesn't have to match the public, API
-name of the parameter.)
+Note that this is just for Kotlin. There is no support for using this for Java
+as Java does not consider parameter names to be part of the API and so Kotlin
+will not use parameter names when calling Java.
 
 ### Support Default Values
 
+(Note: Only in version format 4.0+)
+
 In addition to named parameters, Kotlin also supports default values. These are
-also be part of the v2 signature since (as an example) removing a default value
+also part of the signature since (as an example) removing a default value
 is a compile-incompatible change.
 
-Therefore, the v2 format allows default values to be specified after the type
-and/or parameter name:
+Therefore, the format allows indicating that a parameter has a default value
+using the pseudo-modifier `optional` before the parameter:
 
 ```
-    method public static void edit(SharedPreferences, boolean commit = false);
+    method public static void edit(SharedPreferences, optional boolean commit);
 ```
 
-For Kotlin code, the default parameter values are extracted automatically, and
-for Java, just as with parameter names, you can specify a special annotation to
-record the default value for usage from languages that support default parameter
-values:
-
-```
-    public static void edit(SharedPreferences prefs, @DefaultValue("false") boolean ct) {…}
-```
-
+For Kotlin code, the default parameter values are extracted automatically.
+However, Java does not provide any way of specifying default values.
 
 ### Include Inherited Methods
 
@@ -349,7 +338,7 @@ Consider a scenario where a public class extends a hidden class, and that hidden
 class defines a public method.
 
 Doclava did not include these methods in the signature files, but they **were**
-present in the stub files (and therefore part of the API). In the v2 signature
+present in the stub files (and therefore part of the API). In the 2.0 signature
 file format, we include these.
 
 An example of this is StringBuilder#setLength. According to the old signature
@@ -378,7 +367,7 @@ generated by the compiler. There's no reason to list these in the signature
 files since they're entirely implied by the enum, you can't change them, and
 it's just extra noise.
 
-In the new v2 format these are no longer present:
+In the new 2.0 format these are no longer present:
 
 ```
   public static enum CursorJoiner.Result {
@@ -419,19 +408,19 @@ https://kotlinlang.org/docs/reference/coding-conventions.html#modifiers
 ### Sort Classes By Fully Qualified Names
 
 In "extends" lists, the signature file can list a comma separated list of
-classes. The classes are listed by fully qualified name, but in v1 it was sorted
-by simple name. In the v2 format, we sort by fully qualified name instead.
+classes. The classes are listed by fully qualified name, but in 1.0 it was sorted
+by simple name. In the 2.0 format, we sort by fully qualified name instead.
 
 ### Use Wildcards Consistently
 
-Doclava (v1) would sometimes use the type bound <?> and other times use <?
-extends Object>. These are equivalent. In the v2 format, <? extends Object> is
+Doclava (1.0) would sometimes use the type bound <?> and other times use <?
+extends Object>. These are equivalent. In the 2.0 format, <? extends Object> is
 always written as <?>.
 
 ### Annotation Simple Names
 
 We have a number of annotations which are significant for the API -- not just
-the nullness as deprecation ones (which are specially supported in v3 via the
+the nullness as deprecation ones (which are specially supported in 3.0 via the
 ?/! Kotlin syntax and the deprecated "modifier"), but annotations for permission
 requirements, range constraints, valid constant values for an integer, and so
 on.
@@ -447,7 +436,7 @@ signature file? The one that appeared in the source (which is hidden, or in the
 case of Kotlin code, a special JetBrains nullness annotation), or the one that
 it gets translated into?
 
-In v2 we do neither: We use only the simple name of the annotations in the
+In 2.0 we do neither: We use only the simple name of the annotations in the
 signature file, for annotations that are in the well known packages. In other
 words, instead of any of these alternative declarations:
 
@@ -456,7 +445,7 @@ words, instead of any of these alternative declarations:
    method public void setTitleTextColor(@androidx.annotation.ColorInt int);
 ```
 
-in v2 we have simply
+in 2.0 we have simply
 
 ```
    method public void setTitleTextColor(@ColorInt int);
@@ -465,7 +454,7 @@ in v2 we have simply
 ### Simple Names in Java.lang
 
 In Java files, you can implicitly reference classes in java.lang without
-importing them. In v2 offer the same thing in signature files. There are several
+importing them. In 2.0 offer the same thing in signature files. There are several
 classes from java.lang that are used in lots of places in the signature file
 (java.lang.String alone is present in over 11,000 lines of the API file), and
 other common occurrences are java.lang.Class, java.lang.Integer,
@@ -480,7 +469,7 @@ java.lang.reflect.Method will **not** be shortened to reflect.Method.
 
 ### Type Use Annotations
 
-In v3, "type use annotations" are supported which means annotations can appear
+In 3.0, "type use annotations" are supported which means annotations can appear
 within types.
 
 ### Skipping some signatures
@@ -492,14 +481,14 @@ also that some modifiers are implicit; for example, if a method is implementing
 a method from an interface, the interface method is implicitly abstract, so the
 implementation will be included in the signature file.
 
-In v2, we take this one step further: If a method differs **only** from its
+In 2.0, we take this one step further: If a method differs **only** from its
 overridden method by "final", **and** if the containing class is final, then the
 method is not included in the signature file. The same is the case for
 deprecated.
 
 ### Miscellaneous
 
-Some other minor tweaks in v2:
+Some other minor tweaks in 2.0:
 
 *   Fix formatting for package private elements. These had two spaces of
     indentation; this is probably just a bug. The new format aligns their
@@ -509,12 +498,12 @@ Some other minor tweaks in v2:
 ## Historical API Files
 
 Metalava can read and write these formats. To switch output formats, invoke it
-with for example --format=v2.
+with for example --format=2.0.
 
 The Android source tree also has checked in versions of the signatures for all
 the previous API levels. Metalava can regenerate these for a new format.
-For example, to update all the signature files to v3, run this command:
+For example, to update all the signature files to 4.0, run this command:
 
 ```
-$ metalava android-jars-to-signatures *<android source dir>* --format=v3
+$ metalava android-jars-to-signatures *<android source dir>* --format=4.0
 ```

@@ -16,19 +16,16 @@
 
 package com.android.tools.metalava.cli.common
 
-import com.android.tools.metalava.OptionsDelegate
-import com.android.tools.metalava.ProgressTracker
-import com.android.tools.metalava.run
-import com.android.tools.metalava.testing.TemporaryFolderOwner
+import com.android.tools.lint.checks.infrastructure.TestFile
+import com.android.tools.metalava.createTraceDriver
+import com.android.tools.metalava.testing.BaseTemporaryFolderOwner
+import com.android.tools.metalava.trace
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.subcommands
 import java.io.File
-import org.junit.After
 import org.junit.Assert
-import org.junit.Before
 import org.junit.Rule
 import org.junit.rules.ErrorCollector
-import org.junit.rules.TemporaryFolder
 
 /**
  * Base class for command related tests.
@@ -38,7 +35,7 @@ import org.junit.rules.TemporaryFolder
  */
 abstract class BaseCommandTest<C : CliktCommand>(
     internal val commandFactory: (ExecutionEnvironment) -> C
-) : TemporaryFolderOwner {
+) : BaseTemporaryFolderOwner() {
 
     /**
      * Collects errors during the running of the test and reports them at the end.
@@ -49,19 +46,6 @@ abstract class BaseCommandTest<C : CliktCommand>(
      * tests.
      */
     @get:Rule val errorCollector = ErrorCollector()
-
-    /** Provides access to temporary files. */
-    @get:Rule override val temporaryFolder = TemporaryFolder()
-
-    @Before
-    fun ensureTestDoesNotAccessOptionsLeakedFromAnotherTest() {
-        OptionsDelegate.disallowAccess()
-    }
-
-    @After
-    fun ensureTestDoesNotLeakOptionsToAnotherTest() {
-        OptionsDelegate.disallowAccess()
-    }
 
     /**
      * Type safe builder for configuring and running a command related test.
@@ -98,6 +82,52 @@ class CommandTestConfig<C : CliktCommand>(private val test: BaseCommandTest<C>) 
      */
     val args = mutableListOf<String>()
 
+    /** Add a [TestFile] to [args] by creating a [File] and adding its [File.path]. */
+    operator fun MutableList<String>.plusAssign(testFile: TestFile) {
+        this += testFile.createFile(test.temporaryFolder.root)
+    }
+
+    /**
+     * Make it easy to add anything to the [args] list by automatically calling [toString] on it.
+     *
+     * If the [toString] value is wrong then it will quickly be found by the test.
+     */
+    operator fun MutableList<String>.plusAssign(arg: Any) {
+        add(arg.toString())
+    }
+
+    /**
+     * Make it easy to add anything to the [args] list by automatically calling [toString] on it.
+     *
+     * If the [toString] value is wrong then it will quickly be found by the test.
+     */
+    operator fun MutableList<String>.plusAssign(args: Iterable<Any>) {
+        args.mapTo(this) { it.toString() }
+    }
+
+    /**
+     * Make it easy to add anything to the [args] list by automatically calling [toString] on it.
+     *
+     * If the [toString] value is wrong then it will quickly be found by the test.
+     */
+    operator fun MutableList<String>.plusAssign(args: Array<Any>) {
+        args.mapTo(this) { it.toString() }
+    }
+
+    /** Add an option and a [TestFile]. */
+    @JvmName("plusAssignOptionAndTestFile") // Prevent JVM signature clash with below.
+    operator fun MutableList<String>.plusAssign(flagWithFile: Pair<String, TestFile>) {
+        this += flagWithFile.first
+        this += flagWithFile.second
+    }
+
+    /** Add an option and anything else. */
+    @JvmName("plusAssignOptionAndAnything") // Prevent JVM signature clash with above.
+    operator fun MutableList<String>.plusAssign(flagWithFile: Pair<String, Any>) {
+        this += flagWithFile.first
+        this += flagWithFile.second
+    }
+
     /**
      * The expected output, defaults to an empty string.
      *
@@ -111,6 +141,8 @@ class CommandTestConfig<C : CliktCommand>(private val test: BaseCommandTest<C>) 
      * This will be checked after running the test.
      */
     var expectedStderr: String = ""
+
+    var stdin: String = ""
 
     /**
      * The command that is being tested.
@@ -143,6 +175,15 @@ class CommandTestConfig<C : CliktCommand>(private val test: BaseCommandTest<C>) 
         f.writeText(contents)
         return f
     }
+
+    /**
+     * Create a file that can be passed as an input to a command.
+     *
+     * @param contents the contents of the file, will have [String.trimIndent] called before passing
+     *   to [inputFile].
+     */
+    fun unindentedInputFile(name: String, contents: String, parentDir: File? = null) =
+        inputFile(name, contents.trimIndent(), parentDir)
 
     /**
      * Get the path to a file that can be passed as an output from a command.
@@ -201,15 +242,27 @@ class CommandTestConfig<C : CliktCommand>(private val test: BaseCommandTest<C>) 
 
     /** Run the test defined by the configuration. */
     internal fun runTest() {
-        val (executionEnvironment, stdout, stderr) = ExecutionEnvironment.forTest()
+        val (executionEnvironment, stdout, stderr) = ExecutionEnvironment.forTest(stdin)
 
         // Runs the command
-        command = test.commandFactory(executionEnvironment)
+        if (!::command.isInitialized) {
+            command = test.commandFactory(executionEnvironment)
+        }
         exitCode = runCommand(executionEnvironment, command)
 
         // Add checks of the expected stderr and stdout at the head of the list of verifiers.
-        verify(0) { Assert.assertEquals(expectedStderr, test.cleanupString(stderr.toString())) }
-        verify(1) { Assert.assertEquals(expectedStdout, test.cleanupString(stdout.toString())) }
+        verify(0) {
+            Assert.assertEquals(
+                expectedStderr,
+                test.removeTestSpecificDirectories(stderr.toString())
+            )
+        }
+        verify(1) {
+            Assert.assertEquals(
+                expectedStdout,
+                test.removeTestSpecificDirectories(stdout.toString())
+            )
+        }
 
         // Invoke all the verifiers.
         for (verifier in verifiers) {
@@ -219,16 +272,16 @@ class CommandTestConfig<C : CliktCommand>(private val test: BaseCommandTest<C>) 
     }
 
     private fun runCommand(executionEnvironment: ExecutionEnvironment, command: C): Int {
-        val progressTracker = ProgressTracker(stdout = executionEnvironment.stdout)
+        val argsArray = args.toTypedArray()
+        val earlyOptions = EarlyOptions.parse(argsArray)
+        // If a trace file was specified, run tracing for the test.
+        val traceDriver = createTraceDriver(earlyOptions.traceFile)
+        traceDriver.use {
+            val metalavaCommand =
+                MetalavaCommand(executionEnvironment = executionEnvironment, tracer = it.tracer)
 
-        val metalavaCommand =
-            MetalavaCommand(
-                executionEnvironment = executionEnvironment,
-                progressTracker = progressTracker,
-            )
-
-        metalavaCommand.subcommands(command)
-
-        return metalavaCommand.process(args.toTypedArray())
+            metalavaCommand.subcommands(command)
+            return it.tracer.trace("process") { metalavaCommand.process(argsArray) }
+        }
     }
 }

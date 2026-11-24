@@ -1,5 +1,82 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<issues format="6" by="lint 8.4.0-alpha07" type="baseline" client="gradle" dependencies="false" name="AGP (8.4.0-alpha07)" variant="all" version="8.4.0-alpha07">
+<issues format="6" by="lint 9.0.0-beta03" type="baseline" client="gradle" dependencies="false" name="AGP (9.0.0-beta03)" variant="all" version="9.0.0-beta03">
+
+    <issue
+        id="UElementAsPsi"
+        message="Do not use `UElement` as `PsiElement`"
+        errorLine1="                    fromContext(containingMethod)"
+        errorLine2="                                ~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/android/tools/metalava/model/psi/KotlinTypeInfo.kt"
+            line="272"
+            column="33"/>
+    </issue>
+
+    <issue
+        id="UElementAsPsi"
+        message="Do not use `UElement` as `PsiElement`"
+        errorLine1="                    fromKtElement(sourcePsi, context)"
+        errorLine2="                                             ~~~~~~~">
+        <location
+            file="src/main/java/com/android/tools/metalava/model/psi/KotlinTypeInfo.kt"
+            line="279"
+            column="46"/>
+    </issue>
+
+    <issue
+        id="UElementAsPsi"
+        message="Do not use `UElement` as `PsiElement`"
+        errorLine1="                            parameterIndex == containingMethod.parameters.size - 1"
+        errorLine2="                                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/android/tools/metalava/model/psi/KotlinTypeInfo.kt"
+            line="289"
+            column="47"/>
+    </issue>
+
+    <issue
+        id="UElementAsPsi"
+        message="Do not use `UElement` as `PsiElement`"
+        errorLine1="                        fromKtElement(sourcePsi.valueParameters[parameterIndex], context)"
+        errorLine2="                                                                                 ~~~~~~~">
+        <location
+            file="src/main/java/com/android/tools/metalava/model/psi/KotlinTypeInfo.kt"
+            line="300"
+            column="82"/>
+    </issue>
+
+    <issue
+        id="UElementAsPsi"
+        message="Do not use `UElement` as `PsiElement`"
+        errorLine1="                        fromKtElement(sourcePsi.property, context)"
+        errorLine2="                                                          ~~~~~~~">
+        <location
+            file="src/main/java/com/android/tools/metalava/model/psi/KotlinTypeInfo.kt"
+            line="307"
+            column="59"/>
+    </issue>
+
+    <issue
+        id="UElementAsPsi"
+        message="Do not use `UElement` as `PsiElement`"
+        errorLine1="        if (element is UMethod &amp;&amp; (element.sourceElement is KtPropertyAccessor)) {"
+        errorLine2="                                   ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/android/tools/metalava/model/psi/PsiModifierItem.kt"
+            line="273"
+            column="36"/>
+    </issue>
+
+    <issue
+        id="UElementAsPsi"
+        message="Do not use `UElement` as `PsiElement`"
+        errorLine1="            val sourceElement = element.sourceElement"
+        errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/android/tools/metalava/model/psi/PsiModifierItem.kt"
+            line="274"
+            column="33"/>
+    </issue>
 
     <issue
         id="UastImplementation"
@@ -7,42 +84,42 @@
         errorLine1="import org.jetbrains.uast.kotlin.KotlinUMethodWithFakeLightDelegateBase"
         errorLine2="~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/com/android/tools/metalava/model/psi/PsiMethodItem.kt"
-            line="43"
+            file="src/main/java/com/android/tools/metalava/model/psi/PsiClassBuilder.kt"
+            line="57"
             column="1"/>
     </issue>
 
     <issue
         id="UastImplementation"
+        message="org.jetbrains.uast.kotlin.psi.UastFakeSourceLightMethod is UAST implementation. Consider using one of its corresponding UAST interfaces."
+        errorLine1="import org.jetbrains.uast.kotlin.psi.UastFakeSourceLightMethod"
+        errorLine2="~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/android/tools/metalava/model/psi/PsiClassBuilder.kt"
+            line="58"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UastImplementation"
+        message="org.jetbrains.uast.kotlin.psi.UastFakeSourceLightMethod is UAST implementation. Consider using one of its corresponding UAST interfaces."
+        errorLine1="                (psiMethod is UastFakeSourceLightMethod ||"
+        errorLine2="                              ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/android/tools/metalava/model/psi/PsiClassBuilder.kt"
+            line="229"
+            column="31"/>
+    </issue>
+
+    <issue
+        id="UastImplementation"
         message="org.jetbrains.uast.kotlin.KotlinUMethodWithFakeLightDelegateBase is UAST implementation. Consider using one of its corresponding UAST interfaces: `UMethod`, `UDeclaration`, `UAnnotated`, `UAnchorOwner`"
-        errorLine1="                if (psiMethod is KotlinUMethodWithFakeLightDelegateBase&lt;*>) {"
+        errorLine1="                    psiMethod is KotlinUMethodWithFakeLightDelegateBase&lt;*>)"
         errorLine2="                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/com/android/tools/metalava/model/psi/PsiMethodItem.kt"
-            line="300"
+            file="src/main/java/com/android/tools/metalava/model/psi/PsiClassBuilder.kt"
+            line="230"
             column="34"/>
-    </issue>
-
-    <issue
-        id="UastImplementation"
-        message="org.jetbrains.uast.kotlin.KotlinUMethodWithFakeLightDelegateBase is UAST implementation. Consider using one of its corresponding UAST interfaces: `UMethod`, `UDeclaration`, `UAnnotated`, `UAnchorOwner`"
-        errorLine1="import org.jetbrains.uast.kotlin.KotlinUMethodWithFakeLightDelegateBase"
-        errorLine2="~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/android/tools/metalava/model/psi/PsiModifierItem.kt"
-            line="93"
-            column="1"/>
-    </issue>
-
-    <issue
-        id="UastImplementation"
-        message="org.jetbrains.uast.kotlin.KotlinUMethodWithFakeLightDelegateBase is UAST implementation. Consider using one of its corresponding UAST interfaces: `UMethod`, `UDeclaration`, `UAnnotated`, `UAnchorOwner`"
-        errorLine1="                element is KotlinUMethodWithFakeLightDelegateBase&lt;*> ->"
-        errorLine2="                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/android/tools/metalava/model/psi/PsiModifierItem.kt"
-            line="253"
-            column="28"/>
     </issue>
 
 </issues>

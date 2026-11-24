@@ -52,41 +52,74 @@ output_only_on_failure git fetch ${SPLIT_REPOSITORY_BRANCH}
 echo " - OK"
 
 echo -n "Checking to see if there is anything to merge"
-MERGE_BASE=$(git merge-base HEAD ${SOURCE_BRANCH})
-if [[ ${MERGE_BASE} == $(git rev-parse ${SOURCE_BRANCH}) ]]; then
+if git merge-base --is-ancestor "${SOURCE_BRANCH}" HEAD; then
   echo " - NOTHING TO DO"
   exit 0
 else
   echo " - CHANGES FOUND"
 fi
 
+# Collect upstream-upgrade merge commits (created by external_updater with
+# UPSTREAM_REV_ID:) whose upstream parent is not already an ancestor of HEAD,
+# while excluding raw upstream commits reachable from those second parents and
+# keeping branch-sync merge commits excluded so their Bug/Change-Id trailers are
+# not duplicated.
+UPGRADE_MERGES=()
+EXCLUDE_UPSTREAM=()
+for MERGE_COMMIT in $(git rev-list "HEAD..${SOURCE_BRANCH}" --merges --grep="^ *UPSTREAM_REV_ID:"); do
+  EXCLUDE_UPSTREAM+=("^${MERGE_COMMIT}^2")
+  if ! git merge-base --is-ancestor "${MERGE_COMMIT}^2" HEAD; then
+    UPGRADE_MERGES+=("${MERGE_COMMIT}")
+  fi
+done
+
+function merged_commit_logs() {
+  git log "HEAD..${SOURCE_BRANCH}" --no-merges ${EXCLUDE_UPSTREAM[@]+"${EXCLUDE_UPSTREAM[@]}"}
+  if [[ ${#UPGRADE_MERGES[@]} -gt 0 ]]; then
+    git show -s "${UPGRADE_MERGES[@]}"
+  fi
+}
+
 echo -n "Extracting bugs from merged in changes"
-BUGS=$(git log ${MERGE_BASE}..${SOURCE_BRANCH} --no-merges | (grep -E "^ *Bug: *[0-9]+" || true) | sed "s/Bug://" | sort -u -n)
+BUGS=$(merged_commit_logs | (grep -E "^ *Bug: *[0-9]+" || true) | sed "s/Bug://" | sort -u -n)
 echo " - DONE"
 
 echo -n "Extracting change list from merged in changes"
 
-# Get the Change-Id from the non-merge changes.
+# Get the Change-Id from the merged changes.
 # This uses the Change-Id rather than the SHA as the Change-Id is consistent
 # across branches but the SHA might not be.
-CHANGE_IDS=$(git log ${MERGE_BASE}..${SOURCE_BRANCH} --no-merges | (grep -E "^ *Change-Id: I*[0-9a-f]+" || true) | sed "s/^ *Change-Id: //")
+CHANGE_IDS=$(merged_commit_logs | (grep -E "^ *Change-Id: I*[0-9a-f]+" || true) | sed "s/^ *Change-Id: //")
 
-# Generate a query which will find only those changes which are from metalava-main.
-# All changes to tools/metalava must come from metalava-main or main (build changes).
-QUERY="(branch:metalava-main or branch:main) and ($(echo $CHANGE_IDS | sed 's/ / or /g')) and status:merged"
+trap 'rm -f "${MESSAGE_FILE-}" "${GERRIT_ERR-}"' EXIT
 
-# Generate a list of changes to insert in the commit message.
-# This queries the Android Gerrit as metalava development is always done in AOSP.
-CHANGE_LIST=$(/google/data/ro/projects/android/gerrit -g android -r --custom_raw_format '{o.number} {o.subject}' search "$QUERY" | while read NUMBER SUBJECT
-do
-  echo "* $SUBJECT"
-  echo "  - https://r.android.com/$NUMBER"
-done)
+if [[ -n "${CHANGE_IDS}" ]]; then
+  # Generate a query which will find only those changes which are from metalava-main.
+  # All changes to tools/metalava must come from metalava-main or main (build changes).
+  QUERY="(branch:metalava-main or branch:main) and ($(echo $CHANGE_IDS | sed 's/ / or /g')) and status:merged"
+
+  # Generate a list of changes to insert in the commit message.
+  # This queries the Android Gerrit as metalava development is always done in AOSP.
+  GERRIT_ERR=$(mktemp)
+  if ! GERRIT_OUTPUT=$(/google/data/ro/projects/android/gerrit -g android -r --custom_raw_format '{o.number} {o.subject}' search "$QUERY" 2>"${GERRIT_ERR}"); then
+    echo " - ERROR"
+    [[ -z "${GERRIT_OUTPUT}" ]] || echo "${GERRIT_OUTPUT}"
+    cat "${GERRIT_ERR}"
+    exit 1
+  fi
+  CHANGE_LIST=$(printf '%s\n' "${GERRIT_OUTPUT}" | while read -r NUMBER SUBJECT
+  do
+    [[ -n "${NUMBER}" ]] || continue
+    echo "* $SUBJECT"
+    echo "  - https://r.android.com/$NUMBER"
+  done)
+else
+  CHANGE_LIST=""
+fi
 echo " - DONE"
 
 echo -n "Performing the merge"
 MESSAGE_FILE=$(mktemp)
-trap "rm -f ${MESSAGE_FILE}" EXIT
 
 SCRIPT_PATH=${0##*metalava/}
 

@@ -1,0 +1,545 @@
+/*
+ * Copyright (C) 2025 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.android.tools.metalava.model.psi.kotlin
+
+import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.ArrayTypeItem
+import com.android.tools.metalava.model.BoundsTypeItem
+import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.JAVA_LANG_ENUM
+import com.android.tools.metalava.model.JAVA_LANG_STRING
+import com.android.tools.metalava.model.KOTLIN_CONTINUATION
+import com.android.tools.metalava.model.LambdaTypeItem
+import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.ReferenceTypeItem
+import com.android.tools.metalava.model.TypeArgumentTypeItem
+import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeModifiers
+import com.android.tools.metalava.model.TypeNullability
+import com.android.tools.metalava.model.TypeParameterScope
+import com.android.tools.metalava.model.WildcardTypeItem
+import com.android.tools.metalava.model.item.DefaultCodebase
+import com.android.tools.metalava.model.type.ContextNullability
+import com.android.tools.metalava.model.type.DefaultTypeItemFactory
+import com.android.tools.metalava.model.type.MethodFingerprint
+import org.jetbrains.kotlin.analysis.api.KaSession
+import org.jetbrains.kotlin.analysis.api.analyze
+import org.jetbrains.kotlin.analysis.api.symbols.KaClassSymbol
+import org.jetbrains.kotlin.analysis.api.symbols.KaNamedClassSymbol
+import org.jetbrains.kotlin.analysis.api.types.KaClassType
+import org.jetbrains.kotlin.analysis.api.types.KaDefinitelyNotNullType
+import org.jetbrains.kotlin.analysis.api.types.KaDynamicType
+import org.jetbrains.kotlin.analysis.api.types.KaErrorType
+import org.jetbrains.kotlin.analysis.api.types.KaFlexibleType
+import org.jetbrains.kotlin.analysis.api.types.KaFunctionType
+import org.jetbrains.kotlin.analysis.api.types.KaStarTypeProjection
+import org.jetbrains.kotlin.analysis.api.types.KaType
+import org.jetbrains.kotlin.analysis.api.types.KaTypeArgumentWithVariance
+import org.jetbrains.kotlin.analysis.api.types.KaTypeParameterType
+import org.jetbrains.kotlin.analysis.api.types.KaTypeProjection
+import org.jetbrains.kotlin.analysis.api.types.KaUsualClassType
+import org.jetbrains.kotlin.builtins.jvm.JavaToKotlinClassMap
+import org.jetbrains.kotlin.name.FqNameUnsafe
+import org.jetbrains.kotlin.types.Variance
+
+/**
+ * Constructs type items from [KaType]s.
+ *
+ * If [mapToJvmTypes] is true, converts kotlin types to java types as described in the kotlin docs:
+ * https://kotlinlang.org/docs/java-interop.html#mapped-types. Otherwise, leaves the kotlin types as
+ * kotlin types.
+ */
+internal class KaTypeItemFactory(
+    private val codebase: DefaultCodebase,
+    private val processor: KaModuleProcessor,
+    typeParameterScope: TypeParameterScope,
+    private val mapToJvmTypes: Boolean,
+) : DefaultTypeItemFactory<KaType, KaTypeItemFactory>(typeParameterScope) {
+    constructor(
+        codebase: DefaultCodebase,
+        processor: KaModuleProcessor,
+        classItem: ClassItem,
+        mapToJvmTypes: Boolean,
+    ) : this(codebase, processor, TypeParameterScope.from(classItem), mapToJvmTypes)
+
+    override fun self(): KaTypeItemFactory = this
+
+    override fun createNestedFactory(scope: TypeParameterScope): KaTypeItemFactory {
+        return KaTypeItemFactory(codebase, processor, scope, mapToJvmTypes)
+    }
+
+    override fun getType(
+        underlyingType: KaType,
+        contextNullability: ContextNullability,
+        isVarArg: Boolean
+    ): TypeItem {
+        // For a general type, primitives don't need to be boxed.
+        val type = underlyingType.toTypeItem(mustBoxPrimitives = false)
+        return if (isVarArg) {
+            TypeItem.createArrayType(
+                // Kotlin varargs are non-null, unlike Java varargs.
+                modifiers = TypeModifiers.emptyNonNullModifiers,
+                componentType = type,
+                isVarargs = true,
+            )
+        } else {
+            type
+        }
+    }
+
+    // Override to ensure primitives are boxed.
+    override fun getBoundsType(underlyingType: KaType): BoundsTypeItem {
+        return underlyingType.toTypeItem(mustBoxPrimitives = true) as BoundsTypeItem
+    }
+
+    // Override to ensure primitives are boxed.
+    override fun getHierarchicalClassType(underlyingType: KaType): ClassTypeItem {
+        return underlyingType.toTypeItem(mustBoxPrimitives = true).let {
+            (it as? LambdaTypeItem)?.asJvmClassType() ?: it as ClassTypeItem
+        }
+    }
+
+    // Override to handle Unit returns
+    override fun getMethodReturnType(
+        underlyingReturnType: KaType,
+        itemAnnotations: List<AnnotationItem>,
+        fingerprint: MethodFingerprint,
+        isAnnotationElement: Boolean
+    ): TypeItem {
+        return analyze(processor.kaModule) {
+            // Convert Unit returns to void
+            if (underlyingReturnType.isUnitType) {
+                TypeItem.createPrimitiveType(
+                    TypeModifiers.emptyNonNullModifiers,
+                    PrimitiveTypeItem.Primitive.VOID
+                )
+            } else {
+                super.getMethodReturnType(
+                    underlyingReturnType,
+                    itemAnnotations,
+                    fingerprint,
+                    isAnnotationElement
+                )
+            }
+        }
+    }
+
+    /**
+     * Creates a [TypeItem] from the [KaType].
+     *
+     * If [mustBoxPrimitives] is true, all primitive types are boxed. If it is false, they are only
+     * boxed when nullable.
+     */
+    private fun KaType.toTypeItem(mustBoxPrimitives: Boolean): TypeItem {
+        val typeItemNullability = let { kaType ->
+            analyze(processor.kaModule) { typeNullability(kaType) }
+        }
+        val typeItemAnnotations = annotations.mapNotNull { processor.createAnnotation(it) }
+        val modifiers = TypeModifiers.create(typeItemAnnotations, typeItemNullability)
+
+        // Expand type aliases
+        val expandedKaType = analyze(processor.kaModule) { fullyExpandedType }
+        // Convert expanded type to a TypeItem
+        return when (expandedKaType) {
+            is KaUsualClassType -> expandedKaType.toTypeItem(modifiers, mustBoxPrimitives)
+            is KaFunctionType -> expandedKaType.toLambdaTypeItem(modifiers)
+            is KaClassType ->
+                error(
+                    "expected class type to be KaUsualClassType or KaFunctionType, was $expandedKaType"
+                )
+            is KaTypeParameterType ->
+                TypeItem.createVariableType(
+                    modifiers = modifiers,
+                    asTypeParameter =
+                        typeParameterScope.getTypeParameter(expandedKaType.name.identifier),
+                )
+            // A flexible type has an upper and lower bound. This is used to represent types with
+            // Java platform nullability, so construct the type through one bound and then swap in
+            // the correct nullability (unless the type already has nullability from an annotation).
+            is KaFlexibleType -> {
+                val nullability =
+                    modifiers.annotations.map { it.typeNullability }.firstOrNull()
+                        ?: TypeNullability.PLATFORM
+                expandedKaType.lowerBound.toTypeItem(mustBoxPrimitives).substitute(nullability)
+            }
+            is KaDefinitelyNotNullType ->
+                expandedKaType.original
+                    .toTypeItem(mustBoxPrimitives)
+                    // Ensure correct nullability.
+                    .substitute(TypeNullability.NONNULL)
+            // Kotlin dynamic types can be used in code compiled to javascript (see
+            // https://kotlinlang.org/docs/dynamic-type.html).
+            // Currently, this is represented as a class type, if more robust support is needed in
+            // the future there would need to be a new TypeItem subclass introduced (b/495459207).
+            is KaDynamicType ->
+                TypeItem.createClassType(
+                    modifiers = modifiers,
+                    qualifiedName = "dynamic",
+                    arguments = emptyList(),
+                    outerClassType = null,
+                )
+            // To avoid runtime errors, construct an invalid class type for error types.
+            is KaErrorType ->
+                TypeItem.createClassType(
+                    modifiers = modifiers,
+                    qualifiedName = "ErrorType",
+                    arguments = emptyList(),
+                    outerClassType = null,
+                )
+            else -> error("Unable to process type: $this")
+        }
+    }
+
+    /** Creates a [LambdaTypeItem] from the [KaFunctionType]. */
+    private fun KaFunctionType.toLambdaTypeItem(modifiers: TypeModifiers): LambdaTypeItem {
+        val receiverTypeItem = receiverType?.toTypeItem(mustBoxPrimitives = true)
+        val originalParameterTypes = parameterTypes.map { it.toTypeItem(mustBoxPrimitives = true) }
+        val originalReturnType = returnType.toTypeItem(mustBoxPrimitives = true)
+
+        val (parameterTypeItems, returnTypeItem) =
+            if (isSuspend) {
+                // Suspend functions have an additional continuation parameter, using the original
+                // return type.
+                val continuationParameter = createContinuationType(originalReturnType)
+                val allParameters = originalParameterTypes + continuationParameter
+                // The return type for a suspend function is an object, now that the continuation
+                // with the original return type is added to the parameter list.
+                allParameters to createObjectWildcardTypeItem(TypeNullability.NONNULL)
+            } else {
+                originalParameterTypes to originalReturnType
+            }
+
+        // Lambda types are still created as class types, so all arguments need to be compiled into
+        // a list.
+        val arity = (if (receiverTypeItem == null) 0 else 1) + parameterTypeItems.size
+        val (qualifiedName, arguments) =
+            if (arity > LambdaTypeItem.MAX_SPECIFIC_FUNCTION_ARITY) {
+                "kotlin.jvm.functions.FunctionN" to listOf(returnTypeItem)
+            } else {
+                "kotlin.jvm.functions.Function$arity" to
+                    (listOfNotNull(receiverTypeItem) + parameterTypeItems + returnTypeItem)
+            }
+
+        return TypeItem.createLambdaType(
+            modifiers = modifiers,
+            qualifiedName = qualifiedName,
+            arguments = arguments.map { it as TypeArgumentTypeItem },
+            outerClassType = null,
+            isSuspend = isSuspend,
+            receiverType = receiverTypeItem,
+            parameterTypes = parameterTypeItems,
+            returnType = returnTypeItem,
+        )
+    }
+
+    /** For suspend functions, create a continuation type which is used as an extra parameter. */
+    internal fun createContinuationType(originalSuspendType: TypeItem): ClassTypeItem {
+        // This type is being used as the bound of a wildcard in the continuation, so if it is a
+        // primitive it needs to be boxed.
+        val suspendType =
+            if (originalSuspendType is PrimitiveTypeItem) {
+                boxType(originalSuspendType)
+            } else {
+                originalSuspendType
+            }
+        return TypeItem.createClassType(
+            modifiers = TypeModifiers.emptyNonNullModifiers,
+            qualifiedName = KOTLIN_CONTINUATION,
+            arguments =
+                listOf(createWildcardTypeItem(superBound = suspendType as ReferenceTypeItem)),
+            outerClassType = null,
+        )
+    }
+
+    /**
+     * Creates a [TypeItem] from the [KaUsualClassType]. This might be a class type, an array type,
+     * or a primitive type.
+     */
+    private fun KaUsualClassType.toTypeItem(
+        modifiers: TypeModifiers,
+        mustBoxPrimitives: Boolean
+    ): TypeItem {
+        val qualifiedName =
+            classId.asFqNameString().let {
+                if (mapToJvmTypes) {
+                    mapType(it)
+                } else {
+                    it
+                }
+            }
+
+        // Create a primitive type if allowed and possible.
+        if (!mustBoxPrimitives && modifiers.nullability != TypeNullability.NULLABLE) {
+            PrimitiveTypeItem.Primitive.forWrapperClassName(qualifiedName)?.let { primitive ->
+                return TypeItem.createPrimitiveType(modifiers, primitive)
+            }
+        }
+
+        // Create an array type if possible.
+        maybeToArrayTypeItem(modifiers)?.let {
+            return it
+        }
+
+        // Otherwise, create a class type.
+        val isValueClass =
+            analyze(processor.kaModule) {
+                (expandedSymbol as? KaNamedClassSymbol)?.isInline == true
+            }
+        return TypeItem.createClassType(
+            modifiers,
+            qualifiedName,
+            // The last element of the qualifiers is for the innermost type
+            qualifiers.last().typeArguments.toClassTypeArgumentItems(),
+            createOuterClassTypeItem(),
+            isValueClassType = isValueClass,
+        )
+    }
+
+    /** Constructs the outer class for a class type. */
+    private fun KaUsualClassType.createOuterClassTypeItem(): ClassTypeItem? {
+        // Information about all the type arguments for each class level is in the qualifiers. Skip
+        // the last element of the qualifiers, which are for the innermost class, as these will be
+        // handled in [createFromClassType].
+        val qualifiersToProcess = qualifiers.dropLast(1)
+        if (qualifiersToProcess.isEmpty()) return null
+
+        // Construct the outer class from the outermost class in.
+        var outerClass: ClassTypeItem? = null
+        for (qualifier in qualifiersToProcess) {
+            // It should be possible to get a fully qualified name from the qualifier, fall back to
+            // the simple name if it is not.
+            val originalQualifiedName =
+                (qualifier.symbol as? KaClassSymbol)?.classId?.asFqNameString()
+                    ?: qualifier.name.identifier
+            val qualifiedName =
+                if (mapToJvmTypes) {
+                    mapType(originalQualifiedName)
+                } else {
+                    originalQualifiedName
+                }
+
+            // If the outer class is a primitive class or String or Enum, the inner class is a
+            // companion which only exists for kotlin and gets mapped to a java type without an
+            // outer class.
+            if (
+                mapToJvmTypes &&
+                    (PrimitiveTypeItem.Primitive.forWrapperClassName(qualifiedName) != null ||
+                        qualifiedName == JAVA_LANG_STRING ||
+                        qualifiedName == JAVA_LANG_ENUM)
+            )
+                return null
+            outerClass =
+                TypeItem.createClassType(
+                    // Outer classes must be non-null.
+                    modifiers = TypeModifiers.emptyNonNullModifiers,
+                    qualifiedName = qualifiedName,
+                    arguments = qualifier.typeArguments.toClassTypeArgumentItems(),
+                    // Use the previous outer class as the outer class for this one.
+                    outerClassType = outerClass,
+                )
+        }
+        // Return the last outer class created, which will be the innermost of the outer classes.
+        return outerClass
+    }
+
+    /** Creates the arguments of a class type. */
+    private fun List<KaTypeProjection>.toClassTypeArgumentItems(): List<TypeArgumentTypeItem> {
+        return map {
+            when (it) {
+                // Using `*` bounds is equivalent to `? extends Object?`
+                is KaStarTypeProjection -> createObjectWildcardTypeItem(TypeNullability.NULLABLE)
+                is KaTypeArgumentWithVariance -> {
+                    val type = it.type.toTypeItem(mustBoxPrimitives = true) as TypeArgumentTypeItem
+                    when (it.variance) {
+                        Variance.OUT_VARIANCE ->
+                            createWildcardTypeItem(extendsBound = type as ReferenceTypeItem)
+                        Variance.IN_VARIANCE ->
+                            createWildcardTypeItem(superBound = type as ReferenceTypeItem)
+                        else -> type
+                    }
+                }
+            }
+        }
+    }
+
+    /** Creates an [ArrayTypeItem], if the [KaUsualClassType] represents an array. */
+    private fun KaUsualClassType.maybeToArrayTypeItem(modifiers: TypeModifiers): ArrayTypeItem? {
+        return analyze(processor.kaModule) {
+            // If there's an arrayElementType, this is an array type.
+            arrayElementType?.let { componentType ->
+                // An array type might be `kotlin.Array`, or it might be `kotlin.IntArray`,
+                // `kotlin.DoubleArray`, etc. When one of the special primitive array types is used,
+                // the primitive is not boxed, but primitives should be boxed when a regular Array
+                // type is used.
+                val boxPrimitives = classId.shortClassName.identifierOrNullIfSpecial == "Array"
+                TypeItem.createArrayType(
+                    modifiers = modifiers,
+                    componentType = componentType.toTypeItem(boxPrimitives),
+                    // Varargs aren't represented as an array ka type, instead [getType] will know
+                    // if a type is varargs from the parameter modifiers.
+                    isVarargs = false,
+                )
+            }
+        }
+    }
+
+    /** Creates a [WildcardTypeItem] with an object extends bound of the given [nullability]. */
+    private fun createObjectWildcardTypeItem(nullability: TypeNullability): WildcardTypeItem {
+        return createWildcardTypeItem(extendsBound = createObjectTypeItem(nullability))
+    }
+
+    /** Creates a [ClassTypeItem] representing java.lang.Object with the given [nullability]. */
+    internal fun createObjectTypeItem(
+        nullability: TypeNullability = TypeNullability.NULLABLE
+    ): ClassTypeItem {
+        return TypeItem.createClassType(
+            modifiers = TypeModifiers.create(emptyList(), nullability),
+            qualifiedName = "java.lang.Object",
+            arguments = emptyList(),
+            outerClassType = null,
+        )
+    }
+
+    /** Creates a [WildcardTypeItem] with the given [extendsBound] and [superBound]. */
+    private fun createWildcardTypeItem(
+        extendsBound: ReferenceTypeItem? = null,
+        superBound: ReferenceTypeItem? = null,
+    ): WildcardTypeItem {
+        return TypeItem.createWildcardType(
+            modifiers = TypeModifiers.emptyUndefinedModifiers,
+            extendsBound = extendsBound,
+            superBound = superBound,
+        )
+    }
+
+    /**
+     * If the [kaType] and [type] represent a value class type and is used as non-null, returns the
+     * inlined type. Otherwise returns the original type. In the case where a value class's inlined
+     * type is itself a value class, this recursively inlines the type.
+     */
+    internal fun inlineTypeIfNeeded(
+        kaType: KaType,
+        type: TypeItem,
+    ): TypeItem {
+        return analyze(processor.kaModule) {
+            if (type.isValueClassType) {
+                // Find the inlined type through the constructor of the value class. Value classes
+                // must have a single parameter for the primary constructor
+                val valueClass = kaType.expandedSymbol as KaNamedClassSymbol
+                val inlineKaType =
+                    valueClass.memberScope.constructors
+                        .first { it.isPrimary }
+                        .valueParameters
+                        .first()
+                        .returnType
+                // A value class can have type variables which are used in its inlined type. When
+                // inlining the type, the variables need to be in scope.
+                // Value classes cannot be inner or local, so only the type parameters of the class
+                // itself are necessary because it can't use variables from an outer scope.
+                val valueClassTypeFactory =
+                    processor
+                        .typeParameterListAndFactory(
+                            enclosingTypeItemFactory = this@KaTypeItemFactory,
+                            scopeDescription = "value class ${valueClass.name.identifier}",
+                            typeParameterSymbols = valueClass.typeParameters
+                        )
+                        .factory
+                // Create a TypeItem from the inlined ka type
+                val rawInlineType = valueClassTypeFactory.getGeneralType(inlineKaType)
+                // If the inlined type is a primitive and the value class type is nullable, it
+                // cannot be inlined to a primitive in bytecode because primitives cannot be null;
+                // the boxed value class type must be used instead. This must be checked before
+                // substituting nullability onto rawInlineType because PrimitiveTypeItem forces its
+                // nullability to NONNULL.
+                if (rawInlineType is PrimitiveTypeItem && type.modifiers.isNullable) {
+                    type
+                } else {
+                    // Propagate the outer value class type's nullability to the inlined type and
+                    // recursively inline if it is also a value class.
+                    val inlineType = rawInlineType.substitute(type.modifiers.nullability)
+                    inlineTypeIfNeeded(inlineKaType, inlineType)
+                }
+            } else {
+                type
+            }
+        }
+    }
+
+    /**
+     * If the [typeItem] is a primitive type but any of the [overrideTypes] it overrides is not,
+     * returns the boxed version of the primitive type. Otherwise, returns the original type.
+     */
+    internal fun handleOverrideBoxing(
+        typeItem: TypeItem,
+        overrideTypes: Sequence<KaType>
+    ): TypeItem {
+        return if (
+            typeItem is PrimitiveTypeItem &&
+                overrideTypes.any { analyze(processor.kaModule) { !it.isPrimitive } }
+        ) {
+            boxType(typeItem)
+        } else {
+            typeItem
+        }
+    }
+
+    /** Converts the [primitiveTypeItem] to the boxed java class type. */
+    private fun boxType(primitiveTypeItem: PrimitiveTypeItem): ClassTypeItem {
+        return TypeItem.createClassType(
+            modifiers = primitiveTypeItem.modifiers,
+            qualifiedName =
+                if (mapToJvmTypes) {
+                    primitiveTypeItem.kind.wrapperClass.canonicalName
+                } else {
+                    "kotlin." + primitiveTypeItem.kind.kotlinName
+                },
+            arguments = emptyList(),
+            outerClassType = null,
+        )
+    }
+
+    companion object {
+        /** Determines the [TypeNullability] of a [KaType]. */
+        internal fun KaSession.typeNullability(type: KaType): TypeNullability {
+            return when {
+                // The type is explicitly marked nullable.
+                type.isMarkedNullable -> TypeNullability.NULLABLE
+                // Flexible nullability is platform nullability from java.
+                type.hasFlexibleNullability -> TypeNullability.PLATFORM
+                // This means the type could possibly be null, but isn't explicitly marked as
+                // such. This might be a type variable usage, where the bounds of the type
+                // parameter would allow a nullable type, but it is also possible for a non-null
+                // type to be used. In this case we call the nullability undefined.
+                type.isNullable -> TypeNullability.UNDEFINED
+                // The type cannot be null.
+                else -> TypeNullability.NONNULL
+            }
+        }
+
+        /**
+         * Converts the qualified name of a
+         * [Kotlin mapped type](https://kotlinlang.org/docs/java-interop.html#mapped-types) to the
+         * Java equivalent, if possible. If the type is not a mapped type, just returns the original
+         * [qualifiedName].
+         */
+        private fun mapType(qualifiedName: String): String {
+            return JavaToKotlinClassMap.mapKotlinToJava(FqNameUnsafe(qualifiedName))
+                ?.asFqNameString() ?: qualifiedName
+        }
+    }
+}

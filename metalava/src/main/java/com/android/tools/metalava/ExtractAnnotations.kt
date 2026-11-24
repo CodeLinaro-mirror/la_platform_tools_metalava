@@ -16,10 +16,12 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.lint.annotations.Extractor
 import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PREFIX
+import com.android.tools.metalava.model.ANDROIDX_REQUIRES_PERMISSION_READ
+import com.android.tools.metalava.model.ANDROIDX_REQUIRES_PERMISSION_WRITE
 import com.android.tools.metalava.model.ANDROID_ANNOTATION_PREFIX
 import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
+import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.AnnotationTarget
@@ -30,33 +32,32 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_PREFIX
 import com.android.tools.metalava.model.MemberItem
-import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.api.surface.ApiSurface
+import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
 import com.android.tools.metalava.model.findAnnotation
-import com.android.tools.metalava.model.psi.CodePrinter
-import com.android.tools.metalava.model.psi.report
-import com.android.tools.metalava.model.psi.uAnnotation
-import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.model.testOrTrue
+import com.android.tools.metalava.model.value.AnnotationValue
+import com.android.tools.metalava.model.value.FieldReferenceValue
+import com.android.tools.metalava.model.value.SingleArrayElementFormat
+import com.android.tools.metalava.model.value.Value
+import com.android.tools.metalava.model.value.ValueStringConfiguration
+import com.android.tools.metalava.model.visitors.ApiFilters
+import com.android.tools.metalava.model.visitors.ApiFiltersVisitor
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
-import com.google.common.xml.XmlEscapers
-import com.intellij.psi.PsiAnnotation
-import com.intellij.psi.PsiNameValuePair
+import com.android.tools.metalava.xml.AMP_ENTITY
+import com.android.tools.metalava.xml.APOS_ENTITY
+import com.android.tools.metalava.xml.GT_ENTITY
+import com.android.tools.metalava.xml.LT_ENTITY
+import com.android.tools.metalava.xml.QUOT_ENTITY
 import java.io.BufferedOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.io.PrintWriter
-import java.io.StringWriter
 import java.util.jar.JarEntry
 import java.util.jar.JarOutputStream
-import kotlin.text.Charsets.UTF_8
-import org.jetbrains.uast.UAnnotation
-import org.jetbrains.uast.UCallExpression
-import org.jetbrains.uast.UExpression
-import org.jetbrains.uast.UastEmptyExpression
-import org.jetbrains.uast.UastFacade
-import org.jetbrains.uast.toUElement
 
 // Like the tools/base Extractor class, but limited to our own (mapped) AnnotationItems,
 // and only those with source retention (and in particular right now that just means the
@@ -65,32 +66,15 @@ class ExtractAnnotations(
     private val codebase: Codebase,
     private val reporter: Reporter,
     private val outputFile: File,
+    apiSurface: ApiSurface,
 ) :
-    ApiVisitor(
-        apiPredicateConfig = @Suppress("DEPRECATION") options.apiPredicateConfig,
+    ApiFiltersVisitor(
+        apiFilters = ApiFilters(reference = ApiSurfacePredicate.wholeCoreApi(apiSurface)),
     ) {
     // Used linked hash map for order such that we always emit parameters after their surrounding
     // method etc
     private val packageToAnnotationPairs =
         LinkedHashMap<PackageItem, MutableList<Pair<Item, AnnotationItem>>>()
-
-    private val fieldNamePrinter =
-        CodePrinter(
-            codebase = codebase,
-            reporter = reporter,
-            filterReference = filterReference,
-            inlineFieldValues = false,
-            skipUnknown = true,
-        )
-
-    private val fieldValuePrinter =
-        CodePrinter(
-            codebase = codebase,
-            reporter = reporter,
-            filterReference = filterReference,
-            inlineFieldValues = true,
-            skipUnknown = true,
-        )
 
     private val classToAnnotationHolder = mutableMapOf<String, AnnotationItem>()
 
@@ -105,6 +89,10 @@ class ExtractAnnotations(
                         .asSequence()
                         .sortedBy { it.qualifiedName() }
                         .toList()
+
+                // Create a print writer to the JarOutputStream. Care must be taken not to close
+                // this until all entries have been written.
+                val printWriter = PrintWriter(zos, true, Charsets.UTF_8)
 
                 for (pkg in sortedPackages) {
                     // Note: Using / rather than File.separator: jar lib requires it
@@ -121,7 +109,7 @@ class ExtractAnnotations(
                         pairs.sortBy { it.first.getExternalAnnotationSignature() }
                     }
 
-                    StringPrintWriter.create().use { writer ->
+                    printWriter.let { writer ->
                         writer.println("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<root>")
 
                         var open = false
@@ -147,11 +135,15 @@ class ExtractAnnotations(
                             writer.println()
                         }
                         writer.println("</root>\n")
-                        writer.close()
-                        val bytes = writer.contents.toByteArray(UTF_8)
-                        zos.write(bytes)
-                        zos.closeEntry()
+
+                        // Flush the writer to ensure all the data is written to the zip entry
+                        // before it is closed. Do not close the writer as that will close the whole
+                        // zip output stream.
+                        writer.flush()
                     }
+
+                    // Close the zip entry.
+                    zos.closeEntry()
                 }
             }
         }
@@ -162,7 +154,7 @@ class ExtractAnnotations(
             when (item) {
                 is ClassItem -> item.containingPackage()
                 is MemberItem -> item.containingClass().containingPackage()
-                is ParameterItem -> item.containingCallable().containingClass().containingPackage()
+                is ParameterItem -> item.containingClass().containingPackage()
                 else -> return
             }
 
@@ -233,7 +225,7 @@ class ExtractAnnotations(
                     typeDefClass.modifiers.findAnnotation(AnnotationItem::isTypeDefAnnotation)
                 if (typeDefAnnotation != null) {
                     // Make sure it has the right retention
-                    if (typeDefClass.getRetention() != AnnotationRetention.SOURCE) {
+                    if (typeDefClass.annotationClass.retention != AnnotationRetention.SOURCE) {
                         reporter.report(
                             Issues.ANNOTATION_EXTRACTION,
                             typeDefClass,
@@ -241,62 +233,26 @@ class ExtractAnnotations(
                         )
                     }
 
-                    if (filterEmit.test(typeDefClass)) {
-                        reporter.report(
-                            Issues.ANNOTATION_EXTRACTION,
-                            typeDefClass,
-                            "This typedef annotation class should be marked @hide or should not be marked public"
-                        )
-                    }
-
                     classToAnnotationHolder[className] = typeDefAnnotation
                     addItem(item, typeDefAnnotation)
-
-                    if (
-                        item is MethodItem &&
-                            !reporter.isSuppressed(Issues.RETURNING_UNEXPECTED_CONSTANT)
-                    ) {
-                        item.body.verifyReturnedConstants(typeDefAnnotation, typeDefClass)
-                    }
                 }
             }
         }
     }
 
-    /**
-     * A writer which stores all its contents into a string and has the ability to mark a certain
-     * freeze point and then reset back to it
-     */
-    private class StringPrintWriter constructor(private val stringWriter: StringWriter) :
-        PrintWriter(stringWriter) {
-        private var mark: Int = 0
-
-        val contents: String
-            get() = stringWriter.toString()
-
-        fun mark() {
-            flush()
-            mark = stringWriter.buffer.length
-        }
-
-        fun reset() {
-            stringWriter.buffer.setLength(mark)
-        }
-
-        override fun toString(): String {
-            return contents
-        }
-
-        companion object {
-            fun create(): StringPrintWriter {
-                return StringPrintWriter(StringWriter(1000))
+    private fun escapeXml(unescaped: String): String =
+        buildString(unescaped.length) {
+            for (ch in unescaped) {
+                when (ch) {
+                    '&' -> append(AMP_ENTITY)
+                    '<' -> append(LT_ENTITY)
+                    '>' -> append(GT_ENTITY)
+                    '"' -> append(QUOT_ENTITY)
+                    '\'' -> append(APOS_ENTITY)
+                    else -> append(ch)
+                }
             }
         }
-    }
-
-    private fun escapeXml(unescaped: String): String {
-        return XmlEscapers.xmlAttributeEscaper().escape(unescaped)
-    }
 
     private fun Item.getExternalAnnotationSignature(): String? {
         when (this) {
@@ -350,129 +306,196 @@ class ExtractAnnotations(
                 return escapeXml(containingClass().qualifiedName()) + " " + name()
             }
             is ParameterItem -> {
-                return containingCallable().getExternalAnnotationSignature() +
-                    " " +
-                    this.parameterIndex
+                return parent().getExternalAnnotationSignature() + " " + this.parameterIndex
             }
         }
 
         return null
     }
 
-    private fun writeAnnotation(
-        writer: StringPrintWriter,
-        item: Item,
-        annotationItem: AnnotationItem
-    ) {
-        val uAnnotation = annotationItem.uAnnotation ?: return
+    private fun writeAnnotation(writer: PrintWriter, item: Item, annotationItem: AnnotationItem) {
+        // Retrieve the attributes from the annotation item.
+        val attributes = retrieveAttributes(annotationItem)
+
+        // Some annotations need to keep field references and some need to replace them with their
+        // constant value.
+        val keepFieldReferences = keepFieldReferences(annotationItem)
+
+        // Perform some transformations and filtering on the attributes.
+        val transformedAttributes =
+            attributes.mapNotNull { attribute ->
+                val name = attribute.name
+
+                // Platform typedef annotations declare prefix/suffix attributes for historical
+                // reasons, and they are no longer necessary; they should also not be part of the
+                // extracted metadata.
+                if (
+                    ("prefix" == name || "suffix" == name) && annotationItem.isTypeDefAnnotation()
+                ) {
+                    reporter.report(
+                        Issues.SUPERFLUOUS_PREFIX,
+                        item,
+                        "Superfluous $name attribute on typedef"
+                    )
+                    return@mapNotNull null
+                }
+
+                // Transform/filter the value.
+                val transformedValue =
+                    attribute.value.transform { value ->
+                        when (value) {
+                            // If the value is a field then it needs some additional checking.
+                            is FieldReferenceValue -> {
+                                // Make sure it can be resolved, if not report an issue.
+                                val fieldItem = value.resolve()
+                                if (fieldItem == null) {
+                                    reporter.report(
+                                        Issues.INTERNAL_ERROR,
+                                        reportable = null,
+                                        "Unexpected reference to ${value.toValueString()}",
+                                        location = annotationItem.fileLocation,
+                                    )
+                                    return@transform null
+                                }
+
+                                if (keepFieldReferences) {
+                                    // If keeping the field then make sure it can be referenced from
+                                    // the API. If not then discard it.
+                                    if (!filterReference.testOrTrue(fieldItem)) {
+                                        // This field is not visible: remove from typedef
+                                        reporter.report(
+                                            Issues.HIDDEN_TYPEDEF_CONSTANT,
+                                            fieldItem,
+                                            "Typedef class references hidden field $fieldItem: removed from typedef metadata"
+                                        )
+                                        return@transform null
+                                    }
+
+                                    value
+                                } else {
+                                    value.asLiteralValue()
+                                }
+                            }
+                            // Other values can just be passed straight through.
+                            else -> value
+                        }
+                    }
+
+                // If the transformed value is null then filter it out.
+                transformedValue ?: return@mapNotNull null
+
+                name to transformedValue
+            }
+
+        // If an annotation had attributes, but they were all filtered out then the chances are that
+        // the annotation is worthless so drop it altogether.
+        if (attributes.isNotEmpty() && transformedAttributes.isEmpty()) {
+            // All items were filtered out: don't write the annotation at all
+            return
+        }
+
+        // Write the annotation element.
+        val qualifiedName = annotationItem.qualifiedName
+        writeAnnotationElement(writer, qualifiedName, transformedAttributes)
+    }
+
+    /** Retrieve the attributes from [annotationItem]. */
+    private fun retrieveAttributes(annotationItem: AnnotationItem): List<AnnotationAttribute> {
         val qualifiedName = annotationItem.qualifiedName
 
-        writer.mark()
-        writer.print("    <annotation name=\"")
-        writer.print(qualifiedName)
-
-        var attributes =
-            // Ensure consistent ordering.
-            uAnnotation.attributeValues.sortedWith(
+        // Ensure consistent ordering.
+        val attributes =
+            annotationItem.attributes.sortedWith(
                 compareBy(
                     // Ensure that the value attribute is written first
-                    { (it.name ?: ANNOTATION_ATTR_VALUE) != ANNOTATION_ATTR_VALUE },
-                    { it.name }
+                    { it.name != ANNOTATION_ATTR_VALUE },
+                    { it.name },
                 )
             )
 
+        when (qualifiedName) {
+            ANDROIDX_REQUIRES_PERMISSION_READ,
+            ANDROIDX_REQUIRES_PERMISSION_WRITE -> {
+                if (attributes.size == 1) {
+                    // The external annotations format does not allow for nested/complex
+                    // annotations. However, these special annotations (@RequiresPermission.Read,
+                    // @RequiresPermission.Write) are known to only be simple containers with a
+                    // single permission child, so instead we "inline" the content:
+                    //  @Read(@RequiresPermission(allOf={P1,P2},conditional=true)
+                    //     =>
+                    //  @RequiresPermission.Read(allOf({P1,P2},conditional=true)
+                    //
+                    // That's setting attributes that don't actually exist on the container
+                    // permission, but we'll counteract that on the read-annotations side.
+                    (attributes[0].value as? AnnotationValue)?.let { value ->
+                        return value.annotationItem.attributes
+                    }
+                }
+            }
+        }
+
+        return attributes
+    }
+
+    /**
+     * Write the annotation element to [writer].
+     *
+     * @param qualifiedName the name of the annotation class.
+     * @param attributes the attributes, as a list of name/value pairs.
+     */
+    private fun writeAnnotationElement(
+        writer: PrintWriter,
+        qualifiedName: String,
+        attributes: List<Pair<String, Value>>
+    ) {
+        // Begin the annotation element.
+        writer.print("    <annotation name=\"")
+        writer.print(qualifiedName)
+
+        // If no attributes are provided then close it immediately.
         if (attributes.isEmpty()) {
             writer.print("\"/>")
             writer.println()
             return
         }
 
+        // Complete the open annotation element.
         writer.print("\">")
         writer.println()
 
-        if (attributes.size == 1 && Extractor.REQUIRES_PERMISSION.isPrefix(qualifiedName, true)) {
-            val expression = attributes[0].expression
-            if (expression is UAnnotation) {
-                // The external annotations format does not allow for nested/complex annotations.
-                // However, these special annotations (@RequiresPermission.Read,
-                // @RequiresPermission.Write, etc.) are known to only be simple containers with a
-                // single permission child, so instead we "inline" the content:
-                //  @Read(@RequiresPermission(allOf={P1,P2},conditional=true)
-                //     =>
-                //      @RequiresPermission.Read(allOf({P1,P2},conditional=true)
-                // That's setting attributes that don't actually exist on the container permission,
-                // but we'll counteract that on the read-annotations side.
-                val annotation = expression as UAnnotation
-                attributes = annotation.attributeValues
-            } else if (expression is UCallExpression) {
-                val nestedPsi = expression.sourcePsi as? PsiAnnotation
-                val annotation =
-                    nestedPsi?.let {
-                        UastFacade.convertElement(it, expression, UAnnotation::class.java)
-                    } as? UAnnotation
-                annotation?.attributeValues?.let { attributes = it }
-            } else if (
-                expression is UastEmptyExpression && attributes[0].sourcePsi is PsiNameValuePair
-            ) {
-                val memberValue = (attributes[0].sourcePsi as PsiNameValuePair).value
-                if (memberValue is PsiAnnotation) {
-                    val annotation = memberValue.toUElement(UAnnotation::class.java)
-                    annotation?.attributeValues?.let { attributes = it }
-                }
-            }
-        }
+        // Add entries for each attribute.
+        for ((name, value) in attributes) {
+            val valueString = value.toValueString(EXTRACT_VALUE_STRING_CONFIGURATION)
 
-        val inlineConstants = isInlinedConstant(annotationItem)
-        var empty = true
-        for (pair in attributes) {
-            val expression = pair.expression
-            val value = attributeString(expression, inlineConstants) ?: continue
-            empty = false
-            var name = pair.name
-            if (name == null) {
-                name = ANNOTATION_ATTR_VALUE // default name
-            }
-
-            // Platform typedef annotations declare prefix/suffix attributes for historical reasons,
-            // and they are no longer necessary; they should also not be part of the extracted
-            // metadata.
-            if (("prefix" == name || "suffix" == name) && annotationItem.isTypeDefAnnotation()) {
-                reporter.report(
-                    Issues.SUPERFLUOUS_PREFIX,
-                    item,
-                    "Superfluous $name attribute on typedef"
-                )
-                continue
-            }
+            // The value could contain fully qualified references to enum values that are in the
+            // android.annotation package. If so, then replace them with references in the
+            // androidx.annotation package.
+            val normalizedValueString =
+                valueString.replace(ANDROID_ANNOTATION_PREFIX, ANDROIDX_ANNOTATION_PREFIX)
 
             writer.print("      <val name=\"")
             writer.print(name)
             writer.print("\" val=\"")
-            writer.print(escapeXml(value))
+            writer.print(escapeXml(normalizedValueString))
             writer.println("\" />")
-        }
-
-        if (empty && attributes.isNotEmpty()) {
-            // All items were filtered out: don't write the annotation at all
-            writer.reset()
-            return
         }
 
         writer.println("    </annotation>")
     }
 
-    private fun attributeString(value: UExpression?, inlineConstants: Boolean): String? {
-        val printer =
-            if (inlineConstants) {
-                fieldValuePrinter
-            } else {
-                fieldNamePrinter
-            }
-
-        return printer.toSourceString(value)
+    /** Type def annotations must keep field references. */
+    private fun keepFieldReferences(annotationItem: AnnotationItem): Boolean {
+        return annotationItem.isTypeDefAnnotation()
     }
 
-    private fun isInlinedConstant(annotationItem: AnnotationItem): Boolean {
-        return annotationItem.isTypeDefAnnotation()
+    companion object {
+        /**
+         * [ValueStringConfiguration] that is used when serializing [Value]s to an `annotations.xml`
+         * file.
+         */
+        private val EXTRACT_VALUE_STRING_CONFIGURATION =
+            ValueStringConfiguration(
+                singleArrayElementFormat = SingleArrayElementFormat.WRAP,
+            )
     }
 }

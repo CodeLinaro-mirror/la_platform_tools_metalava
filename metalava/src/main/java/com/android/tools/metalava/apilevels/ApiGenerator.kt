@@ -15,26 +15,46 @@
  */
 package com.android.tools.metalava.apilevels
 
+import androidx.tracing.Tracer
+import com.android.tools.metalava.reporter.Reporter
+import com.android.tools.metalava.trace
 import java.io.File
 import java.io.IOException
 
-/** Generates API version history. */
-class ApiGenerator {
+/**
+ * Generates API version history.
+ *
+ * @param tracer the [Tracer] to use for tracing execution.
+ * @param reporter the [Reporter] to use for reporting issues found in the API history.
+ */
+class ApiGenerator(
+    private val tracer: Tracer,
+    private val reporter: Reporter,
+) {
     /**
      * Generates an API version history file based on the API surfaces of the versions provided.
      *
      * @param config Configuration provided from command line options.
      */
     fun generateApiHistory(config: GenerateApiHistoryConfig) {
-        val api = createApiFromVersionedApis(config.versionedApis)
+        val versionedApis = config.versionedApis
+        val api =
+            tracer.trace("createApiFromVersionedApis") {
+                createApiFromVersionedApis(config.useInternalNames, versionedApis)
+            }
 
         // If necessary, update the sdks properties.
         config.sdkExtensionsArguments?.let { sdkExtensionsArguments ->
-            updateSdksAttributes(
-                api,
-                sdkExtensionsArguments.notFinalizedSdkVersion,
-                sdkExtensionsArguments.sdkExtensionInfo,
-            )
+            // Remove and report any elements that were only present in older SDK extensions and
+            // therefore do not have an initialized `since` version before updating `sdks`.
+            api.removeInconsistentExtensionElements(reporter)
+            tracer.trace("updateSdksAttributes") {
+                updateSdksAttributes(
+                    api,
+                    sdkExtensionsArguments.notFinalizedSdkVersion,
+                    sdkExtensionsArguments.sdkExtensionInfo,
+                )
+            }
         }
 
         // If android.os.ext.SdkExtensions exists in the Api then patch up its history.
@@ -45,21 +65,18 @@ class ApiGenerator {
         // Apply the appropriate action for missing classes.
         config.missingClassAction.apply(api)
 
-        createApiLevelsFile(config.outputFile, config.printer, api)
-    }
+        val outputFile = config.outputFile
+        val printer =
+            when (val extension = outputFile.extension) {
+                "xml" -> ApiXmlPrinter()
+                "json" -> ApiJsonPrinter()
+                else ->
+                    error(
+                        "unexpected extension for $outputFile, expected 'xml', or 'json' got '$extension'"
+                    )
+            }
 
-    /**
-     * Creates an [Api] from a list of [VersionedApi]s.
-     *
-     * @param versionedApis A list of [VersionedApi]s, one for each version of the API, in order
-     *   from oldest to newest API version.
-     */
-    private fun createApiFromVersionedApis(versionedApis: List<VersionedApi>): Api {
-        val api = Api()
-        for (versionedApi in versionedApis) {
-            versionedApi.updateApi(api)
-        }
-        return api
+        tracer.trace("createApiLevelsFile") { createApiLevelsFile(outputFile, printer, api) }
     }
 
     /**
@@ -78,6 +95,7 @@ class ApiGenerator {
         versionNotInAndroidSdk: ApiVersion,
         sdkExtensionInfo: SdkExtensionInfo,
     ) {
+        api.availableSdkExtensions = sdkExtensionInfo.availableSdkExtensions
         for (clazz in api.classes) {
             val module = clazz.mainlineModule ?: continue
 
@@ -159,4 +177,22 @@ class ApiGenerator {
         val sdkExtensionInfo by
             lazy(LazyThreadSafetyMode.NONE) { SdkExtensionInfo.fromXml(sdkExtInfoFile.readText()) }
     }
+}
+
+/**
+ * Creates an [Api] from a list of [VersionedApi]s.
+ *
+ * @param useInternalNames `true` if JVM internal names should be used, `false` otherwise.
+ * @param versionedApis A list of [VersionedApi]s, one for each version of the API, in order from
+ *   oldest to newest API version.
+ */
+internal fun createApiFromVersionedApis(
+    useInternalNames: Boolean,
+    versionedApis: List<VersionedApi>
+): Api {
+    val api = Api(useInternalNames)
+    for (versionedApi in versionedApis) {
+        versionedApi.updateApi(api)
+    }
+    return api
 }

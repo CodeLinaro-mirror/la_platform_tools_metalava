@@ -20,11 +20,14 @@ import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.noOpAnnotationManager
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.Test
+import kotlin.test.assertNull
 
 class PsiAnnotationMixtureTest : BaseModelTest() {
     companion object {
@@ -38,7 +41,6 @@ class PsiAnnotationMixtureTest : BaseModelTest() {
                     public @A <T> T foo3() {}
                 }
             """
-                    .trimIndent()
             )
         val kotlinUsageSource =
             kotlin(
@@ -50,7 +52,6 @@ class PsiAnnotationMixtureTest : BaseModelTest() {
                     fun <T> foo3(): @A T {}
                 }
             """
-                    .trimIndent()
             )
         val javaAnnotationSource =
             java(
@@ -59,7 +60,6 @@ class PsiAnnotationMixtureTest : BaseModelTest() {
                 @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
                 public @interface A {}
             """
-                    .trimIndent()
             )
         val kotlinAnnotationSource =
             kotlin(
@@ -68,7 +68,6 @@ class PsiAnnotationMixtureTest : BaseModelTest() {
                 @Target(AnnotationTarget.TYPE)
                 annotation class A
             """
-                    .trimIndent()
             )
     }
 
@@ -101,7 +100,7 @@ class PsiAnnotationMixtureTest : BaseModelTest() {
             assertThat(string).isInstanceOf(ClassTypeItem::class.java)
             assertThat(string.annotationNames()).containsExactly("test.pkg.A")
             val stringMethodAnnotations = stringMethod.annotationNames()
-            if ((stringMethod as PsiMethodItem).psiMethod.isKotlin()) {
+            if (stringMethod.isKotlin()) {
                 // The Kotlin version puts a nullability annotation on the method
                 assertThat(stringMethodAnnotations)
                     .containsExactly("org.jetbrains.annotations.NotNull")
@@ -119,23 +118,117 @@ class PsiAnnotationMixtureTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test java usage, java definition`() {
         runMixtureAnnotationTest(javaUsageSource, javaAnnotationSource)
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test java usage, kotlin definition`() {
         runMixtureAnnotationTest(javaUsageSource, kotlinAnnotationSource)
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test kotlin usage, java definition`() {
         runMixtureAnnotationTest(kotlinUsageSource, javaAnnotationSource)
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test kotlin usage, kotlin definition`() {
         runMixtureAnnotationTest(kotlinUsageSource, kotlinAnnotationSource)
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `correctIncorrectlyAppliedAnnotations skips non-emitted classes`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package a.pkg;
+                        public class Foo {
+                            public String @b.pkg.Nullable [] bar() { return null; }
+                        }
+                    """
+                ),
+                sourcePathFiles =
+                    listOf(
+                        java(
+                            """
+                                package b.pkg;
+                                import java.lang.annotation.ElementType;
+                                import java.lang.annotation.Target;
+                                @Target(ElementType.TYPE_USE)
+                                public @interface Nullable {
+                                    class Helper {
+                                        public <T> @c.pkg.DeclAnno String genericMethod() { return null; }
+                                    }
+                                }
+                            """
+                        ),
+                        java(
+                            """
+                                package c.pkg;
+                                import java.lang.annotation.ElementType;
+                                import java.lang.annotation.Target;
+                                @Target(ElementType.METHOD)
+                                public @interface DeclAnno {}
+                            """
+                        ),
+                    ),
+            ),
+            testFixture =
+                TestFixture(
+                    annotationManager = noOpAnnotationManager,
+                ),
+        ) {
+            codebase.assertClass("b.pkg.Nullable", expectedEmit = false)
+
+            // b.pkg.Nullable.Helper is not emitted, so correctIncorrectlyAppliedAnnotations()
+            // should not traverse its methods or resolve c.pkg.DeclAnno.
+            assertNull(codebase.findPackage("c.pkg"))
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `correctIncorrectlyAppliedAnnotations skips inaccessible classes`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package a.pkg;
+                        class PackagePrivateFoo {
+                            public <T> @b.pkg.DeclAnno String genericMethod() { return null; }
+                        }
+                    """
+                ),
+                sourcePathFiles =
+                    listOf(
+                        java(
+                            """
+                                package b.pkg;
+                                import java.lang.annotation.ElementType;
+                                import java.lang.annotation.Target;
+                                @Target(ElementType.METHOD)
+                                public @interface DeclAnno {}
+                            """
+                        ),
+                    ),
+            ),
+            testFixture =
+                TestFixture(
+                    annotationManager = noOpAnnotationManager,
+                ),
+        ) {
+            // a.pkg.PackagePrivateFoo does not have API visibility, so
+            // correctIncorrectlyAppliedAnnotations() should not traverse its methods or resolve
+            // b.pkg.DeclAnno.
+            assertNull(codebase.findPackage("b.pkg"))
+        }
     }
 }

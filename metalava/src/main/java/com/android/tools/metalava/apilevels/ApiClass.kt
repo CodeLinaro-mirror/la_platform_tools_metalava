@@ -15,22 +15,19 @@
  */
 package com.android.tools.metalava.apilevels
 
-import com.google.common.collect.Iterables
-import java.util.concurrent.ConcurrentHashMap
+import com.android.tools.metalava.reporter.Reporter
 
 /**
  * Represents a class or an interface and its methods/fields. This is used to write the simplified
  * XML file containing all the public API.
  */
-class ApiClass(name: String) : ApiElement(name) {
+class ApiClass(name: String, private val isEnum: Boolean) : ApiElement(name) {
 
     private val mSuperClasses = mutableMapOf<String, ApiElement>()
     private val mInterfaces = mutableMapOf<String, ApiElement>()
 
-    /** If `true`, never seen as public. */
-    var alwaysHidden = false // Package private class?
-    private val mFields = ConcurrentHashMap<String, ApiElement>()
-    private val mMethods = ConcurrentHashMap<String, ApiElement>()
+    private val mFields = mutableMapOf<String, ApiElement>()
+    private val mMethods = mutableMapOf<String, ApiElement>()
 
     /**
      * Updates the [ApiElement] for field with [name], creating and adding one if necessary.
@@ -51,6 +48,9 @@ class ApiClass(name: String) : ApiElement(name) {
     val fields: Collection<ApiElement>
         get() = mFields.values
 
+    /** Returns the [ApiElement] for the field with [name], or `null` if not present. */
+    fun getField(name: String): ApiElement? = mFields[name]
+
     /**
      * Updates the [ApiElement] for method with [signature], creating and adding one if necessary.
      *
@@ -65,20 +65,57 @@ class ApiClass(name: String) : ApiElement(name) {
         updater: ApiHistoryUpdater,
         deprecated: Boolean,
     ): ApiElement {
-        // Correct historical mistake in android.jar files
-        var correctedName = signature
-        if (correctedName.endsWith(")Ljava/lang/AbstractStringBuilder;")) {
-            correctedName =
-                correctedName.substring(
-                    0,
-                    correctedName.length - ")Ljava/lang/AbstractStringBuilder;".length
-                ) + ")L" + this.name + ";"
-        }
-        return updateElementInMap(mMethods, correctedName, updater, deprecated)
+        return updateElementInMap(mMethods, signature, updater, deprecated)
     }
 
     val methods: Collection<ApiElement>
         get() = mMethods.values
+
+    /** The names of the compiler generated enum methods. */
+    private fun enumMethodNames(): List<String> {
+        return if (name.contains("/")) {
+            listOf("valueOf(Ljava/lang/String;)L$name;", "values()[L$name;")
+        } else {
+            listOf("valueOf(java.lang.String)", "values()")
+        }
+    }
+
+    /**
+     * Adds class dependent members, if needed.
+     *
+     * These are members whose history is identical to the containing class, e.g. compiler generated
+     * enum methods.
+     */
+    fun addClassDependentMembersIfNeeded() {
+        if (!isEnum) return
+
+        for (methodName in enumMethodNames()) {
+            mMethods[methodName] = ApiElement(methodName, this)
+        }
+    }
+
+    /**
+     * Computes [ApiElement.removedIn] for all members of this class that were not present in this
+     * class's [lastPresentIn] version, or inherits this class's [removedIn] version.
+     *
+     * @param versionToNext map from each [ApiVersion] to the next [ApiVersion] in sequence.
+     */
+    fun computeRemovedIn(versionToNext: Map<ApiVersion, ApiVersion>) {
+        for (collection in listOf(superClasses, interfaces, methods, fields)) {
+            for (element in collection) {
+                if (element.lastPresentIn < lastPresentIn) {
+                    val removedFrom =
+                        versionToNext[element.lastPresentIn]
+                            ?: error(
+                                "could not find next version for ${element.lastPresentIn} in ${element.name}"
+                            )
+                    element.updateRemovedIn(removedFrom)
+                } else if (removedIn != null) {
+                    element.updateRemovedIn(removedIn!!)
+                }
+            }
+        }
+    }
 
     /**
      * Updates an element for [superClassType], creating and adding one if necessary.
@@ -99,10 +136,6 @@ class ApiClass(name: String) : ApiElement(name) {
     val superClasses: Collection<ApiElement>
         get() = mSuperClasses.values
 
-    fun updateHidden(hidden: Boolean) {
-        alwaysHidden = hidden
-    }
-
     /**
      * Updates an element for [interfaceType], creating and adding one if necessary.
      *
@@ -121,6 +154,26 @@ class ApiClass(name: String) : ApiElement(name) {
 
     val interfaces: Collection<ApiElement>
         get() = mInterfaces.values
+
+    /** Adds a parsed field [ApiElement] directly to this [ApiClass]. */
+    internal fun addField(field: ApiElement) {
+        mFields[field.name] = field
+    }
+
+    /** Adds a parsed method [ApiElement] directly to this [ApiClass]. */
+    internal fun addMethod(method: ApiElement) {
+        mMethods[method.name] = method
+    }
+
+    /** Adds a parsed superclass [ApiElement] directly to this [ApiClass]. */
+    internal fun addSuperClass(superClass: ApiElement) {
+        mSuperClasses[superClass.name] = superClass
+    }
+
+    /** Adds a parsed interface [ApiElement] directly to this [ApiClass]. */
+    internal fun addInterface(interfaceElement: ApiElement) {
+        mInterfaces[interfaceElement.name] = interfaceElement
+    }
 
     private fun updateElementInMap(
         elements: MutableMap<String, ApiElement>,
@@ -141,20 +194,14 @@ class ApiClass(name: String) : ApiElement(name) {
      * @param allClasses all classes keyed by their names.
      */
     fun removeImplicitInterfaces(allClasses: Map<String, ApiClass>) {
-        if (mInterfaces.isEmpty() || mSuperClasses.isEmpty()) {
+        if (mInterfaces.isEmpty()) {
             return
         }
         val iterator = mInterfaces.values.iterator()
         while (iterator.hasNext()) {
             val interfaceElement = iterator.next()
-            for (superClass in superClasses) {
-                if (superClass.introducedNotLaterThan(interfaceElement)) {
-                    val cls = allClasses[superClass.name]
-                    if (cls != null && cls.implementsInterface(interfaceElement, allClasses)) {
-                        iterator.remove()
-                        break
-                    }
-                }
+            if (implementsImplicitInterface(interfaceElement, allClasses)) {
+                iterator.remove()
             }
         }
     }
@@ -163,21 +210,27 @@ class ApiClass(name: String) : ApiElement(name) {
         interfaceElement: ApiElement,
         allClasses: Map<String, ApiClass>
     ): Boolean {
-        for (localInterface in interfaces) {
-            if (localInterface.introducedNotLaterThan(interfaceElement)) {
-                if (interfaceElement.name == localInterface.name) {
-                    return true
-                }
-                // Check parent interface.
-                val cls = allClasses[localInterface.name]
-                if (cls != null && cls.implementsInterface(interfaceElement, allClasses)) {
-                    return true
-                }
-            }
+        val localInterface = mInterfaces[interfaceElement.name]
+        return if (
+            localInterface != null && localInterface.introducedNotLaterThan(interfaceElement)
+        ) {
+            true
+        } else {
+            implementsImplicitInterface(interfaceElement, allClasses)
         }
-        for (superClass in superClasses) {
-            if (superClass.introducedNotLaterThan(interfaceElement)) {
-                val cls = allClasses[superClass.name]
+    }
+
+    /**
+     * Checks if the given [interfaceElement] is implemented by a superclass or extended by an
+     * interface this class implements.
+     */
+    private fun implementsImplicitInterface(
+        interfaceElement: ApiElement,
+        allClasses: Map<String, ApiClass>
+    ): Boolean {
+        for (parent in interfaces.asSequence() + superClasses.asSequence()) {
+            if (parent.introducedNotLaterThan(interfaceElement)) {
+                val cls = allClasses[parent.name]
                 if (cls != null && cls.implementsInterface(interfaceElement, allClasses)) {
                     return true
                 }
@@ -196,8 +249,18 @@ class ApiClass(name: String) : ApiElement(name) {
         val it: MutableIterator<Map.Entry<String, ApiElement>> = mMethods.entries.iterator()
         while (it.hasNext()) {
             val (_, method) = it.next()
-            if (!method.name.startsWith("<init>(") && isOverrideOfInherited(method, allClasses)) {
+            if (method.name.startsWith("<init>(")) {
+                continue
+            }
+            if (isOverrideOfInherited(method, allClasses)) {
                 it.remove()
+            } else {
+                val superMethod = findMethodInAncestors(method, allClasses)
+                if (superMethod != null) {
+                    method.updateLastPresentIn(minOf(lastPresentIn, superMethod.lastPresentIn))
+                    deprecatedIn?.let { method.updateDeprecatedIn(it) }
+                    superMethod.deprecatedIn?.let { method.updateDeprecatedIn(it) }
+                }
             }
         }
     }
@@ -213,9 +276,13 @@ class ApiClass(name: String) : ApiElement(name) {
     private fun isOverride(method: ApiElement, allClasses: Map<String, ApiClass>): Boolean {
         val name = method.name
         val localMethod = mMethods[name]
-        return if (localMethod != null && localMethod.introducedNotLaterThan(method)) {
+        return if (
+            localMethod != null &&
+                localMethod.introducedNotLaterThan(method) &&
+                localMethod.lastPresentIn >= method.lastPresentIn
+        ) {
             // This class has the method, and it was introduced in at the same api level
-            // as the child method, or before.
+            // as the child method, or before, and was not removed before the child method.
             true
         } else {
             isOverrideOfInherited(method, allClasses)
@@ -230,9 +297,9 @@ class ApiClass(name: String) : ApiElement(name) {
         allClasses: Map<String, ApiClass>
     ): Boolean {
         // Check this class' parents.
-        for (parent in Iterables.concat(superClasses, interfaces)) {
+        for (parent in superClasses.asSequence() + interfaces.asSequence()) {
             // Only check the parent if it was a parent class at the introduction of the method.
-            if (parent!!.introducedNotLaterThan(method)) {
+            if (parent.introducedNotLaterThan(method)) {
                 val cls = allClasses[parent.name]
                 if (cls != null && cls.isOverride(method, allClasses)) {
                     return true
@@ -242,55 +309,35 @@ class ApiClass(name: String) : ApiElement(name) {
         return false
     }
 
-    private var haveInlined = false
-
-    fun inlineFromHiddenSuperClasses(hidden: Map<String, ApiClass>) {
-        if (haveInlined) {
-            return
+    /**
+     * Finds the matching method declared by ancestors of this class with the latest
+     * [lastPresentIn], if any.
+     */
+    private fun findMethodInAncestors(
+        method: ApiElement,
+        allClasses: Map<String, ApiClass>,
+        visited: MutableSet<ApiClass> = mutableSetOf()
+    ): ApiElement? {
+        if (!visited.add(this)) {
+            return null
         }
-        haveInlined = true
-        for (superClass in superClasses) {
-            val hiddenSuper = hidden[superClass.name]
-            if (hiddenSuper != null) {
-                hiddenSuper.inlineFromHiddenSuperClasses(hidden)
-                val myMethods = mMethods
-                val myFields = mFields
-                for ((name, value) in hiddenSuper.mMethods) {
-                    if (!myMethods.containsKey(name)) {
-                        myMethods[name] = value
-                    }
+        var bestMatch: ApiElement? = null
+        for (parent in superClasses.asSequence() + interfaces.asSequence()) {
+            val cls = allClasses[parent.name] ?: continue
+            val localMethod = cls.mMethods[method.name]
+            if (localMethod != null) {
+                if (bestMatch == null || bestMatch.lastPresentIn < localMethod.lastPresentIn) {
+                    bestMatch = localMethod
                 }
-                for ((name, value) in hiddenSuper.mFields) {
-                    if (!myFields.containsKey(name)) {
-                        myFields[name] = value
-                    }
+            }
+            val ancestorMethod = cls.findMethodInAncestors(method, allClasses, visited)
+            if (ancestorMethod != null) {
+                if (bestMatch == null || bestMatch.lastPresentIn < ancestorMethod.lastPresentIn) {
+                    bestMatch = ancestorMethod
                 }
             }
         }
-    }
-
-    fun removeHiddenSuperClasses(api: Map<String, ApiClass>) {
-        // If we've included a package private class in the super class map (from the older
-        // android.jar files)
-        // remove these here and replace with the filtered super classes, updating API levels in the
-        // process
-        val iterator = mSuperClasses.values.iterator()
-        var min = ApiVersion.HIGHEST
-        while (iterator.hasNext()) {
-            val next = iterator.next()
-            min = minOf(min, next.since)
-            val extendsClass = api[next.name]
-            if (extendsClass != null && extendsClass.alwaysHidden) {
-                val since = extendsClass.since
-                iterator.remove()
-                for (other in superClasses) {
-                    if (other.since >= since) {
-                        other.update(min)
-                    }
-                }
-                break
-            }
-        }
+        return bestMatch
     }
 
     // Ensure this class doesn't extend/implement any other classes/interfaces that are
@@ -331,5 +378,25 @@ class ApiClass(name: String) : ApiElement(name) {
             }
         }
         return result
+    }
+
+    /**
+     * Removes any members or supertypes of this class that were only present in historical SDK
+     * extension versions and not in the latest SDK extension version or any platform SDK version,
+     * reporting an issue for each one.
+     */
+    fun removeInconsistentExtensionElements(reporter: Reporter) {
+        mSuperClasses.removeInconsistentExtensionElements(reporter, mainlineModule) {
+            "Superclass ${it.name} of class $name"
+        }
+        mInterfaces.removeInconsistentExtensionElements(reporter, mainlineModule) {
+            "Interface ${it.name} of class $name"
+        }
+        mFields.removeInconsistentExtensionElements(reporter, mainlineModule) {
+            "Field $name.${it.name}"
+        }
+        mMethods.removeInconsistentExtensionElements(reporter, mainlineModule) {
+            "Method $name.${it.name}"
+        }
     }
 }

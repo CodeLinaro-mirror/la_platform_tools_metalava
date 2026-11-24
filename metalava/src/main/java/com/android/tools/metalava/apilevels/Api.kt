@@ -15,33 +15,70 @@
  */
 package com.android.tools.metalava.apilevels
 
+import com.android.tools.metalava.reporter.Reporter
 import java.util.Collections
 import java.util.TreeMap
 import java.util.TreeSet
 
-/** Represents the whole Android API. */
-class Api : ParentApiElement {
+private const val SDK_EXTENSIONS_INTERNAL_NAME = "android/os/ext/SdkExtensions"
+
+/**
+ * Represents the whole Android API.
+ *
+ * @param useInternalNames `true` if JVM internal names should be used, `false` otherwise.
+ */
+class Api(val useInternalNames: Boolean) : ParentApiElement {
     /**
      * This has to behave as if it exists since before any specific version (so that every class
      * always specifies its `since` attribute.
      */
     override val since: ApiVersion = ApiVersion.LOWEST
 
-    override var lastPresentIn = since
+    /**
+     * The last platform [ApiVersion] added to this [Api]. Any top-level class whose
+     * [ApiElement.lastPresentIn] is less than this version was removed in a subsequent version.
+     */
+    var lastPresentIn = since
         private set
 
     override val sdks: String? = null
 
     override val deprecatedIn: ApiVersion? = null
 
+    override val removedIn: ApiVersion? = null
+
+    /** All [ApiVersion]s that have contributed to this [Api], sorted from lowest to highest. */
+    private val allVersions = TreeSet<ApiVersion>()
+
+    /** The minimum [ApiVersion] in this [Api], or `null` if no versions have been recorded. */
+    val minVersion: ApiVersion?
+        get() = allVersions.firstOrNull()
+
+    /** True if any [ApiVersion] in this [Api] has a non-null [ApiVersion.minor] version. */
+    val hasMinorVersions: Boolean
+        get() = allVersions.any { it.minor != null }
+
+    /** The optional set of [AvailableSdkExtensions] for this [Api]. */
+    var availableSdkExtensions: AvailableSdkExtensions? = null
+
     private val mClasses: MutableMap<String, ApiClass> = HashMap()
 
     /**
-     * Updates this with information for a specific API version.
+     * Records [apiVersion] as a version known to this [Api] without advancing [lastPresentIn].
+     *
+     * @param apiVersion an API version that contributed elements to this [Api].
+     */
+    fun recordVersion(apiVersion: ApiVersion) {
+        allVersions.add(apiVersion)
+    }
+
+    /**
+     * Updates this with information for a specific platform API version.
      *
      * @param apiVersion an API version that this contains.
      */
     fun update(apiVersion: ApiVersion) {
+        recordVersion(apiVersion)
         // Track the last version added to this.
         if (lastPresentIn < apiVersion) {
             lastPresentIn = apiVersion
@@ -56,18 +93,25 @@ class Api : ParentApiElement {
      * @param name the name of the class
      * @param updater the [ApiHistoryUpdater] that will update the element with information about
      *   the version to which it belongs.
-     * @param deprecated whether the class was deprecated in the API version
-     * @return the newly created or a previously existed class
+     * @param deprecated whether the class was deprecated in the API version.
+     * @param isEnum whether the class is an enum class.
+     * @return the newly created or an already existing class.
      */
     fun updateClass(
         name: String,
         updater: ApiHistoryUpdater,
         deprecated: Boolean,
+        isEnum: Boolean,
     ): ApiClass {
         val existing = mClasses[name]
-        val classElement = existing ?: ApiClass(name).apply { mClasses[name] = this }
+        val classElement = existing ?: ApiClass(name, isEnum).apply { mClasses[name] = this }
         updater.update(classElement, deprecated)
         return classElement
+    }
+
+    /** Adds a parsed [ApiClass] directly to this [Api]. */
+    internal fun addClass(classElement: ApiClass) {
+        mClasses[classElement.name] = classElement
     }
 
     fun findClass(name: String?): ApiClass? {
@@ -76,10 +120,14 @@ class Api : ParentApiElement {
 
     /** Cleans up the API surface for printing after all elements have been added. */
     fun clean() {
-        inlineFromHiddenSuperClasses()
         removeImplicitInterfaces()
         removeOverridingMethods()
-        prunePackagePrivateClasses()
+
+        // Add any class dependent members. This is done here, after creating the API, as they need
+        // to copy the containing class's state and that changes during creation.
+        addClassDependentMembersIfNeeded()
+
+        computeRemovedIn()
     }
 
     val classes: Collection<ApiClass>
@@ -92,17 +140,19 @@ class Api : ParentApiElement {
      */
     fun patchSdkExtensionsHistory() {
         val sdkExtensions =
-            findClass("android/os/ext/SdkExtensions")
-            // This is either for the module-lib/system-server (null) or for a non-Android API.
-            // Either way it does not need patching.
-            ?: return
+            findClass(SDK_EXTENSIONS_INTERNAL_NAME)
+                // This is either for the module-lib/system-server (null) or for a non-Android API.
+                // Either way it does not need patching.
+                ?: return
 
         val sdk30 = ApiVersion.fromLevel(30)
         val sdk31 = ApiVersion.fromLevel(31)
         val sdk33 = ApiVersion.fromLevel(33)
         val sdkExtensionsSince = sdkExtensions.since
         if (sdkExtensionsSince != sdk30 && sdkExtensionsSince != sdk33) {
-            throw AssertionError("Received unexpected historical data")
+            throw AssertionError(
+                "Received unexpected historical data, first occurrence of $SDK_EXTENSIONS_INTERNAL_NAME was $sdkExtensionsSince, expected $sdk30 or $sdk33"
+            )
         } else if (sdkExtensionsSince == sdk30) {
             // This is the system API db (30). The class does not need patching but the members do.
             // Drop through.
@@ -156,22 +206,34 @@ class Api : ParentApiElement {
         }
     }
 
-    private fun inlineFromHiddenSuperClasses() {
-        val hidden: MutableMap<String, ApiClass> = HashMap()
-        for (classElement in mClasses.values) {
-            if (classElement.alwaysHidden) {
-                // hidden in the .jar files? (mMax==codebase, -1: jar files)
-                hidden[classElement.name] = classElement
-            }
-        }
-        for (classElement in mClasses.values) {
-            classElement.inlineFromHiddenSuperClasses(hidden)
+    /**
+     * Adds class dependent members, if needed.
+     *
+     * These are members whose history is identical to the containing class, e.g. compiler generated
+     * enum methods.
+     */
+    private fun addClassDependentMembersIfNeeded() {
+        for (cls in mClasses.values) {
+            cls.addClassDependentMembersIfNeeded()
         }
     }
 
-    private fun prunePackagePrivateClasses() {
+    /**
+     * Computes [ApiElement.removedIn] for all classes and class members that were not present in
+     * their parent's [lastPresentIn] version.
+     */
+    private fun computeRemovedIn() {
+        val versionToNext = allVersions.zipWithNext().toMap()
         for (cls in mClasses.values) {
-            cls.removeHiddenSuperClasses(mClasses)
+            if (cls.lastPresentIn < lastPresentIn) {
+                val removedFrom =
+                    versionToNext[cls.lastPresentIn]
+                        ?: error(
+                            "could not find next version for ${cls.lastPresentIn} in ${cls.name}"
+                        )
+                cls.updateRemovedIn(removedFrom)
+            }
+            cls.computeRemovedIn(versionToNext)
         }
     }
 
@@ -197,7 +259,8 @@ class Api : ParentApiElement {
         if (results.isNotEmpty()) {
             var message = ""
             for ((key, value) in results) {
-                message += """
+                message +=
+                    """
   $key referenced by:"""
                 for (referencer in value) {
                     message += "\n    $referencer"
@@ -211,6 +274,22 @@ class Api : ParentApiElement {
                     "make metalava remove these references instead of erroring out." +
                     message
             )
+        }
+    }
+
+    /**
+     * Removes any classes or class members that were only present in historical SDK extension
+     * versions and not in the latest SDK extension version or any platform SDK version, reporting
+     * an issue for each one.
+     */
+    fun removeInconsistentExtensionElements(reporter: Reporter) {
+        // If `since` was never initialized then the class was only seen in an older SDK extension
+        // version; report and remove the whole class rather than reporting each of its members
+        // individually.
+        mClasses.removeInconsistentExtensionElements(reporter) { "Class ${it.name}" }
+
+        for (cls in mClasses.values) {
+            cls.removeInconsistentExtensionElements(reporter)
         }
     }
 }

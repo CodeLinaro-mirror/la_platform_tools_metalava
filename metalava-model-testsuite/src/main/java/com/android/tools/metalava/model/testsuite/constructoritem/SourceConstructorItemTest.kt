@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model.testsuite.constructoritem
 
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertFalse
@@ -25,6 +27,7 @@ import org.junit.Test
 /** Common tests for implementations of [ConstructorItem] for source based models. */
 class SourceConstructorItemTest : BaseModelTest() {
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `test implicit default constructor`() {
         runSourceCodebaseTest(
@@ -37,16 +40,13 @@ class SourceConstructorItemTest : BaseModelTest() {
             ),
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
-            val constructorItem = fooClass.assertConstructor("")
+            val constructorItem = fooClass.assertConstructor(emptyList())
 
-            assertTrue(
-                fooClass.hasImplicitDefaultConstructor(),
-                message = "hasImplicitDefaultConstructor"
-            )
             assertTrue(constructorItem.isImplicitConstructor(), message = "isImplicitConstructor")
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `test explicit no-args public constructor`() {
         runSourceCodebaseTest(
@@ -61,12 +61,8 @@ class SourceConstructorItemTest : BaseModelTest() {
             ),
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
-            val constructorItem = fooClass.assertConstructor("")
+            val constructorItem = fooClass.assertConstructor(emptyList())
 
-            assertFalse(
-                fooClass.hasImplicitDefaultConstructor(),
-                message = "!hasImplicitDefaultConstructor"
-            )
             assertFalse(constructorItem.isImplicitConstructor(), message = "!isImplicitConstructor")
         }
     }

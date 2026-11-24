@@ -19,12 +19,16 @@ package com.android.tools.metalava.model
 const val JAVA_ENUM_VALUES = "values"
 const val JAVA_ENUM_VALUE_OF = "valueOf"
 
+const val JAVA_LANG_PACKAGE = "java.lang"
 const val JAVA_LANG_PREFIX = "java.lang."
 
 const val JAVA_LANG_ANNOTATION = "java.lang.annotation.Annotation"
 const val JAVA_LANG_DEPRECATED = "java.lang.Deprecated"
 const val JAVA_LANG_ENUM = "java.lang.Enum"
+const val JAVA_LANG_ERROR = "java.lang.Error"
 const val JAVA_LANG_OBJECT = "java.lang.Object"
+const val JAVA_LANG_RECORD = "java.lang.Record"
+const val JAVA_LANG_RUNTIME_EXCEPTION = "java.lang.RuntimeException"
 const val JAVA_LANG_STRING = "java.lang.String"
 const val JAVA_LANG_THROWABLE = "java.lang.Throwable"
 
@@ -37,8 +41,23 @@ const val JAVA_LANG_PARAMETER_TARGET = "java.lang.annotation.ElementType.PARAMET
 const val JAVA_RETENTION = "java.lang.annotation.Retention"
 const val KT_RETENTION = "kotlin.annotation.Retention"
 
+const val JVM_STATIC = "kotlin.jvm.JvmStatic"
+const val JVM_NAME = "kotlin.jvm.JvmName"
+const val JVM_SYNTHETIC = "kotlin.jvm.JvmSynthetic"
+const val JVM_FIELD = "kotlin.jvm.JvmField"
+
+const val KOTLIN_METADATA = "kotlin.Metadata"
+
 /** True if the annotation name represents @Retention (either the Java or Kotlin version) */
 fun isRetention(qualifiedName: String?): Boolean =
     JAVA_RETENTION == qualifiedName || KT_RETENTION == qualifiedName
 
 const val JAVA_PACKAGE_INFO = "package-info.java"
+
+const val KOTLIN_CONTINUATION = "kotlin.coroutines.Continuation"
+const val KOTLIN_DEPRECATED = "kotlin.Deprecated"
+const val KOTLIN_PUBLISHED_API = "kotlin.PublishedApi"
+
+object JavaConstants {
+    const val DOT_CLASS = ".class"
+}

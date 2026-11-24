@@ -28,24 +28,23 @@ class MergeSignaturesCommandTest :
 
     private fun checkMergeSignatures(
         vararg files: String,
-        format: FileFormat = FileFormat.LATEST,
+        format: FileFormat = FileFormat.V5,
         expectedOutput: String? = null,
         expectedStderr: String = "",
     ) {
         commandTest {
             args += "merge-signatures"
             files.forEachIndexed { i, contents ->
-                val input =
+                args +=
                     inputFile(
                         "api${i + 1}.txt",
-                        prepareSignatureFileForTest(contents.trimIndent(), FileFormat.V2)
+                        prepareSignatureFileForTest(contents, FileFormat.V2)
                     )
-                args += input.path
             }
 
             val output = outputFile("out.txt")
             args += "--out"
-            args += output.path
+            args += output
 
             args += "--format"
             args += format.specifier()
@@ -409,9 +408,10 @@ Arguments:
             source1,
             source2,
             format = FileFormat.V4,
-            expectedOutput = """
-            // Signature format: 4.0
-            """,
+            expectedOutput =
+                """
+                    // Signature format: 4.0
+                """,
         )
     }
 }

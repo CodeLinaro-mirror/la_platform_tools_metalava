@@ -16,11 +16,10 @@
 
 package com.android.tools.metalava.cli.common
 
-import com.android.tools.lint.detector.api.assertionsEnabled
-import com.android.tools.metalava.ENV_VAR_METALAVA_DUMP_ARGV
 import com.android.tools.metalava.model.source.SourceModelProvider
 import com.android.tools.metalava.reporter.DefaultReporterEnvironment
 import com.android.tools.metalava.reporter.ReporterEnvironment
+import java.io.InputStream
 import java.io.OutputStreamWriter
 import java.io.PrintWriter
 import java.io.StringWriter
@@ -28,14 +27,20 @@ import java.io.StringWriter
 /**
  * Encapsulates information provided by the execution environment.
  *
- * This supports two environments:
+ * This supports three environments:
  * 1. The standard command line application.
- * 2. Tests.
+ * 2. The [java.util.spi.ToolProvider] SPI.
+ * 3. Tests.
  */
 data class ExecutionEnvironment(
     val stdout: PrintWriter = PrintWriter(OutputStreamWriter(System.out)),
     val stderr: PrintWriter = PrintWriter(OutputStreamWriter(System.err)),
-    val reporterEnvironment: ReporterEnvironment = DefaultReporterEnvironment(),
+    val stdin: InputStream = System.`in`,
+    val reporterEnvironment: ReporterEnvironment =
+        DefaultReporterEnvironment(
+            stdout = stdout,
+            stderr = stderr,
+        ),
     val testEnvironment: TestEnvironment? = null,
 ) {
     /** Whether metalava is being invoked as part of an Android platform build */
@@ -43,9 +48,7 @@ data class ExecutionEnvironment(
 
     /** Whether to suppress dumping of information to stderr by a [SourceModelProvider]. */
     fun disableStderrDumping(): Boolean {
-        return !assertionsEnabled() &&
-            System.getenv(ENV_VAR_METALAVA_DUMP_ARGV) == null &&
-            !isUnderTest()
+        return !javaClass.desiredAssertionStatus() && !isUnderTest()
     }
 
     /** Whether metalava is running unit tests */
@@ -53,7 +56,7 @@ data class ExecutionEnvironment(
 
     companion object {
         /** Get an [ExecutionEnvironment] suitable for use by tests. */
-        fun forTest(): Triple<ExecutionEnvironment, StringWriter, StringWriter> {
+        fun forTest(stdin: String = ""): Triple<ExecutionEnvironment, StringWriter, StringWriter> {
             val stdoutString = StringWriter()
             val stderrString = StringWriter()
             val stdout = PrintWriter(stdoutString)
@@ -62,11 +65,7 @@ data class ExecutionEnvironment(
                 ExecutionEnvironment(
                     stdout = stdout,
                     stderr = stderr,
-                    reporterEnvironment =
-                        DefaultReporterEnvironment(
-                            stdout = stdout,
-                            stderr = stderr,
-                        ),
+                    stdin = stdin.byteInputStream(),
                 ),
                 stdoutString,
                 stderrString,

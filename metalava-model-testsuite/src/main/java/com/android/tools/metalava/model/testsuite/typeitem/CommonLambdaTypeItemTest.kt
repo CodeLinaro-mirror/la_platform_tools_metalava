@@ -16,12 +16,15 @@
 
 package com.android.tools.metalava.model.testsuite.typeitem
 
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testing.testTypeString
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 
+@SupportedInputFormats(InputFormat.KOTLIN)
 class CommonLambdaTypeItemTest : BaseModelTest() {
 
     @Test
@@ -396,6 +399,138 @@ class CommonLambdaTypeItemTest : BaseModelTest() {
                     .isEqualTo("int, kotlin.coroutines.Continuation<? super kotlin.Unit>")
                 assertThat(returnType.testTypeString(kotlinStyleNulls = true))
                     .isEqualTo("java.lang.Object?")
+            }
+        }
+    }
+
+    @Test
+    fun `Test lambda returns Nothing`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+                    class Foo {
+                        val field: (Throwable) -> Nothing = {throw it}
+                    }
+                """
+            ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val lambdaType = fooClass.fields().single().type()
+
+            lambdaType.assertLambdaTypeItem {
+                // Verify that the default string representation of the lambda type is the same as
+                // the string representation of the extended class type.
+                assertThat(testTypeString(kotlinStyleNulls = true))
+                    .isEqualTo("kotlin.jvm.functions.Function1<java.lang.Throwable,java.lang.Void>")
+
+                assertThat(receiverType).isNull()
+                assertThat(
+                        parameterTypes.joinToString { it.testTypeString(kotlinStyleNulls = true) }
+                    )
+                    .isEqualTo("java.lang.Throwable")
+                assertThat(returnType.testTypeString(kotlinStyleNulls = true))
+                    .isEqualTo("java.lang.Void")
+            }
+        }
+    }
+
+    @Test
+    fun `Test lambda with primitive parameter returns Nothing`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+                    class Foo {
+                        val field: (Int, Throwable) -> Nothing = { _, t -> throw t }
+                    }
+                """
+            ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val lambdaType = fooClass.fields().single().type()
+
+            lambdaType.assertLambdaTypeItem {
+                // Verify that the default string representation of the lambda type is the same as
+                // the string representation of the extended class type.
+                assertThat(testTypeString(kotlinStyleNulls = true))
+                    .isEqualTo(
+                        "kotlin.jvm.functions.Function2<java.lang.Integer,java.lang.Throwable,java.lang.Void>"
+                    )
+
+                assertThat(receiverType).isNull()
+                assertThat(
+                        parameterTypes.joinToString { it.testTypeString(kotlinStyleNulls = true) }
+                    )
+                    .isEqualTo("int, java.lang.Throwable")
+                assertThat(returnType.testTypeString(kotlinStyleNulls = true))
+                    .isEqualTo("java.lang.Void")
+            }
+        }
+    }
+
+    @Test
+    fun `Test lambda with type use annotations`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+                    @Target(AnnotationTarget.TYPE)
+                    annotation class TypeUse
+                    class Foo<T> {
+                        fun method(): @TypeUse ((@TypeUse T) -> @TypeUse Int)? = null
+                    }
+                """
+            ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val lambdaType = fooClass.methods().single().returnType()
+
+            lambdaType.assertLambdaTypeItem {
+                assertThat(testTypeString(annotations = true, kotlinStyleNulls = true))
+                    .isEqualTo(
+                        "kotlin.jvm.functions.@test.pkg.TypeUse Function1<@test.pkg.TypeUse T,java.lang.@test.pkg.TypeUse Integer>?"
+                    )
+
+                assertThat(receiverType).isNull()
+                assertThat(
+                        parameterTypes.joinToString {
+                            it.testTypeString(annotations = true, kotlinStyleNulls = true)
+                        }
+                    )
+                    .isEqualTo("@test.pkg.TypeUse T")
+                assertThat(returnType.testTypeString(annotations = true, kotlinStyleNulls = true))
+                    .isEqualTo("@test.pkg.TypeUse int")
+            }
+        }
+    }
+
+    @Test
+    fun `Test high arity lambda`() {
+        val params = List(22) { "Int" }.joinToString()
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+                    class Foo {
+                        fun method(lambda: String.($params) -> Number) {}
+                    }
+                """
+            ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val lambdaType = fooClass.methods().single().parameters().single().type()
+
+            lambdaType.assertLambdaTypeItem {
+                assertThat(testTypeString(kotlinStyleNulls = true))
+                    .isEqualTo("kotlin.jvm.functions.FunctionN<? extends java.lang.Number>")
+
+                assertThat(receiverType?.testTypeString(kotlinStyleNulls = true))
+                    .isEqualTo("java.lang.String")
+                assertThat(parameterTypes.map { it.testTypeString(kotlinStyleNulls = true) })
+                    .isEqualTo(List(22) { "int" })
+                assertThat(returnType.testTypeString(kotlinStyleNulls = true))
+                    .isEqualTo("java.lang.Number")
             }
         }
     }

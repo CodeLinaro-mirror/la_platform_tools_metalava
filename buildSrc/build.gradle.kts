@@ -14,14 +14,11 @@
  * limitations under the License.
  */
 
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     alias(libs.plugins.kotlinJvm)
     `java-gradle-plugin`
-}
-
-repositories {
-    mavenCentral()
-    google()
 }
 
 dependencies {
@@ -38,14 +35,21 @@ gradlePlugin {
             id = "metalava-build-plugin"
             implementationClass = "com.android.tools.metalava.MetalavaBuildPlugin"
         }
-    }
-}
-
-gradlePlugin {
-    plugins {
         create("metalava-model-provider-plugin") {
             id = "metalava-model-provider-plugin"
             implementationClass = "com.android.tools.metalava.MetalavaModelProviderPlugin"
         }
+    }
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget = JvmTarget.JVM_17
+        allWarningsAsErrors = true
     }
 }

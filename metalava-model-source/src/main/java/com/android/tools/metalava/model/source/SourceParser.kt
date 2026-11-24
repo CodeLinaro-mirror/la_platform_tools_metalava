@@ -16,46 +16,58 @@
 
 package com.android.tools.metalava.model.source
 
-import com.android.tools.metalava.model.ClassResolver
+import com.android.tools.metalava.model.ClassPathResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.PackageFilter
+import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
+import com.android.tools.metalava.model.provider.Capability
 import java.io.File
 
 /** Provides support for creating [Codebase] related objects from source files (including jars). */
 interface SourceParser {
-
     /**
-     * Get a [ClassResolver] instance that will resolve classes provided by jars on the [classPath].
+     * Get a [ClassPathResolver] instance that will resolve items provided by jars on the
+     * [Environment.classPath].
      *
-     * @param classPath a list of jar [File]s.
+     * If an implementation supports this it must provide [Capability.CLASS_PATH_RESOLVER].
      */
-    fun getClassResolver(classPath: List<File>): ClassResolver
+    fun getClassPathResolver(): ClassPathResolver
 
     /**
-     * Parse a set of sources into a [Codebase].
+     * Parse the sources in the [Environment] into a [Codebase].
      *
-     * @param sourceSet the list of source files and root directories.
      * @param description the description to use for [Codebase.description].
-     * @param classPath the possibly empty list of jar files which may provide additional classes
-     *   referenced by the sources.
      * @param apiPackages an optional [PackageFilter] that if specified will result in only
      *   including the source classes that match the filter in the
      *   [Codebase.getTopLevelClassesFromSource] list.
-     * @param projectDescription Lint project model that can describe project structures in detail.
-     *   Only supported by the PSI model.
+     * @param compiledSourceJar a jar file containing the compiled version of the sources. Used to
+     *   add the compiled JVM forms of Kotlin source APIs. If the implementation supports this then
+     *   it must provide [Capability.JAR_WITH_SOURCES]. Only supported by the PSI model.
      */
     fun parseSources(
-        sourceSet: SourceSet,
         description: String,
-        classPath: List<File>,
-        apiPackages: PackageFilter?,
-        projectDescription: File?,
-    ): Codebase
+        apiPackages: PackageFilter? = null,
+        compiledSourceJar: File? = null,
+    ): Codebase?
 
     /**
-     * Load a [Codebase] from a single jar.
+     * Parse the [javaStubFiles] against the [Environment] into a [Codebase].
      *
-     * @param apiJar the jar file from which the [Codebase] will be loaded.
+     * @param javaStubFiles the list of Java stub files to parse.
+     * @param apiPackages an optional [PackageFilter] that if specified will result in only
+     *   including the source classes that match the filter in the
+     *   [Codebase.getTopLevelClassesFromSource] list.
      */
-    fun loadFromJar(apiJar: File): Codebase
+    fun parseJavaStubs(
+        javaStubFiles: List<File>,
+        apiPackages: PackageFilter? = null,
+    ): Codebase?
+
+    /**
+     * Creates a multiplatform codebase based on the [Environment.projectDescription] file, which is
+     * a lint project model that can describe project structures in detail.
+     *
+     * Only supported by the PSI model.
+     */
+    fun createMultiplatformCodebase(): MultiplatformCodebase
 }

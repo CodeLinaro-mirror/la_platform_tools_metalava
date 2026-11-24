@@ -17,9 +17,9 @@
 package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFile
-import com.android.tools.metalava.lint.DefaultLintErrorMessage
-import com.android.tools.metalava.model.psi.REPORT_UNRESOLVED_SYMBOLS
+import com.android.tools.metalava.cli.common.ARG_SKIP_READING_COMMENTS
 import com.android.tools.metalava.model.source.utils.packageHtmlToJavadoc
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import org.intellij.lang.annotations.Language
 import org.junit.Assert.assertEquals
@@ -30,7 +30,6 @@ class JavadocTest : DriverTest() {
     private fun checkStubs(
         @Language("JAVA") source: String,
         warnings: String? = "",
-        expectedFail: String? = null,
         apiLint: String? = null,
         api: String? = null,
         extraArguments: Array<String> = emptyArray(),
@@ -42,12 +41,11 @@ class JavadocTest : DriverTest() {
         check(
             sourceFiles = sourceFiles,
             showAnnotations = showAnnotations,
-            stubFiles = arrayOf(java(source)),
-            expectedFail = expectedFail,
+            expectedStubFiles = arrayOf(java(source)),
             expectedIssues = warnings,
             checkCompilation = true,
             apiLint = apiLint,
-            api = api,
+            expectedApiSignature = api,
             extraArguments = extraArguments,
             docStubs = docStubs,
             skipEmitPackages = skipEmitPackages
@@ -119,7 +117,7 @@ class JavadocTest : DriverTest() {
                        * @param focus The focus to find. One of {@link OtherClass#FOCUS_INPUT} or
                        *         {@link OtherClass#FOCUS_ACCESSIBILITY}.
                        * @throws IOException when blah blah blah
-                       * @throws {@link RuntimeException} when blah blah blah
+                       * @throws RuntimeException when blah blah blah
                        */
                        public void baz(int focus) throws IOException;
                        public boolean importance;
@@ -153,21 +151,18 @@ class JavadocTest : DriverTest() {
             source =
                 """
                     package test.pkg1;
-                    import java.io.IOException;
-                    import test.pkg2.OtherClass;
                     /**
-                     *  Blah blah {@link test.pkg2.OtherClass OtherClass} blah blah.
+                     * Blah blah {@link test.pkg2.OtherClass OtherClass} blah blah.
                      *  Referencing <b>field</b> {@link test.pkg2.OtherClass#foo OtherClass.foo},
-                     *  and referencing method {@link test.pkg2.OtherClass#bar(int,boolean) OtherClass.bar(int,
-                     *   boolean)}.
+                     *  and referencing method {@link test.pkg2.OtherClass#bar(int,boolean) OtherClass.bar(int,boolean)}.
                      *  And relative method reference {@link #baz()}.
                      *  And relative field reference {@link #importance}.
                      *  Here's an already fully qualified reference: {@link test.pkg2.OtherClass}.
                      *  And here's one in the same package: {@link test.pkg1.LocalClass LocalClass}.
                      *
-                     *  @deprecated For some reason
-                     *  @see test.pkg2.OtherClass
-                     *  @see test.pkg2.OtherClass#bar(int, boolean)
+                     * @see test.pkg2.OtherClass OtherClass
+                     * @see test.pkg2.OtherClass#bar(int,boolean) OtherClass.bar(int,boolean)
+                     * @deprecated For some reason
                      */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     @Deprecated
@@ -176,10 +171,11 @@ class JavadocTest : DriverTest() {
                     public SomeClass() { throw new RuntimeException("Stub!"); }
                     /**
                      * My method.
+                     *
                      * @param focus The focus to find. One of {@link test.pkg2.OtherClass#FOCUS_INPUT OtherClass.FOCUS_INPUT} or
                      *         {@link test.pkg2.OtherClass#FOCUS_ACCESSIBILITY OtherClass.FOCUS_ACCESSIBILITY}.
                      * @throws java.io.IOException when blah blah blah
-                     * @throws {@link java.lang.RuntimeException RuntimeException} when blah blah blah
+                     * @throws java.lang.RuntimeException when blah blah blah
                      */
                     @Deprecated
                     public void baz(int focus) throws java.io.IOException { throw new RuntimeException("Stub!"); }
@@ -196,12 +192,13 @@ class JavadocTest : DriverTest() {
             docStubs = false,
             // Enable API lint to make sure that some issues will be reported.
             apiLint = "",
-            expectedFail = DefaultLintErrorMessage,
             // These warnings prove that lint is enabled and will report MutableBareField and
-            // MissingNullability, issues that would be reported on test.hidden.Hidden if it was not
-            // hidden by the package-info.java.
+            // MissingNullability. The first two issues are reported because `test.hidden.Hidden`
+            // is not hidden by the `@hide` in `test/hidden/package-info.java`.
             warnings =
                 """
+                    src/test/hidden/Hidden.java:4: error: Missing nullability on field `bareMutableFieldMissingNullability` in class `class test.hidden.Hidden` [MissingNullability]
+                    src/test/hidden/Hidden.java:4: error: Bare field bareMutableFieldMissingNullability must be marked final, or moved behind accessors if mutable [MutableBareField]
                     src/test/pkg1/SomeClass.java:29: error: Bare field importance must be marked final, or moved behind accessors if mutable [MutableBareField]
                     src/test/pkg2/OtherClass.java:7: error: Missing nullability on field `foo` in class `class test.pkg2.OtherClass` [MissingNullability]
                     src/test/pkg2/OtherClass.java:7: error: Bare field foo must be marked final, or moved behind accessors if mutable [MutableBareField]
@@ -235,7 +232,7 @@ class JavadocTest : DriverTest() {
                        * @param focus The focus to find. One of {@link OtherClass#FOCUS_INPUT} or
                        *         {@link OtherClass#FOCUS_ACCESSIBILITY}.
                        * @throws IOException when blah blah blah
-                       * @throws {@link RuntimeException} when blah blah blah
+                       * @throws RuntimeException when blah blah blah
                        */
                        public void baz(int focus) throws IOException;
                        public boolean importance;
@@ -264,8 +261,8 @@ class JavadocTest : DriverTest() {
                     }
                     """
                     ),
-                    // Make sure that hiding a package by using `@hide` in the Javadoc of a
-                    // package-info.java file still works when allowReadingComments = false.
+                    // Make sure that using `@hide` in the package javadoc comment has no effect
+                    // when allowReadingComments = false.
                     java(
                         """
                             /** @hide */
@@ -328,7 +325,7 @@ class JavadocTest : DriverTest() {
                        * @param focus The focus to find. One of {@link OtherClass#FOCUS_INPUT} or
                        *         {@link OtherClass#FOCUS_ACCESSIBILITY}.
                        * @throws java.io.IOException when blah blah blah
-                       * @throws {@link java.lang.RuntimeException} when blah blah blah
+                       * @throws java.lang.RuntimeException when blah blah blah
                        */
                        public void baz(int focus) throws IOException;
                        public boolean importance;
@@ -362,21 +359,18 @@ class JavadocTest : DriverTest() {
             source =
                 """
                 package test.pkg1;
-                import java.io.IOException;
-                import test.pkg2.OtherClass;
                 /**
-                 *  Blah blah {@link test.pkg2.OtherClass OtherClass} blah blah.
+                 * Blah blah {@link test.pkg2.OtherClass OtherClass} blah blah.
                  *  Referencing <b>field</b> {@link test.pkg2.OtherClass#foo OtherClass.foo},
-                 *  and referencing method {@link test.pkg2.OtherClass#bar(int,boolean) OtherClass.bar(int,
-                 *   boolean)}.
+                 *  and referencing method {@link test.pkg2.OtherClass#bar(int,boolean) OtherClass.bar(int,boolean)}.
                  *  And relative method reference {@link #baz()}.
                  *  And relative field reference {@link #importance}.
                  *  Here's an already fully qualified reference: {@link test.pkg2.OtherClass}.
                  *  And here's one in the same package: {@link test.pkg1.LocalClass LocalClass}.
                  *
-                 *  @deprecated For some reason
-                 *  @see test.pkg2.OtherClass
-                 *  @see test.pkg2.OtherClass#bar(int, boolean)
+                 * @see test.pkg2.OtherClass OtherClass
+                 * @see test.pkg2.OtherClass#bar(int,boolean) OtherClass.bar(int,boolean)
+                 * @deprecated For some reason
                  */
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 @Deprecated
@@ -385,10 +379,11 @@ class JavadocTest : DriverTest() {
                 public SomeClass() { throw new RuntimeException("Stub!"); }
                 /**
                  * My method.
+                 *
                  * @param focus The focus to find. One of {@link test.pkg2.OtherClass#FOCUS_INPUT OtherClass.FOCUS_INPUT} or
                  *         {@link test.pkg2.OtherClass#FOCUS_ACCESSIBILITY OtherClass.FOCUS_ACCESSIBILITY}.
                  * @throws java.io.IOException when blah blah blah
-                 * @throws {@link java.lang.RuntimeException} when blah blah blah
+                 * @throws java.lang.RuntimeException when blah blah blah
                  */
                 @Deprecated
                 public void baz(int focus) throws java.io.IOException { throw new RuntimeException("Stub!"); }
@@ -460,7 +455,6 @@ class JavadocTest : DriverTest() {
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class R {
                 public R() { throw new RuntimeException("Stub!"); }
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public static class attr {
                 public attr() { throw new RuntimeException("Stub!"); }
                 /**
@@ -472,7 +466,7 @@ class JavadocTest : DriverTest() {
                  * attribute in the form
                  * "<code>?[<i>package</i>:]<i>type</i>/<i>name</i></code>".
                  */
-                public static final int resource = 16842789; // 0x1010025
+                public static final int resource = 16842789;
                 }
                 }
                 """
@@ -536,7 +530,6 @@ class JavadocTest : DriverTest() {
             source =
                 """
                 package android.accessibilityservice;
-                import android.view.accessibility.AccessibilityEvent;
                 /**
                  * <p>
                  * Window content may be retrieved with
@@ -609,7 +602,6 @@ class JavadocTest : DriverTest() {
             source =
                 """
                 package android.accessibilityservice;
-                import android.view.accessibility.AccessibilityEvent;
                 /**
                  * <p>
                  * Window content may be retrieved with
@@ -643,8 +635,8 @@ class JavadocTest : DriverTest() {
                          * Called if the task was canceled before it was completed.  Gives the class a chance
                          * to clean up post-cancellation and to properly dispose of the result.
                          *
-                         * @param data The value that was returned by {@link #loadInBackground}, or null
-                         * if the task threw {@link OperationCanceledException}.
+                         * @param data the value that was returned by {@link #loadInBackground}, or null
+                         * if the task threw {@link OperationCanceledException}
                          */
                         public void onCanceled(D data) {
                         }
@@ -663,7 +655,7 @@ class JavadocTest : DriverTest() {
                          * call {@link #onCanceled} to perform post-cancellation cleanup and to dispose of the
                          * result object, if any.
                          *
-                         * @return The result of the load operation.
+                         * @return the result of the load operation
                          *
                          * @throws OperationCanceledException if the load is canceled during execution.
                          *
@@ -708,7 +700,6 @@ class JavadocTest : DriverTest() {
             source =
                 """
                 package android.content;
-                import android.os.OperationCanceledException;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public abstract class AsyncTaskLoader<D> {
                 public AsyncTaskLoader() { throw new RuntimeException("Stub!"); }
@@ -716,7 +707,6 @@ class JavadocTest : DriverTest() {
                  * Sends the result of the load to the registered listener. Should only be called by subclasses.
                  *
                  * Must be called from the process's main thread.
-                 *
                  * @param data the result of the load
                  */
                 public void deliverResult(java.lang.Object data) { throw new RuntimeException("Stub!"); }
@@ -734,10 +724,8 @@ class JavadocTest : DriverTest() {
                  * call {@link #onCanceled} to perform post-cancellation cleanup and to dispose of the
                  * result object, if any.
                  *
-                 * @return The result of the load operation.
-                 *
+                 * @return the result of the load operation
                  * @throws android.os.OperationCanceledException if the load is canceled during execution.
-                 *
                  * @see #onCanceled
                  */
                 public abstract java.lang.Object loadInBackground();
@@ -745,8 +733,8 @@ class JavadocTest : DriverTest() {
                  * Called if the task was canceled before it was completed.  Gives the class a chance
                  * to clean up post-cancellation and to properly dispose of the result.
                  *
-                 * @param data The value that was returned by {@link #loadInBackground}, or null
-                 * if the task threw {@link android.os.OperationCanceledException OperationCanceledException}.
+                 * @param data the value that was returned by {@link #loadInBackground}, or null
+                 * if the task threw {@link android.os.OperationCanceledException OperationCanceledException}
                  */
                 public void onCanceled(D data) { throw new RuntimeException("Stub!"); }
                 }
@@ -871,7 +859,6 @@ class JavadocTest : DriverTest() {
             source =
                 """
                 package test.pkg1;
-                import test.pkg2.MyChild;
                 /**
                  * Reference to {@link test.pkg2.MyChild#CONSTANT1 MyChild.CONSTANT1},
                  * {@link test.pkg2.MyChild#CONSTANT2 MyChild.CONSTANT2}, and
@@ -883,13 +870,11 @@ class JavadocTest : DriverTest() {
                  * Inner class reference:
                  * {@link test.pkg1.Test.TestInner#CONSTANT3 Test.TestInner.CONSTANT3}, again
                  * {@link test.pkg1.Test.TestInner#CONSTANT3 TestInner.CONSTANT3}
-                 *
                  * @see test.pkg2.MyChild#myMethod
                  */
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class Test {
                 public Test() { throw new RuntimeException("Stub!"); }
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public static class TestInner {
                 public TestInner() { throw new RuntimeException("Stub!"); }
                 public static final java.lang.String CONSTANT3 = "Hello";
@@ -903,7 +888,14 @@ class JavadocTest : DriverTest() {
     fun `Rewrite parameter list`() {
         checkStubs(
             docStubs = true,
-            warnings = "",
+
+            // `test.pkg2.OtherClass1` is package-private, so `{@link OtherClass1#myMethod(...)}`
+            // from public `Test` reports `HiddenDocReference`.
+            warnings =
+                """
+                    src/test/pkg1/Test.java:6: warning: Class test.pkg2.OtherClass1 is not public (ErrorWhenNew) [HiddenDocReference]
+                    src/test/pkg1/Test.java:11: warning: Class test.pkg2.OtherClass1 is not public (ErrorWhenNew) [HiddenDocReference]
+                """,
             sourceFiles =
                 arrayOf(
                     java(
@@ -948,16 +940,11 @@ class JavadocTest : DriverTest() {
             source =
                 """
                 package test.pkg1;
-                import test.pkg2.OtherClass2;
-                /**
-                 * Reference to {@link test.pkg2.OtherClass1#myMethod(test.pkg2.OtherClass2,int name,test.pkg2.OtherClass2[]) OtherClass1.myMethod(OtherClass2, int name, OtherClass2[])},
-                 */
+                /** Reference to ERROR[not public: OtherClass1#myMethod(OtherClass2,int,OtherClass2[])], */
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class Test<E extends test.pkg2.OtherClass2> {
                 public Test() { throw new RuntimeException("Stub!"); }
-                /**
-                 * Reference to {@link test.pkg2.OtherClass1#myMethod(E,int,test.pkg2.OtherClass2[]) OtherClass1.myMethod(E, int, OtherClass2 [])},
-                 */
+                /** Reference to ERROR[not public: OtherClass1#myMethod(E,int,OtherClass2[])], */
                 public void test() { throw new RuntimeException("Stub!"); }
                 }
                 """
@@ -996,15 +983,13 @@ class JavadocTest : DriverTest() {
             source =
                 """
                 package test.pkg1;
-                import java.nio.ByteBuffer;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public abstract class Test {
                 public Test() { throw new RuntimeException("Stub!"); }
                 /**
                  * Blah blah
                  * <blockquote><pre>
-                 * {@link #wrap(java.nio.ByteBuffer[],int,int,java.nio.ByteBuffer)
-                 *     engine.wrap(new ByteBuffer [] { src }, 0, 1, dst);}
+                 * {@link #wrap(java.nio.ByteBuffer[],int,int,java.nio.ByteBuffer) engine.wrap(new ByteBuffer [] { src }, 0, 1, dst);}
                  * </pre></blockquote>
                  */
                 public void test() { throw new RuntimeException("Stub!"); }
@@ -1019,15 +1004,7 @@ class JavadocTest : DriverTest() {
         @Suppress("ConstantConditionIf")
         checkStubs(
             docStubs = true,
-            warnings =
-                if (REPORT_UNRESOLVED_SYMBOLS) {
-                    """
-                src/test/pkg1/Test.java:6: lint: Unresolved documentation reference: SomethingMissing [UnresolvedLink]
-                src/test/pkg1/Test.java:6: lint: Unresolved documentation reference: OtherMissing [UnresolvedLink]
-            """
-                } else {
-                    ""
-                },
+            warnings = "",
             sourceFiles =
                 arrayOf(
                     java(
@@ -1057,7 +1034,6 @@ class JavadocTest : DriverTest() {
                 /**
                  * Reference to {@link SomethingMissing} and
                  * {@link java.lang.String#randomMethod String.randomMethod}.
-                 *
                  * @see OtherMissing
                  */
                 public void test() { throw new RuntimeException("Stub!"); }
@@ -1081,11 +1057,11 @@ class JavadocTest : DriverTest() {
                          * Returns a copy of this WindowInsets with selected system window insets replaced
                          * with new values.
                          *
-                         * @param left New left inset in pixels
-                         * @param top New top inset in pixels
-                         * @param right New right inset in pixels
-                         * @param bottom New bottom inset in pixels
-                         * @return A modified copy of this WindowInsets
+                         * @param left new left inset in pixels
+                         * @param top new top inset in pixels
+                         * @param right new right inset in pixels
+                         * @param bottom new bottom inset in pixels
+                         * @return a modified copy of this WindowInsets
                          * @deprecated use {@link Builder#Builder(WindowInsets)} with
                          *             {@link Builder#setSystemWindowInsets(Insets)} instead.
                          */
@@ -1117,12 +1093,11 @@ class JavadocTest : DriverTest() {
                     )
                 ),
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
                     package android.view;
-                    import android.graphics.Insets;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public final class WindowInsets {
                     public WindowInsets() { throw new RuntimeException("Stub!"); }
@@ -1130,17 +1105,16 @@ class JavadocTest : DriverTest() {
                      * Returns a copy of this WindowInsets with selected system window insets replaced
                      * with new values.
                      *
-                     * @param left New left inset in pixels
-                     * @param top New top inset in pixels
-                     * @param right New right inset in pixels
-                     * @param bottom New bottom inset in pixels
-                     * @return A modified copy of this WindowInsets
+                     * @param left new left inset in pixels
+                     * @param top new top inset in pixels
+                     * @param right new right inset in pixels
+                     * @param bottom new bottom inset in pixels
+                     * @return a modified copy of this WindowInsets
                      * @deprecated use {@link android.view.WindowInsets.Builder#Builder(android.view.WindowInsets) Builder.Builder(WindowInsets)} with
                      *             {@link android.view.WindowInsets.Builder#setSystemWindowInsets(android.graphics.Insets) Builder.setSystemWindowInsets(Insets)} instead.
                      */
                     @Deprecated
                     public android.view.WindowInsets replaceSystemWindowInsets(int left, int top, int right, int bottom) { throw new RuntimeException("Stub!"); }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public static class Builder {
                     public Builder() { throw new RuntimeException("Stub!"); }
                     public Builder(android.view.WindowInsets insets) { throw new RuntimeException("Stub!"); }
@@ -1200,18 +1174,15 @@ class JavadocTest : DriverTest() {
                     """
                     )
                 ),
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
                     package test.pkg;
-                    import test.pkg.bar.Bar;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Foo {
                     public Foo() { throw new RuntimeException("Stub!"); }
-                    /**
-                     * @see test.pkg.bar.Bar
-                     */
+                    /** @see test.pkg.bar.Bar Bar */
                     public void bar() { throw new RuntimeException("Stub!"); }
                     }
                     """
@@ -1219,14 +1190,12 @@ class JavadocTest : DriverTest() {
                     java(
                         """
                     package test.pkg.bar;
-                    import test.pkg.Foo;
-                    import test.pkg.baz.Baz;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Bar {
                     public Bar() { throw new RuntimeException("Stub!"); }
-                    /** @see test.pkg.baz.Baz */
+                    /** @see test.pkg.baz.Baz Baz */
                     public void baz(test.pkg.baz.Baz baz) { throw new RuntimeException("Stub!"); }
-                    /** @see test.pkg.Foo */
+                    /** @see test.pkg.Foo Foo */
                     public void foo(test.pkg.Foo foo) { throw new RuntimeException("Stub!"); }
                     }
                     """
@@ -1241,6 +1210,233 @@ class JavadocTest : DriverTest() {
                     """
                     )
                 )
+        )
+    }
+
+    @Test
+    fun `Test non-block @hide tag`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            public class Foo {
+                                private Foo() {}
+                                /**
+                                 * A method that does not use @hide correctly
+                                 */
+                                public void bar() {}
+
+                                /**
+                                 * Another method that does not use @hide correctly
+                                 */
+                                public void baz() {}
+
+                                /**
+                                 * {@hide}
+                                 */
+                                public void qux() {}
+
+                                /**
+                                 * Some text.
+                                 * {@hide}
+                                 */
+                                public void quux() {}
+                            }
+                        """
+                    ),
+                ),
+            expectedIssues =
+                """
+                    src/test/pkg/Foo.java:4: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:9: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:14: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:15: warning: Cannot use 'hide' as an inline tag (ErrorWhenNew) [InvalidTagForm]
+                    src/test/pkg/Foo.java:19: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:21: warning: Cannot use 'hide' as an inline tag (ErrorWhenNew) [InvalidTagForm]
+                """,
+            expectedApiSignature =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Foo {
+                        method public void bar();
+                        method public void baz();
+                        method public void quux();
+                        method public void qux();
+                      }
+                    }
+                """,
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Foo {
+                            Foo() { throw new RuntimeException("Stub!"); }
+                            /** A method that does not use @hide correctly */
+                            public void bar() { throw new RuntimeException("Stub!"); }
+                            /** Another method that does not use @hide correctly */
+                            public void baz() { throw new RuntimeException("Stub!"); }
+                            /**
+                             * Some text.
+                             * {@hide}
+                             */
+                            public void quux() { throw new RuntimeException("Stub!"); }
+                            /** {@hide} */
+                            public void qux() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
+        )
+    }
+
+    @Test
+    fun `Test non-block @hide tag and appending content`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.Nullable;
+                            @UiThread
+                            public class Foo {
+                                private Foo() {}
+                                /** Does not use @hide correctly; {@link Nullable}. */
+                                @Nullable
+                                public String method() {return null;}
+                            }
+                        """
+                    ),
+                    KnownSourceFiles.nullableSource,
+                ),
+            expectedIssues =
+                """
+                    src/test/pkg/Foo.java:6: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                """,
+            docStubs = true,
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Foo {
+                            Foo() { throw new RuntimeException("Stub!"); }
+                            /**
+                             * Does not use @hide correctly; {@link androidx.annotation.Nullable Nullable}.
+                             * @return This value may be {@code null}.
+                             */
+                            @androidx.annotation.Nullable
+                            public java.lang.String method() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
+        )
+    }
+
+    @Test
+    fun `Test multiple javadoc issues with baseline`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            public class Foo {
+                                private Foo() {}
+                                /**
+                                 * A method that does not use @hide correctly
+                                 */
+                                public void bar() {}
+
+                                /**
+                                 * Another method that does not use @hide correctly
+                                 */
+                                public void baz() {}
+
+                                /**
+                                 * {@hide}
+                                 */
+                                public void qux() {}
+
+                                /**
+                                 * Some text.
+                                 * {@hide}
+                                 */
+                                public void quux() {}
+                            }
+                        """
+                    ),
+                ),
+            baselineTestInfo =
+                BaselineTestInfo(
+                    inputContents = "",
+                    expectedOutputContents =
+                        """
+                            // Baseline format: 1.0
+                            InvalidBlockTagUse: test.pkg.Foo#bar():
+                                Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream.
+                            InvalidBlockTagUse: test.pkg.Foo#baz():
+                                Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream.
+                            InvalidBlockTagUse: test.pkg.Foo#quux():
+                                Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream.
+                            InvalidBlockTagUse: test.pkg.Foo#qux():
+                                Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream.
+                            InvalidTagForm: test/pkg/Foo.java:
+                                Cannot use 'hide' as an inline tag
+                        """,
+                    silentUpdate = false,
+                ),
+            expectedIssues =
+                """
+                    src/test/pkg/Foo.java:4: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:9: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:14: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:15: warning: Cannot use 'hide' as an inline tag (ErrorWhenNew) [InvalidTagForm]
+                    src/test/pkg/Foo.java:19: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:21: warning: Cannot use 'hide' as an inline tag (ErrorWhenNew) [InvalidTagForm]
+                """,
+            expectedApiSignature =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Foo {
+                        method public void bar();
+                        method public void baz();
+                        method public void quux();
+                        method public void qux();
+                      }
+                    }
+                """,
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Foo {
+                            Foo() { throw new RuntimeException("Stub!"); }
+                            /** A method that does not use @hide correctly */
+                            public void bar() { throw new RuntimeException("Stub!"); }
+                            /** Another method that does not use @hide correctly */
+                            public void baz() { throw new RuntimeException("Stub!"); }
+                            /**
+                             * Some text.
+                             * {@hide}
+                             */
+                            public void quux() { throw new RuntimeException("Stub!"); }
+                            /** {@hide} */
+                            public void qux() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
         )
     }
 }

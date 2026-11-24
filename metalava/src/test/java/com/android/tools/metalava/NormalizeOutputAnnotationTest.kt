@@ -17,13 +17,12 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.model.text.FileFormat
-import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
 class NormalizeOutputAnnotationTest : DriverTest() {
     @Test
-    fun `Normalize nested permission annotations (java)`() {
+    fun `Normalize nested permission annotations - java`() {
         check(
             sourceFiles =
                 arrayOf(
@@ -64,11 +63,9 @@ class NormalizeOutputAnnotationTest : DriverTest() {
                         )
                         .indented(),
                     requiresPermissionSource,
-                    // Hide android.annotation classes.
-                    KnownSourceFiles.androidAnnotationHide,
                 ),
             format = FileFormat.V4,
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 4.0
                 package test.pkg {

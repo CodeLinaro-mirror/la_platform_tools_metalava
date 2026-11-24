@@ -21,11 +21,10 @@ import com.android.tools.metalava.model.junit4.CustomizableParameterizedRunner
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.provider.FilterableCodebaseCreator
 import com.android.tools.metalava.model.provider.InputFormat
-import com.android.tools.metalava.model.testing.BaseModelProviderRunner.InstanceRunner
-import com.android.tools.metalava.model.testing.BaseModelProviderRunner.InstanceRunnerFactory
 import com.android.tools.metalava.model.testing.BaseModelProviderRunner.ModelProviderWrapper
 import com.android.tools.metalava.testing.BaselineTestRule
 import java.lang.reflect.AnnotatedElement
+import java.util.EnumSet
 import java.util.Locale
 import org.junit.runner.Runner
 import org.junit.runners.Parameterized
@@ -79,7 +78,7 @@ open class BaseModelProviderRunner<C : FilterableCodebaseCreator, I : Any>(
     baselineResourcePath: String,
     minimumCapabilities: Set<Capability> = emptySet(),
 ) :
-    CustomizableParameterizedRunner(
+    CustomizableParameterizedRunner<ModelProviderWrapper<C>>(
         clazz,
         { testClass, additionalArguments ->
             createTestArguments(
@@ -90,7 +89,7 @@ open class BaseModelProviderRunner<C : FilterableCodebaseCreator, I : Any>(
                 minimumCapabilities,
             )
         },
-        InstanceRunnerFactory::class,
+        InstanceRunnerFactory(),
     ) {
 
     init {
@@ -101,10 +100,26 @@ open class BaseModelProviderRunner<C : FilterableCodebaseCreator, I : Any>(
     }
 
     /**
+     * Apply [parametersFilterMethod] to [argument] by combining
+     * [ModelProviderWrapper.codebaseCreatorConfig] and [ModelProviderWrapper.additionalArgumentSet]
+     * into a single list of arguments and the invoking [parametersFilterMethod] with them.
+     */
+    override fun invokeFilterMethod(
+        parametersFilterMethod: FrameworkMethod,
+        argument: ModelProviderWrapper<C>
+    ): Boolean {
+        val args = buildList {
+            add(argument.codebaseCreatorConfig)
+            addAll(argument.additionalArgumentSet)
+        }
+        return parametersFilterMethod.invokeExplosively(null, *args.toTypedArray()) as Boolean
+    }
+
+    /**
      * A wrapper around a [CodebaseCreatorConfig] that tunnels information needed by
      * [InstanceRunnerFactory] through [TestWithParameters].
      */
-    private class ModelProviderWrapper<C : FilterableCodebaseCreator>(
+    class ModelProviderWrapper<C : FilterableCodebaseCreator>(
         val codebaseCreatorConfig: CodebaseCreatorConfig<C>,
         val baselineResourcePath: String,
         val additionalArgumentSet: List<Any> = emptyList(),
@@ -226,7 +241,14 @@ open class BaseModelProviderRunner<C : FilterableCodebaseCreator, I : Any>(
         override fun getChildren(): List<FrameworkMethod> {
             return super.getChildren().filter { frameworkMethod ->
                 // Create a predicate from any annotations on the methods.
-                val predicate = createCreatorPredicate(sequenceOf(frameworkMethod.method))
+                val predicate =
+                    createCreatorPredicate(sequenceOf(frameworkMethod.method))
+                        // If an inputFormat is available in [CodebaseCreatorConfig] then filter
+                        // based on the supported input formats.
+                        .and {
+                            it.inputFormat == null ||
+                                it.inputFormat in frameworkMethod.supportedInputFormats()
+                        }
 
                 // Apply the predicate to the [CodebaseCreatorConfig] that would be used for this
                 // method.
@@ -242,7 +264,7 @@ open class BaseModelProviderRunner<C : FilterableCodebaseCreator, I : Any>(
             baselineResourcePath: String,
             additionalArguments: List<Array<Any>>?,
             minimumCapabilities: Set<Capability>,
-        ): TestArguments {
+        ): TestArguments<ModelProviderWrapper<C>> {
             // Generate a sequence that traverse the super class hierarchy starting with the test
             // class.
             val hierarchy = generateSequence(testClass.javaClass) { it.superclass }
@@ -349,8 +371,51 @@ open class BaseModelProviderRunner<C : FilterableCodebaseCreator, I : Any>(
         private fun createCapabilitiesPredicate(required: Set<Capability>): CreatorPredicate =
             if (required.isEmpty()) alwaysTruePredicate
             else { config -> config.creator.capabilities.containsAll(required) }
+
+        /**
+         * Get the set of [InputFormat]s that are supported by this [FrameworkMethod].
+         *
+         * Looks for the closest [SupportedInputFormats] annotation on this
+         * [FrameworkMethod.method], its declaring class and any of its super classes.
+         */
+        private fun FrameworkMethod.supportedInputFormats(): Set<InputFormat> {
+            // Check the method first.
+            method.supportedInputFormats()?.let {
+                return it
+            }
+
+            // Then check to see if it is inherited from the declaring class or its super classes.
+            return method.declaringClass.inheritedSupportedInputFormats()
+        }
     }
 }
+
+/** The set of all [InputFormat]s. */
+private val allFormats = EnumSet.allOf(InputFormat::class.java)
+
+/**
+ * Check for [SupportedInputFormats] annotation on this [Class] or any of its super classes.
+ *
+ * Returns the set of [InputFormat]s provided, falling back to [allFormats] if no annotation was
+ * found.
+ */
+fun Class<*>.inheritedSupportedInputFormats(): Set<InputFormat> {
+    var clazz: Class<*>? = this
+    while (clazz != null) {
+        clazz.supportedInputFormats()?.let {
+            return it
+        }
+        clazz = clazz.superclass
+    }
+    return allFormats
+}
+
+/**
+ * Check for [SupportedInputFormats] on this [AnnotatedElement], returning a set of
+ * [SupportedInputFormats.formats] if found, null otherwise.
+ */
+private fun AnnotatedElement.supportedInputFormats() =
+    getAnnotation(SupportedInputFormats::class.java)?.formats?.toSet()
 
 /** Encapsulates the configuration information needed by a codebase creator */
 class CodebaseCreatorConfig<C : FilterableCodebaseCreator>(

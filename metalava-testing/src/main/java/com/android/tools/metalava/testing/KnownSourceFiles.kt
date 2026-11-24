@@ -25,6 +25,9 @@ object KnownSourceFiles {
         TestFiles.java(
             """
                 package not.type.use;
+                import java.lang.annotation.*;
+                import static java.lang.annotation.ElementType.*;
+                @Target({METHOD, PARAMETER, FIELD})
                 public @interface NonNull {
                 }
             """
@@ -34,6 +37,9 @@ object KnownSourceFiles {
         TestFiles.java(
             """
                 package not.type.use;
+                import java.lang.annotation.*;
+                import static java.lang.annotation.ElementType.*;
+                @Target({METHOD, PARAMETER, FIELD})
                 public @interface Nullable {
                 }
             """
@@ -63,92 +69,100 @@ object KnownSourceFiles {
             """
         )
 
-    val androidAnnotationHide: TestFile =
+    val mixedUseNonNullSource: TestFile =
         TestFiles.java(
             """
-                /** @hide */
-                package android.annotation;
+                package mixed.use;
+                import java.lang.annotation.*;
+                import static java.lang.annotation.ElementType.*;
+                @Target({METHOD, PARAMETER, FIELD, TYPE_USE})
+                public @interface NonNull {
+                }
+            """
+        )
+
+    val mixedUseNullableSource: TestFile =
+        TestFiles.java(
+            """
+                package mixed.use;
+                import java.lang.annotation.*;
+                import static java.lang.annotation.ElementType.*;
+                @Target({METHOD, PARAMETER, FIELD, TYPE_USE})
+                public @interface Nullable {
+                }
             """
         )
 
     val nonNullSource: TestFile =
         TestFiles.java(
             """
-    package android.annotation;
-    import java.lang.annotation.*;
-    import static java.lang.annotation.ElementType.*;
-    import static java.lang.annotation.RetentionPolicy.CLASS;
-    /**
-     * Denotes that a parameter, field or method return value can never be null.
-     * @paramDoc This value must never be {@code null}.
-     * @returnDoc This value will never be {@code null}.
-     * @hide
-     */
-    @SuppressWarnings({"WeakerAccess", "JavaDoc"})
-    @Retention(CLASS)
-    @Target({METHOD, PARAMETER, FIELD, TYPE_USE})
-    public @interface NonNull {
-    }
-    """
+                package android.annotation;
+                import java.lang.annotation.*;
+                import static java.lang.annotation.ElementType.*;
+                import static java.lang.annotation.RetentionPolicy.CLASS;
+                /**
+                 * Denotes that a parameter, field or method return value can never be null.
+                 * @paramDoc This value must never be {@code null}.
+                 * @returnDoc This value will never be {@code null}.
+                 * @hide
+                 */
+                @SuppressWarnings({"WeakerAccess", "JavaDoc"})
+                @Retention(CLASS)
+                @Target({METHOD, PARAMETER, FIELD})
+                public @interface NonNull {
+                }
+            """
         )
 
     val nullableSource: TestFile =
         TestFiles.java(
             """
-    package android.annotation;
-    import java.lang.annotation.*;
-    import static java.lang.annotation.ElementType.*;
-    import static java.lang.annotation.RetentionPolicy.CLASS;
-    /**
-     * Denotes that a parameter, field or method return value can be null.
-     * @paramDoc This value may be {@code null}.
-     * @returnDoc This value may be {@code null}.
-     * @hide
-     */
-    @SuppressWarnings({"WeakerAccess", "JavaDoc"})
-    @Retention(CLASS)
-    @Target({METHOD, PARAMETER, FIELD, TYPE_USE})
-    public @interface Nullable {
-    }
-    """
-        )
-
-    val libcodeUtilHide: TestFile =
-        TestFiles.java(
-            """
-                /** @hide */
-                package libcore.util;
+                package android.annotation;
+                import java.lang.annotation.*;
+                import static java.lang.annotation.ElementType.*;
+                import static java.lang.annotation.RetentionPolicy.CLASS;
+                /**
+                 * Denotes that a parameter, field or method return value can be null.
+                 * @paramDoc This value may be {@code null}.
+                 * @returnDoc This value may be {@code null}.
+                 * @hide
+                 */
+                @SuppressWarnings({"WeakerAccess", "JavaDoc"})
+                @Retention(CLASS)
+                @Target({METHOD, PARAMETER, FIELD})
+                public @interface Nullable {
+                }
             """
         )
 
     val libcoreNonNullSource: TestFile =
         TestFiles.java(
             """
-    package libcore.util;
-    import static java.lang.annotation.ElementType.*;
-    import static java.lang.annotation.RetentionPolicy.SOURCE;
-    import java.lang.annotation.*;
-    @Documented
-    @Retention(SOURCE)
-    @Target({TYPE_USE})
-    public @interface NonNull {
-    }
-    """
+                package libcore.util;
+                import static java.lang.annotation.ElementType.*;
+                import static java.lang.annotation.RetentionPolicy.SOURCE;
+                import java.lang.annotation.*;
+                @Documented
+                @Retention(SOURCE)
+                @Target({FIELD, METHOD, PARAMETER, TYPE_USE})
+                public @interface NonNull {
+                }
+            """
         )
 
     val libcoreNullableSource: TestFile =
         TestFiles.java(
             """
-    package libcore.util;
-    import static java.lang.annotation.ElementType.*;
-    import static java.lang.annotation.RetentionPolicy.SOURCE;
-    import java.lang.annotation.*;
-    @Documented
-    @Retention(SOURCE)
-    @Target({TYPE_USE})
-    public @interface Nullable {
-    }
-    """
+                package libcore.util;
+                import static java.lang.annotation.ElementType.*;
+                import static java.lang.annotation.RetentionPolicy.SOURCE;
+                import java.lang.annotation.*;
+                @Documented
+                @Retention(SOURCE)
+                @Target({FIELD, METHOD, PARAMETER, TYPE_USE})
+                public @interface Nullable {
+                }
+            """
         )
 
     /**
@@ -164,11 +178,33 @@ object KnownSourceFiles {
             """
         )
 
-    val androidxAnnotationHide: TestFile =
+    val androidxNonNullJavaSource: TestFile =
         TestFiles.java(
             """
-                /** @hide */
                 package androidx.annotation;
+                import java.lang.annotation.*;
+                import static java.lang.annotation.ElementType.*;
+                import static java.lang.annotation.RetentionPolicy.SOURCE;
+                @SuppressWarnings("WeakerAccess")
+                @Retention(SOURCE)
+                @Target({METHOD, PARAMETER, FIELD, PACKAGE, TYPE_PARAMETER})
+                public @interface NonNull {
+                }
+            """
+        )
+
+    val androidxNullableJavaSource: TestFile =
+        TestFiles.java(
+            """
+                package androidx.annotation;
+                import java.lang.annotation.*;
+                import static java.lang.annotation.ElementType.*;
+                import static java.lang.annotation.RetentionPolicy.SOURCE;
+                @SuppressWarnings("WeakerAccess")
+                @Retention(SOURCE)
+                @Target({METHOD, PARAMETER, FIELD, PACKAGE, TYPE_PARAMETER})
+                public @interface Nullable {
+                }
             """
         )
 
@@ -189,18 +225,75 @@ object KnownSourceFiles {
         """
         )
 
-    val supportParameterName =
-        java(
+    val hideAnnotation =
+        TestFiles.java(
             """
-                package androidx.annotation;
-                import java.lang.annotation.*;
-                import static java.lang.annotation.ElementType.*;
-                import static java.lang.annotation.RetentionPolicy.SOURCE;
-                @SuppressWarnings("WeakerAccess")
-                @Retention(SOURCE)
-                @Target({METHOD, PARAMETER, FIELD})
-                public @interface ParameterName {
-                    String value();
+                package android.annotation;
+
+                import static java.lang.annotation.ElementType.ANNOTATION_TYPE;
+                import static java.lang.annotation.ElementType.CONSTRUCTOR;
+                import static java.lang.annotation.ElementType.FIELD;
+                import static java.lang.annotation.ElementType.METHOD;
+                import static java.lang.annotation.ElementType.PACKAGE;
+                import static java.lang.annotation.ElementType.TYPE;
+
+                import java.lang.annotation.Retention;
+                import java.lang.annotation.RetentionPolicy;
+                import java.lang.annotation.Target;
+
+                @Hide
+                @Target({TYPE, FIELD, METHOD, CONSTRUCTOR, ANNOTATION_TYPE, PACKAGE})
+                @Retention(RetentionPolicy.SOURCE)
+                public @interface Hide {
+                }
+            """
+        )
+
+    val docOnlyAnnotation =
+        TestFiles.java(
+            """
+                package android.annotation;
+
+                import static java.lang.annotation.ElementType.TYPE;
+
+                import java.lang.annotation.Retention;
+                import java.lang.annotation.RetentionPolicy;
+                import java.lang.annotation.Target;
+
+                /**
+                 * Indicates that a class should only be considered part of the API when
+                 * generating documentation.
+                 *
+                 * Should only be used on the {@code R.styleable} class.
+                 */
+                @Hide
+                @Target({TYPE})
+                @Retention(RetentionPolicy.SOURCE)
+                public @interface DocOnly {
+                }
+            """
+        )
+
+    val removedFromApiAnnotation =
+        TestFiles.java(
+            """
+                package android.annotation;
+
+                import static java.lang.annotation.ElementType.ANNOTATION_TYPE;
+                import static java.lang.annotation.ElementType.CONSTRUCTOR;
+                import static java.lang.annotation.ElementType.FIELD;
+                import static java.lang.annotation.ElementType.METHOD;
+                import static java.lang.annotation.ElementType.PACKAGE;
+                import static java.lang.annotation.ElementType.TYPE;
+
+                import java.lang.annotation.Retention;
+                import java.lang.annotation.RetentionPolicy;
+                import java.lang.annotation.Target;
+
+                @Hide
+                @Target({TYPE, FIELD, METHOD, CONSTRUCTOR, ANNOTATION_TYPE, PACKAGE})
+                @Retention(RetentionPolicy.SOURCE)
+                public @interface RemovedFromApi {
                 }
             """
         )
@@ -212,7 +305,7 @@ object KnownSourceFiles {
                 import static java.lang.annotation.ElementType.*;
                 import java.lang.annotation.*;
                 @Target({TYPE, FIELD, METHOD, CONSTRUCTOR, ANNOTATION_TYPE, PACKAGE})
-                @Retention(RetentionPolicy.SOURCE)
+                @Retention(RetentionPolicy.RUNTIME)
                 public @interface SystemApi {
                     enum Client {
                         /**
@@ -241,6 +334,235 @@ object KnownSourceFiles {
                      * The intended client of this SystemAPI.
                      */
                     Client client() default android.annotation.SystemApi.Client.PRIVILEGED_APPS;
+                }
+            """
+        )
+
+    val testApiSource: TestFile =
+        java(
+            """
+                package android.annotation;
+                import static java.lang.annotation.ElementType.*;
+                import java.lang.annotation.*;
+                @Target({TYPE, FIELD, METHOD, CONSTRUCTOR, ANNOTATION_TYPE, PACKAGE})
+                @Retention(RetentionPolicy.SOURCE)
+                public @interface TestApi {
+                }
+            """
+        )
+
+    val intRangeAnnotationSource: TestFile =
+        TestFiles.java(
+            """
+                package android.annotation;
+                import java.lang.annotation.*;
+                import static java.lang.annotation.ElementType.*;
+                import static java.lang.annotation.RetentionPolicy.SOURCE;
+                @Retention(SOURCE)
+                @Target({METHOD,PARAMETER,FIELD,LOCAL_VARIABLE,ANNOTATION_TYPE})
+                public @interface IntRange {
+                    /** Smallest value, inclusive */
+                    long from() default Long.MIN_VALUE;
+                    /** Largest value, inclusive */
+                    long to() default Long.MAX_VALUE;
+                }
+            """
+        )
+
+    val floatRangeAnnotationSource: TestFile =
+        TestFiles.java(
+            """
+                package android.annotation;
+                import java.lang.annotation.*;
+                import static java.lang.annotation.ElementType.*;
+                import static java.lang.annotation.RetentionPolicy.SOURCE;
+                @Retention(SOURCE)
+                @Target({METHOD,PARAMETER,FIELD,LOCAL_VARIABLE,ANNOTATION_TYPE})
+                public @interface FloatRange {
+                    /** Smallest value. Whether it is inclusive or not is determined
+                     * by {@link #fromInclusive} */
+                    double from() default Double.NEGATIVE_INFINITY;
+                    /** Largest value. Whether it is inclusive or not is determined
+                     * by {@link #toInclusive} */
+                    double to() default Double.POSITIVE_INFINITY;
+                    /** Whether the from value is included in the range */
+                    boolean fromInclusive() default true;
+                    /** Whether the to value is included in the range */
+                    boolean toInclusive() default true;
+                }
+            """
+        )
+
+    val restrictToSource: TestFile =
+        TestFiles.kotlin(
+                """
+                    package androidx.annotation
+
+                    import androidx.annotation.RestrictTo.Scope
+                    import java.lang.annotation.ElementType.*
+
+                    @MustBeDocumented
+                    @Retention(AnnotationRetention.BINARY)
+                    @Target(
+                        AnnotationTarget.ANNOTATION_CLASS,
+                        AnnotationTarget.CLASS,
+                        AnnotationTarget.FUNCTION,
+                        AnnotationTarget.PROPERTY_GETTER,
+                        AnnotationTarget.PROPERTY_SETTER,
+                        AnnotationTarget.CONSTRUCTOR,
+                        AnnotationTarget.FIELD,
+                        AnnotationTarget.FILE
+                    )
+                    // Needed due to Kotlin's lack of PACKAGE annotation target
+                    // https://youtrack.jetbrains.com/issue/KT-45921
+                    @Suppress("DEPRECATED_JAVA_ANNOTATION")
+                    @java.lang.annotation.Target(ANNOTATION_TYPE, TYPE, METHOD, CONSTRUCTOR, FIELD, PACKAGE)
+                    annotation class RestrictTo(vararg val value: Scope) {
+                        enum class Scope {
+                            LIBRARY,
+                            LIBRARY_GROUP,
+                            LIBRARY_GROUP_PREFIX,
+                            @Deprecated("Use LIBRARY_GROUP_PREFIX instead.")
+                            GROUP_ID,
+                            TESTS,
+                            SUBCLASSES,
+                        }
+                    }
+                """
+            )
+            .indented()
+
+    val sdkConstantSource: TestFile =
+        TestFiles.java(
+                """
+                    package android.annotation;
+                    import java.lang.annotation.*;
+                    /** @hide */
+                    @Target({ ElementType.FIELD })
+                    @Retention(RetentionPolicy.SOURCE)
+                    public @interface SdkConstant {
+                        enum SdkConstantType {
+                            ACTIVITY_INTENT_ACTION, BROADCAST_INTENT_ACTION, SERVICE_ACTION, INTENT_CATEGORY, FEATURE
+                        }
+                        SdkConstantType value();
+                    }
+                """
+            )
+            .indented()
+
+    val stringDefSource: TestFile =
+        TestFiles.java(
+                """
+                    package android.annotation;
+
+                    import java.lang.annotation.Retention;
+                    import java.lang.annotation.Target;
+
+                    import static java.lang.annotation.ElementType.ANNOTATION_TYPE;
+                    import static java.lang.annotation.RetentionPolicy.SOURCE;
+
+                    /**
+                     * @hide
+                     */
+                    @Retention(SOURCE)
+                    @Target({ANNOTATION_TYPE})
+                    public @interface StringDef {
+                        /** Defines the constant prefix for this element */
+                        String[] prefix() default {};
+                        /** Defines the constant suffix for this element */
+                        String[] suffix() default {};
+
+                        /** Defines the allowed constants for this element */
+                        String[] value() default {};
+                    }
+                """
+            )
+            .indented()
+
+    val flaggedApiSource: TestFile =
+        java(
+            """
+                package android.annotation;
+                import static java.lang.annotation.ElementType.ANNOTATION_TYPE;
+                import static java.lang.annotation.ElementType.CONSTRUCTOR;
+                import static java.lang.annotation.ElementType.FIELD;
+                import static java.lang.annotation.ElementType.METHOD;
+                import static java.lang.annotation.ElementType.TYPE;
+
+                import java.lang.annotation.Retention;
+                import java.lang.annotation.RetentionPolicy;
+                import java.lang.annotation.Target;
+                @Hide
+                @Target({TYPE, METHOD, CONSTRUCTOR, FIELD, ANNOTATION_TYPE})
+                @Retention(RetentionPolicy.CLASS)
+                public @interface FlaggedApi {
+                    String value();
+                }
+            """
+        )
+
+    val requiresFlagSource: TestFile =
+        java(
+            """
+                package android.annotation;
+                import static java.lang.annotation.ElementType.ANNOTATION_TYPE;
+                import static java.lang.annotation.ElementType.CONSTRUCTOR;
+                import static java.lang.annotation.ElementType.FIELD;
+                import static java.lang.annotation.ElementType.METHOD;
+                import static java.lang.annotation.ElementType.TYPE;
+
+                import java.lang.annotation.Retention;
+                import java.lang.annotation.RetentionPolicy;
+                import java.lang.annotation.Target;
+
+                @Hide
+                @Target({TYPE, METHOD, CONSTRUCTOR, FIELD, ANNOTATION_TYPE})
+                @Retention(RetentionPolicy.CLASS)
+                public @interface RequiresFlag {
+                    String value();
+                }
+            """
+        )
+
+    val checksFlagSource: TestFile =
+        java(
+            """
+                package android.annotation;
+                import static java.lang.annotation.ElementType.FIELD;
+                import static java.lang.annotation.ElementType.METHOD;
+
+                import java.lang.annotation.Retention;
+                import java.lang.annotation.RetentionPolicy;
+                import java.lang.annotation.Target;
+
+                @Hide
+                @Target({METHOD, FIELD})
+                @Retention(RetentionPolicy.CLASS)
+                public @interface ChecksFlag {
+                    String value() default "";
+                }
+            """
+        )
+
+    val sdkExtensionApiSource: TestFile =
+        java(
+            """
+                package android.annotation;
+                import static java.lang.annotation.ElementType.ANNOTATION_TYPE;
+                import static java.lang.annotation.ElementType.CONSTRUCTOR;
+                import static java.lang.annotation.ElementType.FIELD;
+                import static java.lang.annotation.ElementType.METHOD;
+                import static java.lang.annotation.ElementType.TYPE;
+
+                import java.lang.annotation.Retention;
+                import java.lang.annotation.RetentionPolicy;
+                import java.lang.annotation.Target;
+
+                @Hide
+                @Target({TYPE, METHOD, CONSTRUCTOR, FIELD, ANNOTATION_TYPE})
+                @Retention(RetentionPolicy.CLASS)
+                public @interface SdkExtensionApi {
+                    int value();
                 }
             """
         )

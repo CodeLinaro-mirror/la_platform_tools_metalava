@@ -16,7 +16,8 @@
 
 package com.android.tools.metalava.cli.common
 
-import com.android.tools.metalava.ProgressTracker
+import androidx.tracing.Tracer
+import com.android.tools.metalava.trace
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.NoSuchOption
 import com.github.ajalt.clikt.core.PrintHelpMessage
@@ -29,6 +30,7 @@ import com.github.ajalt.clikt.parameters.groups.provideDelegate
 import com.github.ajalt.clikt.parameters.options.eagerOption
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
+import java.io.InputStream
 import java.io.PrintWriter
 
 const val ARG_VERSION = "--version"
@@ -40,7 +42,7 @@ const val ARG_VERSION = "--version"
  * the subcommand called [defaultCommandName] passing in all the arguments not already consumed by
  * Clikt options.
  */
-internal open class MetalavaCommand(
+open class MetalavaCommand(
     internal val executionEnvironment: ExecutionEnvironment,
 
     /**
@@ -48,7 +50,7 @@ internal open class MetalavaCommand(
      * command line arguments.
      */
     private val defaultCommandName: String? = null,
-    internal val progressTracker: ProgressTracker,
+    internal val tracer: Tracer,
 ) :
     CliktCommand(
         // Gather all the options and arguments into a list so that they can be handled by some
@@ -153,8 +155,8 @@ internal open class MetalavaCommand(
     fun process(args: Array<String>): Int {
         var exitCode = 0
         try {
-            processThrowCliException(args)
-        } catch (e: PrintVersionException) {
+            tracer.trace("processThrowCliException") { processThrowCliException(args) }
+        } catch (_: PrintVersionException) {
             // Print the version and exit.
             stdout.println("\n$commandName version: ${Version.VERSION}")
         } catch (e: MetalavaCliException) {
@@ -183,8 +185,7 @@ internal open class MetalavaCommand(
         }
 
         // Perform any subcommand specific actions, e.g. flushing files they have opened, etc.
-        performPostCommandActions()
-
+        tracer.trace("performPostCommandActions") { performPostCommandActions() }
         return exitCode
     }
 
@@ -305,16 +306,20 @@ private val CliktCommand.metalavaCommand
     get() = if (this is MetalavaCommand) this else currentContext.findObject()!!
 
 /** The [ExecutionEnvironment] within which the command is being run. */
-val CliktCommand.executionEnvironment: ExecutionEnvironment
+val CliktCommand.executionEnvironment
     get() = metalavaCommand.executionEnvironment
 
 /** The [PrintWriter] to use for error output from the command. */
-val CliktCommand.stderr: PrintWriter
+val CliktCommand.stderr
     get() = executionEnvironment.stderr
 
 /** The [PrintWriter] to use for non-error output from the command. */
-val CliktCommand.stdout: PrintWriter
+val CliktCommand.stdout
     get() = executionEnvironment.stdout
+
+/** The [InputStream] to use for input to the command. */
+val CliktCommand.stdin
+    get() = executionEnvironment.stdin
 
 val CliktCommand.commonOptions
     // Retrieve the CommonOptions that is made available by the containing MetalavaCommand.
@@ -324,9 +329,9 @@ val CliktCommand.terminal
     // Retrieve the terminal from the CommonOptions.
     get() = commonOptions.terminal
 
-val CliktCommand.progressTracker
-    // Retrieve the ProgressTracker that is made available by the containing MetalavaCommand.
-    get() = metalavaCommand.progressTracker
+val CliktCommand.tracer
+    // Retrieve the Tracer that is made available by the containing MetalavaCommand.
+    get() = metalavaCommand.tracer
 
 fun CliktCommand.registerPostCommandAction(action: () -> Unit) {
     metalavaCommand.registerPostCommandAction(action)

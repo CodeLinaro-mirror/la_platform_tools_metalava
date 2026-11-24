@@ -1,0 +1,480 @@
+/*
+ * Copyright (C) 2025 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.android.tools.metalava.model.source.javadoc
+
+import org.junit.Test
+
+class JavadocParserTest : BaseJavadocTest() {
+    @Test
+    fun `Test simple comment`() {
+        checkParse(
+            "/** Simple text */",
+            expectedStructure = "text: 'Simple text'",
+        )
+    }
+
+    @Test
+    fun `Test simple comment - leading newline`() {
+        checkParse(
+            "\n/** Simple text */",
+            expectedStructure = """text: 'Simple text'""",
+        )
+    }
+
+    @Test
+    fun `Test simple comment - trailing newline`() {
+        checkParse(
+            "/** Simple text */\n",
+            expectedStructure = """text: 'Simple text'""",
+        )
+    }
+
+    @Test
+    fun `Test comment with nested javadoc start`() {
+        checkParse(
+            "/** /** */\n",
+            expectedStructure =
+                """
+                    text: '/**'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test link - standalone`() {
+        checkParse(
+            """
+                /**
+                 * {@link Class}
+                 */
+            """,
+            expectedStructure =
+                """
+                    inlineTag: link LabeledRefTagData(sourceReference=Class, resolvedReference=ClassReference(qualifiedName=resolved.Class))
+                """,
+        )
+    }
+
+    @Test
+    fun `Test link - in text`() {
+        checkParse(
+            """
+                /**
+                 * Text before link {@link Class} and some text after.
+                 */
+            """,
+            expectedStructure =
+                """
+                    text: 'Text before link '
+                    inlineTag: link LabeledRefTagData(sourceReference=Class, resolvedReference=ClassReference(qualifiedName=resolved.Class))
+                    text: ' and some text after.'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test link - on new line`() {
+        checkParse(
+            """
+                /**
+                 * Text before link
+                 * {@link Class}
+                 * and some text after.
+                 */
+            """,
+            expectedStructure =
+                """
+                    text: 'Text before link\n '
+                    inlineTag: link LabeledRefTagData(sourceReference=Class, resolvedReference=ClassReference(qualifiedName=resolved.Class))
+                    text: '\n and some text after.'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test @ inside inline tag`() {
+        checkParse(
+            """
+                /**
+                 * {@code @Annotation}
+                 */
+            """,
+            expectedStructure =
+                """
+                    inlineTag: code
+                      text: '@Annotation'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test nested inline tags`() {
+        checkParse(
+            """
+                /**
+                 * {@code some {@code nested} inline tags}
+                 */
+            """,
+            expectedStructure =
+                """
+                    inlineTag: code
+                      text: 'some {@code nested} inline tags'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test inline tag nested within code tag`() {
+        checkParse(
+            """
+                /**
+                 * {@code cannot contain inline {@bar tag}}.
+                 */
+            """,
+            expectedStructure =
+                """
+                    inlineTag: code
+                      text: 'cannot contain inline {@bar tag}'
+                    text: '.'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test inline tag nested within literal tag`() {
+        checkParse(
+            """
+                /**
+                 * {@literal cannot contain inline {@bar tag}}.
+                 */
+            """,
+            expectedStructure =
+                """
+                    inlineTag: literal
+                      text: 'cannot contain inline {@bar tag}'
+                    text: '.'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test inline tag nested within link tag`() {
+        checkParse(
+            """
+                /**
+                 * {@link String cannot contain inline {@bar
+                 * tag}}.
+                 */
+            """,
+            expectedStructure =
+                """
+                    inlineTag: link LabeledRefTagData(sourceReference=String, resolvedReference=ClassReference(qualifiedName=resolved.String))
+                      text: 'cannot contain inline {@bar\n tag}'
+                    text: '.'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test inline tag nested within linkplain tag`() {
+        checkParse(
+            """
+                /**
+                 * {@linkplain String cannot contain inline {@bar tag}}.
+                 */
+            """,
+            expectedStructure =
+                """
+                    inlineTag: linkplain LabeledRefTagData(sourceReference=String, resolvedReference=ClassReference(qualifiedName=resolved.String))
+                      text: 'cannot contain inline {@bar tag}'
+                    text: '.'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test inline tag nested within tag that supports nested inline tags`() {
+        checkParse(
+            """
+                /**
+                 * {@bar can contain inline {@bar tag}}.
+                 */
+            """,
+            expectedStructure =
+                """
+                    inlineTag: bar BarTagData(identifier=can)
+                      text: 'contain inline '
+                      inlineTag: bar BarTagData(identifier=tag)
+                    text: '.'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test unclosed inline tags in main description`() {
+        checkParse(
+            // This purposely indents the second and third lines so they no longer align with the
+            // first so that there is some extra indentation on the last line with the */ token to
+            // test the handling of that newline.
+            """
+                /**
+                   * {@code unclosed
+                    */
+            """,
+            expectedStructure =
+                """
+                    inlineTag: code
+                      text: 'unclosed'
+                """,
+            expectedJavadocIssues =
+                """
+                    2:6: unclosed inline '@code' tag [UnclosedInlineTag]
+                """,
+        )
+    }
+
+    @Test
+    fun `Test space between @ and inline tag name`() {
+        checkParse(
+            """
+                /**
+                 * {@ code extra space}
+                 */
+            """,
+            expectedStructure =
+                """
+                    inlineTag: code
+                      text: 'extra space'
+                """,
+            expectedJavadocIssues =
+                """
+                    2:6: unexpected ' ' after '{@' [InvalidJavadoc]
+                """,
+        )
+    }
+
+    @Test
+    fun `Test empty inline tag`() {
+        checkParse(
+            """
+                /** {@inheritDoc} */
+            """,
+            expectedStructure =
+                """
+                    inlineTag: inheritDoc
+                """,
+        )
+    }
+
+    @Test
+    fun `Test trailing whitespace`() {
+        checkParse(
+            """
+                /**
+                 * Some text with trailing whitespaceXX
+                 * on multiple linesXX
+                 */
+            """
+                // Replace capital X with a space. This is needed to avoid adding literal trailing
+                // whitespace in the string as it will cause issues when checking this code.
+                .replace('X', ' '),
+            expectedStructure =
+                """
+                    text: 'Some text with trailing whitespace\n on multiple lines'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test an inline tag split across multiple lines`() {
+        checkParse(
+            """
+                /**
+                 * Summary.
+                 * <pre>{@code
+                 * someSampleCode()
+                 * }</pre>
+                 */
+            """,
+            expectedStructure =
+                """
+                    text: 'Summary.\n <pre>'
+                    inlineTag: code
+                      text: '\n someSampleCode()\n '
+                    text: '</pre>'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test multiple blank lines`() {
+        checkParse(
+            """
+                /**
+                 * Summary line.
+                 *
+                 * <pre>
+                 * Text before multiple blank lines.
+                 *
+                 *
+                 * Text after multiple blank lines.
+                 * </pre>
+                 */
+            """,
+            expectedStructure =
+                """
+                    text: 'Summary line.\n\n <pre>\n Text before multiple blank lines.\n\n\n Text after multiple blank lines.\n </pre>'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test inline tag data`() {
+        checkParse(
+            """
+                /**
+                 * outside before {@bar inline inside} outside after
+                 */
+            """,
+            expectedStructure =
+                """
+                    text: 'outside before '
+                    inlineTag: bar BarTagData(identifier=inline)
+                      text: 'inside'
+                    text: ' outside after'
+                """,
+            expectedJavadocIssues =
+                """
+                    2:25: @bar tag cannot contain 'e' or 'o' in the identifier [InvalidJavadoc]
+                """,
+        )
+    }
+
+    @Test
+    fun `Test inline tag split across lines - nested content starts with text`() {
+        checkParse(
+            """
+                /**
+                 * {@code some
+                 * text}
+                 */
+            """,
+            expectedStructure =
+                """
+                    inlineTag: code
+                      text: 'some\n text'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test inline tag split across lines - nested content starts with whitespace`() {
+        checkParse(
+            """
+                /**
+                 * {@code
+                 * some text}
+                 * {@code
+                 * some text}
+                 */
+            """,
+            expectedStructure =
+                """
+                    inlineTag: code
+                      text: '\n some text'
+                    text: '\n '
+                    inlineTag: code
+                      text: '\n some text'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test inline tag split across lines - tag with data`() {
+        checkParse(
+            """
+                /**
+                 * {@bar some
+                 * text}
+                    * {@bar
+                 * some text}
+                 */
+            """,
+            expectedStructure =
+                """
+                    inlineTag: bar BarTagData(identifier=some)
+                      text: 'text'
+                    text: '\n '
+                    inlineTag: bar BarTagData(identifier=some)
+                      text: 'text'
+                """,
+            expectedJavadocIssues =
+                """
+                    2:10: @bar tag cannot contain 'e' or 'o' in the identifier [InvalidJavadoc]
+                    4:12: @bar tag cannot contain 'e' or 'o' in the identifier [InvalidJavadoc]
+                """,
+        )
+    }
+
+    @Test
+    fun `Test unbalanced braces`() {
+        checkParse(
+            """
+                /**
+                 * { } } } {@code text} { { { {
+                 */
+            """,
+            expectedStructure =
+                """
+                    text: '{ } } } '
+                    inlineTag: code
+                      text: 'text'
+                    text: ' { { { {'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test if tag with nested inline tag`() {
+        checkParse(
+            """
+                /**
+                 * Before {@if (flag(Flags.TEST_FLAG)) { text before {@link SomeClass} text after }} after.
+                 */
+            """,
+            expectedStructure =
+                """
+                    text: 'Before  after.'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test if tag with nested inline tag at end of branch`() {
+        checkParse(
+            """
+                /**
+                 * Before {@if (flag(Flags.TEST_FLAG)) { text before {@link SomeClass}}} after.
+                 */
+            """,
+            expectedStructure =
+                """
+                    text: 'Before  after.'
+                """,
+        )
+    }
+}

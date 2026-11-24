@@ -17,29 +17,51 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.testing.java
+import kotlin.test.fail
 import org.junit.Test
 
 class SyntaxErrorTest : DriverTest() {
     @Test
     fun `Invalid syntax`() {
+        val providerSpecificIssues =
+            when (val providerName = codebaseCreatorConfig.providerName) {
+                "psi" ->
+                    """
+                        src/test/pkg/Bar.java:2: error: Syntax error: `Identifier expected` [InvalidSyntax]
+                        src/test/pkg/Foo.java:1: info: Unresolved import: `nonexistent.path` [UnresolvedImport]
+                        src/test/pkg/Foo.java:3: error: Syntax error: `'class' or 'interface' expected` [InvalidSyntax]
+                        src/test/pkg/Foo.java:3: error: Syntax error: `Identifier expected` [InvalidSyntax]
+                        src/test/pkg/Foo.java:5: error: Syntax error: `'{' or ';' expected` [InvalidSyntax]
+                    """
+                "turbine" ->
+                    """
+                        src/test/pkg/Bar.java:2: error: expected token <identifier> [InvalidSyntax]
+                        src/test/pkg/Foo.java:6: error: unexpected token: } [InvalidSyntax]
+                    """
+                else -> fail("Unknown provider $providerName")
+            }
+
         check(
-            expectedIssues =
-                """
-                src/test/pkg/Foo.java:1: info: Unresolved import: `nonexistent.path` [UnresolvedImport]
-                src/test/pkg/Foo.java:5: error: Syntax error: `'{' or ';' expected` [InvalidSyntax]
-            """,
+            expectedIssues = providerSpecificIssues,
             sourceFiles =
                 arrayOf(
                     java(
                         """
-                    import nonexistent.path;
+                            import nonexistent.path;
 
-                    package test.pkg;
-                    public class Foo {
-                        public void foo()
-                    }
-                    """
-                    )
+                            package test.pkg;
+                            public class Foo {
+                                public void foo()
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            public class Bar extends {
+                            }
+                        """
+                    ),
                 )
         )
     }

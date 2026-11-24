@@ -26,7 +26,7 @@ sealed interface BaselineKey {
      * @param pathTransformer if the key contains a path then it will be passed to this to transform
      *   it into a form suitable for its use.
      */
-    fun elementId(pathTransformer: (String) -> String = { it }): String
+    fun elementId(pathTransformer: (Path) -> String = { it.toString() }): String
 
     companion object {
         val UNKNOWN = forElementId("?")
@@ -52,15 +52,15 @@ sealed interface BaselineKey {
      * element).
      */
     private data class ElementIdBaselineKey(val elementId: String) : BaselineKey {
-        override fun elementId(pathTransformer: (String) -> String): String {
+        override fun elementId(pathTransformer: (Path) -> String): String {
             return elementId
         }
     }
 
     /** A [BaselineKey] for a [Path]. */
     private data class PathBaselineKey(val path: Path) : BaselineKey {
-        override fun elementId(pathTransformer: (String) -> String): String {
-            return pathTransformer(path.toString())
+        override fun elementId(pathTransformer: (Path) -> String): String {
+            return pathTransformer(path)
         }
     }
 }

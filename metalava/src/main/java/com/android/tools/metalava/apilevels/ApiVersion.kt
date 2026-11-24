@@ -106,19 +106,17 @@ internal constructor(
         }
     }
 
-    override operator fun compareTo(other: ApiVersion) =
-        compareValuesBy(
-            this,
-            other,
-            { it.major },
-            { it.minor },
-            { it.patch },
-            { it.preReleaseQuality == null }, // False (released) sorts above true (pre-release)
-            {
-                it.preReleaseQuality
-            } // Pre-release quality names are in alphabetical order from lower quality to higher
-            // quality.
-        )
+    override operator fun compareTo(other: ApiVersion): Int {
+        major.compareTo(other.major).let { if (it != 0) return it }
+        compareValues(minor, other.minor).let { if (it != 0) return it }
+        compareValues(patch, other.patch).let { if (it != 0) return it }
+        // False (released) sorts above true (pre-release)
+        (preReleaseQuality == null).compareTo(other.preReleaseQuality == null).let {
+            if (it != 0) return it
+        }
+        // Pre-release quality names are in alphabetical order from lower quality to higher quality.
+        return compareValues(preReleaseQuality, other.preReleaseQuality)
+    }
 
     operator fun plus(increment: Int) =
         ApiVersion(major + increment, minor, patch, preReleaseQuality)

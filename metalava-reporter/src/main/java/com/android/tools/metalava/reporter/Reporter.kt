@@ -17,12 +17,11 @@
 package com.android.tools.metalava.reporter
 
 import java.io.File
-import java.io.OutputStream
 import java.io.PrintWriter
 import java.io.Writer
+import java.nio.file.Path
 
 interface Reporter {
-
     /**
      * Report an issue with a specific file.
      *
@@ -104,14 +103,53 @@ interface Reporter {
     ): Boolean
 }
 
-/**
- * Basic implementation of a [Reporter] that performs no filtering and simply outputs the message to
- * the supplied [PrintWriter].
- */
-class BasicReporter(private val stderr: PrintWriter) : Reporter {
-    constructor(writer: Writer) : this(PrintWriter(writer))
+/** Base implementation of a [Reporter] that provides issue suppression logic. */
+abstract class BaseReporter : Reporter {
+    override fun isSuppressed(
+        id: Issues.Issue,
+        reportable: Reportable?,
+        message: String?
+    ): Boolean {
+        reportable ?: return false
+        return reportable.suppressedIssues().any { suppressMatches(it, id.name, message) }
+    }
 
-    constructor(outputStream: OutputStream) : this(PrintWriter(outputStream))
+    protected fun suppressMatches(value: String, id: String?, message: String?): Boolean {
+        id ?: return false
+
+        if (value == id) {
+            return true
+        }
+
+        if (
+            message != null &&
+                value.startsWith(id) &&
+                value.endsWith(message) &&
+                (value == "$id:$message" || value == "$id: $message")
+        ) {
+            return true
+        }
+
+        return false
+    }
+}
+
+/**
+ * Abstract implementation of a [Reporter] that performs no filtering and delegates the handling of
+ * a report to [handleReport].
+ */
+abstract class AbstractBasicReporter(
+    private val excludedIssues: Set<Issues.Issue> = emptySet(),
+    private val includeSeverity: Boolean = true,
+) : BaseReporter() {
+    /** Encapsulates the information from a single call to [report] that was not filtered out. */
+    protected data class Report(
+        val path: Path?,
+        val line: Int,
+        val charPosition: Int,
+        val issue: Issues.Issue,
+        val message: String,
+    )
 
     override fun report(
         id: Issues.Issue,
@@ -120,35 +158,136 @@ class BasicReporter(private val stderr: PrintWriter) : Reporter {
         location: FileLocation,
         maximumSeverity: Severity,
     ): Boolean {
-        stderr.println(
-            buildString {
-                val usableLocation = reportable?.fileLocation ?: location
-                append(usableLocation.path)
-                if (usableLocation.line > 0) {
-                    append(":")
-                    append(usableLocation.line)
-                }
-                append(": ")
-                val severity = id.defaultLevel
-                append(severity)
-                append(": ")
-                append(message)
-                append(severity.messageSuffix)
-                append(" [")
-                append(id.name)
-                append("]")
+        if (excludedIssues.contains(id)) {
+            return false
+        }
+
+        if (isSuppressed(id, reportable, message)) {
+            return false
+        }
+
+        val usableLocation = reportable?.fileLocation ?: location
+        val report =
+            Report(
+                path = usableLocation.path,
+                line = usableLocation.line,
+                charPosition = usableLocation.characterPosition,
+                issue = id,
+                message = message,
+            )
+        return handleReport(report)
+    }
+
+    /** Format [this] as a single-line string suitable for output or comparison in tests. */
+    protected fun Report.format(): String = buildString {
+        path?.let { path ->
+            val stringPath = path.toString()
+            if (stringPath.isNotEmpty()) {
+                this.append(stringPath)
+                this.append(":")
             }
-        )
+        }
+        val line = line
+        if (line > 0) {
+            this.append(line)
+            this.append(":")
+        }
+        val characterPosition = charPosition
+        if (characterPosition > 0) {
+            this.append(characterPosition)
+            this.append(":")
+        }
+        if (isNotEmpty()) {
+            this.append(" ")
+        }
+        val issue = issue
+        val severity = issue.defaultLevel
+        if (includeSeverity) {
+            append(severity)
+            this.append(": ")
+        }
+        this.append(message)
+        if (includeSeverity) {
+            this.append(severity.messageSuffix)
+        }
+        this.append(" [")
+        this.append(issue.name)
+        this.append("]")
+    }
+
+    /** Handle a [Report]. */
+    protected abstract fun handleReport(report: Report): Boolean
+}
+
+/**
+ * Basic implementation of a [Reporter] that performs no filtering and simply outputs the message to
+ * the supplied [PrintWriter].
+ */
+class BasicReporter(private val stderr: PrintWriter) : AbstractBasicReporter() {
+    constructor(writer: Writer) : this(stderr = PrintWriter(writer))
+
+    override fun handleReport(report: Report): Boolean {
+        val formattedMessage = report.format()
+        stderr.println(formattedMessage)
+        stderr.flush()
+        return true
+    }
+}
+
+/** A [Reporter] which will record issues in an internal buffer, accessible through [issues]. */
+class RecordingReporter(
+    excludedIssues: Set<Issues.Issue> = emptySet(),
+    includeSeverity: Boolean = true,
+    private val sortIssues: Boolean = false,
+) : AbstractBasicReporter(excludedIssues, includeSeverity) {
+    private val list = mutableListOf<Report>()
+
+    override fun handleReport(report: Report): Boolean {
+        list.add(report)
         return true
     }
 
-    override fun isSuppressed(
-        id: Issues.Issue,
-        reportable: Reportable?,
-        message: String?
-    ): Boolean = false
+    val issues: String
+        get() {
+            if (sortIssues) {
+                list.sortWith(reportComparator)
+            }
+            return list.joinToString("\n") { it.format() }
+        }
+
+    /** Remove and return any existing issues. */
+    fun removeIssues(): String {
+        val issues = this.issues
+        list.clear()
+        return issues
+    }
 
     companion object {
-        val ERR = BasicReporter(System.err)
+        private val reportComparator =
+            compareBy<Report>(
+                { it.path },
+                { it.line },
+                { it.charPosition },
+                { it.issue.name },
+                { it.message },
+            )
+    }
+}
+
+/**
+ * A [Reporter] which will throw an exception for the first issue, even warnings or hidden, that is
+ * reported.
+ *
+ * Safe to use when no issues are expected as it will prevent any issues from being silently
+ * ignored.
+ */
+class ThrowingReporter private constructor() : AbstractBasicReporter() {
+    override fun handleReport(report: Report): Boolean {
+        val formattedMessage = report.format()
+        error(formattedMessage)
+    }
+
+    companion object {
+        val INSTANCE = ThrowingReporter()
     }
 }

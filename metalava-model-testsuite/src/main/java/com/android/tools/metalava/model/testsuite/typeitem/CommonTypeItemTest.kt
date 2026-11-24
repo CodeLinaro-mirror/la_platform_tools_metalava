@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.testsuite.typeitem
 
+import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.BaseTypeTransformer
 import com.android.tools.metalava.model.ClassItem
@@ -29,6 +30,7 @@ import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testing.testTypeString
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.KnownSourceFiles
@@ -79,7 +81,7 @@ class CommonTypeItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Foo {
                         ctor public Foo();
@@ -87,7 +89,6 @@ class CommonTypeItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
@@ -118,6 +119,7 @@ class CommonTypeItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test primitive array types`() {
         runCodebaseTest(
@@ -135,7 +137,7 @@ class CommonTypeItemTest : BaseModelTest() {
             // The Kotlin equivalent can be interpreted with java.lang types instead of primitives
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Foo {
                         ctor public Foo();
@@ -143,7 +145,6 @@ class CommonTypeItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
@@ -191,7 +192,7 @@ class CommonTypeItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Foo {
                         ctor public Foo();
@@ -199,7 +200,6 @@ class CommonTypeItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
@@ -217,6 +217,7 @@ class CommonTypeItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test multidimensional primitive array types`() {
         runCodebaseTest(
@@ -234,7 +235,7 @@ class CommonTypeItemTest : BaseModelTest() {
             // The Kotlin equivalent can be interpreted with java.lang types instead of primitives
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Foo {
                         ctor public Foo();
@@ -242,7 +243,6 @@ class CommonTypeItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
@@ -307,7 +307,7 @@ class CommonTypeItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Foo {
                         ctor public Foo();
@@ -315,7 +315,6 @@ class CommonTypeItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
@@ -377,7 +376,7 @@ class CommonTypeItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Foo<T> {
                         ctor public Foo();
@@ -385,7 +384,6 @@ class CommonTypeItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
@@ -458,7 +456,7 @@ class CommonTypeItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Foo<C> {
                         ctor public Foo();
@@ -466,7 +464,6 @@ class CommonTypeItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val clz = codebase.assertClass("test.pkg.Foo")
@@ -513,7 +510,7 @@ class CommonTypeItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Foo<T> {
                         method public T bar1();
@@ -523,7 +520,6 @@ class CommonTypeItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val foo = codebase.assertClass("test.pkg.Foo")
@@ -576,7 +572,7 @@ class CommonTypeItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Foo<T> {
                         method public void bar1(T p);
@@ -586,7 +582,6 @@ class CommonTypeItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val foo = codebase.assertClass("test.pkg.Foo")
@@ -622,7 +617,6 @@ class CommonTypeItemTest : BaseModelTest() {
                         public T foo;
                     }
                 """
-                    .trimIndent()
             ),
             kotlin(
                 """
@@ -634,14 +628,13 @@ class CommonTypeItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Foo<T> {
                         field public T foo;
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val foo = codebase.assertClass("test.pkg.Foo")
@@ -652,6 +645,7 @@ class CommonTypeItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.KOTLIN)
     @Test
     fun `Test property type variable types`() {
         runCodebaseTest(
@@ -663,18 +657,16 @@ class CommonTypeItemTest : BaseModelTest() {
                         val foo: T
                     }
                 """
-                    .trimIndent()
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Foo<T> {
                         property public T foo;
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val foo = codebase.assertClass("test.pkg.Foo")
@@ -716,7 +708,7 @@ class CommonTypeItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Foo {
                         ctor public Foo();
@@ -724,7 +716,6 @@ class CommonTypeItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
@@ -800,7 +791,7 @@ class CommonTypeItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Outer {
                         ctor public Outer();
@@ -814,7 +805,6 @@ class CommonTypeItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val method = codebase.assertClass("test.pkg.Outer").methods().single()
@@ -873,7 +863,7 @@ class CommonTypeItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Test {
                         ctor public Outer();
@@ -881,7 +871,6 @@ class CommonTypeItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val method = codebase.assertClass("test.pkg.Test").methods().single()
@@ -931,7 +920,7 @@ class CommonTypeItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Outer<O> {
                         ctor public Outer();
@@ -942,7 +931,6 @@ class CommonTypeItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val method = codebase.assertClass("test.pkg.Outer").methods().single()
@@ -973,6 +961,7 @@ class CommonTypeItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test inner parameterized types without explicit outer type`() {
         runCodebaseTest(
@@ -1004,8 +993,9 @@ class CommonTypeItemTest : BaseModelTest() {
             ),
             inputSet(
                 signature(
+                    "api1.txt",
                     """
-                        // Signature format: 3.0
+                        // Signature format: 4.0
                         package test.pkg1 {
                           public class Outer<O> {
                             ctor public Outer();
@@ -1020,8 +1010,9 @@ class CommonTypeItemTest : BaseModelTest() {
                     """
                 ),
                 signature(
+                    "api2.txt",
                     """
-                        // Signature format: 3.0
+                        // Signature format: 4.0
                         package test.pkg {
                           public class Test {
                             ctor public Test();
@@ -1056,6 +1047,72 @@ class CommonTypeItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
+    @Test
+    fun `Test inner type when using an anonymous object initializer`() {
+        // Regression test for b/529762241
+        runCodebaseTest(
+            kotlin(
+                """
+                package test.pkg
+                class SomeClass {
+                    val callbackWithType: Callback.Stub = object : Callback.Stub() {}
+                    val callbackWithoutType = object : Callback.Stub() {}
+                }
+                interface Callback {
+                    abstract class Stub
+                }
+                """
+            )
+        ) {
+            val someClass = codebase.assertClass("test.pkg.SomeClass")
+            val callbackWithType = someClass.assertProperty("callbackWithType").type()
+            callbackWithType.assertClassTypeItem {
+                assertThat(className).isEqualTo("Stub")
+                assertThat(qualifiedName).endsWith("test.pkg.Callback.Stub")
+                assertThat(outerClassType).isNotNull()
+                assertThat(outerClassType!!.qualifiedName).isEqualTo("test.pkg.Callback")
+            }
+            val callbackWithoutType = someClass.assertProperty("callbackWithoutType").type()
+            callbackWithoutType.assertClassTypeItem {
+                assertThat(className).isEqualTo("Stub")
+                assertThat(qualifiedName).endsWith("test.pkg.Callback.Stub")
+                assertThat(outerClassType).isNotNull()
+                assertThat(outerClassType!!.qualifiedName).isEqualTo("test.pkg.Callback")
+            }
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.KOTLIN)
+    @Test
+    fun `Test using an anonymous object initializer with multiple supertypes`() {
+        // Regression test for b/529762241
+        runCodebaseTest(
+            kotlin(
+                """
+                package test.pkg
+                class SomeClass {
+                    // The compiler doesn't actually allow this (`Right-hand side has an anonymous
+                    // type. Specify the type explicitly.`). It is allowed if the property is
+                    // private, but then metalava doesn't create the field.
+                    val multipleInterfaces = object : A, B, C {}
+                }
+                interface A
+                interface B
+                interface C
+                """
+            )
+        ) {
+            val someClass = codebase.assertClass("test.pkg.SomeClass")
+            val multipleInterfaces = someClass.assertProperty("multipleInterfaces").type()
+            // Psi selects the first type implemented
+            multipleInterfaces.assertClassTypeItem {
+                assertThat(className).isEqualTo("A")
+                assertThat(qualifiedName).endsWith("test.pkg.A")
+            }
+        }
+    }
+
     @Test
     fun `Test superclass and interface types using type variables`() {
         runCodebaseTest(
@@ -1067,7 +1124,6 @@ class CommonTypeItemTest : BaseModelTest() {
 
                     public class MyList<E> implements java.util.List<E> {}
                 """
-                    .trimIndent()
             ),
             kotlin(
                 """
@@ -1077,7 +1133,6 @@ class CommonTypeItemTest : BaseModelTest() {
 
                     class MyList<E> : java.util.List<E>
                 """
-                    .trimIndent()
             ),
             signature(
                 """
@@ -1089,7 +1144,6 @@ class CommonTypeItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             // Verify that the Cache superclass type uses the Cache type variables
@@ -1142,7 +1196,6 @@ class CommonTypeItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             ),
             java(
                 """
@@ -1191,6 +1244,7 @@ class CommonTypeItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test Kotlin collection removeAll parameter type`() {
         runCodebaseTest(
@@ -1231,24 +1285,31 @@ class CommonTypeItemTest : BaseModelTest() {
              * Make sure that the [ClassItem] has a method whose single parameter is of the type
              * `java.lang.Collection<? extends Z>`.
              */
-            fun ClassItem.assertMethodTakesCollectionWildcardExtendsZ(name: String) {
+            fun ClassItem.assertMethodTakesCollection(name: String, wildcard: Boolean) {
                 assertMethodTakesCollection(name) {
-                    assertWildcardItem { extendsBound!!.assertReferencesTypeParameter(typeParam) }
+                    if (wildcard) {
+                        assertWildcardItem {
+                            extendsBound!!.assertReferencesTypeParameter(typeParam)
+                        }
+                    } else {
+                        assertWildcardItem {
+                            assertThat(extendsBound!!.isJavaLangObject()).isTrue()
+                        }
+                    }
                 }
             }
 
             // Defined in `java.util.Collection` as `addAll(Collection<? extends E> c)`. The type of
             // the `addAll` method in `Foo` should be `addAll(Collection<? extends Z>)`.Where `Z`
             // references the type parameter in `Foo<Z>`.
-            fooClass.assertMethodTakesCollectionWildcardExtendsZ("addAll")
+            fooClass.assertMethodTakesCollection("addAll", true)
 
             // Defined in `java.util.Collection` as `...(Collection<?> c)` these methods should be
             // `...(Collection<? extends Z>)`.Where `Z` references the type parameter in
             // `Foo<Z>`.
-            //
-            fooClass.assertMethodTakesCollectionWildcardExtendsZ("containsAll")
-            fooClass.assertMethodTakesCollectionWildcardExtendsZ("removeAll")
-            fooClass.assertMethodTakesCollectionWildcardExtendsZ("retainAll")
+            fooClass.assertMethodTakesCollection("containsAll", false)
+            fooClass.assertMethodTakesCollection("removeAll", false)
+            fooClass.assertMethodTakesCollection("retainAll", false)
         }
     }
 
@@ -1269,14 +1330,12 @@ class CommonTypeItemTest : BaseModelTest() {
                             public Parent<? extends M, ? super N> getWildcards() {}
                         }
                     """
-                        .trimIndent()
                 ),
                 java(
                     """
                         package test.pkg;
                         public class Child<X, Y> extends Parent<X, Y> {}
                     """
-                        .trimIndent()
                 ),
             ),
             inputSet(
@@ -1295,7 +1354,6 @@ class CommonTypeItemTest : BaseModelTest() {
                           }
                         }
                     """
-                        .trimIndent()
                 )
             ),
             inputSet(
@@ -1311,7 +1369,6 @@ class CommonTypeItemTest : BaseModelTest() {
                         }
                         class Child<X, Y> : Parent<X, Y>()
                     """
-                        .trimIndent()
                 )
             )
         ) {
@@ -1321,31 +1378,31 @@ class CommonTypeItemTest : BaseModelTest() {
             val x = childTypeParams[0]
             val y = childTypeParams[1]
 
-            val mVar = parent.assertMethod("getM", "").returnType()
+            val mVar = parent.assertMethod("getM", emptyList()).returnType()
             val xVar = mVar.convertType(child, parent)
             assertThat(xVar.toTypeString()).isEqualTo("X")
             xVar.assertReferencesTypeParameter(x)
 
-            val nArray = parent.assertMethod("getNArray", "").returnType()
+            val nArray = parent.assertMethod("getNArray", emptyList()).returnType()
             val yArray = nArray.convertType(child, parent)
             assertThat(yArray.toTypeString()).isEqualTo("Y[]")
             assertThat((yArray as ArrayTypeItem).isVarargs).isFalse()
             yArray.componentType.assertReferencesTypeParameter(y)
 
-            val mList = parent.assertMethod("getMList", "").returnType()
+            val mList = parent.assertMethod("getMList", emptyList()).returnType()
             val xList = mList.convertType(child, parent)
             assertThat(xList.toTypeString()).isEqualTo("java.util.List<X>")
             assertThat((xList as ClassTypeItem).qualifiedName).isEqualTo("java.util.List")
             xList.arguments.single().assertReferencesTypeParameter(x)
 
-            val mToNMap = parent.assertMethod("getMap", "").returnType()
+            val mToNMap = parent.assertMethod("getMap", emptyList()).returnType()
             val xToYMap = mToNMap.convertType(child, parent)
             assertThat(xToYMap.toTypeString()).isEqualTo("java.util.Map<X,Y>")
             assertThat((xToYMap as ClassTypeItem).qualifiedName).isEqualTo("java.util.Map")
             xToYMap.arguments[0].assertReferencesTypeParameter(x)
             xToYMap.arguments[1].assertReferencesTypeParameter(y)
 
-            val wildcards = parent.assertMethod("getWildcards", "").returnType()
+            val wildcards = parent.assertMethod("getWildcards", emptyList()).returnType()
             val convertedWildcards = wildcards.convertType(child, parent)
             assertThat(convertedWildcards.toTypeString())
                 .isEqualTo("test.pkg.Parent<? extends X,? super Y>")
@@ -1389,7 +1446,6 @@ class CommonTypeItemTest : BaseModelTest() {
                       public Foo<? super Number, String> wildcardSuperTypeAfterMatchingConversion;
                     }
                 """
-                    .trimIndent()
             ),
             kotlin(
                 """
@@ -1416,7 +1472,6 @@ class CommonTypeItemTest : BaseModelTest() {
                         @JvmField val wildcardSuperTypeAfterMatchingConversion: Foo<in Number, String>
                     }
                 """
-                    .trimIndent()
             ),
             signature(
                 """
@@ -1445,7 +1500,6 @@ class CommonTypeItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
@@ -1857,7 +1911,7 @@ class CommonTypeItemTest : BaseModelTest() {
     }
 
     @Test
-    fun `Test toSimpleType on varargs parameter`() {
+    fun `Test toSimpleTypeString on varargs parameter`() {
         runCodebaseTest(
             java(
                 """
@@ -1888,12 +1942,12 @@ class CommonTypeItemTest : BaseModelTest() {
         ) {
             val varargsType =
                 codebase.assertClass("test.pkg.Foo").methods().single().parameters().single().type()
-            assertThat(varargsType.toSimpleType()).isEqualTo("java.lang.String...")
+            assertThat(varargsType.toSimpleTypeString()).isEqualTo("java.lang.String...")
         }
     }
 
     @Test
-    fun `Test toSimpleType on varargs generic parameter`() {
+    fun `Test toSimpleTypeString on varargs generic parameter`() {
         runCodebaseTest(
             java(
                 @Suppress("unchecked")
@@ -1925,13 +1979,13 @@ class CommonTypeItemTest : BaseModelTest() {
         ) {
             val varargsType =
                 codebase.assertClass("test.pkg.Foo").methods().single().parameters().single().type()
-            assertThat(varargsType.toSimpleType())
+            assertThat(varargsType.toSimpleTypeString())
                 .isEqualTo("Comparable<? super java.lang.String>...")
         }
     }
 
     @Test
-    fun `Test toSimpleType on nested class`() {
+    fun `Test toSimpleTypeString on nested class`() {
         runCodebaseTest(
             java(
                 """
@@ -1962,16 +2016,18 @@ class CommonTypeItemTest : BaseModelTest() {
         ) {
             val varargsType =
                 codebase.assertClass("test.pkg.Foo").methods().single().parameters().single().type()
-            assertThat(varargsType.toSimpleType())
+            assertThat(varargsType.toSimpleTypeString())
                 .isEqualTo("java.lang.Thread.UncaughtExceptionHandler")
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Non-last varargs param in deprecated method`() {
         runCodebaseTest(
-            kotlin(
-                """
+            inputSet(
+                kotlin(
+                    """
                     package test.pkg
                     class Foo {
                         fun notDeprecated(vararg str: String, i: Int) = Unit
@@ -1982,8 +2038,39 @@ class CommonTypeItemTest : BaseModelTest() {
                         @Deprecated(message = "message", level = DeprecationLevel.HIDDEN)
                         fun deprecatedHidden(vararg str: String, i: Int) = Unit
                     }
-                """
-            )
+                    """
+                )
+            ),
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 17.0.6+10-b802.1)
+                    "" +
+                        "H4sIAAAAAAAA/wvwZmYRYeDg4GBgYFBkQAYiDCwMvq4hjrqefm76vo5+nm6u" +
+                        "wSF6vm7/TjEwfPY9c9rHW1fvIq+3rta5M+c3BxlcMX7wtEjPy1fH0/di6aot" +
+                        "QR+8dAu1vM6c0Q77cE7/5Mkzj58+esrEEODNzrFeWHO9JdACcyAOwGm9EBCX" +
+                        "pBaX6Bdkp+u75efrJeckFhevDb6dd9lBwPa1StmrZSuFNfYWtDvlNzjvsBVR" +
+                        "ZNS9osEissDmS+bsNZdyZaQrtwv2/xX716AuwL/i0UT5h/oCm/0UAiZwCAXa" +
+                        "zJtrmX6uL/375+v88owxx3XbmsS8fq+3yv3vKGOdwHNP732h/ZPA2/Wb9mrP" +
+                        "uuXYdnCfrvLK9wYpYtPNuE8cLJvYenjCVesgQ5Fse/Go1BkdSXvV4lQXndya" +
+                        "Yeijn3e1ber8ly5ub68mZE5+WKPrd+vfugu3OadP/FTpErIu1afO9trXvQZL" +
+                        "qiSXTrbp4llutZEv9cn7b7v29WzxUJL75ZjCpXUzhM+mbeWzvowytifLbR7G" +
+                        "Ojq0tR699fBdWP39qZkbepT1vCxOFTzh/52WMGlew8Irvy4+9p7nMkXFLXfD" +
+                        "0cT/Rwp2OWneE+PZGfDF5YRBtYS77nWfUwvi7+Veaf7l3HZy4aGqSUeuuObt" +
+                        "vVhxaYEnr7H0pqtCgr2ZyhHR0esv79t3vU7HJL/w7MplV9+mZrw7M8Mw2cG2" +
+                        "RONf1KzQ1j3XQtv02X9/XmeavHNa+Yb3UZWPI9YV7hWyPbpv9nKfsmcJ+7NC" +
+                        "b+y9s9zcrFFOt3Km5epJa6ftvTMnetvnNTmhc7pq+3Kufvs0Rfp2QdAa7xsf" +
+                        "6w+IuR3TqxCuP/xt4rK7WsbyB5cpVy9d/NLgfn+0yYKTs3pcatfv1p30vMZ6" +
+                        "icdOMfPKHSeFM681P6hJ1r+0SbtphfrUJRf6J5eVV7RI3pm//uCbhs030/9w" +
+                        "1Yi9V/X96NDGFJ548a/RfpncCeukb3KtrTE2Fo6ta/8TXaTTpOQrvd9r2wX2" +
+                        "BB69vd4SyzumTrr+Mlft7Zop6veTX4Xv8tV0tr/czvPimPajiKhLB03SOgrP" +
+                        "zpHvdhLWXNASGXSib9EE6cCHVVL7Hf1nPioWsVxXIKPO4vfoyvtfy92vlv9r" +
+                        "/jfT+VccZ7qnvXHXvxv1F+zdV8/OjLV33aNwpPLXps/RJ1h2CDxIamDVmdS9" +
+                        "lOF0xE2m4B0tp6M1tHZwhYvktF5eGeyj+3d5cHSAxWqD1Qb/eEEZxcx4UeBL" +
+                        "JgYGFTZ8GUUaiOH5NDcxM08vO78kJzMvPjc/pTQnNTkhISENiFmS/Ng0ApIu" +
+                        "JDGAM+FXpT17hYE6JcCZkJFJhAFhOnIGBZUCqABXmYBuCrLrhVBMqMeatdH1" +
+                        "I7tQGkX/Cma8Pg7wZmUDKWMGwvNAmgXsAwDUrWD46QQAAA=="
+                )
         ) {
             val foo = codebase.assertClass("test.pkg.Foo")
             val notDeprecated = foo.methods().single { it.name() == "notDeprecated" }

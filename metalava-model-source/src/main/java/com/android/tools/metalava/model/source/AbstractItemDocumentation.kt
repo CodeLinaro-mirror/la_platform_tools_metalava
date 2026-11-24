@@ -1,0 +1,464 @@
+/*
+ * Copyright (C) 2025 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.android.tools.metalava.model.source
+
+import com.android.tools.metalava.model.AnnotationManager
+import com.android.tools.metalava.model.AnnotationTarget
+import com.android.tools.metalava.model.CallableItem
+import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.MemberItem
+import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.ReferencableItem
+import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.TypeParameterListOwner
+import com.android.tools.metalava.model.api.SurfaceSelectionRule
+import com.android.tools.metalava.model.api.flags.FlagState
+import com.android.tools.metalava.model.api.surface.ReferenceCheckResult
+import com.android.tools.metalava.model.api.surface.ReferenceKind
+import com.android.tools.metalava.model.doc.DocContent
+import com.android.tools.metalava.model.doc.DocContentOwner
+import com.android.tools.metalava.model.doc.DocContentPredicate
+import com.android.tools.metalava.model.scope.NameClassification
+import com.android.tools.metalava.model.source.doc.BlockTagSection
+import com.android.tools.metalava.model.source.doc.ContentSupplier
+import com.android.tools.metalava.model.source.doc.DefaultDocComment
+import com.android.tools.metalava.model.source.doc.DocComment
+import com.android.tools.metalava.model.source.doc.DocCommentContext
+import com.android.tools.metalava.model.source.doc.DocCommentPredicate
+import com.android.tools.metalava.model.source.doc.DocTypeParser
+import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
+import com.android.tools.metalava.model.source.doc.JavaSummaryTruncationWorkaround
+import com.android.tools.metalava.model.source.doc.TagTypes
+import com.android.tools.metalava.model.source.javadoc.ExprContext
+import com.android.tools.metalava.model.source.javadoc.InvalidBlockUseVisitor
+import com.android.tools.metalava.model.source.javadoc.toOptionalJavadocContent
+import com.android.tools.metalava.reporter.FileLocation
+import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.LocationSpecificReporter
+import java.io.PrintWriter
+
+/** Supplies the initial [DocComment] and [FileLocation] for an [ItemDocumentation]. */
+internal interface DocCommentSupplier {
+    /** The location of the start of the documentation comment. */
+    val fileLocation: FileLocation
+
+    /** Obtain the initial [DocComment]. */
+    fun obtainInitialDocComment(): DocComment
+}
+
+/**
+ * Abstract [ItemDocumentation] into which functionality that is common to all models will be added.
+ */
+internal abstract class AbstractItemDocumentation(
+    protected val item: SelectableItem,
+    private var _docComment: DocComment? = null,
+) : ItemDocumentation, DocumentationIssueReporter, DocCommentContext {
+
+    /**
+     * The [DocCommentSupplier] that supplies the initial [DocComment] and [fileLocation] for this
+     * and any duplicates/snapshots, or `null` if there is no source comment.
+     */
+    protected abstract val docCommentSupplier: DocCommentSupplier?
+
+    override val fileLocation: FileLocation
+        get() = docCommentSupplier?.fileLocation ?: FileLocation.UNKNOWN
+
+    /**
+     * Obtain the initial [DocComment] for this documentation when [docComment] is first accessed
+     * and [_docComment] was not provided.
+     */
+    private fun getOrCreateInitialDocComment(): DocComment =
+        docCommentSupplier?.obtainInitialDocComment()
+            ?: DefaultDocComment(
+                this,
+                ContentSupplier.NULL,
+                emptyList(),
+                noComment = true,
+            )
+
+    /** The [DocComment] that contains the documentation content. */
+    private var docComment: DocComment
+        get() {
+            val current = _docComment
+            if (current != null) {
+                return current
+            }
+            val initial = getOrCreateInitialDocComment()
+            _docComment = initial
+            return initial
+        }
+        set(value) {
+            _docComment = value
+        }
+
+    override fun resolveItemReference(
+        sourceReference: String,
+        nameClassification: NameClassification
+    ): ReferencableItem {
+        return item.resolveReferencableItem(sourceReference, nameClassification)
+    }
+
+    /**
+     * If [classItem] is an annotation class that [AnnotationManager] maps to a different annotation
+     * in [AnnotationTarget.DOC_STUBS_FILE] (for example, `android.annotation.Nullable` ->
+     * `androidx.annotation.Nullable`), return that mapped qualified name; otherwise return `null`.
+     */
+    private fun mappedDocStubsAnnotationName(classItem: ClassItem): String? {
+        if (!classItem.isAnnotationType()) {
+            return null
+        }
+        val originalName = classItem.qualifiedName()
+        val annotationManager = item.codebase.annotationManager
+        val internalName = annotationManager.normalizeInputName(originalName) ?: return null
+        val outputName =
+            annotationManager.normalizeOutputName(internalName, AnnotationTarget.DOC_STUBS_FILE)
+        return if (outputName != originalName) outputName else null
+    }
+
+    /** Implements [DocCommentContext.resolveClassReferenceName]. */
+    override fun resolveClassReferenceName(classItem: ClassItem): String =
+        mappedDocStubsAnnotationName(classItem) ?: classItem.qualifiedName()
+
+    /**
+     * Resolve [referencedItem] to the effective [SelectableItem] to check in documentation stubs,
+     * or `null` if [referencedItem] maps to an external replacement annotation not present in
+     * [item]'s [Codebase].
+     *
+     * Platform annotations such as `android.annotation.Nullable` are `@hide` in framework source
+     * but replaced by `androidx.annotation.Nullable` in documentation stubs. Checking the source
+     * annotation directly would report a false-positive `HiddenDocReference` warning, so check the
+     * replacement annotation instead when present in the codebase, or skip checking when the
+     * replacement annotation is external.
+     */
+    private fun effectiveReferencedItem(referencedItem: SelectableItem): SelectableItem? {
+        return when (referencedItem) {
+            is ClassItem -> {
+                val mappedName =
+                    mappedDocStubsAnnotationName(referencedItem) ?: return referencedItem
+                item.codebase.resolveClass(mappedName)
+            }
+            is FieldItem -> {
+                val mappedName =
+                    mappedDocStubsAnnotationName(referencedItem.containingClass())
+                        ?: return referencedItem
+                val mappedClass = item.codebase.resolveClass(mappedName)
+                if (mappedClass != null) {
+                    mappedClass.findField(referencedItem.name()) ?: referencedItem
+                } else if (referencedItem.isDirectlyHiddenOrRemoved()) {
+                    referencedItem
+                } else {
+                    null
+                }
+            }
+            else -> referencedItem
+        }
+    }
+
+    /**
+     * Check whether this [SelectableItem] is directly marked hidden or removed by its own
+     * documentation tags or surface annotations (ignoring hiddenness inherited from its enclosing
+     * class).
+     */
+    private fun SelectableItem.isDirectlyHiddenOrRemoved(): Boolean =
+        documentation?.isHidden == true ||
+            documentation?.isRemoved == true ||
+            modifiers.annotations().any {
+                val effect = it.surfaceData?.effect
+                effect == SurfaceSelectionRule.Effect.HIDE ||
+                    effect == SurfaceSelectionRule.Effect.REMOVED
+            }
+
+    /** Implements [DocCommentContext.checkReference]. */
+    override fun checkReference(
+        referencedItem: SelectableItem,
+        reporter: LocationSpecificReporter,
+        conditionFlagState: FlagState,
+    ): ReferenceCheckResult {
+        val referenceStrategy = item.codebase.apiSurfaces.referenceStrategy
+
+        // Skip checking references in documentation on items that are not themselves documented
+        // (e.g. `@hide` or `@removed` items), since `ReferenceKind.DOCUMENTATION` checks target
+        // visibility regardless of whether `from` is hidden.
+        if (!referenceStrategy.isValidReference(null, item, ReferenceKind.DOCUMENTATION)) {
+            return ReferenceCheckResult.Valid
+        }
+
+        val targetItem =
+            effectiveReferencedItem(referencedItem) ?: return ReferenceCheckResult.Valid
+
+        // Check whether `targetItem` is accessible in documentation (`CORE` or `DOC_ONLY`).
+        val result =
+            referenceStrategy.checkReference(
+                item,
+                targetItem,
+                ReferenceKind.DOCUMENTATION,
+                conditionFlagState,
+            )
+
+        // Report `HiddenDocReference` with the strategy's human-readable reason (e.g. "hidden").
+        if (result is ReferenceCheckResult.Invalid) {
+            reporter.report(
+                Issues.HIDDEN_DOC_REFERENCE,
+                "${targetItem.describe(capitalize = true)} is ${result.reasonLabel}",
+            )
+        }
+
+        return result
+    }
+
+    /** Implements [DocCommentContext.deprecatedSectionFlagState]. */
+    override val deprecatedSectionFlagState: FlagState
+        get() = item.selectedApi.deprecatedFlagState
+
+    /** Implements [ExprContext.isFlagEnabled]. */
+    override fun isFlagEnabled(flagName: String): Boolean {
+        val apiFlags = item.codebase.config.apiFlags ?: return true
+        return !apiFlags[flagName].action.revert
+    }
+
+    /** Implements [ExprContext.includesSurface]. */
+    override fun includesSurface(surfaceName: String): Boolean {
+        return surfaceName in item.codebase.apiSurfaces.main.includedSurfaceNames
+    }
+
+    /** Implements [ExprContext.additionFlagState]. */
+    override fun additionFlagState(flagName: String): FlagState =
+        FlagState.additionFlag(flagName, item.codebase.config.apiFlags?.get(flagName)?.action)
+
+    override val isHidden: Boolean
+        get() {
+            // When API surfaces are configured in a configuration file, the Javadoc `@hide` block
+            // tag is ignored as a mechanism for hiding elements. Instead, explicit annotations
+            // (e.g. `@android.annotation.Hide`) must be used.
+            if (item.codebase.config.apiSurfacesConfigured) {
+                return false
+            }
+            return hasBlockTagOfType("hide")
+        }
+
+    /**
+     * Return the ordinal for the first item that matches [predicate].
+     *
+     * If no item matches then return the length of the list, as if the unknown item was at the end.
+     */
+    inline fun <T> List<T>.ordinalInListUnknownAtEnd(predicate: (T) -> Boolean): Int {
+        val index = indexOfFirst(predicate)
+        return if (index == -1) size else index
+    }
+
+    /** Implements [DocCommentContext.ordinalInParamsList]. */
+    override fun ordinalInParamsList(name: String): Int {
+        return if (item is TypeParameterListOwner) {
+            val typeParameterList = item.typeParameterList
+            val typeParameterCount = typeParameterList.size
+
+            if (name.startsWith("<") && name.endsWith(">")) {
+                val typeParameterName = name.substring(1, name.length - 1)
+                // Type parameters are always at the start of the `@param` list so just return the
+                // ordinal in the type parameter list with unknown at the end.
+                typeParameterList.ordinalInListUnknownAtEnd { it.name() == typeParameterName }
+            } else {
+                // Get the callable parameters list, if any.
+                val parametersList = (item as? CallableItem)?.parameters() ?: emptyList()
+
+                // Get the ordinal of the parameter in the callable parameters list.
+                val ordinalInParametersList =
+                    parametersList.ordinalInListUnknownAtEnd { it.name() == name }
+
+                // Callable parameters always start after type parameters, both known and unknown
+                // so offset their ordinal so they come after the
+                val parameterListStart = typeParameterCount + 1
+                parameterListStart + ordinalInParametersList
+            }
+        } else {
+            // Only TypeParameterListOwners have parameters or either type.
+            0
+        }
+    }
+
+    /** Implements [DocCommentContext.isOverridingMethod]. */
+    override fun isOverridingMethod() =
+        // Purposely does not cache this as superMethods() is already cached.
+        item is MethodItem && item.superMethods().isNotEmpty()
+
+    override val containingClassItem: ClassItem?
+        get() =
+            when (item) {
+                is ClassItem -> item
+                is MemberItem -> item.containingClass()
+                else -> null
+            }
+
+    /** Implements [DocCommentContext.docTypeParser]. */
+    override val docTypeParser: DocTypeParser
+        get() = DocTypeParser.create(reporter = this, item)
+
+    override val isRemoved: Boolean
+        get() {
+            // When API surfaces are configured in a configuration file, the Javadoc `@removed`
+            // block tag is ignored as a mechanism for removing elements. Instead, explicit
+            // annotations (e.g. `@android.annotation.RemovedFromApi`) must be used.
+            if (item.codebase.config.apiSurfacesConfigured) {
+                return false
+            }
+            return hasBlockTagOfType("removed")
+        }
+
+    override fun hasBlockTagOfType(blockTagType: String) =
+        docComment.hasBlockTagOfType(blockTagType)
+
+    override fun print(writer: PrintWriter) {
+        // Ensure [item.selectedApi] is initialized before stripping `@hide` tags below; otherwise,
+        // if [print] is called before [item.selectedApi] has been accessed, resolving links while
+        // printing would initialize [item.selectedApi] after `@hide` was removed.
+        item.selectedApi
+
+        // Remove all `@hide`, and `@doconly` tags before printing to prevent them from being
+        // visible to the documentation generation tool that consumes the stubs. That is because the
+        // tool may act upon them, e.g. hiding any APIs that are tagged with `@hide`.
+        docComment =
+            docComment.removeBlockTagSections {
+                val type = it.tagType.name
+                type == "hide" || type == "doconly"
+            }
+
+        checkDocumentationBeforePrinting()
+
+        // Print the docComment as Javadoc.
+        docComment.printAsJavadocComment(
+            writer,
+            // Apply the [JavaSummaryTruncationWorkaround] to the main description.
+            mainDescriptionRewriter = JavaSummaryTruncationWorkaround.INSTANCE
+        )
+    }
+
+    /**
+     * Check the documentation content [docComment] before printing it.
+     *
+     * Verifies that it does not contain anything which could cause problems downstream, e.g. in
+     * `doclava`.
+     */
+    private fun checkDocumentationBeforePrinting() {
+        if (docComment.check(InvalidBlockUseVisitor.INSTANCE)) {
+            item.codebase.reporter.report(
+                Issues.INVALID_BLOCK_TAG_USE,
+                item,
+                "Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream.",
+                fileLocation,
+            )
+        }
+    }
+
+    override val mainDescription: DocContent?
+        get() = docComment.description
+
+    override val mainDescriptionOwner: DocContentOwner
+        get() =
+            object : DocContentOwner {
+                override val docContent: DocContent?
+                    get() = mainDescription
+
+                override fun append(other: DocContent) {
+                    docComment = docComment.append(other)
+                }
+
+                override fun append(text: String) {
+                    docComment = docComment.append(text)
+                }
+            }
+
+    override fun blockTagDescription(tagTypeName: String): DocContent? =
+        findBlockTagSection(tagTypeName)?.description
+
+    override fun blockTagDescriptionOwner(tagTypeName: String): DocContentOwner =
+        object : DocContentOwner {
+            override val docContent: DocContent?
+                get() = blockTagDescription(tagTypeName)
+
+            override fun append(other: DocContent) {
+                docComment = docComment.appendBlockTagDescription(tagTypeName, other)
+            }
+
+            override fun append(text: String) {
+                docComment = docComment.appendBlockTagDescription(tagTypeName, text)
+            }
+        }
+
+    /** Find the block tag section for [tagTypeName]. */
+    private fun findBlockTagSection(tagTypeName: String): BlockTagSection? =
+        docComment.blockTagSections.find { it.tagType.name == tagTypeName }
+
+    override fun paramTagDescription(name: String): DocContent? =
+        findParamTagSection(name)?.description
+
+    override fun paramTagDescriptionOwner(name: String): DocContentOwner =
+        object : DocContentOwner {
+            override val docContent: DocContent?
+                get() = paramTagDescription(name)
+
+            override fun append(other: DocContent) {
+                docComment = docComment.appendParamTagDescription(name, other)
+            }
+
+            override fun append(text: String) {
+                docComment = docComment.appendParamTagDescription(name, text)
+            }
+        }
+
+    /** Find the block tag section for `@param` of [name]. */
+    private fun findParamTagSection(name: String): BlockTagSection? =
+        docComment.blockTagSections.find { it.typeSafeTagData(TagTypes.PARAM)?.name == name }
+
+    override fun check(predicate: DocContentPredicate) =
+        docComment.check(predicate as DocCommentPredicate)
+
+    /** Check to see if this requires a source comment. */
+    override fun requiresSourceComment() = docComment.requiresSourceComment()
+
+    override fun removeDeprecatedSection() {
+        // Try and remove all the `@deprecated` sections.
+        docComment = docComment.removeBlockTagSections { it.tagType == TagTypes.DEPRECATED }
+    }
+
+    override fun addUniqueBlockTagSectionWithSimpleText(tagTypeName: String, text: String) {
+        // Remove any existing sections of the specified type, and add a block tag section to the
+        // end.
+        docComment =
+            docComment
+                .removeBlockTagSections { it.tagType.name == tagTypeName }
+                .addBlockTagSection(tagTypeName, text.toOptionalJavadocContent())
+    }
+
+    override fun report(issue: Issues.Issue, message: String, charOffset: Int) {
+        val location = fileLocation(charOffset)
+        item.codebase.reporter.report(issue, null, message, location)
+    }
+
+    /**
+     * Get the [FileLocation] for [charOffset], which is the 0-based character offset from the
+     * beginning of the documentation.
+     */
+    protected open fun fileLocation(charOffset: Int): FileLocation = fileLocation
+
+    override fun duplicate(item: SelectableItem): ItemDocumentation =
+        DefaultItemDocumentation(item, docCommentSupplier, _docComment)
+
+    final override fun snapshot(item: SelectableItem): ItemDocumentation = duplicate(item)
+}

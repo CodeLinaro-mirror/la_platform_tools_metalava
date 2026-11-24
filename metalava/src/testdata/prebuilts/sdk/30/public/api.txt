@@ -1,0 +1,30 @@
+// Signature format: 2.0
+package android.test {
+  @Deprecated public class ClassAddedAndDeprecatedInApi30 {
+    ctor @Deprecated public ClassAddedAndDeprecatedInApi30(float);
+
+    // Do not explicitly deprecate this in API 30 as earlier releases did not consistent explicitly deprecate members of
+    // deprecated classes.
+    ctor public ClassAddedAndDeprecatedInApi30(int);
+
+    method @Deprecated public void methodExplicitlyDeprecated();
+
+    // Do not explicitly deprecate this in API 30 as earlier releases did not consistent explicitly deprecate members of
+    // deprecated classes.
+    method public void methodImplicitlyDeprecated();
+
+    field @Deprecated public static final int FIELD_EXPLICITLY_DEPRECATED = 1;
+
+    // Do not explicitly deprecate this in API 30 as earlier releases did not consistent explicitly deprecate members of
+    // deprecated classes.
+    field public static final int FIELD_IMPLICITLY_DEPRECATED = 2;
+  }
+  public class ClassAddedInApi30 {
+    method public void methodAddedInApi30();
+  }
+}
+package java.lang {
+  public class Object {
+    ctor public Object();
+  }
+}

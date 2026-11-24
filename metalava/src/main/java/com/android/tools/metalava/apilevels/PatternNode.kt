@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.apilevels
 
+import com.android.tools.metalava.cli.signature.ARG_HISTORICAL_VERSIONS
+import com.android.tools.metalava.model.api.surface.ApiSurface
 import java.io.File
 import java.util.TreeSet
 
@@ -48,6 +50,9 @@ sealed class PatternNode {
      */
     private val children = mutableListOf<PatternNode>()
 
+    /** List of [ExclusionPattern]s that apply when this node is a leaf node. */
+    private val exclusions = mutableListOf<ExclusionPattern>()
+
     /** Check to see if this node has any children. */
     internal fun hasChildren() = children.isNotEmpty()
 
@@ -66,6 +71,12 @@ sealed class PatternNode {
             append(indent)
             append(this@PatternNode.toString())
             append("\n")
+            for (exclusion in exclusions) {
+                append(indent)
+                append("  ")
+                append(exclusion)
+                append("\n")
+            }
             for (child in children) {
                 child.dumpTo(this, "$indent  ")
             }
@@ -85,7 +96,8 @@ sealed class PatternNode {
     private fun getExistingOrAdd(child: PatternNode): PatternNode {
         // The child node must be new without any children of its own.
         require(child.children.isEmpty()) { "Cannot add $child as it has children of its own" }
-        return children.find { it == child } ?: child.also { children.add(child) }
+        return children.find { it == child && it.exclusions == child.exclusions }
+            ?: child.also { children.add(child) }
     }
 
     /**
@@ -124,34 +136,36 @@ sealed class PatternNode {
      */
     internal class LimitedFileSystemProvider(files: List<File>) : WholeFileSystemProvider() {
         /**
-         * Map from [File] to the list of [File]s it contains (or an empty list for [File]s that
-         * have no contents).
+         * Map from [File] to the set of [File]s it contains (or an empty set for [File]s that have
+         * no contents).
          */
         private val fileToContents =
-            buildMap<File, MutableList<File>> {
+            buildMap<File, MutableSet<File>> {
                 for (file in files) {
+                    val normalized = file.normalize()
                     // Remember the file.
-                    computeIfAbsent(file) { mutableListOf() }
+                    computeIfAbsent(normalized) { mutableSetOf() }
 
                     // Add the file to its parent file's contents. Repeat for its parent file.
-                    var f: File = file
+                    var f: File = normalized
                     while (true) {
                         val parent = f.parentFile ?: break
-                        val contents = computeIfAbsent(parent) { mutableListOf() }
-                        contents.add(f)
+                        val contents = computeIfAbsent(parent) { mutableSetOf() }
+                        if (!contents.add(f)) break
                         f = parent
                     }
                 }
             }
 
         override fun resolve(base: File, name: String): File? {
-            val file = super.resolve(base, name)
+            val file = super.resolve(base, name)?.normalize()
             return if (file in fileToContents) file else null
         }
 
         override fun listFiles(dir: File): Sequence<File>? {
-            if (!dir.isDirectory) return null
-            return fileToContents[dir]?.asSequence()
+            val normalized = dir.normalize()
+            if (!normalized.isDirectory) return null
+            return fileToContents[normalized]?.asSequence()
         }
     }
 
@@ -161,22 +175,47 @@ sealed class PatternNode {
         val dir: File,
 
         /**
-         * An optional range which, if specified, will limit the versions that will be returned.
+         * An optional filter which, if specified, will limit the versions that will be returned.
          * This is provided when scanning, instead of just filtering afterward, to save time when
-         * scanning by ignoring version directories that are not in the range.
+         * scanning by ignoring version directories that are not accepted by the filter.
          */
-        val apiVersionRange: ClosedRange<ApiVersion>? = null,
+        val apiVersionFilter: ((ApiVersion) -> Boolean)? = null,
+
+        /**
+         * An optional filter which, if specified, will limit the sdk extension versions that will
+         * be returned. This is provided when scanning, instead of just filtering afterward, to save
+         * time when scanning by ignoring version directories that are not accepted by the filter.
+         */
+        val sdkExtensionVersionFilter: ((ApiVersion) -> Boolean)? = null,
 
         /** Provides access to [File]s. */
         val fileProvider: FileProvider = WholeFileSystemProvider(),
+
+        /**
+         * Map from [ApiSurface.name] to [ApiSurface]s that is used by [Placeholder.SURFACE] to map
+         * from surface name to [ApiSurface].
+         *
+         * It is an error if a [Placeholder.SURFACE] is used and this is not provided.
+         */
+        val apiSurfaceByName: Map<String, ApiSurface>? = null,
     )
 
     /**
      * Scan the [ScanConfig.dir] using this pattern node as the guide.
      *
-     * Returns a list of [MatchedPatternFile] objects, in version order (from the lowest to the
-     * highest), If multiple matching files have the same version then only the first version will
-     * be used.
+     * Returns a list of [MatchedPatternFile] objects, ordered such that the files are ordered by:
+     * * [MatchedPatternFile.isExtension], i.e. primary API (i.e. when
+     *   [MatchedPatternFile.isExtension] is `false`) come before those for extensions.
+     * * [MatchedPatternFile.module], i.e. those for which this is `null` come before everything
+     *   else, and they are sorted alphabetically.
+     * * [MatchedPatternFile.version], i.e. from lowest to highest.
+     * * [MatchedPatternFile.surface], i.e. those for which this is `null` come before everything
+     *   else, and they are sorted according to their natural order.
+     *
+     * If a [File] is matched by multiple patterns then only the first match will be used.
+     * Similarly, if multiple [MatchedPatternFile]s differ only in [MatchedPatternFile.file] then
+     * only the first instance found will be used. The order of discovery is determined by the order
+     * in which patterns were passed to [PatternNode.parsePatterns].
      */
     internal fun scan(config: ScanConfig): List<MatchedPatternFile> {
         val dir = config.dir
@@ -185,9 +224,15 @@ sealed class PatternNode {
         // Create a sorted set into which the matched files will be added.
         val sortedSet = TreeSet(matchedPatternFileComparator)
 
+        // Track files that have already been matched so that a file matched by an earlier pattern
+        // cannot be matched again by a later pattern with different properties.
+        val matchedFiles = mutableSetOf<File>()
+
         // Scan for files and add them to the sorted set if an equivalent one does not exist. That
         // will eliminate duplicates and order them.
         for (matchedPatternFile in scan(config, start)) {
+            if (!matchedFiles.add(matchedPatternFile.file)) continue
+
             // Add the file if it does not already exist in the set. That ensures that the set
             // contains the first instance of each duplicate.
             sortedSet.add(matchedPatternFile)
@@ -231,13 +276,19 @@ sealed class PatternNode {
     internal fun scanChildrenOrReturnMatching(
         config: ScanConfig,
         state: PatternFileState,
-    ): Sequence<MatchedPatternFile> =
-        if (children.isEmpty())
-            sequenceOf(
+    ): Sequence<MatchedPatternFile> {
+        if (children.isEmpty()) {
+            if (exclusions.any { it.matches(state.file, config.dir) }) {
+                return emptySequence()
+            }
+            return sequenceOf(
                 // Convert the PatternFileState into MatchedPatternFile objects relative to dir.
-                state.matchedPatternFile(config.dir),
+                state.matchedPatternFile(),
             )
-        else children.asSequence().flatMap { it.scan(config, state) }
+        } else {
+            return children.asSequence().flatMap { it.scan(config, state) }
+        }
+    }
 
     /**
      * Used by [getExistingOrAdd] to allow duplicate nodes to be ignored.
@@ -381,12 +432,22 @@ sealed class PatternNode {
     }
 
     /** The properties for which placeholders can be provided. */
-    private enum class Property(val propertyName: String) {
+    enum class Property(val propertyName: String, val help: () -> String) {
         /**
          * Corresponds to the [PatternFileState.version] and [MatchedPatternFile.version]
          * properties.
          */
-        VERSION("version") {
+        VERSION(
+            "version",
+            help = {
+                """
+                    Mandatory property that stores the version of a matched file.
+
+                    Apart from the ${Placeholder.VERSION_EXTENSION} all placeholders for this will
+                    ignore versions that fall outside the range $ARG_HISTORICAL_VERSIONS, if provided.
+                """
+            },
+        ) {
             override fun track(
                 config: ScanConfig,
                 state: PatternFileState,
@@ -396,29 +457,88 @@ sealed class PatternNode {
                 // Extract the API version from the value.
                 val version = ApiVersion.fromString(value)
 
-                // Make sure that it is within the allowable range (if one was specified). If it is
-                // not then ignore this file and all its contents by returning an empty sequence.
-                // The range does not apply to extension versions, all extension versions are used.
-                if (placeholder != Placeholder.VERSION_EXTENSION) {
-                    config.apiVersionRange?.let { apiVersionRange ->
-                        if (version !in apiVersionRange) return null
-                    }
-                }
+                val isExtension = placeholder == Placeholder.VERSION_EXTENSION
 
-                return state.copy(version = version)
+                // Make sure that it is accepted by the filter (if one was specified). If it is not
+                // then ignore this file and all its contents by returning an empty sequence.
+                val versionFilter =
+                    if (isExtension) config.sdkExtensionVersionFilter else config.apiVersionFilter
+                versionFilter?.let { versionFilter -> if (!versionFilter(version)) return null }
+
+                return state.copy(version = version, isExtension = isExtension)
             }
         },
+
         /**
-         * Corresponds to the [PatternFileState.version] and [MatchedPatternFile.version]
+         * Corresponds to the [PatternFileState.library] and [MatchedPatternFile.library]
          * properties.
          */
-        MODULE("module") {
+        LIBRARY(
+            "library",
+            help = {
+                """
+                    Optional property that stores the name of a library.
+                """
+            },
+        ) {
+            override fun track(
+                config: ScanConfig,
+                state: PatternFileState,
+                value: String,
+                placeholder: Placeholder,
+            ) = state.copy(library = value)
+        },
+
+        /**
+         * Corresponds to the [PatternFileState.module] and [MatchedPatternFile.module] properties.
+         */
+        MODULE(
+            "module",
+            help = {
+                """
+                    Optional property that stores the name of the SDK extension module.
+
+                    Patterns that use a placeholder for this are assumed to be matching files for
+                    SDK extensions.
+                """
+            },
+        ) {
             override fun track(
                 config: ScanConfig,
                 state: PatternFileState,
                 value: String,
                 placeholder: Placeholder,
             ) = state.copy(module = value)
+        },
+
+        /**
+         * Corresponds to the [PatternFileState.surface] and [MatchedPatternFile.surface]
+         * properties.
+         */
+        SURFACE(
+            "surface",
+            help = {
+                """
+                    Optional property that stores the API surface.
+                """
+            },
+        ) {
+            override fun track(
+                config: ScanConfig,
+                state: PatternFileState,
+                value: String,
+                placeholder: Placeholder,
+            ): PatternFileState? {
+                val apiSurfaceByName =
+                    config.apiSurfaceByName
+                        ?: error(
+                            "Must provide ScanConfig.apiSurfaceByName when ${Placeholder.SURFACE} is used"
+                        )
+                // Look the surface up in the available surfaces, if it could not be found then
+                // ignore this file.
+                val surface = apiSurfaceByName[value] ?: return null
+                return state.copy(surface = surface)
+            }
         },
         ;
 
@@ -434,7 +554,7 @@ sealed class PatternNode {
          * @param value the value of the placeholder extracted from the path.
          * @param placeholder the [Placeholder] for which this is being called.
          */
-        abstract fun track(
+        internal abstract fun track(
             config: ScanConfig,
             state: PatternFileState,
             value: String,
@@ -453,17 +573,26 @@ sealed class PatternNode {
      *   same [property] but which have different [pattern]s.
      * @param pattern the pattern that determines which part of a file name will be matched by the
      *   placeholder. This must not contain any capturing groups.
+     * @param help lambda for providing help used in the `metalava help historical-api-patterns`
+     *   command. A lambda is used to allow references to [Property] instances that may not have
+     *   been initialized before this is initialized.
      */
-    private enum class Placeholder(
+    enum class Placeholder(
         val property: Property,
         private val format: String?,
         val pattern: String,
+        val help: () -> String,
     ) {
         /** The {version:level} placeholder. */
         VERSION_LEVEL(
             property = Property.VERSION,
             format = "level",
             pattern = """\d+""",
+            help = {
+                """
+                    Matches a single non-negative integer and treats it as an API version.
+                """
+            },
         ),
 
         /** The {version:major.minor?} placeholder. */
@@ -472,6 +601,11 @@ sealed class PatternNode {
             format = "major.minor?",
             // Match either a single major version or a major and minor version together.
             pattern = """\d+(?:\.\d+)?""",
+            help = {
+                """
+                    Matches a single non-negative integer or two such integers separated by a `.`.
+                """
+            },
         ),
 
         /** The {version:major.minor.patch} placeholder. */
@@ -480,6 +614,11 @@ sealed class PatternNode {
             format = "major.minor.patch",
             // Only match a version with major, minor and patch components.
             pattern = """\d+\.\d+\.\d+""",
+            help = {
+                """
+                    Matches three non-negative integers separated by `.`s.
+                """
+            },
         ),
 
         /** The {version:extension} placeholder. */
@@ -488,6 +627,36 @@ sealed class PatternNode {
             format = "extension",
             // Only match a version with extension version.
             pattern = """\d+""",
+            help = {
+                """
+                    Matches a single non-negative integer and treats it as an extension version.
+
+                    A pattern that includes this must also include `$MODULE` as SDK extension APIs
+                    are stored in a file per extension module.
+                """
+            },
+        ),
+
+        /**
+         * The {library} placeholder.
+         *
+         * Generally, each version/module pair is supposed to have a single file representing it for
+         * each surface. However, sometimes it can be broken down into multiple files, e.g.
+         * `android.test.base.jar` was previously part of `android.jar` but was separated out. So,
+         * in order to generate an accurate history of the `android.test` classes it is necessary to
+         * include the `android.test.base.jar` alongside `android.jar`. That can be achieved by
+         * using the {library} placeholder.
+         */
+        LIBRARY(
+            property = Property.LIBRARY,
+            format = null,
+            pattern = """[a-z0-9-.]+""",
+            help = {
+                """
+                    Matches a library name which must consist of lower case letters, numbers,
+                    hyphens and `.`s.
+                """
+            },
         ),
 
         /** The {module} placeholder. */
@@ -495,7 +664,26 @@ sealed class PatternNode {
             property = Property.MODULE,
             format = null,
             pattern = """[a-z-.]+""",
-        );
+            help = {
+                """
+                    Matches a module name which must consist of lower case letters, hyphens and
+                    `.`s.
+                """
+            },
+        ),
+
+        /** The {surface} placeholder. */
+        SURFACE(
+            property = Property.SURFACE,
+            format = null,
+            pattern = """[a-z-]+""",
+            help = {
+                """
+                    Matches a surface name which must consist of lower case letters and hyphens.
+                """
+            },
+        ),
+        ;
 
         /** The label for this that will be used in a path pattern, e.g. `{version:level}`. */
         val label = if (format == null) "{$property}" else "{$property:$format}"
@@ -515,19 +703,97 @@ sealed class PatternNode {
         }
     }
 
+    /**
+     * An exclusion pattern (prefixed with `!`) that matches relative file paths to ignore.
+     *
+     * @param pattern the regular expression pattern that will match the file path.
+     */
+    private data class ExclusionPattern(
+        val pattern: String,
+    ) {
+        private val regex = Regex(pattern)
+
+        /** Check whether [file] (relative to [baseDir]) matches this exclusion pattern. */
+        fun matches(file: File, baseDir: File): Boolean {
+            val pathToMatch =
+                if (pattern.startsWith("/")) {
+                    file.invariantSeparatorsPath
+                } else {
+                    file
+                        .relativeDescendantOfOrSelf(baseDir)
+                        .invariantSeparatorsPath
+                        .removePrefix("/")
+                }
+            return regex.matches(pathToMatch)
+        }
+
+        override fun toString() = "!$pattern"
+    }
+
     companion object {
         /**
          * Parse a list of [patterns] into a tree of [PatternNode]s.
          *
-         * Each pattern in [patterns] must contain a single `{version:level}` that is a placeholder
-         * for the version number.
+         * Non-exclusion patterns in [patterns] must contain a single `{version:level}` that is a
+         * placeholder for the version number. Exclusion patterns start with `!` and cause any
+         * matching files to be ignored by subsequent patterns.
          */
         fun parsePatterns(patterns: List<String>): PatternNode {
             val root = RootPatternNode()
+            val exclusions = mutableListOf<ExclusionPattern>()
             for (pattern in patterns) {
-                addPattern(root, pattern)
+                if (pattern.startsWith("!")) {
+                    exclusions.add(parseExclusionPattern(pattern))
+                } else {
+                    addPattern(root, pattern, exclusions)
+                }
             }
             return root
+        }
+
+        /**
+         * Parse an exclusion pattern [pathPattern] (starting with `!`) into an [ExclusionPattern].
+         */
+        private fun parseExclusionPattern(pathPattern: String): ExclusionPattern {
+            val unnegatedPattern = pathPattern.removePrefix("!")
+            if (unnegatedPattern.isEmpty()) {
+                error("Exclusion pattern '!' cannot be empty")
+            }
+
+            val regexBuilder = StringBuilder()
+            val placeholders = mutableListOf<Placeholder>()
+            val parts = unnegatedPattern.split("/")
+            for ((index, namePattern) in parts.withIndex()) {
+                val isLast = index == parts.lastIndex
+                when {
+                    // Handle when the path is absolute and starts with a /
+                    index == 0 && namePattern == "" -> {
+                        regexBuilder.append("/")
+                    }
+                    namePattern == "**" -> {
+                        if (isLast) {
+                            regexBuilder.append(".*")
+                        } else {
+                            regexBuilder.append("(?:[^/]+/)*")
+                        }
+                    }
+                    else -> {
+                        appendParameterizedRegex(
+                            regexBuilder,
+                            pathPattern,
+                            namePattern,
+                            placeholders,
+                        )
+                        if (!isLast) {
+                            regexBuilder.append("/")
+                        }
+                    }
+                }
+            }
+
+            validatePlaceholders(pathPattern, placeholders, requireVersion = false)
+
+            return ExclusionPattern(regexBuilder.toString())
         }
 
         /**
@@ -535,16 +801,22 @@ sealed class PatternNode {
          * separated by `/`.
          *
          * Creates a [PatternNode] for each name pattern in the supplied [pathPattern] inserting it
-         * into the [root], reusing existing [PatternNode]s where possible.
+         * into the [root], reusing existing [PatternNode]s where possible. Any preceding
+         * [exclusions] are attached to the leaf node.
          */
-        private fun addPattern(root: PatternNode, pathPattern: String) {
+        private fun addPattern(
+            root: PatternNode,
+            pathPattern: String,
+            exclusions: List<ExclusionPattern>,
+        ) {
             // The list of nodes used for the pattern.
             val nodes = mutableListOf<PatternNode>()
 
             var parent = root
+            val parts = pathPattern.split("/")
             // Split the pattern using `/` and iterate over each of the parts adding them into the
             // tree structure.
-            for (namePattern in pathPattern.split("/")) {
+            for ((index, namePattern) in parts.withIndex()) {
                 // Create a node for the pattern.
                 val node =
                     when {
@@ -558,6 +830,10 @@ sealed class PatternNode {
                         else -> FixedNamePatternNode(namePattern)
                     }
 
+                if (index == parts.lastIndex) {
+                    node.exclusions.addAll(exclusions)
+                }
+
                 nodes.add(node)
 
                 // Find a matching node in the parent adding the new node if no existing node
@@ -565,39 +841,60 @@ sealed class PatternNode {
                 parent = parent.getExistingOrAdd(node)
             }
 
-            // Check to make sure that exactly one of the nodes will match an API version.
-            val placeholdersByProperty =
-                nodes
-                    .mapNotNull { it as? PlaceholderPatternNode }
-                    .flatMap { it.placeholders }
-                    .groupBy { it.property }
+            // Check to make sure that the placeholders used in the pattern are valid.
+            val usedPlaceholders =
+                nodes.mapNotNull { it as? PlaceholderPatternNode }.flatMap { it.placeholders }
+            validatePlaceholders(pathPattern, usedPlaceholders, requireVersion = true)
+        }
+
+        /**
+         * Validate the [usedPlaceholders] in [pathPattern].
+         *
+         * @param pathPattern the pattern being validated, used for error reporting.
+         * @param usedPlaceholders the list of [Placeholder]s used in [pathPattern].
+         * @param requireVersion `true` if a [Property.VERSION] placeholder is required (i.e. for
+         *   non-exclusion patterns), `false` if it is optional (i.e. for exclusion patterns).
+         */
+        private fun validatePlaceholders(
+            pathPattern: String,
+            usedPlaceholders: List<Placeholder>,
+            requireVersion: Boolean,
+        ) {
+            val placeholdersByProperty = usedPlaceholders.groupBy { it.property }
 
             // Do some basic validation of the placeholders in the pattern.
-            for (property in Property.entries) {
-                val placeholders = placeholdersByProperty[property] ?: emptyList()
+            if (requireVersion && Property.VERSION !in placeholdersByProperty) {
+                // At least one placeholder that will set the version property must be provided.
+                error("Pattern '$pathPattern' does not contain placeholder for ${Property.VERSION}")
+            }
+
+            for ((property, placeholders) in placeholdersByProperty.entries) {
                 val count = placeholders.size
-                when {
-                    count == 0 ->
-                        // At least one placeholder that will set the version property must be
-                        // provided.
-                        if (property == Property.VERSION) {
-                            error(
-                                "Pattern '$pathPattern' does not contain placeholder for $property"
-                            )
-                        }
-                    count > 1 ->
-                        // No property can have multiple placeholders for it as that could lead to a
-                        // conflict over which value will be used and/or complicate the logic to
-                        // make sure that all the values are the same.
-                        error(
-                            "Pattern '$pathPattern' contains multiple placeholders for $property; found ${placeholders.joinToString()}"
-                        )
+                // An entry in a map created by groupBy will always have a list containing at least
+                // one item.
+                if (count != 1) {
+                    // No property can have multiple placeholders for it as that could lead to a
+                    // conflict over which value will be used and/or complicate the logic to make
+                    // sure that all the values are the same.
+                    error(
+                        "Pattern '$pathPattern' contains multiple placeholders for $property; found ${placeholders.joinToString()}"
+                    )
                 }
+            }
+
+            if (
+                requireVersion &&
+                    Placeholder.VERSION_EXTENSION in usedPlaceholders &&
+                    Placeholder.MODULE !in usedPlaceholders
+            ) {
+                error(
+                    "Pattern '$pathPattern' contains `${Placeholder.VERSION_EXTENSION}` but does not contain `${Placeholder.MODULE}`"
+                )
             }
         }
 
         /** [Regex] to find placeholders or wildcards in a pattern. */
-        private val PLACEHOLDER_OR_WILDCARD_REGEX = Regex("""(\{[^}]+})|(\*)""")
+        private val PLACEHOLDER_OR_WILDCARD_REGEX = Regex("""(\{[^}]+})|(\*+)""")
 
         /**
          * Parse a parameterized pattern, i.e. one with a placeholder like '{version:level}'.
@@ -615,9 +912,23 @@ sealed class PatternNode {
          */
         private fun parseParameterizedPattern(pathPattern: String, pattern: String): PatternNode {
             val regexBuilder = StringBuilder()
-            var literalStart = 0
-
             val placeholders = mutableListOf<Placeholder>()
+            appendParameterizedRegex(regexBuilder, pathPattern, pattern, placeholders)
+            return PlaceholderPatternNode(regexBuilder.toString(), placeholders.toList())
+        }
+
+        /**
+         * Append a regular expression matching [pattern] to [regexBuilder], quoting any literal
+         * text and replacing placeholders/wildcards with an appropriate regular expression. Any
+         * [Placeholder]s encountered are added to [placeholders].
+         */
+        private fun appendParameterizedRegex(
+            regexBuilder: StringBuilder,
+            pathPattern: String,
+            pattern: String,
+            placeholders: MutableList<Placeholder>,
+        ) {
+            var literalStart = 0
 
             /**
              * Quote any literal text found between the start of the pattern or last placeholder and
@@ -648,6 +959,17 @@ sealed class PatternNode {
                         regexBuilder.append("""[^/]*""")
                     }
                     else -> {
+                        if (placeholderOrWildcardText.startsWith("*")) {
+                            if (placeholderOrWildcardText == "**" && pattern == "**") {
+                                error(
+                                    "Pattern '$pathPattern' contains '**', which is only supported in exclusion patterns"
+                                )
+                            }
+                            error(
+                                "Pattern '$pathPattern' contains invalid wildcard '$placeholderOrWildcardText'"
+                            )
+                        }
+
                         // Find the corresponding [Placeholder], failing if it could not be found.
                         val placeholder =
                             Placeholder.placeholderForLabel(placeholderOrWildcardText, pathPattern)
@@ -667,11 +989,22 @@ sealed class PatternNode {
 
             // Quote any literal text found at the end of the pattern after the last placeholder.
             quoteLiteralText(pattern.length)
-
-            return PlaceholderPatternNode(regexBuilder.toString(), placeholders.toList())
         }
     }
 }
+
+/**
+ * If this [File] is a descendant of [base] then return a relative path from [base] to this,
+ * otherwise just return this.
+ *
+ * This ensures that an absolute path does not end up being turned into an even more complicated
+ * relative path that starts with lots of `../../`. This is only needed for tests that use patterns
+ * in a temporary directory which is not relative to the current directory in which the scanning is
+ * performed. It should not be an issue in practice as callers typically run with patterns relative
+ * to the current directory.
+ */
+private fun File.relativeDescendantOfOrSelf(base: File) =
+    relativeToOrNull(base)?.takeUnless { it.startsWith("../") } ?: this
 
 /**
  * Encapsulates the information accrued about a specific [file] that matches a pattern during
@@ -688,8 +1021,17 @@ internal data class PatternFileState(
     /** The optional [ApiVersion] that was extracted from the path. */
     val version: ApiVersion? = null,
 
+    /** Indicates whether the file is for an SDK extension module. */
+    val isExtension: Boolean = false,
+
     /** The optional module that was extracted from the path. */
     val module: String? = null,
+
+    /** The optional surface that was extracted from the path. */
+    val surface: ApiSurface? = null,
+
+    /** The optional name of the library. */
+    val library: String? = null,
 ) {
     /**
      * Construct a [MatchedPatternFile] from this.
@@ -697,27 +1039,17 @@ internal data class PatternFileState(
      * This must only be called when this has been matched by a leaf [PatternNode] and so is
      * guaranteed to have had [version] set to a non-null value.
      */
-    fun matchedPatternFile(dir: File) =
+    fun matchedPatternFile() =
         if (version == null) error("matching pattern could not extract version from $file")
         else
             MatchedPatternFile(
-                file.relativeDescendantOfOrSelf(dir),
-                version,
-                module,
+                file = file,
+                version = version,
+                isExtension = isExtension,
+                module = module,
+                surface = surface,
+                library = library,
             )
-
-    /**
-     * If this [File] is a descendant of [base] then return a relative path from [base] to this,
-     * otherwise just return this.
-     *
-     * This ensures that an absolute path does not end up being turned into an even more complicated
-     * relative path that starts with lots of `../../`. This is only needed for tests that use
-     * patterns in a temporary directory which is not relative to the current directory in which the
-     * scanning is performed. It should not be an issue in practice as callers typically run with
-     * patterns relative to the current directory.
-     */
-    private fun File.relativeDescendantOfOrSelf(base: File) =
-        relativeTo(base).let { relative -> if (relative.startsWith("../")) file else relative }
 }
 
 /** Represents a [File] that matches a pattern encapsulate in a hierarchy of [PatternNode]s. */
@@ -732,18 +1064,70 @@ data class MatchedPatternFile(
     /** The [ApiVersion] extracted from the [File] path. */
     val version: ApiVersion,
 
+    /** True if this represents a file from an extension module. */
+    val isExtension: Boolean = false,
+
     /** The optional module that was extracted from the [File] path. */
     val module: String? = null,
-)
+
+    /** The optional surface that was extracted from the [File] path. */
+    val surface: ApiSurface? = null,
+
+    /** The optional library that was extracted from the [File] path. */
+    val library: String? = null,
+) {
+    /**
+     * Create a string representation of the properties, used for testing and debugging.
+     *
+     * Any optional properties will only be included in the string representation if they are
+     * provided, e.g. not `null`. That means adding a new optional property will not affect any
+     * tests that rely on the output of this.
+     */
+    override fun toString(): String {
+        return buildString {
+            append("MatchedPatternFile(")
+            append("file=")
+            append(file.path)
+            append(", version=")
+            append(version)
+            if (isExtension) {
+                append(", isExtension=true")
+            }
+            if (module != null) {
+                append(", module='")
+                append(module)
+                append("'")
+            }
+            if (surface != null) {
+                append(", surface='")
+                append(surface.name)
+                append("'")
+            }
+            if (library != null) {
+                append(", library='")
+                append(library)
+                append("'")
+            }
+            append(")")
+        }
+    }
+}
 
 /**
  * Comparator that is used to identify duplicate [MatchedPatternFile]s and defined an order for the
  * unique instances.
  */
 private val matchedPatternFileComparator: Comparator<MatchedPatternFile> =
+    // If any of the selectors return `null` that will compare before any other value.
     compareBy(
-        // Group into those without modules ("") and then by those with module, in order.
-        { it.module ?: "" },
+        // Group into those that are for the primary API and those that are for an extension.
+        { it.isExtension },
+        // Group into those without modules and then by those with module, in order.
+        { it.module },
         // Then sort them from the lowest version to the highest version.
         { it.version },
+        // Group into those without libraries and then by those with library, in order.
+        { it.library },
+        // Then group into those without surface and then by those with a surface, in order.
+        { it.surface },
     )

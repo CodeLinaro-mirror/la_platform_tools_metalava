@@ -17,24 +17,35 @@
 package com.android.tools.metalava.testing
 
 import com.android.tools.lint.checks.infrastructure.TestFile
+import com.android.tools.metalava.testing.TemporaryFolderOwner.Companion.createTestRule
 import java.io.File
-import org.junit.Assert.assertNotNull
+import java.util.TreeMap
+import org.junit.Rule
 import org.junit.rules.TemporaryFolder
 
 /** Provides helper functions for a test class that has a [TemporaryFolder] rule. */
 interface TemporaryFolderOwner {
-
-    val temporaryFolder: TemporaryFolder
+    /**
+     * Provides access to temporary files.
+     *
+     * Must be defined as follows in subclasses:
+     * ```
+     *     @get:Rule final override val temporaryFolder = createTestRule()
+     * ```
+     */
+    val temporaryFolder: CustomTemporaryFolder
 
     /**
      * Given an array of [TestFile] get a folder called "project" (creating it if it is empty),
      * write the files to the folder and then return the folder.
      */
-    fun createProject(files: Array<TestFile>): File {
-        val dir = getOrCreateFolder("project")
-
-        files.map { it.createFile(dir) }.forEach { assertNotNull(it) }
-
+    fun createProjectDir(files: Array<TestFile>): File {
+        val dir =
+            getOrCreateFolder(
+                relative = "project",
+                testLabel = "TESTROOT",
+            )
+        files.createFiles(dir)
         return dir
     }
 
@@ -44,16 +55,24 @@ interface TemporaryFolderOwner {
      * Use an existing folder, or create a new one if necessary. It is an error if a file exists but
      * is not a directory.
      */
-    fun getOrCreateFolder(relative: String = ""): File {
+    fun getOrCreateFolder(relative: String = "", testLabel: String? = null): File {
         val dir = temporaryFolder.root.resolve(relative)
         // If the directory exists and is a directory then use it, otherwise drop through to create
         // a new one. If the directory exists but is not a directory then attempting to create a new
         // one will report an issue.
-        return if (dir.isDirectory) {
-            dir
-        } else {
-            temporaryFolder.newFolder(relative)
+        val newFolder =
+            if (dir.isDirectory) {
+                dir
+            } else {
+                temporaryFolder.newFolder(relative)
+            }
+
+        // Add a mapping from the new folder to the test label if provided.
+        if (testLabel != null) {
+            temporaryFolder.addTestLabelForFile(newFolder, testLabel)
         }
+
+        return newFolder
     }
 
     /**
@@ -94,22 +113,115 @@ interface TemporaryFolderOwner {
         return dir
     }
 
-    /** Hides path prefixes from /tmp folders used by the testing infrastructure */
-    fun cleanupString(
+    /**
+     * Replaces temporary folders that can change from one test run to the next with fixed labels to
+     * make it easier to test expectations.
+     *
+     * @see CustomTemporaryFolder.cleanupString
+     */
+    fun removeTestSpecificDirectories(string: String) = temporaryFolder.cleanupString(string)
+
+    /** Create a [File] from this [TestFile] in the root directory of the [temporaryFolder]. */
+    fun TestFile.toFile() = createFile(temporaryFolder.root)
+
+    companion object {
+        /** Create the [TemporaryFolder]. */
+        fun createTestRule(): CustomTemporaryFolder = CustomTemporaryFolder()
+    }
+}
+
+/** Base class for implementers of [TemporaryFolderOwner]. */
+open class BaseTemporaryFolderOwner : TemporaryFolderOwner {
+    @get:Rule final override val temporaryFolder = createTestRule()
+}
+
+/**
+ * Custom extension of [TemporaryFolder] that keeps track of mappings from temporary files to a
+ * label that is used in [TemporaryFolderOwner.removeTestSpecificDirectories].
+ */
+class CustomTemporaryFolder : TemporaryFolder() {
+    /** Map from file to label to use in test expectations. */
+    internal val temporaryFileToTestLabel = mutableMapOf<File, String>()
+
+    override fun before() {
+        super.before()
+
+        // Map root to TESTROOT
+        temporaryFileToTestLabel[root] = "TESTROOT"
+    }
+
+    override fun after() {
+        super.after()
+
+        temporaryFileToTestLabel.clear()
+    }
+
+    /** Create a new folder and associate it with [testLabel]. */
+    fun newFolderWithTestLabel(testLabel: String): File =
+        newFolder().also { dir -> addTestLabelForFile(dir, testLabel) }
+
+    /** Add mapping from [file] to [testLabel]. */
+    fun addTestLabelForFile(file: File, testLabel: String) {
+        val existingLabel = temporaryFileToTestLabel[file]
+        if (existingLabel != null && existingLabel != testLabel) {
+            error(
+                "Inconsistent test labels provided for $file, existing: $existingLabel, new: $testLabel"
+            )
+        }
+        temporaryFileToTestLabel[file] = testLabel
+    }
+
+    /**
+     * Replaces temporary folders that can change from one test run to the next with fixed labels to
+     * make it easier to test expectations.
+     *
+     * Replaces all the mappings in [temporaryFileToTestLabel].
+     */
+    fun cleanupString(string: String) = replaceFileWithSymbol(string, temporaryFileToTestLabel)
+
+    /**
+     * Replaces temporary folders that can change from one test run to the next with fixed labels to
+     * make it easier to test expectations.
+     *
+     * Creates a set of mappings consisting of:
+     * * All the mappings in [fileToSymbol].
+     * * A default mapping from [getRoot] to `TESTROOT`.
+     *
+     * It then applies those mappings in order from most specific (longest) to least specific
+     * (shortest).
+     */
+    internal fun replaceFileWithSymbol(
         string: String,
-        project: File? = null,
+        fileToSymbol: Map<File, String>,
     ): String {
+        // Create an ordered mappings from longest to shortest. That ensures that the most specific
+        // mapping is applied to each file.
+        val orderedMappings =
+            TreeMap<File, String>(longestFileFirst).apply {
+                putAll(fileToSymbol)
+
+                // Include the default mapping for the root directory.
+                put(root, "TESTROOT")
+            }
+
         var s = string
 
-        if (project != null) {
-            s = s.replace(project.path, "TESTROOT")
-            s = s.replace(project.canonicalPath, "TESTROOT")
+        // Iterate over all the mappings from longest to shortest.
+        for ((file, symbol) in orderedMappings) {
+            s = s.replace(file.path, symbol)
+            s = s.replace(file.canonicalPath, symbol)
         }
-
-        s = s.replace(temporaryFolder.root.path, "TESTROOT")
 
         s = s.trim()
 
         return s
+    }
+
+    companion object {
+        /**
+         * Define a total order over [File] from longest to shortest. It also does it in reverse
+         * alphabetical order but that should not matter.
+         */
+        private val longestFileFirst = compareByDescending<File> { it.path }
     }
 }

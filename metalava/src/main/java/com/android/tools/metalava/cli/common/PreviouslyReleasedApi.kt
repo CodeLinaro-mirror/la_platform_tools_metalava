@@ -16,7 +16,7 @@
 
 package com.android.tools.metalava.cli.common
 
-import com.android.SdkConstants
+import com.android.tools.metalava.DOT_JAR
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.api.surface.ApiVariantType
 import com.android.tools.metalava.model.text.SignatureFile
@@ -59,7 +59,7 @@ sealed interface PreviouslyReleasedApi {
             if (files.isEmpty()) null
             else {
                 // Extract the jar files, if any.
-                val jarFiles = files.filter { it.path.endsWith(SdkConstants.DOT_JAR) }
+                val jarFiles = files.filter { it.path.endsWith(DOT_JAR) }
                 if (jarFiles.isNotEmpty())
                     error(
                         "$optionName: Can no longer check compatibility against jar files like ${jarFiles.joinToString()} please use equivalent signature files"

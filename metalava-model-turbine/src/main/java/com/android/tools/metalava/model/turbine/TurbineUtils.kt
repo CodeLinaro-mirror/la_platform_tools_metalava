@@ -16,8 +16,24 @@
 
 package com.android.tools.metalava.model.turbine
 
+import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemDocumentationFactory
+import com.android.tools.metalava.model.source.NO_SOURCE_COMMENT_FACTORY
+import com.android.tools.metalava.model.source.createSourceItemDocumentation
+import com.google.turbine.binder.bound.EnumConstantValue
+import com.google.turbine.binder.bound.TurbineClassValue
+import com.google.turbine.binder.sym.ClassSymbol
+import com.google.turbine.model.Const
+import com.google.turbine.model.Const.Kind
+import com.google.turbine.model.Const.Value
+import com.google.turbine.tree.Tree
 import com.google.turbine.tree.Tree.CompUnit
 import com.google.turbine.tree.Tree.Ident
+import com.google.turbine.tree.Tree.MethDecl
+import com.google.turbine.tree.Tree.PkgDecl
+import com.google.turbine.tree.Tree.TyDecl
+import com.google.turbine.tree.Tree.VarDecl
+import kotlin.jvm.optionals.getOrNull
 
 /**
  * Extracts the package name from a provided compilation unit.
@@ -29,31 +45,75 @@ import com.google.turbine.tree.Tree.Ident
 internal fun getPackageName(unit: CompUnit): String {
     val optPkg = unit.pkg()
     val pkg = if (optPkg.isPresent()) optPkg.get() else null
-    return pkg?.let { extractNameFromIdent(it.name()) } ?: ""
+    return pkg?.name()?.dotSeparatedName ?: ""
 }
 
 /**
- * Extracts a dot-separated name from a list of Ident objects. This is often used for constructing
- * fully qualified names or package structures.
+ * Creates a dot-separated name from a list of [Ident] objects.
  *
- * @param identNameList The list of Ident objects representing name segments.
+ * This is often used for constructing fully qualified names or package structures.
+ *
+ * @param this@extractNameFromIdent The list of [Ident] objects representing name segments.
  * @return The combined name with segments joined by "." (e.g., "java.util.List")
  */
-internal fun extractNameFromIdent(identNameList: List<Ident>): String {
-    val nameList = identNameList.map { it.value() }
-    return nameList.joinToString(separator = ".")
-}
+internal val List<Ident>.dotSeparatedName: String
+    get() {
+        val nameList = map { it.value() }
+        return nameList.joinToString(separator = ".")
+    }
 
 /**
- * Extracts header comments from a source file string. Header comments are defined as any content
- * appearing before the "package" keyword.
+ * Extracts header comments from a [CompUnit].
  *
- * @param source The source file string.
+ * Header comments are defined as any content appearing before the "package" keyword.
+ *
  * @return The extracted header comments, or an empty string if no "package" keyword or comments are
  *   found.
  */
-internal fun getHeaderComments(source: String): String {
-    val packageIndex = source.indexOf("package")
-    // Return everything before "package" keyword
-    return if (packageIndex == -1) "" else source.substring(0, packageIndex)
+internal fun CompUnit.getHeaderComments(): String {
+    // Find the package statement; `pkgDecl.position()` is the start of the `package` keyword.
+    val pkgDecl = pkg().getOrNull() ?: return ""
+    return source().substring(0, pkgDecl.position()).replace("\r\n", "\n")
 }
+
+/** Get an [ItemDocumentationFactory] for [decl]. */
+internal fun TurbineGlobalContext.itemDocumentationFactoryForDecl(
+    decl: Tree?
+): ItemDocumentationFactory {
+    // If comments are not read then ignore the javadoc.
+    if (!allowReadingComments) return ItemDocumentation.NONE_FACTORY
+
+    val turbineJavadoc =
+        when (decl) {
+            is TyDecl -> decl.javadoc()
+            is MethDecl -> decl.javadoc()
+            is VarDecl -> decl.javadoc()
+            is PkgDecl -> decl.javadoc()
+            null -> null
+            else -> error("Should never be called")
+        } ?: return NO_SOURCE_COMMENT_FACTORY
+
+    return ItemDocumentationFactory { item ->
+        createSourceItemDocumentation(item, TurbineSourceComment(item, turbineJavadoc))
+    }
+}
+
+/**
+ * The underlying value of [const].
+ *
+ * e.g. [Integer] for integers, [String]s for strings and any other values.
+ */
+internal fun TurbineGlobalContext.underlyingValue(const: Const): Any? =
+    when (const.kind()) {
+        Kind.PRIMITIVE -> (const as Value).value
+        // For cases like AnyClass.class, return the qualified name of AnyClass
+        Kind.CLASS_LITERAL -> (const as TurbineClassValue).type().toString()
+        Kind.ENUM_CONSTANT -> {
+            val value = const as EnumConstantValue
+            "${qualifiedName(value.sym().owner())}.$value"
+        }
+        else -> const.toString()
+    }
+
+internal val ClassSymbol.dotSeparatedPackageName
+    get() = packageName().replace('/', '.')

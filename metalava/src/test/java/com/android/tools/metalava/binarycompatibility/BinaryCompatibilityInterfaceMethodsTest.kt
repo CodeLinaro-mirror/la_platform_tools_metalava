@@ -22,12 +22,12 @@ import org.junit.Test
 class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
 
     @Test
-    fun `Change method name (Incompatible)`() {
+    fun `Change method name - Incompatible`() {
         check(
             expectedIssues =
                 """
-                    load-api.txt:4: error: Added method test.pkg.Foo.baz(int) [AddedAbstractMethod]
-                    released-api.txt:4: error: Removed method test.pkg.Foo.bar(int) [RemovedMethod]
+                    load-api.txt:4: error: Binary breaking change: Added method test.pkg.Foo.baz(int) [AddedAbstractMethod]
+                    released-api.txt:4: error: Binary breaking change: Removed method test.pkg.Foo.bar(int) [RemovedMethod]
                 """,
             signatureSource =
                 """
@@ -49,12 +49,12 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
     }
 
     @Test
-    fun `Add or delete formal parameter (Incompatible)`() {
+    fun `Add or delete formal parameter - Incompatible`() {
         check(
             expectedIssues =
                 """
-                    load-api.txt:4: error: Added method test.pkg.Foo.bar() [AddedAbstractMethod]
-                    released-api.txt:4: error: Removed method test.pkg.Foo.bar(int) [RemovedMethod]
+                    load-api.txt:4: error: Binary breaking change: Added method test.pkg.Foo.bar() [AddedAbstractMethod]
+                    released-api.txt:4: error: Binary breaking change: Removed method test.pkg.Foo.bar(int) [RemovedMethod]
                 """,
             signatureSource =
                 """
@@ -76,12 +76,12 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
     }
 
     @Test
-    fun `Change type of a formal parameter (Incompatible)`() {
+    fun `Change type of a formal parameter - Incompatible`() {
         check(
             expectedIssues =
                 """
-                    load-api.txt:4: error: Added method test.pkg.Foo.bar(Float) [AddedAbstractMethod]
-                    released-api.txt:4: error: Removed method test.pkg.Foo.bar(int) [RemovedMethod]
+                    load-api.txt:4: error: Binary breaking change: Added method test.pkg.Foo.bar(Float) [AddedAbstractMethod]
+                    released-api.txt:4: error: Binary breaking change: Removed method test.pkg.Foo.bar(int) [RemovedMethod]
                 """,
             signatureSource =
                 """
@@ -107,8 +107,8 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:4: error: Method test.pkg.Foo.bar has changed return type from void to int [ChangedType]
-            """,
+                load-api.txt:4: error: Binary breaking change: Method test.pkg.Foo.bar has changed return type from void to int [ChangedType]
+                """,
             signatureSource =
                 """
                 package test.pkg {
@@ -129,59 +129,7 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
     }
 
     @Test
-    fun `Add checked exceptions thrown (Incompatible)`() {
-        check(
-            expectedIssues =
-                """
-                load-api.txt:4: error: Method test.pkg.Foo.bar added thrown exception java.lang.Throwable [ChangedThrows]
-            """,
-            signatureSource =
-                """
-                package test.pkg {
-                  public interface Foo {
-                    method public void bar(int) throws java.lang.Throwable;
-                  }
-                }
-            """,
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public interface Foo {
-                    method public void bar(int);
-                  }
-                }
-            """
-        )
-    }
-
-    @Test
-    fun `Delete checked exceptions thrown (Incompatible)`() {
-        check(
-            expectedIssues =
-                """
-                load-api.txt:4: error: Method test.pkg.Foo.bar no longer throws exception java.lang.Throwable [ChangedThrows]
-            """,
-            signatureSource =
-                """
-                package test.pkg {
-                  public interface Foo {
-                    method public void bar(int);
-                  }
-                }
-            """,
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public interface Foo {
-                    method public void bar(int) throws java.lang.Throwable;
-                  }
-                }
-            """
-        )
-    }
-
-    @Test
-    fun `Re-order list of exceptions thrown (Compatible)`() {
+    fun `Re-order list of exceptions thrown - Compatible`() {
         check(
             signatureSource =
                 """
@@ -203,12 +151,12 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
     }
 
     @Test
-    fun `Change static to non-static (Incompatible)`() {
+    fun `Change static to non-static - Incompatible`() {
         check(
             expectedIssues =
                 """
-                load-api.txt:4: error: Method test.pkg.Foo.bar has changed 'static' qualifier [ChangedStatic]
-            """,
+                load-api.txt:4: error: Binary breaking change: Method test.pkg.Foo.bar has changed 'static' qualifier [ChangedStatic]
+                """,
             signatureSource =
                 """
                 package test.pkg {
@@ -229,12 +177,12 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
     }
 
     @Test
-    fun `Change non-static to static (Incompatible)`() {
+    fun `Change non-static to static - Incompatible`() {
         check(
             expectedIssues =
                 """
-                load-api.txt:4: error: Method test.pkg.Foo.bar has changed 'static' qualifier [ChangedStatic]
-            """,
+                load-api.txt:4: error: Binary breaking change: Method test.pkg.Foo.bar has changed 'static' qualifier [ChangedStatic]
+                """,
             signatureSource =
                 """
                 package test.pkg {
@@ -255,12 +203,12 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
     }
 
     @Test
-    fun `Change default to abstract (Incompatible)`() {
+    fun `Change default to abstract - Incompatible`() {
         check(
             expectedIssues =
                 """
-                load-api.txt:4: error: Method test.pkg.Foo.bar has changed 'default' qualifier [ChangedDefault]
-            """,
+                load-api.txt:4: error: Binary breaking change: Method test.pkg.Foo.bar has changed 'default' qualifier [ChangedDefault]
+                """,
             signatureSource =
                 """
                 package test.pkg {
@@ -281,7 +229,7 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
     }
 
     @Test
-    fun `Change abstract to default (Compatible)`() {
+    fun `Change abstract to default - Compatible`() {
         check(
             signatureSource =
                 """
@@ -306,7 +254,7 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
     TODO: Fix b/217229076 and uncomment this block of tests
 
     @Test
-    fun `Add type parameter, no existing type parameters (Compatible)`() {
+    fun `Add type parameter, no existing type parameters - Compatible`() {
         check(
             signatureSource = """
                 package test.pkg {
@@ -326,7 +274,7 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
     }
 
     @Test
-    fun `Add type parameter, existing type parameters (Incompatible)`() {
+    fun `Add type parameter, existing type parameters - Incompatible`() {
         check(
             signatureSource = """
                 package test.pkg {
@@ -346,7 +294,7 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
     }
 
     @Test
-    fun `Delete type parameter (Incompatible)`() {
+    fun `Delete type parameter - Incompatible`() {
         check(
             signatureSource = """
                 package test.pkg {
@@ -366,7 +314,7 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
     }
 
     @Test
-    fun `Re-order type parameters (Incompatible)`() {
+    fun `Re-order type parameters - Incompatible`() {
         check(
             signatureSource = """
                 package test.pkg {
@@ -386,7 +334,7 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
     }
 
     @Test
-    fun `Rename type parameter (Compatible)`() {
+    fun `Rename type parameter - Compatible`() {
          check(
             signatureSource = """
                 package test.pkg {
@@ -406,7 +354,7 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
     }
 
     @Test
-    fun `Add, delete, or change type bounds of type parameter (Incompatible)`() {
+    fun `Add, delete, or change type bounds of type parameter - Incompatible`() {
         check(
             signatureSource = """
                 package test.pkg {
@@ -453,8 +401,8 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:4: error: Changing from varargs to array is an incompatible change: parameter arg1 in test.pkg.Foo.bar(T[] arg1) [VarargRemoval]
-            """,
+                load-api.txt:4: error: Binary breaking change: Changing from varargs to array is an incompatible change: parameter arg1 in test.pkg.Foo.bar(T[] arg1) [VarargRemoval]
+                """,
             signatureSource =
                 """
                 package test.pkg {
@@ -475,21 +423,21 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
     }
 
     @Test
-    fun `Add default clause to annotation type element (Compatible)`() {
+    fun `Add default clause to annotation type element - Compatible`() {
         check(
             signatureSource =
                 """
                 package test.pkg {
-                  public @interface Foo {
-                    method public void bar(int) default 0;
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) public @interface Foo {
+                    method public int bar(int) default 0;
                   }
                 }
             """,
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
-                  public @interface Foo {
-                    method public void bar(int);
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) public @interface Foo {
+                    method public int bar(int);
                   }
                 }
             """
@@ -501,25 +449,25 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
      * continue to flag this as an error.
      */
     @Test
-    fun `Change default clause on annotation type element (Incompatible)`() {
+    fun `Change default clause on annotation type element - Incompatible`() {
         check(
             expectedIssues =
                 """
-                load-api.txt:4: error: Method test.pkg.Foo.bar has changed value from 0 to 1 [ChangedValue]
-            """,
+                load-api.txt:4: error: Binary breaking change: Method test.pkg.Foo.bar has changed value from 0 to 1 [ChangedValue]
+                """,
             signatureSource =
                 """
                 package test.pkg {
-                  public @interface Foo {
-                    method public void bar(int) default 1;
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) public @interface Foo {
+                    method public int bar(int) default 1;
                   }
                 }
             """,
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
-                  public @interface Foo {
-                    method public void bar(int) default 0;
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) public @interface Foo {
+                    method public int bar(int) default 0;
                   }
                 }
             """
@@ -527,25 +475,25 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
     }
 
     @Test
-    fun `Delete default clause from annotation type element (Incompatible)`() {
+    fun `Delete default clause from annotation type element - Incompatible`() {
         check(
             expectedIssues =
                 """
-                load-api.txt:4: error: Method test.pkg.Foo.bar has changed value from 0 to nothing [ChangedValue]
-            """,
+                load-api.txt:4: error: Binary breaking change: Method test.pkg.Foo.bar has changed value from 0 to nothing [ChangedValue]
+                """,
             signatureSource =
                 """
                 package test.pkg {
-                  public @interface Foo {
-                    method public void bar(int);
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) public @interface Foo {
+                    method public int bar(int);
                   }
                 }
             """,
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
-                  public @interface Foo {
-                    method public void bar(int) default 0;
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) public @interface Foo {
+                    method public int bar(int) default 0;
                   }
                 }
             """

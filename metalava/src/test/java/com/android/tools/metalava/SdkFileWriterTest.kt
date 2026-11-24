@@ -18,7 +18,7 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.lint.DefaultLintErrorMessage
+import com.android.tools.metalava.testing.KnownSourceFiles.sdkConstantSource
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -26,36 +26,35 @@ class SdkFileWriterTest : DriverTest() {
     @Test
     fun `Test generating broadcast actions`() {
         check(
-            expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 """
-                src/android/telephony/SubscriptionManager.java:11: error: Field 'ACTION_DEFAULT_SUBSCRIPTION_CHANGED' is missing @BroadcastBehavior [BroadcastBehavior]
+                    src/android/telephony/SubscriptionManager.java:11: error: Field 'ACTION_DEFAULT_SUBSCRIPTION_CHANGED' is missing @BroadcastBehavior [BroadcastBehavior]
                 """,
             sourceFiles =
                 arrayOf(
                     java(
                         """
-                package android.telephony;
+                            package android.telephony;
 
-                import android.annotation.SdkConstant;
-                import android.annotation.SdkConstant.SdkConstantType;
+                            import android.annotation.SdkConstant;
+                            import android.annotation.SdkConstant.SdkConstantType;
 
-                public class SubscriptionManager {
-                    /**
-                     * Broadcast Action: The default subscription has changed.
-                     */
-                    @SdkConstant(SdkConstantType.BROADCAST_INTENT_ACTION)
-                    public static final String ACTION_DEFAULT_SUBSCRIPTION_CHANGED
-                            = "android.telephony.action.DEFAULT_SUBSCRIPTION_CHANGED";
-                }
-            """
+                            public class SubscriptionManager {
+                                /**
+                                 * Broadcast Action: The default subscription has changed.
+                                 */
+                                @SdkConstant(SdkConstantType.BROADCAST_INTENT_ACTION)
+                                public static final String ACTION_DEFAULT_SUBSCRIPTION_CHANGED
+                                        = "android.telephony.action.DEFAULT_SUBSCRIPTION_CHANGED";
+                            }
+                        """
                     ),
-                    sdkConstantSource
+                    sdkConstantSource,
                 ),
             sdkBroadcastActions =
                 """
-            android.telephony.action.DEFAULT_SUBSCRIPTION_CHANGED
-            """
+                    android.telephony.action.DEFAULT_SUBSCRIPTION_CHANGED
+                """,
         )
     }
 
@@ -66,52 +65,216 @@ class SdkFileWriterTest : DriverTest() {
                 arrayOf(
                     java(
                         """
-                package android.content;
+                            package android.content;
 
-                import android.annotation.SdkConstant;
-                import android.annotation.SdkConstant.SdkConstantType;
+                            import android.annotation.SdkConstant;
+                            import android.annotation.SdkConstant.SdkConstantType;
 
-                public class Intent {
-                    @SdkConstant(SdkConstantType.ACTIVITY_INTENT_ACTION)
-                    public static final String ACTION_MAIN = "android.intent.action.MAIN";
-                }
-                """
+                            public class Intent {
+                                @SdkConstant(SdkConstantType.ACTIVITY_INTENT_ACTION)
+                                public static final String ACTION_MAIN = "android.intent.action.MAIN";
+                            }
+                        """
                     ),
-                    sdkConstantSource
+                    sdkConstantSource,
                 ),
-            sdkActivityActions = """
-            android.intent.action.MAIN
-            """
+            sdkActivityActions =
+                """
+                    android.intent.action.MAIN
+                """,
+        )
+    }
+
+    @Test
+    fun `Test generating activity actions - indirect`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package android.content;
+
+                            import android.annotation.SdkConstant;
+                            import android.annotation.SdkConstant.SdkConstantType;
+
+                            public class Intent {
+                                // A constant used below to show that it can access the value
+                                // even if it is defined in another constant field.
+                                private static final String CONSTANT = "android.intent.action.MAIN";
+
+                                @SdkConstant(SdkConstantType.ACTIVITY_INTENT_ACTION)
+                                public static final String ACTION_MAIN = CONSTANT;
+                            }
+                        """
+                    ),
+                    sdkConstantSource,
+                ),
+            sdkActivityActions =
+                """
+                    android.intent.action.MAIN
+                """,
+        )
+    }
+
+    @Test
+    fun `Test generating activity actions - duplicate`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package android.content;
+
+                            import android.annotation.SdkConstant;
+                            import android.annotation.SdkConstant.SdkConstantType;
+
+                            public class Intent {
+                                @SdkConstant(SdkConstantType.ACTIVITY_INTENT_ACTION)
+                                public static final String ACTION_MAIN = "android.intent.action.MAIN";
+
+                                // Duplicate using the same constant.
+                                @SdkConstant(SdkConstantType.ACTIVITY_INTENT_ACTION)
+                                public static final String ACTION_MAIN2 = ACTION_MAIN;
+                            }
+                        """
+                    ),
+                    sdkConstantSource,
+                ),
+            sdkActivityActions =
+                """
+                    android.intent.action.MAIN
+                    android.intent.action.MAIN
+                """,
+        )
+    }
+
+    @Test
+    fun `Test generating service actions`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            import android.annotation.SdkConstant;
+                            import android.annotation.SdkConstant.SdkConstantType;
+
+                            public class Foo {
+                                @SdkConstant(SdkConstantType.SERVICE_ACTION)
+                                public static final String SERVICE_TEST = "android.service.Test";
+                            }
+                        """
+                    ),
+                    sdkConstantSource,
+                ),
+            sdkServiceActions =
+                """
+                    android.service.Test
+                """,
+        )
+    }
+
+    @Test
+    fun `Test generating intent categories`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            import android.annotation.SdkConstant;
+                            import android.annotation.SdkConstant.SdkConstantType;
+
+                            public class Foo {
+                                @SdkConstant(SdkConstantType.INTENT_CATEGORY)
+                                public static final String INTENT_CATEGORY_TEST = "android.intent.category.TEST";
+                            }
+                        """
+                    ),
+                    sdkConstantSource,
+                ),
+            sdkCategories =
+                """
+                    android.intent.category.TEST
+                """,
+        )
+    }
+
+    @Test
+    fun `Test generating features`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            import android.annotation.SdkConstant;
+                            import android.annotation.SdkConstant.SdkConstantType;
+
+                            public class Foo {
+                                @SdkConstant(SdkConstantType.FEATURE)
+                                public static final String FEATURE_TES = "android.test.feature";
+                            }
+                        """
+                    ),
+                    sdkConstantSource,
+                ),
+            sdkFeatures =
+                """
+                    android.test.feature
+                """,
         )
     }
 
     @Test
     fun `Test generating widgets`() {
         check(
+            apiSurface = KnownApiSurface.PUBLIC,
             sourceFiles =
                 arrayOf(
                     java(
                         """
-                package android.widget;
+                            package android.widget;
 
-                import android.content.Context;
-                import android.annotation.Widget;
+                            import android.content.Context;
+                            import android.annotation.Widget;
 
-                @Widget
-                public class MyButton extends android.view.View {
-                    public MyButton(Context context) {
-                        super(context, null);
-                    }
-                }
-            """
+                            @Widget
+                            public class MyButton extends android.view.View {
+                                public MyButton(Context context) {
+                                    super(context, null);
+                                }
+                            }
+                        """
                     ),
-                    widgetSource
+                    java(
+                        """
+                            package android.widget;
+
+                            import android.content.Context;
+                            import android.annotation.DocOnly;
+                            import android.annotation.Widget;
+
+                            @DocOnly
+                            @Widget
+                            public class DocOnlyButton extends android.view.View {
+                                public DocOnlyButton(Context context) {
+                                    super(context, null);
+                                }
+                            }
+                        """
+                    ),
+                    widgetSource,
                 ),
+            // `DocOnlyButton` is excluded from `widgets.txt` because it is `@DocOnly` and
+            // therefore not a valid code reference in the public API surface.
             sdkWidgets =
                 """
-            Wandroid.view.View java.lang.Object
-            Wandroid.widget.MyButton android.view.View java.lang.Object
-            """
+                    Wandroid.widget.MyButton android.view.View java.lang.Object
+                """,
         )
     }
 }

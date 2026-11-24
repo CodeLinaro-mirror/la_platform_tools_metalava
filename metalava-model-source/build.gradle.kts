@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 // Subproject containing code that is common to all models that are produced from source code.
 
 plugins {
@@ -25,8 +24,9 @@ plugins {
 }
 
 dependencies {
-    implementation(project(":metalava-model"))
     implementation(project(":metalava-reporter"))
+    implementation(project(":metalava-model"))
+    api(libs.tracing)
 
     testFixturesImplementation(project(":metalava-model"))
     testFixturesImplementation(testFixtures(project(":metalava-model")))
@@ -34,9 +34,14 @@ dependencies {
     testFixturesImplementation(project(":metalava-reporter"))
     testFixturesImplementation(libs.androidLintTests)
     testFixturesImplementation(project(":metalava-testing"))
+    testFixturesImplementation(libs.tracingWire)
 
+    testImplementation(testFixtures(project(":metalava-model")))
     testImplementation(libs.androidLintTests)
     testImplementation(libs.junit4)
     testImplementation(libs.truth)
     testImplementation(libs.kotlinTest)
+    testImplementation(libs.kotlinTestJUnit)
+    testImplementation(libs.mockitoKotlin)
+    testImplementation(project(":metalava-testing"))
 }

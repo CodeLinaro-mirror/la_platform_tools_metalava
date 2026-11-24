@@ -17,12 +17,15 @@
 package com.android.tools.metalava.model.testsuite.methoditem
 
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 
 /** Common tests for implementations of [MethodItem]. */
+@SupportedInputFormats(InputFormat.KOTLIN)
 class CommonSuspendMethodTest : BaseModelTest() {
 
     @Test
@@ -163,6 +166,42 @@ class CommonSuspendMethodTest : BaseModelTest() {
                 .isEqualTo(
                     "fun foo(\$completion: kotlin.coroutines.Continuation<? super T>): java.lang.Object?"
                 )
+        }
+    }
+
+    @Test
+    fun `Test extension suspend method`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                package test.pkg
+                interface Foo {
+                    suspend fun regularFun(): String
+                    suspend fun String.extensionFun(): String
+                }
+                """
+            ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val regularFun =
+                fooClass.assertMethod(
+                    "regularFun",
+                    listOf("kotlin.coroutines.Continuation<? super java.lang.String>")
+                )
+            assertThat(regularFun.modifiers.isSuspend()).isTrue()
+            assertThat(regularFun.isExtensionMethod()).isFalse()
+
+            val extensionFun =
+                fooClass.assertMethod(
+                    "extensionFun",
+                    listOf(
+                        "java.lang.String",
+                        "kotlin.coroutines.Continuation<? super java.lang.String>"
+                    )
+                )
+            assertThat(extensionFun.modifiers.isSuspend()).isTrue()
+            assertThat(extensionFun.isExtensionMethod()).isTrue()
         }
     }
 }

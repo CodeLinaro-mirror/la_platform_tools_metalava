@@ -15,22 +15,32 @@
  */
 package com.android.tools.metalava.doc
 
+import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.DriverTest
-import com.android.tools.metalava.restrictedForEnvironment
+import com.android.tools.metalava.androidRestrictedForEnvironment
+import com.android.tools.metalava.androidXRestrictedForEnvironment
+import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PACKAGE
+import com.android.tools.metalava.model.ANDROID_ANNOTATION_PACKAGE
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
 /** Tests for the handling the @RestrictedForEnvironment in [DocAnalyzer] */
 class RestrictedForEnvironmentTest : DriverTest() {
-    private fun checkRestrictedForEnvironmentHandling(import: String, envArgument: String) {
+    private fun checkRestrictedForEnvironmentHandling(
+        import: String,
+        envArgument: String,
+        packageName: String = ANDROIDX_ANNOTATION_PACKAGE,
+        restrictedForEnvironmentClass: TestFile = androidXRestrictedForEnvironment,
+    ) {
         check(
             sourceFiles =
                 arrayOf(
                     java(
                         """
                             package test.pkg;
-                            import androidx.annotation.RestrictedForEnvironment;
-                            import static $import
+                            import $packageName.RestrictedForEnvironment;
+                            import static $import;
                             /**
                             * Javadoc for MyClass1
                             */
@@ -39,18 +49,19 @@ class RestrictedForEnvironmentTest : DriverTest() {
                             }
                         """
                     ),
-                    restrictedForEnvironment,
+                    restrictedForEnvironmentClass,
+                    KnownSourceFiles.stringDefSource,
                 ),
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
-                      @RestrictedForEnvironment(environments=androidx.annotation.RestrictedForEnvironment.Environment.SDK_SANDBOX, from=14) public class MyClass1 {
+                      @RestrictedForEnvironment(environments="SDK Runtime", from=14) public class MyClass1 {
                         ctor public MyClass1();
                       }
                     }
                 """,
             docStubs = true,
-            skipEmitPackages = listOf("androidx.annotation"),
+            skipEmitPackages = listOf(packageName),
             extractAnnotations =
                 mapOf(
                     "test.pkg" to
@@ -59,20 +70,20 @@ class RestrictedForEnvironmentTest : DriverTest() {
                             <root>
                               <item name="test.pkg.MyClass1">
                                 <annotation name="androidx.annotation.RestrictedForEnvironment">
-                                  <val name="environments" val="androidx.annotation.RestrictedForEnvironment.Environment.SDK_SANDBOX" />
+                                  <val name="environments" val="{&quot;SDK Runtime&quot;}" />
                                   <val name="from" val="14" />
                                 </annotation>
                               </item>
                             </root>
                         """
                 ),
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
                             package test.pkg;
                             /**
-                             * Javadoc for MyClass1
+                             * Javadoc for MyClass1.
                              * <br>
                              * Restricted for SDK Runtime environment in API level 14.
                              */
@@ -87,31 +98,41 @@ class RestrictedForEnvironmentTest : DriverTest() {
     }
 
     @Test
-    fun `Check RestrictedForEnvironment handling for SDK_SANDBOX env`() {
+    fun `Check RestrictedForEnvironment handling for SDK_SANDBOX env - android`() {
         checkRestrictedForEnvironmentHandling(
-            "androidx.annotation.RestrictedForEnvironment.Environment.SDK_SANDBOX",
-            "SDK_SANDBOX"
+            "android.annotation.RestrictedForEnvironment.ENVIRONMENT_SDK_RUNTIME",
+            "ENVIRONMENT_SDK_RUNTIME",
+            packageName = ANDROID_ANNOTATION_PACKAGE,
+            restrictedForEnvironmentClass = androidRestrictedForEnvironment
         )
     }
 
     @Test
-    fun `Check RestrictedForEnvironment handling for partial nested SDK_SANDBOX env`() {
+    fun `Check RestrictedForEnvironment handling for SDK_SANDBOX env - androidx`() {
+        checkRestrictedForEnvironmentHandling(
+            "androidx.annotation.RestrictedForEnvironment.ENVIRONMENT_SDK_RUNTIME",
+            "ENVIRONMENT_SDK_RUNTIME"
+        )
+    }
+
+    @Test
+    fun `Check RestrictedForEnvironment handling for partial nested SDK_SANDBOX env - androidx`() {
         checkRestrictedForEnvironmentHandling(
             "androidx.annotation.RestrictedForEnvironment",
-            "RestrictedForEnvironment.Environment.SDK_SANDBOX"
+            "RestrictedForEnvironment.ENVIRONMENT_SDK_RUNTIME"
         )
     }
 
     @Test
-    fun `Check RestrictedForEnvironment handling for fully nested SDK_SANDBOX env`() {
+    fun `Check RestrictedForEnvironment handling for fully nested SDK_SANDBOX env - androidx`() {
         checkRestrictedForEnvironmentHandling(
             "androidx",
-            "androidx.annotation.RestrictedForEnvironment.Environment.SDK_SANDBOX"
+            "androidx.annotation.RestrictedForEnvironment.ENVIRONMENT_SDK_RUNTIME"
         )
     }
 
     @Test
-    fun `Check RestrictedForEnvironment handling for multiple annotations`() {
+    fun `Check RestrictedForEnvironment handling for multiple annotations - androidx`() {
         check(
             sourceFiles =
                 arrayOf(
@@ -119,17 +140,18 @@ class RestrictedForEnvironmentTest : DriverTest() {
                         """
                             package test.pkg;
                             import androidx.annotation.RestrictedForEnvironment;
-                            import static androidx.annotation.RestrictedForEnvironment.Environment.SDK_SANDBOX;
+                            import static androidx.annotation.RestrictedForEnvironment.ENVIRONMENT_SDK_RUNTIME;
                             /**
                             * Javadoc for MyClass1
                             */
-                            @RestrictedForEnvironment(environments = SDK_SANDBOX, from = 14)
-                            @RestrictedForEnvironment(environments = SDK_SANDBOX, from = 16)
+                            @RestrictedForEnvironment(environments = ENVIRONMENT_SDK_RUNTIME, from = 14)
+                            @RestrictedForEnvironment(environments = ENVIRONMENT_SDK_RUNTIME, from = 16)
                             public class MyClass1 {
                             }
                         """
                     ),
-                    restrictedForEnvironment,
+                    androidXRestrictedForEnvironment,
+                    KnownSourceFiles.stringDefSource,
                 ),
             docStubs = true,
             skipEmitPackages = listOf("androidx.annotation"),
@@ -141,24 +163,24 @@ class RestrictedForEnvironmentTest : DriverTest() {
                             <root>
                               <item name="test.pkg.MyClass1">
                                 <annotation name="androidx.annotation.RestrictedForEnvironment">
-                                  <val name="environments" val="androidx.annotation.RestrictedForEnvironment.Environment.SDK_SANDBOX" />
+                                  <val name="environments" val="{&quot;SDK Runtime&quot;}" />
                                   <val name="from" val="14" />
                                 </annotation>
                                 <annotation name="androidx.annotation.RestrictedForEnvironment">
-                                  <val name="environments" val="androidx.annotation.RestrictedForEnvironment.Environment.SDK_SANDBOX" />
+                                  <val name="environments" val="{&quot;SDK Runtime&quot;}" />
                                   <val name="from" val="16" />
                                 </annotation>
                               </item>
                             </root>
                         """
                 ),
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
                             package test.pkg;
                             /**
-                             * Javadoc for MyClass1
+                             * Javadoc for MyClass1.
                              * <br>
                              * Restricted for SDK Runtime environment in API level 14.
                              * <br>

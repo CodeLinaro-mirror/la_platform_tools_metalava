@@ -17,8 +17,14 @@
 package com.android.tools.metalava.model
 
 import com.android.tools.metalava.model.item.ResourceFile
+import com.android.tools.metalava.model.scope.QualifiedNameScope
 
-interface PackageItem : SelectableItem {
+interface PackageItem : SelectableItem, ReferencableItem, QualifiedNameScope {
+    /** The optional [SourceFile] for packages created from `package-info.java` files. */
+    val sourceFile: SourceFile?
+
+    override fun sourceFile(): SourceFile? = sourceFile
+
     /**
      * The overview documentation associated with the package; retrieved from an `overview.html`
      * file listed in the source files.
@@ -62,6 +68,10 @@ interface PackageItem : SelectableItem {
     override fun parent(): PackageItem? =
         if (qualifiedName().isEmpty()) null else containingPackage()
 
+    fun addChildPackage(pkg: PackageItem)
+
+    fun childPackages(): List<PackageItem>
+
     override val effectivelyDeprecated: Boolean
         get() = originallyDeprecated
 
@@ -82,8 +92,11 @@ interface PackageItem : SelectableItem {
         return qualifiedName().hashCode()
     }
 
-    override fun toStringForItem() =
-        "package ${qualifiedName().let { if (it == "") "<root>" else it}}"
+    override fun describe(capitalize: Boolean) = buildString {
+        append(if (capitalize) "Package" else "package")
+        append(" ")
+        append(qualifiedName().let { if (it == "") "<root>" else it })
+    }
 
     companion object {
         val comparator: Comparator<PackageItem> = Comparator { a, b ->

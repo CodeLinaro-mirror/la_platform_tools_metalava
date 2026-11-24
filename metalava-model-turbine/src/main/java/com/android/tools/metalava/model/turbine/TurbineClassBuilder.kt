@@ -1,0 +1,862 @@
+/*
+ * Copyright (C) 2025 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.android.tools.metalava.model.turbine
+
+import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.BoundsTypeItem
+import com.android.tools.metalava.model.CallableItem
+import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassKind
+import com.android.tools.metalava.model.ClassOrVariableTypeItem
+import com.android.tools.metalava.model.ClassOrigin
+import com.android.tools.metalava.model.ItemKind
+import com.android.tools.metalava.model.ModifierContext
+import com.android.tools.metalava.model.ModifierFlags
+import com.android.tools.metalava.model.ModifierFlags.Companion.ABSTRACT
+import com.android.tools.metalava.model.ModifierFlags.Companion.DEFAULT
+import com.android.tools.metalava.model.ModifierFlags.Companion.FINAL
+import com.android.tools.metalava.model.ModifierFlags.Companion.NATIVE
+import com.android.tools.metalava.model.ModifierFlags.Companion.NON_SEALED
+import com.android.tools.metalava.model.ModifierFlags.Companion.PRIVATE
+import com.android.tools.metalava.model.ModifierFlags.Companion.PROTECTED
+import com.android.tools.metalava.model.ModifierFlags.Companion.PUBLIC
+import com.android.tools.metalava.model.ModifierFlags.Companion.SEALED
+import com.android.tools.metalava.model.ModifierFlags.Companion.STATIC
+import com.android.tools.metalava.model.ModifierFlags.Companion.STRICT_FP
+import com.android.tools.metalava.model.ModifierFlags.Companion.SYNCHRONIZED
+import com.android.tools.metalava.model.ModifierFlags.Companion.TRANSIENT
+import com.android.tools.metalava.model.ModifierFlags.Companion.VARARG
+import com.android.tools.metalava.model.ModifierFlags.Companion.VOLATILE
+import com.android.tools.metalava.model.MutableModifierList
+import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.ParameterKind
+import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.SkeletonClassItem
+import com.android.tools.metalava.model.SkeletonTypeParameterItem
+import com.android.tools.metalava.model.SourceLanguage
+import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.WellKnownTypes
+import com.android.tools.metalava.model.addDefaultRetentionPolicyAnnotation
+import com.android.tools.metalava.model.createMutableModifiers
+import com.android.tools.metalava.model.hasAnnotation
+import com.android.tools.metalava.model.item.ClassMemberInitializer
+import com.android.tools.metalava.model.item.ClassMemberMask
+import com.android.tools.metalava.model.type.MethodFingerprint
+import com.android.tools.metalava.model.type.TypeParameterListAndFactory
+import com.android.tools.metalava.model.value.ValueUseSite
+import com.google.common.collect.ImmutableList
+import com.google.common.collect.ImmutableMap
+import com.google.turbine.binder.bound.SourceTypeBoundClass
+import com.google.turbine.binder.bound.TypeBoundClass
+import com.google.turbine.binder.bound.TypeBoundClass.FieldInfo
+import com.google.turbine.binder.bound.TypeBoundClass.MethodInfo
+import com.google.turbine.binder.bound.TypeBoundClass.ParamInfo
+import com.google.turbine.binder.bound.TypeBoundClass.TyVarInfo
+import com.google.turbine.binder.sym.ClassSymbol
+import com.google.turbine.binder.sym.TyVarSymbol
+import com.google.turbine.model.TurbineFlag
+import com.google.turbine.model.TurbineTyKind
+import com.google.turbine.tree.Tree
+import com.google.turbine.tree.Tree.Anno
+import com.google.turbine.tree.Tree.AnnoExpr
+import com.google.turbine.tree.Tree.Expression
+import com.google.turbine.tree.Tree.Literal
+import com.google.turbine.tree.Tree.MethDecl
+import com.google.turbine.tree.Tree.VarDecl
+import com.google.turbine.type.AnnoInfo
+import com.google.turbine.type.Type
+import kotlin.jvm.optionals.getOrNull
+
+/**
+ * Responsible for creating [ClassItem]s from either source or binary [ClassSymbol] and
+ * [TypeBoundClass] pairs.
+ *
+ * @param globalContext provides access to various pieces of data that apply across all classes.
+ * @param classSymbol the unique identifier for the [TypeBoundClass].
+ * @param typeBoundClass the definition of the class as recorded by Turbine.
+ * @param origin the [ClassOrigin] of the class.
+ */
+internal class TurbineClassBuilder(
+    private val globalContext: TurbineGlobalContext,
+    private val classSymbol: ClassSymbol,
+    private val typeBoundClass: TypeBoundClass,
+    private val origin: ClassOrigin,
+) : TurbineGlobalContext by globalContext {
+    /** The [SourceTypeBoundClass] if this is a source class. */
+    private val sourceTypeBoundClass = typeBoundClass as? SourceTypeBoundClass
+
+    /** The [FieldResolver] used for resolving [Tree.ConstVarName] to [TypeBoundClass.FieldInfo]. */
+    private val fieldResolver = createFieldResolver(classSymbol, typeBoundClass)
+
+    /**
+     * Create a [ClassItem] for the [classSymbol]/[typeBoundClass] pair.
+     *
+     * The parameters are on this method rather than the [TurbineClassBuilder] constructor because
+     * these only apply to the [ClassItem] that this builds, not to all the members or the nested
+     * classes. Adding these as constructor properties would confuse that code and possibly lead to
+     * errors if the wrong instance was used.
+     *
+     * @param containingClassItem the containing [ClassItem] to which the created [ClassItem] will
+     *   belong, if any.
+     * @param enclosingClassTypeItemFactory the [TurbineTypeItemFactory] that is used to create
+     *   [TypeItem]s and tracks the in scope type parameters.
+     */
+    internal fun createClass(
+        containingClassItem: ClassItem?,
+        enclosingClassTypeItemFactory: TurbineTypeItemFactory,
+    ): ClassItem {
+        val decl = sourceTypeBoundClass?.decl()
+
+        // Get the package item
+        val pkgName = classSymbol.dotSeparatedPackageName
+        val pkgItem = codebase.findOrCreatePackage(pkgName)
+
+        // Create the sourcefile
+        val sourceFile =
+            if (sourceTypeBoundClass != null) {
+                sourceFileCache.turbineSourceFile(sourceTypeBoundClass.source())
+            } else null
+
+        // Create class
+        val qualifiedName = qualifiedName(classSymbol)
+        val classKind = getClassKind(typeBoundClass.kind())
+        val modifiers =
+            createModifiers(
+                ModifierContext.forClassKind(classKind),
+                typeBoundClass.access(),
+                typeBoundClass.annotations(),
+            )
+        val classEnclosingTypeItemFactory =
+            enclosingClassTypeItemFactory.withFieldResolver(fieldResolver)
+        val (typeParameters, classTypeItemFactory) =
+            createTypeParameters(
+                typeBoundClass.typeParameterTypes(),
+                classEnclosingTypeItemFactory,
+                "class $qualifiedName",
+            )
+
+        modifiers.setSynchronized(false) // A class can not be synchronized in java
+
+        if (classKind == ClassKind.ANNOTATION_TYPE) {
+            if (!modifiers.hasAnnotation(AnnotationItem::isRetention)) {
+                modifiers.addDefaultRetentionPolicyAnnotation(codebase, isKotlin = false)
+            }
+        }
+
+        // Set up the SuperClass
+        val superClassType =
+            // Only use the super class type if the class kind allows explicit super class type to
+            // be specified, or it has an implicit super class.
+            if (classKind.allowsExplicitSuperClass || classKind.implicitSuperClassType != null) {
+                typeBoundClass.superClassType()?.let { classTypeItemFactory.getSuperClassType(it) }
+            } else {
+                null
+            }
+
+        // Set interface types
+        val interfaceTypes =
+            typeBoundClass.interfaceTypes().map { classTypeItemFactory.getInterfaceType(it) }
+
+        // The sorted permits list.
+        val permitTypes =
+            typeBoundClass
+                .permits()
+                .map {
+                    val type = Type.ClassTy.asNonParametricClassTy(it)
+                    classTypeItemFactory.getHierarchicalClassType(type)
+                }
+                .sortedWith(TypeItem.qualifiedComparator)
+
+        // Only populate members eagerly for classes specified on the command line that have API
+        // visibility; classes resolved from the classpath or source path, or command line classes
+        // without API visibility, will populate their members lazily on demand.
+        val createEagerly =
+            origin == ClassOrigin.COMMAND_LINE &&
+                modifiers.hasApiVisibility() &&
+                containingClassItem?.hasApiVisibility() != false
+
+        val classItem =
+            itemFactory.createClassItem(
+                sourcePosition = decl.sourcePosition,
+                modifiers = modifiers,
+                documentationFactory = itemDocumentationFactoryForDecl(decl),
+                source = sourceFile,
+                classKind = classKind,
+                containingClass = containingClassItem,
+                containingPackage = pkgItem,
+                qualifiedName = qualifiedName,
+                typeParameterList = typeParameters,
+                origin = origin,
+                superClassType = superClassType,
+                interfaceTypes = interfaceTypes,
+                permitTypes = permitTypes,
+                recordComponentItemsFactory =
+                    if (classKind == ClassKind.RECORD)
+                        { classItem ->
+                            createRecordComponents(
+                                classItem,
+                                typeBoundClass.components(),
+                                classTypeItemFactory
+                            )
+                        }
+                    else {
+                        null
+                    },
+                memberInitializer =
+                    if (createEagerly) null else LazyMemberInitializer(classTypeItemFactory),
+            )
+
+        if (createEagerly) {
+            // Create fields
+            createFields(classItem, typeBoundClass.fields(), classTypeItemFactory)
+
+            // Create methods
+            createMethods(classItem, typeBoundClass.methods(), classTypeItemFactory)
+
+            // Create constructors
+            createConstructors(classItem, typeBoundClass.methods(), classTypeItemFactory)
+        }
+
+        // Create InnerClasses.
+        val children = typeBoundClass.children()
+        createNestedClasses(classItem, children.values.asList(), classTypeItemFactory)
+
+        return classItem
+    }
+
+    /**
+     * Lazily populates fields, methods, and constructors of a non-[ClassOrigin.COMMAND_LINE] class
+     * on demand.
+     *
+     * @param classTypeItemFactory the [TurbineTypeItemFactory] scoped to the class being
+     *   initialized.
+     */
+    private inner class LazyMemberInitializer(
+        private val classTypeItemFactory: TurbineTypeItemFactory,
+    ) :
+        ClassMemberInitializer(
+            // Turbine only models Java sources and bytecode and never creates PropertyItems, so
+            // ClassMemberMask.PROPERTIES does not need to be initialized.
+            ClassMemberMask.CONSTRUCTORS or ClassMemberMask.METHODS or ClassMemberMask.FIELDS
+        ) {
+        override fun initializeMembers(
+            classItem: SkeletonClassItem,
+            mask: ClassMemberMask,
+        ) {
+            if (ClassMemberMask.FIELDS in mask) {
+                createFields(classItem, typeBoundClass.fields(), classTypeItemFactory)
+            }
+            if (ClassMemberMask.METHODS in mask) {
+                createMethods(classItem, typeBoundClass.methods(), classTypeItemFactory)
+            }
+            if (ClassMemberMask.CONSTRUCTORS in mask) {
+                createConstructors(classItem, typeBoundClass.methods(), classTypeItemFactory)
+            }
+        }
+    }
+
+    /**
+     * Create modifiers for [modifierContext] from the set of access flags [flag] and [annoInfos].
+     */
+    private fun createModifiers(
+        modifierContext: ModifierContext,
+        flag: Int,
+        annoInfos: List<AnnoInfo>,
+    ): MutableModifierList {
+        val annotations = annotationFactory.createAnnotations(annoInfos, fieldResolver)
+        val modifiers =
+            when (flag) {
+                0 -> { // No Modifier. Default modifier is PACKAGE_PRIVATE in such case
+                    createMutableModifiers(
+                        visibility = VisibilityLevel.PACKAGE_PRIVATE,
+                        annotations = annotations,
+                    )
+                }
+                else -> {
+                    createMutableModifiers(
+                        modifierContext.normalizeFlags(computeFlag(flag), SourceLanguage.JAVA),
+                        annotations,
+                    )
+                }
+            }
+        modifiers.setDeprecated(isDeprecated(annotations))
+
+        // Set exhaustivity as true until proven otherwise by an inaccessible subclass.
+        if (modifiers.isSealed()) {
+            modifiers.setExhaustive(true)
+        }
+
+        return modifiers
+    }
+
+    /**
+     * Given flag value corresponding to Turbine modifiers compute the equivalent [ModifierFlags].
+     */
+    private fun computeFlag(flag: Int): Int {
+        // If no visibility flag is provided, result remains 0, implying a 'package-private' default
+        // state.
+        var result = 0
+
+        if (flag and TurbineFlag.ACC_STATIC != 0) {
+            result = result or STATIC
+        }
+        if (flag and TurbineFlag.ACC_ABSTRACT != 0) {
+            result = result or ABSTRACT
+        }
+        if (flag and TurbineFlag.ACC_FINAL != 0) {
+            result = result or FINAL
+        }
+        if (flag and TurbineFlag.ACC_NATIVE != 0) {
+            result = result or NATIVE
+        }
+        if (flag and TurbineFlag.ACC_SYNCHRONIZED != 0) {
+            result = result or SYNCHRONIZED
+        }
+        if (flag and TurbineFlag.ACC_STRICT != 0) {
+            result = result or STRICT_FP
+        }
+        if (flag and TurbineFlag.ACC_TRANSIENT != 0) {
+            result = result or TRANSIENT
+        }
+        if (flag and TurbineFlag.ACC_VOLATILE != 0) {
+            result = result or VOLATILE
+        }
+        if (flag and TurbineFlag.ACC_DEFAULT != 0) {
+            result = result or DEFAULT
+        }
+        if (flag and TurbineFlag.ACC_SEALED != 0) {
+            result = result or SEALED
+        }
+        if (flag and TurbineFlag.ACC_NON_SEALED != 0) {
+            result = result or NON_SEALED
+        }
+        if (flag and TurbineFlag.ACC_VARARGS != 0) {
+            result = result or VARARG
+        }
+
+        // Visibility Modifiers
+        if (flag and TurbineFlag.ACC_PUBLIC != 0) {
+            result = result or PUBLIC
+        }
+        if (flag and TurbineFlag.ACC_PRIVATE != 0) {
+            result = result or PRIVATE
+        }
+        if (flag and TurbineFlag.ACC_PROTECTED != 0) {
+            result = result or PROTECTED
+        }
+
+        return result
+    }
+
+    private fun isDeprecated(annotations: List<AnnotationItem>?): Boolean {
+        return annotations?.any { it.qualifiedName == "java.lang.Deprecated" } ?: false
+    }
+
+    private fun getClassKind(type: TurbineTyKind): ClassKind {
+        return when (type) {
+            TurbineTyKind.INTERFACE -> ClassKind.INTERFACE
+            TurbineTyKind.ENUM -> ClassKind.ENUM
+            TurbineTyKind.ANNOTATION -> ClassKind.ANNOTATION_TYPE
+            TurbineTyKind.RECORD -> ClassKind.RECORD
+            else -> ClassKind.CLASS
+        }
+    }
+
+    private fun createTypeParameters(
+        tyParams: ImmutableMap<TyVarSymbol, TyVarInfo>,
+        enclosingClassTypeItemFactory: TurbineTypeItemFactory,
+        description: String,
+    ): TypeParameterListAndFactory<TurbineTypeItemFactory> {
+
+        if (tyParams.isEmpty())
+            return TypeParameterListAndFactory(
+                TypeParameterList.NONE,
+                enclosingClassTypeItemFactory
+            )
+
+        // Create a list of [TypeParameterItem]s from turbine specific classes.
+        return enclosingClassTypeItemFactory.createTypeParameterItemsAndFactory(
+            description,
+            tyParams.toList(),
+            { (sym, tyParam) -> createTypeParameter(sym, tyParam) },
+            { typeItemFactory, (_, tParam) -> createTypeParameterBounds(tParam, typeItemFactory) },
+        )
+    }
+
+    /**
+     * Create the [SkeletonTypeParameterItem] without any bounds and register it so that any uses of
+     * it within the type bounds, e.g. `<E extends Enum<E>>`, or from other type parameters within
+     * the same [TypeParameterList] can be resolved.
+     */
+    private fun createTypeParameter(sym: TyVarSymbol, param: TyVarInfo): SkeletonTypeParameterItem {
+        val modifiers =
+            createModifiers(
+                ModifierContext.forItemKind(ItemKind.TYPE_PARAMETER),
+                0,
+                param.annotations(),
+            )
+        val typeParamItem =
+            itemFactory.createTypeParameterItem(
+                modifiers,
+                name = sym.name(),
+                // Java does not supports reified generics
+                isReified = false,
+            )
+        return typeParamItem
+    }
+
+    /** Create the bounds of a [SkeletonTypeParameterItem]. */
+    private fun createTypeParameterBounds(
+        param: TyVarInfo,
+        typeItemFactory: TurbineTypeItemFactory,
+    ): List<BoundsTypeItem> {
+        val upperBounds = param.upperBound().bounds()
+        val lowerBound = param.lowerBound()
+
+        if (upperBounds.isEmpty() && lowerBound == null) {
+            return WellKnownTypes.defaultTypeParameterBounds(forKotlin = false)
+        }
+
+        return buildList {
+            upperBounds.mapTo(this) { typeItemFactory.getBoundsType(it) }
+            lowerBound?.let { add(typeItemFactory.getBoundsType(it)) }
+        }
+    }
+
+    /** This method sets up the nested class hierarchy. */
+    private fun createNestedClasses(
+        classItem: SkeletonClassItem,
+        nestedClasses: ImmutableList<ClassSymbol>,
+        enclosingClassTypeItemFactory: TurbineTypeItemFactory,
+    ) {
+        for (nestedClassSymbol in nestedClasses) {
+            val nestedTypeBoundClass =
+                typeBoundClassForSymbol(nestedClassSymbol)
+                    ?: error("Cannot find type bound class for nested class $nestedClassSymbol")
+            val nestedClassBuilder =
+                TurbineClassBuilder(
+                    globalContext = globalContext,
+                    classSymbol = nestedClassSymbol,
+                    typeBoundClass = nestedTypeBoundClass,
+                    origin = origin,
+                )
+            nestedClassBuilder.createClass(
+                containingClassItem = classItem,
+                enclosingClassTypeItemFactory = enclosingClassTypeItemFactory,
+            )
+        }
+    }
+
+    /** This method creates and sets the fields of a class */
+    private fun createFields(
+        classItem: SkeletonClassItem,
+        fields: ImmutableList<FieldInfo>,
+        typeItemFactory: TurbineTypeItemFactory,
+    ) {
+        val ignorePrivateMemberFields = classItem.classKind == ClassKind.RECORD
+        for (field in fields) {
+            val flags = field.access()
+            val decl = field.decl()
+            val fieldmodifiers =
+                createModifiers(
+                    ModifierContext.forItemKind(ItemKind.FIELD),
+                    flags,
+                    field.annotations(),
+                )
+
+            // Ignore private member fields in records.
+            if (
+                ignorePrivateMemberFields &&
+                    fieldmodifiers.isPrivate() &&
+                    !fieldmodifiers.isStatic()
+            )
+                continue
+
+            val isEnumConstant = (flags and TurbineFlag.ACC_ENUM) != 0
+            val type =
+                typeItemFactory.getFieldType(
+                    underlyingType = field.type(),
+                    itemAnnotations = fieldmodifiers.annotations(),
+                    isEnumConstant = isEnumConstant,
+                    isFinal = fieldmodifiers.isFinal(),
+                    isInitialValueNonNull = {
+                        // The initial value is non-null if the value is a literal which is not
+                        // null.
+                        isInitialValueNonNull(field)
+                    }
+                )
+
+            val constantValueProvider =
+                field.value()?.let { const ->
+                    // In Java fields have to be static and final in order for them to have a
+                    // constant value
+                    if (!fieldmodifiers.isStatic() || !fieldmodifiers.isFinal()) {
+                        return@let null
+                    }
+                    val expr = field.decl()?.init()?.getOrNull()
+                    val turbineValue = TurbineValue(const, expr, fieldResolver)
+                    valueFactory.providerFor(type, turbineValue, ValueUseSite.FIELD)
+                }
+
+            val fieldItem =
+                itemFactory.createFieldItem(
+                    sourcePosition = decl.sourcePosition,
+                    modifiers = fieldmodifiers,
+                    documentationFactory = itemDocumentationFactoryForDecl(decl),
+                    name = field.name(),
+                    containingClass = classItem,
+                    type = type,
+                    isEnumConstant = isEnumConstant,
+                    constantValueProvider = constantValueProvider,
+                )
+
+            classItem.addField(fieldItem)
+        }
+    }
+
+    /** Check if this [MethodInfo] is one of the methods defined in the [Record] class. */
+    private fun MethodInfo.isRecordClassMethod(): Boolean {
+        val name = name()
+        val parameters = parameters()
+        return when (name) {
+            "hashCode",
+            "toString" -> parameters.isEmpty()
+            "equals" -> parameters.size == 1 && parameters[0].type() == Type.ClassTy.OBJECT
+            else -> false
+        }
+    }
+
+    private fun createMethods(
+        classItem: SkeletonClassItem,
+        methods: List<MethodInfo>,
+        enclosingClassTypeItemFactory: TurbineTypeItemFactory,
+    ) {
+        for (method in methods) {
+            // Ignore constructors.
+            if (method.sym().name() == "<init>") continue
+
+            val decl: MethDecl? = method.decl()
+
+            // Ignore any implicit implementations of Record class methods.
+            val isRecordClass = classItem.classKind == ClassKind.RECORD
+            if (isRecordClass && decl == null && method.isRecordClassMethod()) {
+                continue
+            }
+
+            val methodmodifiers =
+                createModifiers(
+                    ModifierContext.forItemKind(ItemKind.METHOD),
+                    method.access(),
+                    method.annotations(),
+                )
+
+            // Final modifier is superfluous on a method in a final class.
+            if (methodmodifiers.isFinal() && classItem.modifiers.isFinal()) {
+                methodmodifiers.setFinal(false)
+            }
+
+            // Interface methods cannot be protected or package-private; promote to public to match
+            // PSI.
+            if (
+                (classItem.isInterface() || classItem.isAnnotationType()) &&
+                    !methodmodifiers.isPrivate()
+            ) {
+                methodmodifiers.setVisibilityLevel(VisibilityLevel.PUBLIC)
+            }
+
+            val name = method.name()
+            val (typeParams, methodTypeItemFactory) =
+                createTypeParameters(
+                    method.tyParams(),
+                    enclosingClassTypeItemFactory,
+                    name,
+                )
+            val defaultValueExpr = getAnnotationDefaultExpression(method)
+            val defaultTurbineValue =
+                method.defaultValue()?.let { defaultConst ->
+                    TurbineValue(defaultConst, defaultValueExpr, fieldResolver)
+                }
+
+            val parameters = method.parameters()
+            val fingerprint = MethodFingerprint(name, parameters.size)
+            val isAnnotationElement = classItem.isAnnotationType() && !methodmodifiers.isStatic()
+            val returnType =
+                methodTypeItemFactory.getMethodReturnType(
+                    underlyingReturnType = method.returnType(),
+                    itemAnnotations = methodmodifiers.annotations(),
+                    fingerprint = fingerprint,
+                    isAnnotationElement = isAnnotationElement,
+                )
+
+            val defaultValueProvider =
+                defaultTurbineValue?.let {
+                    valueFactory.providerFor(returnType, it, ValueUseSite.ANNOTATION)
+                }
+
+            val methodItem =
+                itemFactory.createMethodItem(
+                    sourcePosition = decl.sourcePosition,
+                    modifiers = methodmodifiers,
+                    documentationFactory = itemDocumentationFactoryForDecl(decl),
+                    name = name,
+                    containingClass = classItem,
+                    typeParameterList = typeParams,
+                    returnType = returnType,
+                    parameterItemsFactory = { containingCallable ->
+                        createParameters(
+                            containingCallable,
+                            method.access(),
+                            decl?.params(),
+                            parameters,
+                            methodTypeItemFactory,
+                        )
+                    },
+                    throwsTypes = getThrowsList(method.exceptions(), methodTypeItemFactory),
+                    defaultValueProvider = defaultValueProvider,
+                    isExtensionMethod = false, // Java does not support extension methods
+                )
+
+            // Ignore enum synthetic methods.
+            if (methodItem.isEnumSyntheticMethod()) continue
+
+            classItem.addMethod(methodItem)
+        }
+    }
+
+    private fun createParameters(
+        containingCallable: CallableItem,
+        callableAccess: Int,
+        parameterDecls: List<VarDecl>?,
+        parameters: List<ParamInfo>,
+        typeItemFactory: TurbineTypeItemFactory,
+    ): List<ParameterItem> {
+        val fingerprint = MethodFingerprint(containingCallable.name(), parameters.size)
+        return buildList {
+            var parameterIndex = 0
+            for ((idx, parameter) in parameters.withIndex()) {
+                if (parameter.synthetic()) continue
+                // Bytecode does not store the varargs flag on the parameter, it stores it on the
+                // method, so if the callable has the varargs flag set then make sure it is also set
+                // on the last parameter.
+                val flags =
+                    if (idx == parameters.lastIndex) {
+                        parameter.access() or (callableAccess and TurbineFlag.ACC_VARARGS)
+                    } else {
+                        parameter.access()
+                    }
+                val parametermodifiers =
+                    createModifiers(
+                            ModifierContext.forItemKind(ItemKind.PARAMETER),
+                            flags,
+                            parameter.annotations(),
+                        )
+                        .toImmutable()
+                val type =
+                    typeItemFactory.getMethodParameterType(
+                        underlyingParameterType = parameter.type(),
+                        itemAnnotations = parametermodifiers.annotations(),
+                        fingerprint = fingerprint,
+                        parameterIndex = parameterIndex,
+                        isVarArg = parametermodifiers.isVarArg(),
+                    )
+                // Get the [Tree.VarDecl] corresponding to the [ParamInfo], if available.
+                // [parameterDecls] will be null for a binary class. It will be empty for a
+                // record class.
+                val decl =
+                    if (parameterDecls != null && parameterIndex < parameterDecls.size)
+                        parameterDecls.get(parameterIndex)
+                    else null
+
+                // Bytecode without a MethodParameters attribute has a null name; synthesize
+                // Metalava's default parameter names ("p", "p1", "p2", ...) to match PSI.
+                val name = parameter.name() ?: if (parameterIndex == 0) "p" else "p$parameterIndex"
+                val parameterItem =
+                    itemFactory.createParameterItem(
+                        sourcePosition = decl.sourcePosition,
+                        modifiers = parametermodifiers,
+                        name = name,
+                        publicName = null,
+                        containingItem = containingCallable,
+                        parameterIndex = parameterIndex,
+                        type = type,
+                        // Java parameters can't have default values
+                        hasDefaultValue = false,
+                        // Java only has value parameters
+                        kind = ParameterKind.VALUE,
+                    )
+                add(parameterItem)
+                parameterIndex += 1
+            }
+        }
+    }
+
+    private fun createConstructors(
+        classItem: SkeletonClassItem,
+        methods: List<MethodInfo>,
+        enclosingClassTypeItemFactory: TurbineTypeItemFactory,
+    ) {
+        // An abstract sealed class cannot be instantiated directly so treat its constructors as if
+        // they were private.
+        val treatConstructorsAsPrivate =
+            classItem.modifiers.let { modifiers -> modifiers.isSealed() && modifiers.isAbstract() }
+
+        for (constructor in methods) {
+            // Skip real methods.
+            if (constructor.sym().name() != "<init>") continue
+
+            // Get the source declaration for the constructor. Will be null for constructors loaded
+            // from the class path.
+            val decl: MethDecl? = constructor.decl()
+
+            val modifiers =
+                createModifiers(
+                    ModifierContext.forItemKind(ItemKind.CONSTRUCTOR),
+                    constructor.access(),
+                    constructor.annotations(),
+                )
+            if (treatConstructorsAsPrivate) {
+                modifiers.setVisibilityLevel(VisibilityLevel.PRIVATE)
+            }
+            val (typeParams, constructorTypeItemFactory) =
+                createTypeParameters(
+                    constructor.tyParams(),
+                    enclosingClassTypeItemFactory,
+                    constructor.name(),
+                )
+            val isImplicitDefaultConstructor =
+                (constructor.access() and TurbineFlag.ACC_SYNTH_CTOR) != 0
+            val name = classItem.simpleName()
+
+            val constructorItem =
+                itemFactory.createConstructorItem(
+                    sourcePosition = decl.sourcePosition,
+                    modifiers = modifiers,
+                    documentationFactory = itemDocumentationFactoryForDecl(decl),
+                    // Turbine's Binder gives return type of constructors as void but the
+                    // model expects it to the type of object being created. So, use the
+                    // containing [ClassItem]'s type as the constructor return type.
+                    name = name,
+                    containingClass = classItem,
+                    typeParameterList = typeParams,
+                    returnType = classItem.type(),
+                    parameterItemsFactory = { constructorItem ->
+                        createParameters(
+                            constructorItem,
+                            constructor.access(),
+                            decl?.params(),
+                            constructor.parameters(),
+                            constructorTypeItemFactory,
+                        )
+                    },
+                    throwsTypes =
+                        getThrowsList(constructor.exceptions(), constructorTypeItemFactory),
+                    implicitConstructor = isImplicitDefaultConstructor,
+                )
+
+            classItem.addConstructor(constructorItem)
+        }
+    }
+
+    private fun getThrowsList(
+        throwsTypes: List<Type>,
+        enclosingTypeItemFactory: TurbineTypeItemFactory
+    ) =
+        throwsTypes
+            .map { type -> enclosingTypeItemFactory.getExceptionType(type) }
+            // We're sorting the names here even though outputs typically do their own sorting,
+            // since for example the MethodItem.sameSignature check wants to do an
+            // element-by-element comparison to see if the signature matches, and that should match
+            // overrides even if they specify their elements in different orders.
+            .sortedWith(ClassOrVariableTypeItem.fullNameComparator)
+
+    /**
+     * Create the [PropertyItem]s used to model record components.
+     *
+     * Must be called before creating any other members of [classItem].
+     */
+    private fun createRecordComponents(
+        classItem: ClassItem,
+        components: List<TypeBoundClass.RecordComponentInfo>,
+        classTypeItemFactory: TurbineTypeItemFactory,
+    ) =
+        components.mapIndexed { index, componentInfo ->
+            val modifiers =
+                createModifiers(
+                    ModifierContext.forItemKind(ItemKind.RECORD_COMPONENT),
+                    componentInfo.access(),
+                    componentInfo.annotations(),
+                )
+            modifiers.setVisibilityLevel(VisibilityLevel.PUBLIC)
+
+            val type = classTypeItemFactory.getGeneralType(componentInfo.type())
+
+            itemFactory.createRecordComponentItem(
+                sourcePosition = componentInfo.decl()?.name().sourcePosition,
+                modifiers = modifiers,
+                name = componentInfo.name(),
+                containingClass = classItem,
+                type = type,
+                recordComponentIndex = index,
+            )
+        }
+
+    /**
+     * Check to see whether the initial value for [field] is non-null.
+     *
+     * If it is `non-null` then the field itself can be treated as if it is non-null, i.e. as if it
+     * had an `@NonNull` annotation.
+     */
+    private fun isInitialValueNonNull(field: FieldInfo): Boolean {
+        val expr = field.decl()?.init()?.getOrNull()
+        val constantValue = field.value()?.value
+
+        val initialValueWithoutRequiredConstant =
+            when {
+                constantValue != null -> constantValue
+                expr == null -> null
+                else ->
+                    when (expr) {
+                        is Literal -> underlyingValue(expr.value())
+                        // Class Type
+                        is Tree.ClassLiteral -> expr
+                        else -> null
+                    }
+            }
+
+        return initialValueWithoutRequiredConstant != null
+    }
+
+    /**
+     * Extracts the expression corresponding to the default value of a given annotation method. If
+     * the method does not have a default value, returns null.
+     */
+    private fun getAnnotationDefaultExpression(method: MethodInfo) =
+        method.decl()?.defaultValue()?.getOrNull()?.let { defaultTree ->
+
+            // Turbine stores the default value as a Tree not an Expression so that it can use an
+            // Anno class (which is not an Expression). It could wrap the Anno in an AnnoExpr but
+            // does not, presumably as an optimization. However, this does wrap it in an AnnoExpr
+            // as it allows for more consistent handling.
+            when (defaultTree) {
+                is Expression -> defaultTree
+                is Anno -> AnnoExpr(defaultTree.position(), defaultTree)
+                else -> error("unknown default value type (${defaultTree.javaClass}: $defaultTree")
+            }
+        }
+}

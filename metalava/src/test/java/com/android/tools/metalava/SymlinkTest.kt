@@ -28,86 +28,73 @@ class SymlinkTest : DriverTest() {
         // (1) if there are symlinks in the source directory, we
         //     (a) don't recurse forever and (b) we emit a warning
         //     that symlink targets are ignored, and
-        // (2) we ignore empty strings as paths. E.g.
-        //      --source-path ""
-        //     means to not look anywhere for the sources.
+        check(
+            expectedIssues =
+                "src/test/pkg/sub1/sub2/sub3: info: Ignoring symlink during source file discovery directory traversal [IgnoringSymlink]",
+            projectSetup = { dir ->
+                // Add a symlink from deep in the source tree back out to the
+                // root, which makes a cycle
+                val file = File(dir, "src/test/pkg/sub1/sub2")
+                file.mkdirs()
+                val symlink = File(file, "sub3").toPath()
+                java.nio.file.Files.createSymbolicLink(symlink, dir.toPath())
 
-        // Read the pwd setting that the --pwd flag in extraArguments
-        // below sets such that we can undo the damage for subsequent
-        // tests.
-        val before = System.getProperty("user.dir")
-        try {
-            check(
-                expectedIssues =
-                    "src/test/pkg/sub1/sub2/sub3: info: Ignoring symlink during source file discovery directory traversal [IgnoringSymlink]",
-                projectSetup = { dir ->
-                    // Add a symlink from deep in the source tree back out to the
-                    // root, which makes a cycle
-                    val file = File(dir, "src/test/pkg/sub1/sub2")
-                    file.mkdirs()
-                    val symlink = File(file, "sub3").toPath()
-                    java.nio.file.Files.createSymbolicLink(symlink, dir.toPath())
+                val git = File(file, ".git").toPath()
+                java.nio.file.Files.createSymbolicLink(git, dir.toPath())
 
-                    val git = File(file, ".git").toPath()
-                    java.nio.file.Files.createSymbolicLink(git, dir.toPath())
-
-                    // Write implicit source files to be discovered by our crawl.
-                    File(dir, "src/test/pkg/Foo.java")
-                        .writeText(
-                            """
-                        package test.pkg;
-                        import android.annotation.Nullable;
-                        import android.annotation.NonNull;
-                        public class Foo {
-                            /** These are the docs for method1. */
-                            @Nullable public Double method1(@NonNull Double factor1, @NonNull Double factor2) { }
-                            /** These are the docs for method2. It can sometimes return null. */
-                            @Nullable public Double method2(@NonNull Double factor1, @NonNull Double factor2) { }
-                            @Nullable public Double method3(@NonNull Double factor1, @NonNull Double factor2) { }
-                        }
+                // Write implicit source files to be discovered by our crawl.
+                File(dir, "src/test/pkg/Foo.java")
+                    .writeText(
                         """
-                        )
-                    File(dir, "src/test/pkg/sub1/package.html")
-                        .writeText(
-                            """
-                        <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
-                        <!-- not a body tag: <body> -->
-                        <html>
-                        <body bgcolor="white">
-                        My package docs<br>
-                        <!-- comment -->
-                        Sample code: /** code here */
-                        Another line.<br>
-                        </BODY>
-                        </html>
-                        """
-                        )
-                },
-                extraArguments = arrayOf("--pwd", temporaryFolder.root.path),
-                checkCompilation = false, // needs androidx.annotations in classpath
-                stubFiles =
-                    arrayOf(
-                        java(
-                            """
-                        package test.pkg;
-                        @SuppressWarnings({"unchecked", "deprecation", "all"})
-                        public class Foo {
-                        public Foo() { throw new RuntimeException("Stub!"); }
+                    package test.pkg;
+                    import android.annotation.Nullable;
+                    import android.annotation.NonNull;
+                    public class Foo {
                         /** These are the docs for method1. */
-                        @android.annotation.Nullable
-                        public java.lang.Double method1(@android.annotation.NonNull java.lang.Double factor1, @android.annotation.NonNull java.lang.Double factor2) { throw new RuntimeException("Stub!"); }
+                        @Nullable public Double method1(@NonNull Double factor1, @NonNull Double factor2) { }
                         /** These are the docs for method2. It can sometimes return null. */
-                        @android.annotation.Nullable
-                        public java.lang.Double method2(@android.annotation.NonNull java.lang.Double factor1, @android.annotation.NonNull java.lang.Double factor2) { throw new RuntimeException("Stub!"); }
-                        @android.annotation.Nullable
-                        public java.lang.Double method3(@android.annotation.NonNull java.lang.Double factor1, @android.annotation.NonNull java.lang.Double factor2) { throw new RuntimeException("Stub!"); }
-                        }
-                        """
-                        )
+                        @Nullable public Double method2(@NonNull Double factor1, @NonNull Double factor2) { }
+                        @Nullable public Double method3(@NonNull Double factor1, @NonNull Double factor2) { }
+                    }
+                    """
                     )
-            )
-        } finally {
-            System.setProperty("user.dir", before)
-        }
+                File(dir, "src/test/pkg/sub1/package.html")
+                    .writeText(
+                        """
+                    <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+                    <!-- not a body tag: <body> -->
+                    <html>
+                    <body bgcolor="white">
+                    My package docs<br>
+                    <!-- comment -->
+                    Sample code: /** code here */
+                    Another line.<br>
+                    </BODY>
+                    </html>
+                    """
+                    )
+            },
+            checkCompilation = false, // needs androidx.annotations in classpath
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                    package test.pkg;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public class Foo {
+                    public Foo() { throw new RuntimeException("Stub!"); }
+                    /** These are the docs for method1. */
+                    @android.annotation.Nullable
+                    public java.lang.Double method1(@android.annotation.NonNull java.lang.Double factor1, @android.annotation.NonNull java.lang.Double factor2) { throw new RuntimeException("Stub!"); }
+                    /** These are the docs for method2. It can sometimes return null. */
+                    @android.annotation.Nullable
+                    public java.lang.Double method2(@android.annotation.NonNull java.lang.Double factor1, @android.annotation.NonNull java.lang.Double factor2) { throw new RuntimeException("Stub!"); }
+                    @android.annotation.Nullable
+                    public java.lang.Double method3(@android.annotation.NonNull java.lang.Double factor1, @android.annotation.NonNull java.lang.Double factor2) { throw new RuntimeException("Stub!"); }
+                    }
+                    """
+                    )
+                )
+        )
     }
 }

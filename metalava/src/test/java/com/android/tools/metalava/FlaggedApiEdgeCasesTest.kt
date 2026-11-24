@@ -18,63 +18,45 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.ARG_STUB_PACKAGES
 import com.android.tools.metalava.model.ANDROID_FLAGGED_API
+import com.android.tools.metalava.model.ANDROID_REQUIRES_FLAG
+import com.android.tools.metalava.model.ANDROID_SYSTEM_API
+import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.testing.KnownSourceFiles.flaggedApiSource
+import com.android.tools.metalava.testing.KnownSourceFiles.requiresFlagSource
 import com.android.tools.metalava.testing.java
+import com.android.tools.metalava.testing.xml
 import org.junit.Test
 
-/** Edge case tests of [ANDROID_FLAGGED_API] that cannot be tested in [FlaggedApiTest]. */
+/**
+ * Edge case tests of [ANDROID_FLAGGED_API] that cannot be tested in [ParameterizedFlaggedApiTest].
+ */
 class FlaggedApiEdgeCasesTest : DriverTest() {
     @Test
-    fun `Test override flagged method from source path no previously released API`() {
+    fun `Test FlaggedApi annotation is replaced by RequiresFlag annotation in stubs`() {
         check(
-            extraArguments =
-                arrayOf(
-                    // Revert all FlaggedApi annotations.
-                    ARG_REVERT_ANNOTATION,
-                    ANDROID_FLAGGED_API,
-                    // Ignore any classes other than test.pkg.
-                    ARG_STUB_PACKAGES,
-                    "test.pkg*"
-                ),
             sourceFiles =
                 arrayOf(
-                    // A class that will be ignored during the initial codebase creation. However,
-                    // as it is referenced from test.pkg.Test class below it will be loaded in later
-                    // and that will result in it having an origin of ClassOrigin.SOURCE_PATH
-                    // instead of ClassOrigin.COMMAND_LINE like test.pkg.Test.
-                    java(
-                        """
-                            package other.pkg;
-
-                            public abstract class Other {
-                                @$ANDROID_FLAGGED_API("flag.name")
-                                public abstract void method();
-                            }
-                        """
-                    ),
                     java(
                         """
                             package test.pkg;
 
-                            public final class Test extends other.pkg.Other {
-                                private Test() {}
-                                // Overrides the flagged method in other.pkg.Other. The flagged
-                                // status of the overridden method should be ignored because the
-                                // containing class is not contributing to this API and there is no
-                                // previously released API provided so reverting will result in this
-                                // method being removed.
-                                @Override public void method() {}
+                            public class Test {
+                                @$ANDROID_FLAGGED_API("flag.name")
+                                public void method();
                             }
                         """
                     ),
+                    flaggedApiSource
                 ),
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
                             package test.pkg;
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
-                            public final class Test extends other.pkg.Other {
-                            Test() { throw new RuntimeException("Stub!"); }
+                            public class Test {
+                            public Test() { throw new RuntimeException("Stub!"); }
+                            @$ANDROID_REQUIRES_FLAG("flag.name")
                             public void method() { throw new RuntimeException("Stub!"); }
                             }
                         """
@@ -84,13 +66,88 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
     }
 
     @Test
-    fun `Test override flagged method from source path with previously released API`() {
+    fun `Test combining FlaggedApi and RequiresFlag annotations results in a multipleFlagging error`() {
         check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            public class Test {
+                                @$ANDROID_FLAGGED_API("flag.name")
+                                @$ANDROID_REQUIRES_FLAG("another.flag")
+                                public void method();
+                            }
+                        """
+                    ),
+                    requiresFlagSource,
+                    flaggedApiSource
+                ),
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Test {
+                            public Test() { throw new RuntimeException("Stub!"); }
+                            @$ANDROID_REQUIRES_FLAG("flag.name")
+                            public void method() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    )
+                ),
+            checkCompilation = true,
+            expectedIssues =
+                """
+                    src/test/pkg/Test.java:6: error: @RequiresFlag can not be placed on APIs that are already flagged. [MultipleFlagging]
+                """,
+        )
+    }
+
+    @Test
+    fun `Test override flagged method from source path no previously released API`() {
+        check(
+            // Revert all FlaggedApi annotations.
+            configFiles = arrayOf(KnownConfigFiles.configEmptyApiFlags),
             extraArguments =
                 arrayOf(
-                    // Revert all FlaggedApi annotations.
-                    ARG_REVERT_ANNOTATION,
-                    ANDROID_FLAGGED_API,
+                    // Ignore any classes other than test.pkg.
+                    ARG_STUB_PACKAGES,
+                    "test.pkg*"
+                ),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            import $ANDROID_FLAGGED_API;
+
+                            @$ANDROID_FLAGGED_API("flag.name")
+                            public final class Test {
+                                private Test() {}
+                                public void method() {}
+                                public int field = 0;
+                            }
+                        """
+                    ),
+                    flaggedApiSource
+                ),
+            expectedIssues =
+                """
+                    src/test/pkg/Test.java:5: error: Cannot revert class test.pkg.Test (or any other API item) as no previously released API has been provided [NoPreviouslyReleasedApi]
+                """,
+        )
+    }
+
+    @Test
+    fun `Test override flagged method from source path with previously released API`() {
+        check(
+            // Revert all FlaggedApi annotations.
+            configFiles = arrayOf(KnownConfigFiles.configEmptyApiFlags),
+            extraArguments =
+                arrayOf(
                     // Ignore any classes other than test.pkg.
                     ARG_STUB_PACKAGES,
                     "test.pkg*"
@@ -126,6 +183,7 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                             }
                         """
                     ),
+                    flaggedApiSource
                 ),
             checkCompatibilityApiReleased =
                 """
@@ -135,7 +193,7 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                       }
                     }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -147,6 +205,871 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                         """
                     )
                 ),
+        )
+    }
+
+    @Test
+    fun `Test reverting class with non-recursive annotation`() {
+        check(
+            apiSurface = KnownApiSurface.NON_RECURSIVE_SYSTEM,
+            // Use an empty api flags which defaults all flags to disabled.
+            configFiles = arrayOf(KnownConfigFiles.configEmptyApiFlags),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @$ANDROID_FLAGGED_API("flag.name")
+                            @$ANDROID_SYSTEM_API
+                            public class Test {
+                                // A member of a class that is annotated with a show annotation but
+                                // is not marked as @hide. Usually, that would usually report an
+                                // error but the show annotation is a non-recursive show annotation
+                                // so the @hide is not required.
+                                @$ANDROID_SYSTEM_API
+                                public void method() {}
+                            }
+                        """
+                    ),
+                    flaggedApiSource,
+                ),
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Test {
+                            Test() { throw new RuntimeException("Stub!"); }
+                            public void method() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    )
+                ),
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Test {
+                        method public void method();
+                      }
+                    }
+                """,
+        )
+    }
+
+    @Test
+    fun `Test unresolvable flag field`() {
+        check(
+            configFiles = arrayOf(KnownConfigFiles.configEmptyApiFlags),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @$ANDROID_FLAGGED_API(UnresolvableFlag.FLAG_NAME)
+                            public class Test {
+                            }
+                        """
+                    ),
+                    flaggedApiSource
+                ),
+            expectedApiSignature =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Test {
+                      }
+                    }
+                """,
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Test {
+                            Test() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    )
+                ),
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Test {
+                      }
+                    }
+                """,
+        )
+    }
+
+    @Test
+    fun `Test flagged API inheritance in signature files`() {
+        check(
+            format = FileFormat.V6,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @$ANDROID_FLAGGED_API(Test.FLAG_NAME1)
+                            public class Test {
+                                private Test() {}
+
+                                public static final String FLAG_NAME1 = "flag.name1";
+                                public static final String FLAG_NAME2 = "flag.name2";
+
+                                public class Nested {
+                                    private Nested() {}
+
+                                    public class NestedTwice {
+                                        private NestedTwice() {}
+                                    }
+                                }
+
+                                @$ANDROID_FLAGGED_API(Test.FLAG_NAME2)
+                                public class FlaggedNested {
+                                    private FlaggedNested() {}
+
+                                    public class FlaggedNestedTwice {
+                                        private FlaggedNestedTwice() {}
+                                    }
+                                }
+                            }
+                        """
+                    ),
+                    flaggedApiSource
+                ),
+            expectedApiSignature =
+                """
+                    // Signature format: 6.0
+                    package test.pkg {
+                      @FlaggedApi("flag.name1") public class Test {
+                        field public static final String FLAG_NAME1 = "flag.name1";
+                        field public static final String FLAG_NAME2 = "flag.name2";
+                      }
+                      @FlaggedApi("flag.name2") public class Test.FlaggedNested {
+                      }
+                      @FlaggedApi("flag.name2") public class Test.FlaggedNested.FlaggedNestedTwice {
+                      }
+                      @FlaggedApi("flag.name1") public class Test.Nested {
+                      }
+                      @FlaggedApi("flag.name1") public class Test.Nested.NestedTwice {
+                      }
+                    }
+                """,
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            @$ANDROID_REQUIRES_FLAG("flag.name1")
+                            public class Test {
+                            Test() { throw new RuntimeException("Stub!"); }
+                            @$ANDROID_REQUIRES_FLAG("flag.name1") public static final java.lang.String FLAG_NAME1 = "flag.name1";
+                            @$ANDROID_REQUIRES_FLAG("flag.name1") public static final java.lang.String FLAG_NAME2 = "flag.name2";
+                            @$ANDROID_REQUIRES_FLAG("flag.name2")
+                            public class FlaggedNested {
+                            FlaggedNested() { throw new RuntimeException("Stub!"); }
+                            @$ANDROID_REQUIRES_FLAG("flag.name2")
+                            public class FlaggedNestedTwice {
+                            FlaggedNestedTwice() { throw new RuntimeException("Stub!"); }
+                            }
+                            }
+                            @$ANDROID_REQUIRES_FLAG("flag.name1")
+                            public class Nested {
+                            Nested() { throw new RuntimeException("Stub!"); }
+                            @$ANDROID_REQUIRES_FLAG("flag.name1")
+                            public class NestedTwice {
+                            NestedTwice() { throw new RuntimeException("Stub!"); }
+                            }
+                            }
+                            }
+                        """
+                    ),
+                ),
+        )
+    }
+
+    @Test
+    fun `Test flagged API inheritance with RemovedFromApi`() {
+        check(
+            apiSurface = KnownApiSurface.PUBLIC,
+            format = FileFormat.V6,
+            configFiles =
+                arrayOf(
+                    xml(
+                        "config-flags.xml",
+                        """
+                            <config xmlns="http://www.google.com/tools/metalava/config">
+                                <api-flags>
+                                    <api-flag package="test.pkg" name="kept_flag" mutability="mutable" status="enabled"/>
+                                    <api-flag package="test.pkg" name="kept_removed_flag" mutability="mutable" status="enabled"/>
+                                </api-flags>
+                            </config>
+                        """,
+                    ),
+                ),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            import android.annotation.FlaggedApi;
+                            import android.annotation.RemovedFromApi;
+
+                            @FlaggedApi("test.pkg.kept_flag")
+                            public class Test {
+                                public Test() {}
+
+                                @RemovedFromApi
+                                @FlaggedApi("test.pkg.reverted_flag")
+                                public void revertedMethod() {}
+
+                                @RemovedFromApi
+                                @FlaggedApi("test.pkg.kept_removed_flag")
+                                public void keptMethod() {}
+
+                                @RemovedFromApi
+                                @FlaggedApi("test.pkg.reverted_flag")
+                                public static class RevertedNested {
+                                    public RevertedNested() {}
+
+                                    public static class NestedTwice {
+                                        public NestedTwice() {}
+                                    }
+                                }
+
+                                @RemovedFromApi
+                                @FlaggedApi("test.pkg.kept_removed_flag")
+                                public static class KeptNested {
+                                    public KeptNested() {}
+
+                                    public static class NestedTwice {
+                                        public NestedTwice() {}
+                                    }
+                                }
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+
+                            import android.annotation.FlaggedApi;
+                            import android.annotation.RemovedFromApi;
+
+                            @RemovedFromApi
+                            @FlaggedApi("test.pkg.kept_removed_flag")
+                            public class KeptRemovedClass {
+                                public KeptRemovedClass() {}
+
+                                public void method() {}
+                            }
+                        """
+                    ),
+                    flaggedApiSource,
+                ),
+            expectedApiSignature =
+                """
+                    // Signature format: 6.0
+                    package test.pkg {
+                      @ForRemoval @FlaggedApi("test.pkg.kept_removed_flag") public class KeptRemovedClass {
+                        ctor public KeptRemovedClass();
+                        method public void method();
+                      }
+                      @FlaggedApi("test.pkg.kept_flag") public class Test {
+                        ctor public Test();
+                        method @ForRemoval @FlaggedApi("test.pkg.kept_removed_flag") public void keptMethod();
+                        method public void revertedMethod();
+                      }
+                      @ForRemoval @FlaggedApi("test.pkg.kept_removed_flag") public static class Test.KeptNested {
+                        ctor public Test.KeptNested();
+                      }
+                      @ForRemoval @FlaggedApi("test.pkg.kept_removed_flag") public static class Test.KeptNested.NestedTwice {
+                        ctor public Test.KeptNested.NestedTwice();
+                      }
+                      @FlaggedApi("test.pkg.kept_flag") public static class Test.RevertedNested {
+                        ctor public Test.RevertedNested();
+                      }
+                      @FlaggedApi("test.pkg.kept_flag") public static class Test.RevertedNested.NestedTwice {
+                        ctor public Test.RevertedNested.NestedTwice();
+                      }
+                    }
+                """,
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class KeptRemovedClass {
+                            public KeptRemovedClass() { throw new RuntimeException("Stub!"); }
+                            public void method() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            @$ANDROID_REQUIRES_FLAG("test.pkg.kept_flag")
+                            public class Test {
+                            @$ANDROID_REQUIRES_FLAG("test.pkg.kept_flag")
+                            public Test() { throw new RuntimeException("Stub!"); }
+                            @$ANDROID_REQUIRES_FLAG("test.pkg.kept_flag")
+                            public void keptMethod() { throw new RuntimeException("Stub!"); }
+                            @$ANDROID_REQUIRES_FLAG("test.pkg.kept_flag")
+                            public void revertedMethod() { throw new RuntimeException("Stub!"); }
+                            @$ANDROID_REQUIRES_FLAG("test.pkg.kept_flag")
+                            public static class KeptNested {
+                            @$ANDROID_REQUIRES_FLAG("test.pkg.kept_flag")
+                            public KeptNested() { throw new RuntimeException("Stub!"); }
+                            @$ANDROID_REQUIRES_FLAG("test.pkg.kept_flag")
+                            public static class NestedTwice {
+                            @$ANDROID_REQUIRES_FLAG("test.pkg.kept_flag")
+                            public NestedTwice() { throw new RuntimeException("Stub!"); }
+                            }
+                            }
+                            @$ANDROID_REQUIRES_FLAG("test.pkg.kept_flag")
+                            public static class RevertedNested {
+                            @$ANDROID_REQUIRES_FLAG("test.pkg.kept_flag")
+                            public RevertedNested() { throw new RuntimeException("Stub!"); }
+                            @$ANDROID_REQUIRES_FLAG("test.pkg.kept_flag")
+                            public static class NestedTwice {
+                            @$ANDROID_REQUIRES_FLAG("test.pkg.kept_flag")
+                            public NestedTwice() { throw new RuntimeException("Stub!"); }
+                            }
+                            }
+                            }
+                        """
+                    ),
+                ),
+        )
+    }
+
+    @Test
+    fun `Test RequiresFlag annotation in source appears in stubs`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            public class Test {
+                                @$ANDROID_REQUIRES_FLAG("flag.name")
+                                public void method();
+                            }
+                        """
+                    ),
+                    requiresFlagSource,
+                ),
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Test {
+                            public Test() { throw new RuntimeException("Stub!"); }
+                            @$ANDROID_REQUIRES_FLAG("flag.name")
+                            public void method() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    )
+                ),
+        )
+    }
+
+    @Test
+    fun `Test FlaggedApi annotation is removed from stubs for finalized APIs that become deprecated`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.FlaggedApi;
+
+                            public class Test {
+                                /** @deprecated */
+                                @Deprecated
+                                @FlaggedApi("flag.name")
+                                public void method() {}
+                            }
+                        """
+                    ),
+                    flaggedApiSource
+                ),
+            checkCompatibilityApiReleased =
+                """
+                // Signature format: 2.0
+                package test.pkg {
+                  public class Test {
+                    ctor public Test();
+                    method public void method();
+                  }
+                }
+            """,
+            expectedApiSignature =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public class Test {
+                    ctor public Test();
+                    method @Deprecated @FlaggedApi("flag.name") public void method();
+                  }
+                }
+            """,
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Test {
+                            public Test() { throw new RuntimeException("Stub!"); }
+                            /** @deprecated */
+                            @Deprecated
+                            public void method() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    )
+                ),
+            extraArguments = arrayOf("--check-compatibility", "disabled")
+        )
+    }
+
+    @Test
+    fun `Test FlaggedApi annotation is removed from stubs for finalized API with annotation updates`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.FlaggedApi;
+                            import android.annotation.Nullable;
+
+                            public class Test {
+                                @FlaggedApi("flag.name")
+                                @Nullable
+                                public Object method() { return null; }
+                            }
+                        """
+                    ),
+                    flaggedApiSource,
+                    nullableSource
+                ),
+            checkCompatibilityApiReleased =
+                """
+                // Signature format: 2.0
+                package test.pkg {
+                  public class Test {
+                    ctor public Test();
+                    method public java.lang.Object method();
+                  }
+                }
+            """,
+            expectedApiSignature =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public class Test {
+                    ctor public Test();
+                    method @FlaggedApi("flag.name") public Object? method();
+                  }
+                }
+            """,
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Test {
+                            public Test() { throw new RuntimeException("Stub!"); }
+                            @android.annotation.Nullable
+                            public java.lang.Object method() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    )
+                ),
+            extraArguments = arrayOf("--check-compatibility", "disabled")
+        )
+    }
+
+    @Test
+    fun `Test FlaggedApi annotation is removed from stubs for finalized Class Apis`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.FlaggedApi;
+                            /** @deprecated */
+                            @Deprecated
+                            @FlaggedApi("flag.name")
+                            public class Test {
+                                public Object method() { return null; }
+                            }
+                        """
+                    ),
+                    flaggedApiSource,
+                    nullableSource
+                ),
+            checkCompatibilityApiReleased =
+                """
+                // Signature format: 2.0
+                package test.pkg {
+                  public class Test {
+                    ctor public Test();
+                    method public java.lang.Object method();
+                  }
+                }
+            """,
+            expectedApiSignature =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  @Deprecated @FlaggedApi("flag.name") public class Test {
+                    ctor @Deprecated public Test();
+                    method @Deprecated public Object! method();
+                  }
+                }
+            """,
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                             package test.pkg;
+                             /** @deprecated */
+                             @SuppressWarnings({"unchecked", "deprecation", "all"})
+                             @Deprecated
+                             public class Test {
+                             @Deprecated
+                             public Test() { throw new RuntimeException("Stub!"); }
+                             @Deprecated
+                             public java.lang.Object method() { throw new RuntimeException("Stub!"); }
+                             }
+                        """
+                    )
+                ),
+            extraArguments = arrayOf("--check-compatibility", "disabled")
+        )
+    }
+
+    @Test
+    fun `Test FlaggedApi is removed from class in stubs and RequiresFlag is added to new method but not old method`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.FlaggedApi;
+
+                            @FlaggedApi("flag.name")
+                            public class Test {
+                                public Test() {}
+                                public void oldMethod() {}
+                                public void newMethod() {}
+                            }
+                        """
+                    ),
+                    flaggedApiSource
+                ),
+            checkCompatibilityApiReleased =
+                """
+                // Signature format: 2.0
+                package test.pkg {
+                  public class Test {
+                    ctor public Test();
+                    method public void oldMethod();
+                  }
+                }
+            """,
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Test {
+                            public Test() { throw new RuntimeException("Stub!"); }
+                            @android.annotation.RequiresFlag("flag.name")
+                            public void newMethod() { throw new RuntimeException("Stub!"); }
+                            public void oldMethod() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    )
+                ),
+            extraArguments = arrayOf("--check-compatibility", "disabled")
+        )
+    }
+
+    @Test
+    fun `Test non-signature annotations are preserved in stubs when reverting flagged API`() {
+        check(
+            // Revert all FlaggedApi annotations.
+            configFiles = arrayOf(KnownConfigFiles.configEmptyApiFlags),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.FlaggedApi;
+
+                            public class Test {
+                                @FlaggedApi("flag.name")
+                                @android.view.ViewDebug.ExportedProperty
+                                public void method() {}
+                            }
+                        """
+                    ),
+                    flaggedApiSource,
+                ),
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Test {
+                        ctor public Test();
+                        method public void method();
+                      }
+                    }
+                """,
+            expectedApiSignature =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Test {
+                        ctor public Test();
+                        method public void method();
+                      }
+                    }
+                """,
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Test {
+                            public Test() { throw new RuntimeException("Stub!"); }
+                            @android.view.ViewDebug.ExportedProperty
+                            public void method() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    )
+                ),
+        )
+    }
+
+    @Test
+    fun `Test conditional javadoc FlaggedApi doc references with kept flags`() {
+        check(
+            apiSurface = KnownApiSurface.PUBLIC,
+            docStubs = true,
+            configFiles =
+                arrayOf(
+                    xml(
+                        "config-flags.xml",
+                        """
+                            <config xmlns="http://www.google.com/tools/metalava/config">
+                                <api-flags>
+                                    <api-flag package="test.pkg.flags" name="foo_bar" mutability="mutable" status="enabled"/>
+                                </api-flags>
+                            </config>
+                        """,
+                    ),
+                ),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg.flags;
+                            /** @hide */
+                            public class Flags {
+                                public static final String FLAG_FOO_BAR = "test.pkg.flags.foo_bar";
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.FlaggedApi;
+                            import test.pkg.flags.Flags;
+
+                            @FlaggedApi(Flags.FLAG_FOO_BAR)
+                            public class NewReplacement {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.FlaggedApi;
+                            import test.pkg.flags.Flags;
+
+                            public class Foo {
+                                /**
+                                 * Existing method. {@if (flag(Flags.FLAG_FOO_BAR)) {{@link NewReplacement} and {@link #NEW_CONSTANT}}}
+                                 *
+                                 * @if (flag(Flags.FLAG_FOO_BAR)) {
+                                 *     :@see NewReplacement
+                                 * }
+                                 */
+                                public void existingMethod() {}
+
+                                @FlaggedApi(Flags.FLAG_FOO_BAR)
+                                public static final int NEW_CONSTANT = 1;
+                            }
+                        """
+                    ),
+                    flaggedApiSource,
+                ),
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Foo {
+                            public Foo() { throw new RuntimeException("Stub!"); }
+                            /**
+                             * Existing method. {@link test.pkg.NewReplacement NewReplacement} and {@link #NEW_CONSTANT}
+                             * @see test.pkg.NewReplacement NewReplacement
+                             */
+                            public void existingMethod() { throw new RuntimeException("Stub!"); }
+                            @$ANDROID_FLAGGED_API("test.pkg.flags.foo_bar") public static final int NEW_CONSTANT = 1;
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            @$ANDROID_FLAGGED_API("test.pkg.flags.foo_bar")
+                            public class NewReplacement {
+                            @$ANDROID_FLAGGED_API("test.pkg.flags.foo_bar")
+                            public NewReplacement() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
+            skipEmitPackages = listOf("test.pkg.flags", "android.annotation"),
+        )
+    }
+
+    @Test
+    fun `Test newly deprecated FlaggedApi doc references with kept flags`() {
+        check(
+            apiSurface = KnownApiSurface.PUBLIC,
+            docStubs = true,
+            configFiles =
+                arrayOf(
+                    xml(
+                        "config-flags.xml",
+                        """
+                            <config xmlns="http://www.google.com/tools/metalava/config">
+                                <api-flags>
+                                    <api-flag package="test.pkg.flags" name="foo_bar" mutability="mutable" status="enabled"/>
+                                </api-flags>
+                            </config>
+                        """,
+                    ),
+                ),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg.flags;
+                            /** @hide */
+                            public class Flags {
+                                public static final String FLAG_FOO_BAR = "test.pkg.flags.foo_bar";
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.FlaggedApi;
+                            import test.pkg.flags.Flags;
+
+                            @FlaggedApi(Flags.FLAG_FOO_BAR)
+                            public class NewReplacement {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.FlaggedApi;
+                            import test.pkg.flags.Flags;
+
+                            public class Foo {
+                                /**
+                                 * Existing method.
+                                 *
+                                 * @deprecated Use {@link NewReplacement} and {@link #NEW_CONSTANT} instead.
+                                 */
+                                @FlaggedApi(Flags.FLAG_FOO_BAR)
+                                @Deprecated
+                                public void oldMethod() {}
+
+                                @FlaggedApi(Flags.FLAG_FOO_BAR)
+                                public static final int NEW_CONSTANT = 1;
+                            }
+                        """
+                    ),
+                    flaggedApiSource,
+                ),
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Foo {
+                        ctor public Foo();
+                        method public void oldMethod();
+                      }
+                    }
+                """,
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Foo {
+                            public Foo() { throw new RuntimeException("Stub!"); }
+                            /**
+                             * Existing method.
+                             * @deprecated Use {@link test.pkg.NewReplacement NewReplacement} and {@link #NEW_CONSTANT} instead.
+                             */
+                            @Deprecated
+                            public void oldMethod() { throw new RuntimeException("Stub!"); }
+                            @$ANDROID_FLAGGED_API("test.pkg.flags.foo_bar") public static final int NEW_CONSTANT = 1;
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            @$ANDROID_FLAGGED_API("test.pkg.flags.foo_bar")
+                            public class NewReplacement {
+                            @$ANDROID_FLAGGED_API("test.pkg.flags.foo_bar")
+                            public NewReplacement() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
+            skipEmitPackages = listOf("test.pkg.flags", "android.annotation"),
         )
     }
 }
