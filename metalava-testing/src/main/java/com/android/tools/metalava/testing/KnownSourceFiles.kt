@@ -524,26 +524,6 @@ object KnownSourceFiles {
             """
         )
 
-    val checksFlagSource: TestFile =
-        java(
-            """
-                package android.annotation;
-                import static java.lang.annotation.ElementType.FIELD;
-                import static java.lang.annotation.ElementType.METHOD;
-
-                import java.lang.annotation.Retention;
-                import java.lang.annotation.RetentionPolicy;
-                import java.lang.annotation.Target;
-
-                @Hide
-                @Target({METHOD, FIELD})
-                @Retention(RetentionPolicy.CLASS)
-                public @interface ChecksFlag {
-                    String value() default "";
-                }
-            """
-        )
-
     val sdkExtensionApiSource: TestFile =
         java(
             """
