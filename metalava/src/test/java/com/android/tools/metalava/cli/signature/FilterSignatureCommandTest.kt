@@ -54,15 +54,20 @@ Options:
   --previously-released-removed-api <files>  One or more signature files (separated by `${File.pathSeparator}`) defining the previously
                                              released removed API from narrowest to widest API surface, used when
                                              reverting flagged changes to previously released removed APIs.
-  --output-file <file>                       The output file into which the filtered signature file will be written.
-                                             (required)
+  --output-file <file>                       The output file into which the filtered signature file will be written. If
+                                             neither `--format` nor `--use-same-format-as` is specified, preserves the
+                                             format of the last file in `--api-files` (or `2.0` if empty). (required)
   --output-removed-file <file>               The output file into which the filtered removed signature file will be
-                                             written.
+                                             written. If neither `--format` nor `--use-same-format-as` is specified,
+                                             preserves the format of the last file in `--removed-api-files` (falling
+                                             back to the format used for `--output-file` if empty or omitted).
   -h, -?, --help                             Show this message and exit
 
 $CONFIG_FILE_OPTIONS_HELP
 
 $ISSUE_REPORTING_OPTIONS_HELP
+
+${signatureFormatOptionsHelp(defaultFileFormat = null)}
     """
         .trimIndent()
 
@@ -1188,6 +1193,237 @@ class FilterSignatureCommandTest :
                           }
                           public static final class Outer.Nested implements test.pkg.Outer.UndefinedInterface {
                             method public void foo();
+                          }
+                        }
+                    """
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `Test overriding output format from 6_0 style=java to 2_0 with header-only removed file`() {
+        commandTest {
+            args += "filter-signature"
+
+            args += ARG_FORMAT to "2.0:overloaded-method-order=source,add-additional-overrides=yes"
+
+            args +=
+                ARG_CONFIG_FILE to
+                    xml(
+                        "config.xml",
+                        """
+                            <config xmlns="http://www.google.com/tools/metalava/config">
+                              <api-flags>
+                                <api-flag package="test.pkg" name="kept_flag" mutability="mutable" status="enabled"/>
+                                <api-flag package="test.pkg" name="finalized_flag" mutability="immutable" status="enabled"/>
+                                <api-flag package="test.pkg" name="disabled_flag" mutability="immutable" status="disabled"/>
+                              </api-flags>
+                            </config>
+                        """,
+                    )
+
+            args +=
+                ARG_API_FILES to
+                    signature(
+                        "current.txt",
+                        """
+                            // Signature format: 6.0
+                            // - style=java
+                            package test.pkg {
+                              public record DataRecord {
+                                record_component #0 name: String;
+                                record_component #1 count: int;
+                                ctor public DataRecord(String, int);
+                                method public int count();
+                                method public String name();
+                              }
+                              public class Foo {
+                                ctor public Foo();
+                                method @FlaggedApi("test.pkg.disabled_flag") public void disabledMethod();
+                                method @FlaggedApi("test.pkg.finalized_flag") public java.util.Map<String, Integer> finalizedMethod(String);
+                                method @FlaggedApi("test.pkg.kept_flag") public void keptMethod();
+                              }
+                            }
+                        """,
+                    )
+
+            args +=
+                ARG_REMOVED_API_FILES to
+                    signature(
+                        "removed.txt",
+                        """
+                            // Signature format: 6.0
+                            // - style=java
+                        """,
+                    )
+
+            val outputCurrent = outputFile("filtered-current.txt")
+            val outputRemoved = outputFile("filtered-removed.txt")
+            args += ARG_OUTPUT_FILE to outputCurrent
+            args += ARG_OUTPUT_REMOVED_FILE to outputRemoved
+
+            verify {
+                outputCurrent.assertSignatureContents(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public final class DataRecord {
+                            ctor public DataRecord(String, int);
+                            method public int count();
+                            method public String name();
+                          }
+                          public class Foo {
+                            ctor public Foo();
+                            method public java.util.Map<java.lang.String,java.lang.Integer> finalizedMethod(String);
+                            method @FlaggedApi("test.pkg.kept_flag") public void keptMethod();
+                          }
+                        }
+                    """
+                )
+                outputRemoved.assertSignatureContents(
+                    """
+                        // Signature format: 2.0
+                    """
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `Test overriding output format from 6_0 style=java to 2_0 with non-empty removed file`() {
+        commandTest {
+            args += "filter-signature"
+
+            args += ARG_FORMAT to "2.0:overloaded-method-order=source,add-additional-overrides=yes"
+
+            args +=
+                ARG_CONFIG_FILE to
+                    xml(
+                        "config.xml",
+                        """
+                            <config xmlns="http://www.google.com/tools/metalava/config">
+                              <api-flags>
+                                <api-flag package="test.pkg" name="finalized_flag" mutability="immutable" status="enabled"/>
+                              </api-flags>
+                            </config>
+                        """,
+                    )
+
+            args +=
+                ARG_API_FILES to
+                    signature(
+                        "current.txt",
+                        """
+                            // Signature format: 6.0
+                            // - style=java
+                            package test.pkg {
+                              public class Foo {
+                                ctor public Foo();
+                                method @ForRemoval @FlaggedApi("test.pkg.finalized_flag") public java.util.List<String> finalizedRemovedMethod();
+                                method public void keptCoreMethod();
+                              }
+                            }
+                        """,
+                    )
+
+            args +=
+                ARG_REMOVED_API_FILES to
+                    signature(
+                        "removed.txt",
+                        """
+                            // Signature format: 6.0
+                            // - style=java
+                            package test.pkg {
+                              public class Foo {
+                                method public java.util.Map<String, Integer> alreadyRemovedMethod();
+                              }
+                            }
+                        """,
+                    )
+
+            val outputCurrent = outputFile("filtered-current.txt")
+            val outputRemoved = outputFile("filtered-removed.txt")
+            args += ARG_OUTPUT_FILE to outputCurrent
+            args += ARG_OUTPUT_REMOVED_FILE to outputRemoved
+
+            verify {
+                outputCurrent.assertSignatureContents(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class Foo {
+                            ctor public Foo();
+                            method public void keptCoreMethod();
+                          }
+                        }
+                    """
+                )
+                outputRemoved.assertSignatureContents(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class Foo {
+                            method public java.util.Map<java.lang.String,java.lang.Integer> alreadyRemovedMethod();
+                            method public java.util.List<java.lang.String> finalizedRemovedMethod();
+                          }
+                        }
+                    """
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `Test --use-same-format-as overrides input signature format`() {
+        commandTest {
+            args += "filter-signature"
+
+            args +=
+                ARG_USE_SAME_FORMAT_AS to
+                    signature(
+                        "reference-format.txt",
+                        """
+                            // Signature format: 2.0
+                        """,
+                    )
+
+            args +=
+                ARG_CONFIG_FILE to
+                    xml(
+                        "config.xml",
+                        """
+                            <config xmlns="http://www.google.com/tools/metalava/config">
+                              <api-flags/>
+                            </config>
+                        """,
+                    )
+
+            args +=
+                ARG_API_FILES to
+                    signature(
+                        "current.txt",
+                        """
+                            // Signature format: 6.0
+                            // - style=java
+                            package test.pkg {
+                              public class Foo {
+                                ctor public Foo();
+                              }
+                            }
+                        """,
+                    )
+
+            val output = outputFile("filtered.txt")
+            args += ARG_OUTPUT_FILE to output
+
+            verify {
+                output.assertSignatureContents(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class Foo {
+                            ctor public Foo();
                           }
                         }
                     """
