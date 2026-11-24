@@ -108,6 +108,9 @@ class FilterSignatureCommand :
     /** Options for configuring issue reporting. */
     private val issueReportingOptions by IssueReportingOptions()
 
+    /** Options for controlling the format of the generated signature files. */
+    private val signatureFormat by SignatureFormatOptions(defaultFileFormat = null)
+
     /**
      * Signature files defining the current API from narrowest to widest API surface. The last file
      * is the target signature file to filter; any preceding files are base surface signature files
@@ -191,7 +194,13 @@ class FilterSignatureCommand :
         option(
                 ARG_OUTPUT_FILE,
                 metavar = "<file>",
-                help = "The output file into which the filtered signature file will be written.",
+                help =
+                    """
+                        The output file into which the filtered signature file will be written. If
+                        neither `$ARG_FORMAT` nor `$ARG_USE_SAME_FORMAT_AS` is specified, preserves
+                        the format of the last file in `$ARG_API_FILES` (or `2.0` if empty).
+                    """
+                        .trimIndent(),
             )
             .newFile()
             .required()
@@ -202,7 +211,14 @@ class FilterSignatureCommand :
                 ARG_OUTPUT_REMOVED_FILE,
                 metavar = "<file>",
                 help =
-                    "The output file into which the filtered removed signature file will be written.",
+                    """
+                        The output file into which the filtered removed signature file will be
+                        written. If neither `$ARG_FORMAT` nor `$ARG_USE_SAME_FORMAT_AS` is
+                        specified, preserves the format of the last file in `$ARG_REMOVED_API_FILES`
+                        (falling back to the format used for `$ARG_OUTPUT_FILE` if empty or
+                        omitted).
+                    """
+                        .trimIndent(),
             )
             .newFile()
 
@@ -216,11 +232,22 @@ class FilterSignatureCommand :
                 )
             }
 
+            val computedFormat =
+                try {
+                    signatureFormat.compute()
+                } catch (e: ApiParseException) {
+                    cliError(e.message!!)
+                }
+
             val apiFlags = ApiFlagsCreator.createFromConfig(config.apiFlags)
 
-            // Preserve the FileFormat from the header of the target (last) input signature file,
-            // defaulting to V2 if the file is empty.
-            val fileFormat = parseFileFormat(apiFiles.last()) ?: FileFormat.V2
+            // Use the explicitly configured signature format if provided; otherwise preserve the
+            // FileFormat from the header of the target (last) input signature file, defaulting to
+            // V2 if the file is empty.
+            val fileFormat =
+                computedFormat.resolveFileFormat {
+                    parseFileFormat(apiFiles.last()) ?: FileFormat.V2
+                }
 
             var previousFilteredCodebase: Codebase? = null
             var currentFilteredFragment: CodebaseFragment? = null
@@ -287,7 +314,8 @@ class FilterSignatureCommand :
             outputRemovedFile?.let { removedOutput ->
                 val lastRemovedHeaderFormat =
                     removedApiFiles.lastOrNull()?.let { parseFileFormat(it) }
-                val removedFileFormat = lastRemovedHeaderFormat ?: fileFormat
+                val removedFileFormat =
+                    computedFormat.resolveFileFormat { lastRemovedHeaderFormat ?: fileFormat }
                 val emitRemovedHeader =
                     if (lastRemovedHeaderFormat != null) {
                         EmitFileHeader.ALWAYS
@@ -306,6 +334,20 @@ class FilterSignatureCommand :
             }
         }
     }
+
+    /**
+     * Resolve the output [FileFormat] from this [ComputedSignatureFormatOptions], using [fallback]
+     * if neither [ARG_FORMAT] nor [ARG_USE_SAME_FORMAT_AS] was specified, and reporting any
+     * [ApiParseException] as a CLI error.
+     */
+    private fun ComputedSignatureFormatOptions.resolveFileFormat(
+        fallback: () -> FileFormat,
+    ): FileFormat =
+        try {
+            fileFormat(fallback)
+        } catch (e: ApiParseException) {
+            cliError(e.message!!)
+        }
 
     /**
      * Parse the [FileFormat] header of [file], returning `null` if the file is empty or has no
