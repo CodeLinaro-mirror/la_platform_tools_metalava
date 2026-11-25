@@ -66,4 +66,30 @@ class SourceConstructorItemTest : BaseModelTest() {
             assertFalse(constructorItem.isImplicitConstructor(), message = "!isImplicitConstructor")
         }
     }
+
+    /**
+     * Verify that a Java `enum` without explicit constructor declarations has an implicit `private`
+     * no-args constructor (per JLS 8.9.2), matching `javac` and Turbine.
+     */
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `test implicit private constructor on enum`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    public enum Foo {
+                        FOO
+                    }
+                """
+            ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val constructorItem = fooClass.assertConstructor(emptyList())
+
+            assertTrue(constructorItem.isImplicitConstructor(), message = "isImplicitConstructor")
+            assertTrue(constructorItem.modifiers.isPrivate(), message = "isPrivate")
+        }
+    }
 }
