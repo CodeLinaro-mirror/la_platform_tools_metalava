@@ -26,14 +26,6 @@ com.android.tools.metalava.model.testsuite.methoditem.CommonMethodModifierTest
 com.android.tools.metalava.model.testsuite.multiplatform.CommonMultiplatformTypeParameterItemTest
   Type parameter with different names per source set[text]
 
-com.android.tools.metalava.model.testsuite.packageitem.CommonPackageItemTest
-  Test package-info class in multiple jars for source package[psi,java]
-  Test package-info java and class with same annotation[psi,java]
-  Test package-info java on source path shadows package-info class[psi,java]
-  Test package-info java shadows package-info class with different annotation[psi,java]
-  Test resolving package from multiple jars[psi,java]
-  Test unannotated package-info java shadows annotated package-info class[psi,java]
-
 com.android.tools.metalava.model.testsuite.parameteritem.CommonParameterItemTest
   Test publicName reports correct name when called on binary class - Object#equals[turbine]
 

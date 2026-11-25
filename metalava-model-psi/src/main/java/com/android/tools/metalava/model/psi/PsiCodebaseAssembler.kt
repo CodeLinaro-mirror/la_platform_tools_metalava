@@ -22,10 +22,8 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassOrigin
-import com.android.tools.metalava.model.ItemKind
 import com.android.tools.metalava.model.JAVA_PACKAGE_INFO
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.ModifierContext
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.SourceLanguage
@@ -53,6 +51,7 @@ import com.intellij.psi.PsiImportStatement
 import com.intellij.psi.PsiJavaFile
 import com.intellij.psi.PsiManager
 import com.intellij.psi.PsiPackage
+import com.intellij.psi.PsiPackageStatement
 import com.intellij.psi.PsiTypeParameter
 import com.intellij.psi.javadoc.PsiDocComment
 import com.intellij.psi.search.GlobalSearchScope
@@ -117,35 +116,44 @@ internal class PsiCodebaseAssembler(
         }
 
         val psiPackage = findPsiPackage(packageName) ?: return null
-        val annotations =
-            PsiModifierItem.create(
-                    ModifierContext.forItemKind(ItemKind.PACKAGE),
-                    psiCodebase,
-                    psiPackage,
-                )
-                .annotations()
 
-        // Try and find a package-info.java file for the package in the project files.
+        // Try and find a package-info.java file for the package in the project files. Using the
+        // package statement from the resolved file rather than `psiPackage.annotationList` avoids
+        // PSI's default behavior of merging annotations across all `package-info.java` and
+        // `package-info.class` files in the project.
         val psiJavaFile =
             psiPackage.getFiles(projectSearchScope).find {
                 // Make sure that the file is a PsiJavaFile with the correct package name.
                 it is PsiJavaFile && it.name == JAVA_PACKAGE_INFO && it.packageName == packageName
             } as? PsiJavaFile
 
-        return if (psiJavaFile == null) {
-            SourcePackageInfo(
-                annotations = annotations,
-            )
-        } else {
-            val documentationFactory =
-                psiJavaFile.packageStatement?.createItemDocumentation(psiCodebase)
+        if (psiJavaFile != null) {
+            val packageStatement = psiJavaFile.packageStatement
+            val annotations = packageStatement.createAnnotations()
+            val documentationFactory = packageStatement?.createItemDocumentation(psiCodebase)
             val sourceFile = PsiSourceFile(psiCodebase, psiJavaFile)
-            SourcePackageInfo(
+            return SourcePackageInfo(
                 sourceFile = sourceFile,
                 annotations = annotations,
                 commentFactory = documentationFactory,
             )
         }
+
+        // No package-info.java was found, so fall back to the first matching package-info.class
+        // on the classpath.
+        val packageInfoClass = findPsiClass("$packageName.${PsiPackage.PACKAGE_INFO_CLASS}")
+        val clsFile = packageInfoClass?.containingFile as? PsiJavaFile ?: return null
+        val annotations = clsFile.packageStatement.createAnnotations()
+        return SourcePackageInfo(
+            annotations = annotations,
+        )
+    }
+
+    /** Create [AnnotationItem]s for the annotations declared on this [PsiPackageStatement]. */
+    private fun PsiPackageStatement?.createAnnotations(): List<AnnotationItem> {
+        val psiAnnotations = this?.annotationList?.annotations ?: return emptyList()
+        if (psiAnnotations.isEmpty()) return emptyList()
+        return psiAnnotations.distinct().mapNotNull { PsiAnnotationItem.create(psiCodebase, it) }
     }
 
     override fun isValidPackage(packageName: String) = findPsiPackage(packageName) != null
