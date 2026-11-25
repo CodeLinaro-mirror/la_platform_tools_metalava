@@ -420,7 +420,13 @@ internal class PsiClassBuilder(
         val hasImplicitDefaultConstructor = hasImplicitDefaultConstructor(classItem)
         if (hasImplicitDefaultConstructor) {
             assert(constructors.isEmpty())
-            classItem.addConstructor(classItem.createImplicitDefaultConstructor())
+            val visibility =
+                if (classItem.isEnum()) {
+                    VisibilityLevel.PRIVATE
+                } else {
+                    classItem.modifiers.getVisibilityLevel()
+                }
+            classItem.addConstructor(classItem.createImplicitDefaultConstructor(visibility))
         }
     }
 
@@ -643,10 +649,12 @@ internal class PsiClassBuilder(
     /**
      * Whether a no-args constructor should be generated for this class. For Kotlin source classes,
      * the psi will include the implicit no-args constructor if it exists, so this is only needed
-     * for Java source classes.
+     * for Java source classes and enums (per JLS 8.8.9 / 8.9.2).
      */
     private fun hasImplicitDefaultConstructor(classItem: ClassItem): Boolean {
-        return classItem.isJava() && classItem.constructors().isEmpty() && classItem.isClass()
+        return classItem.isJava() &&
+            classItem.constructors().isEmpty() &&
+            (classItem.isClass() || classItem.isEnum())
     }
 
     internal fun createField(
