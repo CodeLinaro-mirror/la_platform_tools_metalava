@@ -619,6 +619,9 @@ private fun ClassItem.resolveInheritedMemberBySimpleName(
 /**
  * Check [this] supertype's inheritable declarations (fields, non-constructor methods, and nested
  * classes), recursing into its supertypes via [resolveInheritedMemberBySimpleName] if not found.
+ *
+ * Excludes `static` methods on interfaces and annotation types as they are never inherited by
+ * implementing classes or subinterfaces (JLS 8.4.8 / 9.4.1).
  */
 private fun ClassItem.resolveDirectOrInheritedMember(
     simpleName: String,
@@ -626,7 +629,11 @@ private fun ClassItem.resolveDirectOrInheritedMember(
 ): ReferencableItem? =
     nameClassification.findField { findField(simpleName) }
         ?: nameClassification.findCallableSet {
-            findCallableSet(simpleName, includeConstructors = false)
+            findCallableSet(
+                simpleName,
+                includeConstructors = false,
+                includeStatic = !isInterface() && !isAnnotationType(),
+            )
         }
         ?: nameClassification.findClass { nestedClasses().find { it.simpleName() == simpleName } }
         ?: resolveInheritedMemberBySimpleName(simpleName, nameClassification)
@@ -642,15 +649,16 @@ private fun ClassItem.resolveDirectOrInheritedMember(
  * usually be referenced by name and instead the class is referenced which gives access to its
  * constructor.
  *
- * Else, [ClassItem.methods] is searched for a [MethodItem] that matches [name]. If at least one
- * could be found then returns a [ReferencableMethodSet] to represent the set of all [MethodItem]s
- * called [name].
+ * Else, [ClassItem.methods] is searched for a [MethodItem] that matches [name] (excluding `static`
+ * methods when [includeStatic] is `false`). If at least one could be found then returns a
+ * [ReferencableMethodSet] to represent the set of all [MethodItem]s called [name].
  *
  * Otherwise, `null` is returned.
  */
 internal fun ClassItem.findCallableSet(
     name: String,
     includeConstructors: Boolean,
+    includeStatic: Boolean = true,
 ): ReferencableCallableItem? =
     if (includeConstructors && name == simpleName()) {
         if (constructors().isEmpty()) {
@@ -658,7 +666,7 @@ internal fun ClassItem.findCallableSet(
         } else {
             this
         }
-    } else if (methods().any { it.name() == name }) {
+    } else if (methods().any { it.name() == name && (includeStatic || !it.modifiers.isStatic()) }) {
         ReferencableMethodSet(this, name)
     } else {
         null

@@ -791,22 +791,30 @@ class CommonReferencableNameScopeTest : BaseModelTest() {
                 impl.resolveReferencableItem("Impl.parentStatic", NameClassification.AMBIGUOUS),
             )
 
-            // TODO(b/447588621): Exclude static methods from strict superinterfaces so these
-            //  return InvalidReferencableItem instead of resolving to SuperInterface.staticHelper.
+            // Static methods on strict superinterfaces are not inherited by implementing classes or
+            // subinterfaces.
             assertEquals(
-                ReferencableMethodSet(superInterface, "staticHelper"),
+                InvalidReferencableItem(
+                    "Could not resolve 'staticHelper' in 'class test.pkg.Impl'"
+                ),
                 impl.resolveReferencableItem("staticHelper", NameClassification.AMBIGUOUS),
             )
             assertEquals(
-                ReferencableMethodSet(superInterface, "staticHelper"),
+                InvalidReferencableItem(
+                    "Could not resolve 'Impl.staticHelper' as could not find 'staticHelper' in 'class test.pkg.Impl'"
+                ),
                 impl.resolveReferencableItem("Impl.staticHelper", NameClassification.AMBIGUOUS),
             )
             assertEquals(
-                ReferencableMethodSet(superInterface, "staticHelper"),
+                InvalidReferencableItem(
+                    "Could not resolve 'staticHelper' in 'class test.pkg.SubInterface'"
+                ),
                 subInterface.resolveReferencableItem("staticHelper", NameClassification.AMBIGUOUS),
             )
             assertEquals(
-                ReferencableMethodSet(superInterface, "staticHelper"),
+                InvalidReferencableItem(
+                    "Could not resolve 'SubInterface.staticHelper' as could not find 'staticHelper' in 'class test.pkg.SubInterface'"
+                ),
                 impl.resolveReferencableItem(
                     "SubInterface.staticHelper",
                     NameClassification.AMBIGUOUS,
