@@ -66,6 +66,141 @@ class CommonPackageItemTest : BaseModelTest() {
                     ),
                 )
                 .cacheIn(testFileCacheRule)
+
+        /** Jar containing annotations used in `package-info` tests. */
+        private val packageInfoAnnotationsJar =
+            jarFromSources(
+                    "package-info-annotations.jar",
+                    java(
+                        """
+                            package test.anno;
+                            import java.lang.annotation.Retention;
+                            import java.lang.annotation.RetentionPolicy;
+                            @Retention(RetentionPolicy.CLASS)
+                            public @interface ClassRetentionAnno {
+                                enum Scope { ONE, TWO }
+                                Scope[] value();
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.anno;
+                            import java.lang.annotation.Retention;
+                            import java.lang.annotation.RetentionPolicy;
+                            @Retention(RetentionPolicy.RUNTIME)
+                            public @interface SourceAnno {
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.anno;
+                            import java.lang.annotation.Retention;
+                            import java.lang.annotation.RetentionPolicy;
+                            @Retention(RetentionPolicy.RUNTIME)
+                            public @interface ClassAnno {
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.anno;
+                            import java.lang.annotation.Retention;
+                            import java.lang.annotation.RetentionPolicy;
+                            @Retention(RetentionPolicy.RUNTIME)
+                            public @interface FirstAnno {
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.anno;
+                            import java.lang.annotation.Retention;
+                            import java.lang.annotation.RetentionPolicy;
+                            @Retention(RetentionPolicy.RUNTIME)
+                            public @interface SecondAnno {
+                            }
+                        """
+                    ),
+                )
+                .cacheIn(testFileCacheRule)
+
+        /** Jar with `test.pkg/package-info.class` annotated with `@ClassRetentionAnno`. */
+        private val testPkgClassRetentionJar =
+            jarFromSources(
+                    "test-pkg-class-retention.jar",
+                    java(
+                        """
+                            @ClassRetentionAnno(Scope.ONE)
+                            package test.pkg;
+                            import test.anno.ClassRetentionAnno;
+                            import test.anno.ClassRetentionAnno.Scope;
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            public class Foo {}
+                        """
+                    ),
+                    classPath = listOf(packageInfoAnnotationsJar),
+                )
+                .cacheIn(testFileCacheRule)
+
+        /** Jar with `test.pkg/package-info.class` annotated with `@ClassAnno`. */
+        private val testPkgClassAnnoJar =
+            jarFromSources(
+                    "test-pkg-class-anno.jar",
+                    java(
+                        """
+                            @test.anno.ClassAnno
+                            package test.pkg;
+                        """
+                    ),
+                    classPath = listOf(packageInfoAnnotationsJar),
+                )
+                .cacheIn(testFileCacheRule)
+
+        /** First jar with `other.pkg/package-info.class` annotated with `@FirstAnno`. */
+        private val otherPkgFirstJar =
+            jarFromSources(
+                    "other-pkg-first.jar",
+                    java(
+                        """
+                            @test.anno.FirstAnno
+                            package other.pkg;
+                        """
+                    ),
+                    java(
+                        """
+                            package other.pkg;
+                            public class Other {}
+                        """
+                    ),
+                    classPath = listOf(packageInfoAnnotationsJar),
+                )
+                .cacheIn(testFileCacheRule)
+
+        /** Second jar with `other.pkg/package-info.class` annotated with `@SecondAnno`. */
+        private val otherPkgSecondJar =
+            jarFromSources(
+                    "other-pkg-second.jar",
+                    java(
+                        """
+                            @test.anno.SecondAnno
+                            package other.pkg;
+                        """
+                    ),
+                    java(
+                        """
+                            package other.pkg;
+                            public class Other {}
+                        """
+                    ),
+                    classPath = listOf(packageInfoAnnotationsJar),
+                )
+                .cacheIn(testFileCacheRule)
     }
 
     @RequiresCapabilities(Capability.HIDDEN_ITEMS)
@@ -757,6 +892,322 @@ class CommonPackageItemTest : BaseModelTest() {
             val referencedClass = codebase.assertResolvedClass("test.referenced.Referenced")
             val referencedPackage = referencedClass.containingPackage()
             referencedPackage.assertPrintedDocumentation(expectedOutput = "")
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test package-info java and class with same annotation`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        /** Package doc. */
+                        @ClassRetentionAnno(Scope.ONE)
+                        package test.pkg;
+                        import test.anno.ClassRetentionAnno;
+                        import test.anno.ClassRetentionAnno.Scope;
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Foo {}
+                    """
+                ),
+            ),
+            testFixture =
+                TestFixture(
+                    additionalClassPath =
+                        listOf(
+                            packageInfoAnnotationsJar.toFile(),
+                            testPkgClassRetentionJar.toFile(),
+                        ),
+                ),
+        ) {
+            val packageItem = codebase.assertPackage("test.pkg")
+
+            assertEquals(
+                "ModifierList(flags = [public], annotations = [@test.anno.ClassRetentionAnno({test.anno.ClassRetentionAnno.Scope.ONE})])",
+                packageItem.modifiers.toString(),
+            )
+            packageItem.assertPrintedDocumentation(expectedOutput = "/** Package doc. */")
+            assertNotNull(packageItem.sourceFile)
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test package-info java shadows package-info class with different annotation`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        @test.anno.SourceAnno
+                        package test.pkg;
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Foo {}
+                    """
+                ),
+            ),
+            testFixture =
+                TestFixture(
+                    additionalClassPath =
+                        listOf(
+                            packageInfoAnnotationsJar.toFile(),
+                            testPkgClassAnnoJar.toFile(),
+                        ),
+                ),
+        ) {
+            val packageItem = codebase.assertPackage("test.pkg")
+
+            assertEquals(
+                "ModifierList(flags = [public], annotations = [@test.anno.SourceAnno])",
+                packageItem.modifiers.toString(),
+            )
+            assertNotNull(packageItem.sourceFile)
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test unannotated package-info java shadows annotated package-info class`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        /** Package doc. */
+                        package test.pkg;
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Foo {}
+                    """
+                ),
+            ),
+            testFixture =
+                TestFixture(
+                    additionalClassPath =
+                        listOf(
+                            packageInfoAnnotationsJar.toFile(),
+                            testPkgClassAnnoJar.toFile(),
+                        ),
+                ),
+        ) {
+            val packageItem = codebase.assertPackage("test.pkg")
+
+            assertEquals(
+                "ModifierList(flags = [public], annotations = [])",
+                packageItem.modifiers.toString(),
+            )
+            packageItem.assertPrintedDocumentation(expectedOutput = "/** Package doc. */")
+            assertNotNull(packageItem.sourceFile)
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test package-info java on source path shadows package-info class`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Foo extends other.pkg.Other {}
+                    """
+                ),
+                sourcePathFiles =
+                    listOf(
+                        java(
+                            """
+                                @test.anno.SourceAnno
+                                package other.pkg;
+                            """
+                        ),
+                        java(
+                            """
+                                package other.pkg;
+
+                                public class Other {}
+                            """
+                        ),
+                    ),
+            ),
+            testFixture =
+                TestFixture(
+                    additionalClassPath =
+                        listOf(
+                            packageInfoAnnotationsJar.toFile(),
+                            otherPkgFirstJar.toFile(),
+                        ),
+                ),
+        ) {
+            val packageItem = codebase.assertResolvedPackage("other.pkg")
+
+            assertEquals(
+                "ModifierList(flags = [public], annotations = [@test.anno.SourceAnno])",
+                packageItem.modifiers.toString(),
+            )
+            assertNotNull(packageItem.sourceFile)
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test package-info class used when no package-info java`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Foo {}
+                    """
+                ),
+            ),
+            testFixture =
+                TestFixture(
+                    additionalClassPath =
+                        listOf(
+                            packageInfoAnnotationsJar.toFile(),
+                            testPkgClassAnnoJar.toFile(),
+                        ),
+                ),
+        ) {
+            val packageItem = codebase.assertPackage("test.pkg")
+
+            assertEquals(
+                "ModifierList(flags = [public], annotations = [@test.anno.ClassAnno])",
+                packageItem.modifiers.toString(),
+            )
+            assertNull(packageItem.sourceFile)
+        }
+    }
+
+    @RequiresCapabilities(Capability.PACKAGE_HTML_FILES)
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test package-info class with package html`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Foo {}
+                    """
+                ),
+                html(
+                    "src/test/pkg/package.html",
+                    """
+                        <HTML>
+                        <BODY>
+                        Package HTML doc.
+                        </BODY>
+                        </HTML>
+                    """
+                ),
+            ),
+            testFixture =
+                TestFixture(
+                    additionalClassPath =
+                        listOf(
+                            packageInfoAnnotationsJar.toFile(),
+                            testPkgClassAnnoJar.toFile(),
+                        ),
+                ),
+        ) {
+            val packageItem = codebase.assertPackage("test.pkg")
+
+            assertEquals(
+                "ModifierList(flags = [public], annotations = [@test.anno.ClassAnno])",
+                packageItem.modifiers.toString(),
+            )
+            packageItem.assertPrintedDocumentation(expectedOutput = "/** Package HTML doc. */")
+            assertNull(packageItem.sourceFile)
+        }
+    }
+
+    @Test
+    fun `Test resolving package from multiple jars`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    public class Foo {}
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Foo {
+                        ctor public Foo();
+                      }
+                    }
+                """
+            ),
+            testFixture =
+                TestFixture(
+                    additionalClassPath =
+                        listOf(
+                            packageInfoAnnotationsJar.toFile(),
+                            otherPkgFirstJar.toFile(),
+                            otherPkgSecondJar.toFile(),
+                        ),
+                ),
+        ) {
+            val packageItem = codebase.assertResolvedPackage("other.pkg")
+
+            assertEquals(
+                "ModifierList(flags = [public], annotations = [@test.anno.FirstAnno])",
+                packageItem.modifiers.toString(),
+            )
+            assertNull(packageItem.sourceFile)
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test package-info class in multiple jars for source package`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package other.pkg;
+
+                        public class SourceClass {}
+                    """
+                ),
+            ),
+            testFixture =
+                TestFixture(
+                    additionalClassPath =
+                        listOf(
+                            packageInfoAnnotationsJar.toFile(),
+                            otherPkgFirstJar.toFile(),
+                            otherPkgSecondJar.toFile(),
+                        ),
+                ),
+        ) {
+            val packageItem = codebase.assertPackage("other.pkg")
+
+            assertEquals(
+                "ModifierList(flags = [public], annotations = [@test.anno.FirstAnno])",
+                packageItem.modifiers.toString(),
+            )
+            assertNull(packageItem.sourceFile)
         }
     }
 }
