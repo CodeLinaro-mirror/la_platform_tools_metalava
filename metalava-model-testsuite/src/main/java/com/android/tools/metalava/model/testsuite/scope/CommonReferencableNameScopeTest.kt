@@ -712,4 +712,106 @@ class CommonReferencableNameScopeTest : BaseModelTest() {
             )
         }
     }
+
+    /**
+     * Verify that `static` methods declared on an interface resolve directly on that interface,
+     * while implementing classes and subinterfaces do not inherit them (JLS 8.4.8 / 9.4.1), whereas
+     * `static` methods on superclasses remain inherited.
+     */
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test non-inheritance of superinterface static methods`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        public interface SuperInterface {
+                            static void staticHelper() {}
+                            default void instanceHelper() {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public interface SubInterface extends SuperInterface {
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class Parent {
+                            public static void parentStatic() {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class Impl extends Parent implements SuperInterface {
+                        }
+                    """
+                ),
+            ),
+        ) {
+            val superInterface = codebase.assertClass("test.pkg.SuperInterface")
+            val subInterface = codebase.assertClass("test.pkg.SubInterface")
+            val parent = codebase.assertClass("test.pkg.Parent")
+            val impl = codebase.assertClass("test.pkg.Impl")
+
+            // Direct static methods on an interface remain resolvable on that interface itself.
+            assertEquals(
+                ReferencableMethodSet(superInterface, "staticHelper"),
+                superInterface.resolveReferencableItem(
+                    "staticHelper",
+                    NameClassification.AMBIGUOUS
+                ),
+            )
+            assertEquals(
+                ReferencableMethodSet(superInterface, "staticHelper"),
+                impl.resolveReferencableItem(
+                    "SuperInterface.staticHelper",
+                    NameClassification.AMBIGUOUS,
+                ),
+            )
+
+            // Instance methods on superinterfaces and static methods on superclasses are inherited.
+            assertEquals(
+                ReferencableMethodSet(superInterface, "instanceHelper"),
+                impl.resolveReferencableItem("instanceHelper", NameClassification.AMBIGUOUS),
+            )
+            assertEquals(
+                ReferencableMethodSet(parent, "parentStatic"),
+                impl.resolveReferencableItem("parentStatic", NameClassification.AMBIGUOUS),
+            )
+            assertEquals(
+                ReferencableMethodSet(parent, "parentStatic"),
+                impl.resolveReferencableItem("Impl.parentStatic", NameClassification.AMBIGUOUS),
+            )
+
+            // TODO(b/447588621): Exclude static methods from strict superinterfaces so these
+            //  return InvalidReferencableItem instead of resolving to SuperInterface.staticHelper.
+            assertEquals(
+                ReferencableMethodSet(superInterface, "staticHelper"),
+                impl.resolveReferencableItem("staticHelper", NameClassification.AMBIGUOUS),
+            )
+            assertEquals(
+                ReferencableMethodSet(superInterface, "staticHelper"),
+                impl.resolveReferencableItem("Impl.staticHelper", NameClassification.AMBIGUOUS),
+            )
+            assertEquals(
+                ReferencableMethodSet(superInterface, "staticHelper"),
+                subInterface.resolveReferencableItem("staticHelper", NameClassification.AMBIGUOUS),
+            )
+            assertEquals(
+                ReferencableMethodSet(superInterface, "staticHelper"),
+                impl.resolveReferencableItem(
+                    "SubInterface.staticHelper",
+                    NameClassification.AMBIGUOUS,
+                ),
+            )
+        }
+    }
 }
